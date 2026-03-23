@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calibrate Pro - Professional Sensorless Display Calibration</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --coral: #E8A87C; --sand: #D4A373; --bg: #121212; --surface: #1E1E1E; --card: #252525; --text: #E0E0E0; --muted: #9E9E9E; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  a { color: var(--coral); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 5rem 1.5rem 4rem; background: linear-gradient(160deg, #1a1410 0%, var(--bg) 100%); }
+  .hero h1 { font-size: 3rem; font-weight: 700; letter-spacing: -0.02em; }
+  .hero h1 span { color: var(--coral); }
+  .hero .tagline { font-size: 1.25rem; color: var(--muted); margin: 0.75rem 0 2rem; }
+  .btn { display: inline-block; padding: 0.75rem 2rem; border-radius: 6px; font-weight: 600; font-size: 1rem; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.85; text-decoration: none; }
+  .btn-primary { background: var(--coral); color: #121212; }
+  .btn-outline { border: 2px solid var(--sand); color: var(--sand); margin-left: 0.75rem; }
+
+  /* Sections */
+  section { padding: 4rem 0; }
+  section h2 { font-size: 1.75rem; text-align: center; margin-bottom: 2.5rem; }
+  section h2 span { color: var(--coral); }
+
+  /* Features grid */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; }
+  .card { background: var(--card); border: 1px solid #333; border-radius: 8px; padding: 1.5rem; }
+  .card h3 { color: var(--sand); margin-bottom: 0.5rem; font-size: 1.05rem; }
+  .card p { color: var(--muted); font-size: 0.9rem; }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; text-align: center; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--coral); color: var(--bg); font-weight: 700; font-size: 1.1rem; margin-bottom: 0.75rem; }
+  .step h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+  .step p { color: var(--muted); font-size: 0.85rem; }
+
+  /* Requirements */
+  .req-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; list-style: none; }
+  .req-list li { background: var(--card); border: 1px solid #333; border-radius: 6px; padding: 0.6rem 1.25rem; font-size: 0.9rem; }
+  .req-list li strong { color: var(--sand); }
+
+  /* Quick Start */
+  .quickstart { background: var(--surface); border-radius: 8px; padding: 2rem; max-width: 640px; margin: 0 auto; }
+  .quickstart h3 { font-size: 1rem; color: var(--sand); margin: 1.25rem 0 0.5rem; }
+  .quickstart h3:first-child { margin-top: 0; }
+  pre { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 1rem; overflow-x: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.85rem; color: var(--text); margin-bottom: 0.5rem; }
+  pre .comment { color: #6A9955; }
+
+  /* Footer */
+  footer { text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid #2a2a2a; color: var(--muted); font-size: 0.85rem; }
+  footer a { color: var(--sand); }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2rem; }
+    .hero .tagline { font-size: 1rem; }
+    .btn-outline { margin-left: 0; margin-top: 0.75rem; }
+    section { padding: 3rem 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1>Calibrate <span>Pro</span></h1>
+    <p class="tagline">Professional Sensorless Display Calibration</p>
+    <p style="color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem;">
+      Detect, characterize, and calibrate your displays with panel-accurate color<br>
+      correction &mdash; no colorimeter required.
+    </p>
+    <a href="https://github.com/zain-harper/calibrate-pro/releases" class="btn btn-primary">Download</a>
+    <a href="https://github.com/zain-harper/calibrate-pro" class="btn btn-outline">View on GitHub</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+    <h2>Key <span>Features</span></h2>
+    <div class="features">
+      <div class="card">
+        <h3>58-Panel Database</h3>
+        <p>Characterized display profiles covering OLED, QD-OLED, IPS, and VA panels with predicted dE &lt; 1.0 accuracy.</p>
+      </div>
+      <div class="card">
+        <h3>DDC/CI Hardware Control</h3>
+        <p>Touch-free OSD configuration &mdash; picture mode, color preset, gamma, brightness, and RGB gains via DDC/CI.</p>
+      </div>
+      <div class="card">
+        <h3>3D LUT Generation</h3>
+        <p>Residual correction 3D LUTs applied system-wide through DWM with VCGT gamma ramp fallback.</p>
+      </div>
+      <div class="card">
+        <h3>ICC Profile Export</h3>
+        <p>ICC v4 profiles with per-channel TRC and measured primaries, installed automatically for system-wide color management.</p>
+      </div>
+      <div class="card">
+        <h3>Sensorless Mode</h3>
+        <p>Full calibration without a colorimeter using panel-database characterization. Optional i1Display3 for measured accuracy.</p>
+      </div>
+      <div class="card">
+        <h3>CalibrationGuard Watchdog</h3>
+        <p>15-second watchdog prevents Windows from resetting your calibration. Persists across reboots via startup integration.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--surface);">
+  <div class="container">
+    <h2>How It <span>Works</span></h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Detect</h3>
+        <p>Identify connected displays and match to the panel database via EDID.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Characterize</h3>
+        <p>Configure monitor OSD settings and adjust hardware controls via DDC/CI.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Calibrate</h3>
+        <p>Generate a correction 3D LUT and ICC profile from panel or sensor data.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Verify</h3>
+        <p>CalibrationGuard locks in your settings and protects against OS resets.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>System <span>Requirements</span></h2>
+    <ul class="req-list">
+      <li><strong>OS:</strong> Windows 10 / 11</li>
+      <li><strong>Python:</strong> 3.10+</li>
+      <li><strong>GUI:</strong> PyQt6</li>
+      <li><strong>Sensor:</strong> Optional &mdash; i1Display3 family</li>
+    </ul>
+  </div>
+</section>
+
+<section style="background: var(--surface);">
+  <div class="container">
+    <h2>Quick <span>Start</span></h2>
+    <div class="quickstart">
+      <h3>Install</h3>
+      <pre>pip install ".[all]"</pre>
+      <h3>Launch GUI</h3>
+      <pre>calibrate-pro</pre>
+      <h3>CLI Usage</h3>
+      <pre>calibrate-pro auto          <span class="comment"># Calibrate all displays (sensorless)</span>
+calibrate-pro detect        <span class="comment"># Show connected displays + sensors</span>
+calibrate-pro ddc-info      <span class="comment"># Show DDC/CI capabilities per monitor</span></pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2022&ndash;2026 Zain Dana Harper &middot;
+      <a href="https://github.com/zain-harper/calibrate-pro">GitHub</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
