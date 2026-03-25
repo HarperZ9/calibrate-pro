@@ -12,9 +12,10 @@ Usage::
     displays = backend.enumerate_displays()
     backend.apply_gamma_ramp(0, red, green, blue)
 
-Currently only the Windows backend is fully implemented.  macOS and Linux
-backends are stubs with ``NotImplementedError`` and comments indicating
-which native APIs to use for a future implementation.
+All three platform backends (Windows, macOS, Linux) are fully implemented:
+- Windows: Win32 / GDI / MSCMS via calibrate_pro.panels.detection
+- macOS: CoreGraphics / IOKit / ColorSync via pyobjc
+- Linux: xrandr / python-xlib / colord / DRM sysfs
 """
 
 from __future__ import annotations
@@ -37,9 +38,8 @@ def get_platform_backend() -> "PlatformBackend":
 
     Raises
     ------
-    NotImplementedError
-        If the current platform is not yet supported (macOS, Linux stubs
-        will raise on individual method calls).
+    RuntimeError
+        If the current platform is not recognized.
     """
     if sys.platform == "win32":
         from calibrate_pro.platform.windows import WindowsBackend
@@ -47,9 +47,14 @@ def get_platform_backend() -> "PlatformBackend":
     elif sys.platform == "darwin":
         from calibrate_pro.platform.macos import MacOSBackend
         return MacOSBackend()
-    else:
+    elif sys.platform.startswith("linux"):
         from calibrate_pro.platform.linux import LinuxBackend
         return LinuxBackend()
+    else:
+        raise RuntimeError(
+            f"Unsupported platform: {sys.platform}. "
+            "Calibrate Pro supports win32, darwin, and linux."
+        )
 
 
 __all__ = ["get_platform_backend"]

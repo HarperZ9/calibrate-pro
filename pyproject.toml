@@ -15,6 +15,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
+    "quanta-color>=1.0.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -26,8 +27,13 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 
+[project.urls]
+Homepage = "https://github.com/HarperZ9/calibrate-pro"
+Repository = "https://github.com/HarperZ9/calibrate-pro"
+Issues = "https://github.com/HarperZ9/calibrate-pro/issues"
+
 [project.optional-dependencies]
-gui = ["PyQt6>=6.5,<7"]
+gui = ["PyQt6>=6.5,<7", "quanta-ui>=1.0.0"]
 tray = ["pystray>=0.19.4", "Pillow>=10.0,<11"]
 sensor = ["hidapi>=0.14,<1"]
 macos = ["pyobjc-framework-Quartz>=9.0,<11", "pyobjc-framework-CoreFoundation>=9.0,<11"]

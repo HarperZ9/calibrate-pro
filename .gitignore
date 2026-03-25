@@ -10,3 +10,24 @@ build/
 .DS_Store
 Thumbs.db
 *.log
+
+# Environment
+.env
+.env.*
+
+# Eggs
+.eggs/
+
+# Coverage
+htmlcov/
+.coverage
+
+# Compiled QuantaLang
+*.obj
+
+# Claude
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Node
+node_modules/
