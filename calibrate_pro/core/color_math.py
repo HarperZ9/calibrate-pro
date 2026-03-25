@@ -12,6 +12,16 @@ from dataclasses import dataclass
 from typing import Tuple, Union, Optional
 import math
 
+from quanta_color import spaces as _qc_spaces
+from quanta_color import adaptation as _qc_adapt
+from quanta_color import difference as _qc_diff
+from quanta_color import gamut as _qc_gamut
+
+
+def _illuminant_to_array(ill: 'Illuminant') -> np.ndarray:
+    """Convert Calibrate Pro Illuminant to numpy array for quanta_color."""
+    return np.array([ill.X, ill.Y, ill.Z])
+
 # =============================================================================
 # Standard Illuminants (CIE 1931 2-degree observer)
 # =============================================================================
@@ -113,63 +123,18 @@ def bradford_adapt(
     """
     if source_white == dest_white:
         return xyz.copy()
-
-    # Convert white points to cone response
-    source_xyz = np.array([source_white.X, source_white.Y, source_white.Z])
-    dest_xyz = np.array([dest_white.X, dest_white.Y, dest_white.Z])
-
-    source_cone = BRADFORD_MATRIX @ source_xyz
-    dest_cone = BRADFORD_MATRIX @ dest_xyz
-
-    # Build adaptation matrix
-    scale = np.diag(dest_cone / source_cone)
-    adaptation_matrix = BRADFORD_INVERSE @ scale @ BRADFORD_MATRIX
-
-    # Apply adaptation
-    if xyz.ndim == 1:
-        return adaptation_matrix @ xyz
-    else:
-        return (adaptation_matrix @ xyz.T).T
+    return _qc_adapt.adapt(np.asarray(xyz, dtype=np.float64), _illuminant_to_array(source_white), _illuminant_to_array(dest_white), method="bradford")
 
 def get_adaptation_matrix(
     source_white: Illuminant,
     dest_white: Illuminant
 ) -> np.ndarray:
     """Get the 3x3 Bradford adaptation matrix for the given white points."""
-    source_xyz = np.array([source_white.X, source_white.Y, source_white.Z])
-    dest_xyz = np.array([dest_white.X, dest_white.Y, dest_white.Z])
-
-    source_cone = BRADFORD_MATRIX @ source_xyz
-    dest_cone = BRADFORD_MATRIX @ dest_xyz
-
-    scale = np.diag(dest_cone / source_cone)
-    return BRADFORD_INVERSE @ scale @ BRADFORD_MATRIX
+    return _qc_adapt.get_adaptation_matrix(_illuminant_to_array(source_white), _illuminant_to_array(dest_white), method="bradford")
 
 # =============================================================================
 # XYZ <-> Lab Conversions
 # =============================================================================
-
-def _lab_f(t: np.ndarray) -> np.ndarray:
-    """Forward transformation function for XYZ to Lab."""
-    delta = 6.0 / 29.0
-    delta_sq = delta ** 2
-    delta_cu = delta ** 3
-
-    mask = t > delta_cu
-    result = np.zeros_like(t)
-    result[mask] = np.cbrt(t[mask])
-    result[~mask] = t[~mask] / (3 * delta_sq) + 4.0 / 29.0
-    return result
-
-def _lab_f_inv(t: np.ndarray) -> np.ndarray:
-    """Inverse transformation function for Lab to XYZ."""
-    delta = 6.0 / 29.0
-
-    mask = t > delta
-    result = np.zeros_like(t)
-    result[mask] = t[mask] ** 3
-    result[~mask] = 3 * (delta ** 2) * (t[~mask] - 4.0 / 29.0)
-    return result
 
 def xyz_to_lab(
     xyz: np.ndarray,
@@ -185,23 +150,7 @@ def xyz_to_lab(
     Returns:
         Lab values as (3,) or (N, 3) array
     """
-    xyz = np.asarray(xyz, dtype=np.float64)
-    ref = np.array([illuminant.X, illuminant.Y, illuminant.Z])
-
-    if xyz.ndim == 1:
-        normalized = xyz / ref
-        f = _lab_f(normalized)
-        L = 116.0 * f[1] - 16.0
-        a = 500.0 * (f[0] - f[1])
-        b = 200.0 * (f[1] - f[2])
-        return np.array([L, a, b])
-    else:
-        normalized = xyz / ref
-        f = _lab_f(normalized)
-        L = 116.0 * f[:, 1] - 16.0
-        a = 500.0 * (f[:, 0] - f[:, 1])
-        b = 200.0 * (f[:, 1] - f[:, 2])
-        return np.column_stack([L, a, b])
+    return _qc_spaces.xyz_to_lab(np.asarray(xyz, dtype=np.float64), white=_illuminant_to_array(illuminant))
 
 def lab_to_xyz(
     lab: np.ndarray,
@@ -217,27 +166,7 @@ def lab_to_xyz(
     Returns:
         XYZ values as (3,) or (N, 3) array
     """
-    lab = np.asarray(lab, dtype=np.float64)
-    ref = np.array([illuminant.X, illuminant.Y, illuminant.Z])
-
-    if lab.ndim == 1:
-        L, a, b = lab
-        fy = (L + 16.0) / 116.0
-        fx = a / 500.0 + fy
-        fz = fy - b / 200.0
-
-        f = np.array([fx, fy, fz])
-        xyz = _lab_f_inv(f) * ref
-        return xyz
-    else:
-        L, a, b = lab[:, 0], lab[:, 1], lab[:, 2]
-        fy = (L + 16.0) / 116.0
-        fx = a / 500.0 + fy
-        fz = fy - b / 200.0
-
-        f = np.column_stack([fx, fy, fz])
-        xyz = _lab_f_inv(f) * ref
-        return xyz
+    return _qc_spaces.lab_to_xyz(np.asarray(lab, dtype=np.float64), white=_illuminant_to_array(illuminant))
 
 # =============================================================================
 # sRGB <-> XYZ Conversions
@@ -249,14 +178,7 @@ def srgb_gamma_expand(rgb: np.ndarray) -> np.ndarray:
 
     Follows IEC 61966-2-1 specification.
     """
-    rgb = np.asarray(rgb, dtype=np.float64)
-    linear = np.zeros_like(rgb)
-
-    mask = rgb <= 0.04045
-    linear[mask] = rgb[mask] / 12.92
-    linear[~mask] = ((rgb[~mask] + 0.055) / 1.055) ** 2.4
-
-    return linear
+    return _qc_spaces.srgb_to_linear(np.asarray(rgb, dtype=np.float64))
 
 def srgb_gamma_compress(linear: np.ndarray) -> np.ndarray:
     """
@@ -264,14 +186,7 @@ def srgb_gamma_compress(linear: np.ndarray) -> np.ndarray:
 
     Follows IEC 61966-2-1 specification.
     """
-    linear = np.asarray(linear, dtype=np.float64)
-    srgb = np.zeros_like(linear)
-
-    mask = linear <= 0.0031308
-    srgb[mask] = linear[mask] * 12.92
-    srgb[~mask] = 1.055 * np.power(linear[~mask], 1.0 / 2.4) - 0.055
-
-    return np.clip(srgb, 0.0, 1.0)
+    return _qc_spaces.linear_to_srgb(np.asarray(linear, dtype=np.float64))
 
 def srgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     """
@@ -283,13 +198,7 @@ def srgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     Returns:
         XYZ values (D65)
     """
-    rgb = np.asarray(rgb, dtype=np.float64)
-    linear = srgb_gamma_expand(rgb)
-
-    if linear.ndim == 1:
-        return SRGB_TO_XYZ @ linear
-    else:
-        return (SRGB_TO_XYZ @ linear.T).T
+    return _qc_spaces.srgb_to_xyz(np.asarray(rgb, dtype=np.float64))
 
 def xyz_to_srgb(xyz: np.ndarray, clip: bool = True) -> np.ndarray:
     """
@@ -302,17 +211,7 @@ def xyz_to_srgb(xyz: np.ndarray, clip: bool = True) -> np.ndarray:
     Returns:
         sRGB values in [0, 1] range
     """
-    xyz = np.asarray(xyz, dtype=np.float64)
-
-    if xyz.ndim == 1:
-        linear = XYZ_TO_SRGB @ xyz
-    else:
-        linear = (XYZ_TO_SRGB @ xyz.T).T
-
-    if clip:
-        linear = np.clip(linear, 0.0, None)
-
-    return srgb_gamma_compress(linear)
+    return _qc_spaces.xyz_to_srgb(np.asarray(xyz, dtype=np.float64), clip=clip)
 
 # =============================================================================
 # Lab <-> sRGB Conversions (via XYZ)
@@ -397,94 +296,12 @@ def delta_e_2000(
     """
     lab1 = np.asarray(lab1, dtype=np.float64)
     lab2 = np.asarray(lab2, dtype=np.float64)
-
     single = lab1.ndim == 1
     if single:
         lab1 = lab1.reshape(1, 3)
         lab2 = lab2.reshape(1, 3)
-
-    L1, a1, b1 = lab1[:, 0], lab1[:, 1], lab1[:, 2]
-    L2, a2, b2 = lab2[:, 0], lab2[:, 1], lab2[:, 2]
-
-    # Step 1: Calculate C'ab and h'ab
-    C1 = np.sqrt(a1**2 + b1**2)
-    C2 = np.sqrt(a2**2 + b2**2)
-    C_avg = (C1 + C2) / 2.0
-
-    C_avg_7 = C_avg ** 7
-    G = 0.5 * (1.0 - np.sqrt(C_avg_7 / (C_avg_7 + 25.0**7)))
-
-    a1_prime = a1 * (1.0 + G)
-    a2_prime = a2 * (1.0 + G)
-
-    C1_prime = np.sqrt(a1_prime**2 + b1**2)
-    C2_prime = np.sqrt(a2_prime**2 + b2**2)
-
-    h1_prime = np.degrees(np.arctan2(b1, a1_prime)) % 360.0
-    h2_prime = np.degrees(np.arctan2(b2, a2_prime)) % 360.0
-
-    # Step 2: Calculate delta values
-    delta_L_prime = L2 - L1
-    delta_C_prime = C2_prime - C1_prime
-
-    delta_h_prime = np.zeros_like(h1_prime)
-    h_diff = h2_prime - h1_prime
-
-    mask1 = (C1_prime * C2_prime) == 0
-    mask2 = np.abs(h_diff) <= 180.0
-    mask3 = h_diff > 180.0
-    mask4 = h_diff < -180.0
-
-    delta_h_prime[mask1] = 0.0
-    delta_h_prime[mask2 & ~mask1] = h_diff[mask2 & ~mask1]
-    delta_h_prime[mask3 & ~mask1] = h_diff[mask3 & ~mask1] - 360.0
-    delta_h_prime[mask4 & ~mask1] = h_diff[mask4 & ~mask1] + 360.0
-
-    delta_H_prime = 2.0 * np.sqrt(C1_prime * C2_prime) * np.sin(np.radians(delta_h_prime / 2.0))
-
-    # Step 3: Calculate CIEDE2000
-    L_avg_prime = (L1 + L2) / 2.0
-    C_avg_prime = (C1_prime + C2_prime) / 2.0
-
-    h_avg_prime = np.zeros_like(h1_prime)
-    h_sum = h1_prime + h2_prime
-
-    mask_a = (C1_prime * C2_prime) == 0
-    mask_b = np.abs(h1_prime - h2_prime) <= 180.0
-    mask_c = np.abs(h1_prime - h2_prime) > 180.0
-
-    h_avg_prime[mask_a] = h_sum[mask_a]
-    h_avg_prime[mask_b & ~mask_a] = h_sum[mask_b & ~mask_a] / 2.0
-    h_avg_prime[mask_c & ~mask_a & (h_sum < 360)] = (h_sum[mask_c & ~mask_a & (h_sum < 360)] + 360.0) / 2.0
-    h_avg_prime[mask_c & ~mask_a & (h_sum >= 360)] = (h_sum[mask_c & ~mask_a & (h_sum >= 360)] - 360.0) / 2.0
-
-    T = (1.0 - 0.17 * np.cos(np.radians(h_avg_prime - 30.0))
-         + 0.24 * np.cos(np.radians(2.0 * h_avg_prime))
-         + 0.32 * np.cos(np.radians(3.0 * h_avg_prime + 6.0))
-         - 0.20 * np.cos(np.radians(4.0 * h_avg_prime - 63.0)))
-
-    delta_theta = 30.0 * np.exp(-((h_avg_prime - 275.0) / 25.0) ** 2)
-
-    C_avg_prime_7 = C_avg_prime ** 7
-    R_C = 2.0 * np.sqrt(C_avg_prime_7 / (C_avg_prime_7 + 25.0**7))
-
-    L_avg_prime_50_sq = (L_avg_prime - 50.0) ** 2
-    S_L = 1.0 + (0.015 * L_avg_prime_50_sq) / np.sqrt(20.0 + L_avg_prime_50_sq)
-    S_C = 1.0 + 0.045 * C_avg_prime
-    S_H = 1.0 + 0.015 * C_avg_prime * T
-
-    R_T = -np.sin(np.radians(2.0 * delta_theta)) * R_C
-
-    delta_E = np.sqrt(
-        (delta_L_prime / (kL * S_L)) ** 2
-        + (delta_C_prime / (kC * S_C)) ** 2
-        + (delta_H_prime / (kH * S_H)) ** 2
-        + R_T * (delta_C_prime / (kC * S_C)) * (delta_H_prime / (kH * S_H))
-    )
-
-    if single:
-        return float(delta_E[0])
-    return delta_E
+    result = _qc_diff.delta_e_2000(lab1, lab2, kL=kL, kC=kC, kH=kH)
+    return float(result[0]) if single else result
 
 # =============================================================================
 # Gamma and Transfer Functions
@@ -541,18 +358,7 @@ def xyz_to_xyY(xyz: np.ndarray) -> np.ndarray:
     Returns:
         xyY values where x, y are chromaticity coordinates and Y is luminance
     """
-    xyz = np.asarray(xyz, dtype=np.float64)
-
-    if xyz.ndim == 1:
-        s = xyz.sum()
-        if s == 0:
-            return np.array([0.3127, 0.3290, 0.0])  # D65 chromaticity, zero luminance
-        return np.array([xyz[0] / s, xyz[1] / s, xyz[1]])
-    else:
-        s = xyz.sum(axis=1, keepdims=True)
-        s = np.where(s == 0, 1, s)  # Avoid division by zero
-        xy = xyz[:, :2] / s
-        return np.column_stack([xy[:, 0], xy[:, 1], xyz[:, 1]])
+    return _qc_spaces.xyz_to_xyY(np.asarray(xyz, dtype=np.float64))
 
 def xyY_to_xyz(xyY: np.ndarray) -> np.ndarray:
     """
@@ -564,23 +370,7 @@ def xyY_to_xyz(xyY: np.ndarray) -> np.ndarray:
     Returns:
         XYZ values
     """
-    xyY = np.asarray(xyY, dtype=np.float64)
-
-    if xyY.ndim == 1:
-        x, y, Y = xyY
-        if y == 0:
-            return np.array([0.0, 0.0, 0.0])
-        X = (x / y) * Y
-        Z = ((1.0 - x - y) / y) * Y
-        return np.array([X, Y, Z])
-    else:
-        x, y, Y = xyY[:, 0], xyY[:, 1], xyY[:, 2]
-        y_safe = np.where(y == 0, 1, y)
-        X = (x / y_safe) * Y
-        Z = ((1.0 - x - y) / y_safe) * Y
-        X = np.where(y == 0, 0, X)
-        Z = np.where(y == 0, 0, Z)
-        return np.column_stack([X, Y, Z])
+    return _qc_spaces.xyY_to_xyz(np.asarray(xyY, dtype=np.float64))
 
 # =============================================================================
 # CCT (Correlated Color Temperature) Calculations
@@ -598,9 +388,7 @@ def xy_to_cct(x: float, y: float) -> float:
     Returns:
         CCT in Kelvin
     """
-    n = (x - 0.3320) / (0.1858 - y)
-    cct = 449.0 * n**3 + 3525.0 * n**2 + 6823.3 * n + 5520.33
-    return cct
+    return _qc_adapt.xy_to_cct_mccamy(x, y)
 
 def cct_to_xy(cct: float) -> Tuple[float, float]:
     """
@@ -614,19 +402,7 @@ def cct_to_xy(cct: float) -> Tuple[float, float]:
     Returns:
         (x, y) chromaticity coordinates
     """
-    if cct < 4000:
-        # Low CCT - use Planckian approximation
-        x = (-0.2661239e9 / cct**3 - 0.2343589e6 / cct**2
-             + 0.8776956e3 / cct + 0.179910)
-    elif cct <= 7000:
-        x = (-4.6070e9 / cct**3 + 2.9678e6 / cct**2
-             + 0.09911e3 / cct + 0.244063)
-    else:
-        x = (-2.0064e9 / cct**3 + 1.9018e6 / cct**2
-             + 0.24748e3 / cct + 0.237040)
-
-    y = -3.0 * x**2 + 2.87 * x - 0.275
-    return (x, y)
+    return _qc_adapt.cct_to_xy(cct)
 
 # =============================================================================
 # Gamut Utilities
@@ -643,16 +419,11 @@ def is_in_gamut(rgb: np.ndarray, tolerance: float = 0.0) -> Union[bool, np.ndarr
     Returns:
         Boolean or array of booleans
     """
-    rgb = np.asarray(rgb, dtype=np.float64)
-
-    if rgb.ndim == 1:
-        return bool(np.all((rgb >= -tolerance) & (rgb <= 1.0 + tolerance)))
-    else:
-        return np.all((rgb >= -tolerance) & (rgb <= 1.0 + tolerance), axis=1)
+    return _qc_gamut.is_in_gamut(np.asarray(rgb, dtype=np.float64), tolerance=tolerance)
 
 def gamut_clip(rgb: np.ndarray) -> np.ndarray:
     """Simple RGB clipping to [0, 1] range."""
-    return np.clip(rgb, 0.0, 1.0)
+    return _qc_gamut.clip(np.asarray(rgb, dtype=np.float64))
 
 def gamut_compress(
     rgb: np.ndarray,
@@ -739,26 +510,7 @@ def linear_srgb_to_oklab(rgb: np.ndarray) -> np.ndarray:
     Returns:
         Oklab [L, a, b] where L in [0,1]
     """
-    rgb = np.asarray(rgb, dtype=np.float64)
-    single = rgb.ndim == 1
-
-    if single:
-        rgb = rgb.reshape(1, 3)
-
-    l = 0.4122214708 * rgb[:, 0] + 0.5363325363 * rgb[:, 1] + 0.0514459929 * rgb[:, 2]
-    m = 0.2119034982 * rgb[:, 0] + 0.6806995451 * rgb[:, 1] + 0.1073969566 * rgb[:, 2]
-    s = 0.0883024619 * rgb[:, 0] + 0.2817188376 * rgb[:, 1] + 0.6299787005 * rgb[:, 2]
-
-    l_ = np.cbrt(l)
-    m_ = np.cbrt(m)
-    s_ = np.cbrt(s)
-
-    L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
-    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
-    b = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
-
-    result = np.column_stack([L, a, b])
-    return result[0] if single else result
+    return _qc_spaces.linear_srgb_to_oklab(np.asarray(rgb, dtype=np.float64))
 
 
 def oklab_to_linear_srgb(lab: np.ndarray) -> np.ndarray:
@@ -770,59 +522,17 @@ def oklab_to_linear_srgb(lab: np.ndarray) -> np.ndarray:
     Returns:
         Linear sRGB
     """
-    lab = np.asarray(lab, dtype=np.float64)
-    single = lab.ndim == 1
-
-    if single:
-        lab = lab.reshape(1, 3)
-
-    L, a, b = lab[:, 0], lab[:, 1], lab[:, 2]
-
-    l_ = L + 0.3963377774 * a + 0.2158037573 * b
-    m_ = L - 0.1055613458 * a - 0.0638541728 * b
-    s_ = L - 0.0894841775 * a - 1.2914855480 * b
-
-    l = l_ * l_ * l_
-    m = m_ * m_ * m_
-    s = s_ * s_ * s_
-
-    r =  4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
-    g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
-    b_out = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
-
-    result = np.column_stack([r, g, b_out])
-    return result[0] if single else result
+    return _qc_spaces.oklab_to_linear_srgb(np.asarray(lab, dtype=np.float64))
 
 
 def oklab_to_oklch(lab: np.ndarray) -> np.ndarray:
     """Convert Oklab to Oklch (cylindrical: L, C, h in degrees)."""
-    lab = np.asarray(lab, dtype=np.float64)
-    single = lab.ndim == 1
-    if single:
-        lab = lab.reshape(1, 3)
-
-    L = lab[:, 0]
-    C = np.sqrt(lab[:, 1]**2 + lab[:, 2]**2)
-    h = np.degrees(np.arctan2(lab[:, 2], lab[:, 1])) % 360.0
-
-    result = np.column_stack([L, C, h])
-    return result[0] if single else result
+    return _qc_spaces.oklab_to_oklch(np.asarray(lab, dtype=np.float64))
 
 
 def oklch_to_oklab(lch: np.ndarray) -> np.ndarray:
     """Convert Oklch to Oklab."""
-    lch = np.asarray(lch, dtype=np.float64)
-    single = lch.ndim == 1
-    if single:
-        lch = lch.reshape(1, 3)
-
-    L = lch[:, 0]
-    h_rad = np.radians(lch[:, 2])
-    a = lch[:, 1] * np.cos(h_rad)
-    b = lch[:, 1] * np.sin(h_rad)
-
-    result = np.column_stack([L, a, b])
-    return result[0] if single else result
+    return _qc_spaces.oklch_to_oklab(np.asarray(lch, dtype=np.float64))
 
 
 # =============================================================================
