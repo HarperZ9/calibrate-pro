@@ -12,16 +12,24 @@ Displays detailed calibration information for each monitor including:
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
 
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QGroupBox, QGridLayout, QPushButton, QScrollArea,
-    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-    QProgressBar, QSizePolicy, QMessageBox
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QColor
 
 # Colors matching main theme
 COLORS = {
@@ -171,9 +179,9 @@ class CalibrationProfileCard(QFrame):
             import sys
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+            from calibrate_pro.lut_system.dwm_lut import DwmLutController
             from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
             from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.lut_system.dwm_lut import DwmLutController
 
             manager = PerDisplayCalibrationManager()
             db = PanelDatabase()
@@ -314,8 +322,8 @@ class CalibrationProfileCard(QFrame):
     def _reload_lut(self):
         """Reload the LUT for this display."""
         try:
-            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
 
             manager = PerDisplayCalibrationManager()
             dwm = DwmLutController()
@@ -339,9 +347,7 @@ class CalibrationProfileCard(QFrame):
     def _recalibrate(self):
         """Trigger recalibration for this display."""
         try:
-            from calibrate_pro.lut_system.per_display_calibration import (
-                PerDisplayCalibrationManager, CalibrationTarget
-            )
+            from calibrate_pro.lut_system.per_display_calibration import CalibrationTarget, PerDisplayCalibrationManager
 
             manager = PerDisplayCalibrationManager()
             success = manager.calibrate_display(self.display_id, CalibrationTarget.SRGB)

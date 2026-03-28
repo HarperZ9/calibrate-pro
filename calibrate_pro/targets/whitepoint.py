@@ -12,10 +12,10 @@ Supports:
 For professional colorists and enthusiasts.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List
+from dataclasses import dataclass
 from enum import Enum
+
+import numpy as np
 
 
 class WhitepointPreset(Enum):
@@ -44,7 +44,7 @@ class WhitepointPreset(Enum):
 
 
 # Standard illuminant chromaticity coordinates (x, y)
-ILLUMINANT_XY: Dict[str, Tuple[float, float]] = {
+ILLUMINANT_XY: dict[str, tuple[float, float]] = {
     # CIE D-series (daylight)
     "D50": (0.34567, 0.35850),
     "D55": (0.33242, 0.34743),
@@ -65,7 +65,7 @@ ILLUMINANT_XY: Dict[str, Tuple[float, float]] = {
 }
 
 # CCT values for standard illuminants
-ILLUMINANT_CCT: Dict[str, int] = {
+ILLUMINANT_CCT: dict[str, int] = {
     "A": 2856,
     "B": 4874,
     "C": 6774,
@@ -80,7 +80,7 @@ ILLUMINANT_CCT: Dict[str, int] = {
 }
 
 
-def planckian_locus_xy(cct: float) -> Tuple[float, float]:
+def planckian_locus_xy(cct: float) -> tuple[float, float]:
     """
     Calculate xy chromaticity on the Planckian (blackbody) locus.
 
@@ -110,7 +110,7 @@ def planckian_locus_xy(cct: float) -> Tuple[float, float]:
     return (x, y)
 
 
-def daylight_locus_xy(cct: float) -> Tuple[float, float]:
+def daylight_locus_xy(cct: float) -> tuple[float, float]:
     """
     Calculate xy chromaticity on the CIE daylight locus.
 
@@ -139,7 +139,7 @@ def daylight_locus_xy(cct: float) -> Tuple[float, float]:
     return (x, y)
 
 
-def cct_to_xy(cct: float, daylight: bool = True, duv: float = 0.0) -> Tuple[float, float]:
+def cct_to_xy(cct: float, daylight: bool = True, duv: float = 0.0) -> tuple[float, float]:
     """
     Convert CCT to xy chromaticity with optional Duv offset.
 
@@ -163,7 +163,7 @@ def cct_to_xy(cct: float, daylight: bool = True, duv: float = 0.0) -> Tuple[floa
     return (x, y)
 
 
-def apply_duv_offset(x: float, y: float, cct: float, duv: float) -> Tuple[float, float]:
+def apply_duv_offset(x: float, y: float, cct: float, duv: float) -> tuple[float, float]:
     """
     Apply Duv offset perpendicular to the Planckian locus.
 
@@ -196,7 +196,7 @@ def apply_duv_offset(x: float, y: float, cct: float, duv: float) -> Tuple[float,
     return (x_new, y_new)
 
 
-def xy_to_cct(x: float, y: float) -> Tuple[float, float]:
+def xy_to_cct(x: float, y: float) -> tuple[float, float]:
     """
     Calculate CCT and Duv from xy chromaticity.
 
@@ -246,7 +246,7 @@ def xy_to_XYZ(x: float, y: float, Y: float = 1.0) -> np.ndarray:
     return np.array([X, Y, Z])
 
 
-def XYZ_to_xy(XYZ: np.ndarray) -> Tuple[float, float]:
+def XYZ_to_xy(XYZ: np.ndarray) -> tuple[float, float]:
     """Convert XYZ to xy chromaticity."""
     total = XYZ[0] + XYZ[1] + XYZ[2]
     if total == 0:
@@ -274,9 +274,9 @@ class WhitepointTarget:
         tolerance: Acceptable Delta uv for verification
     """
     preset: WhitepointPreset = WhitepointPreset.D65
-    cct: Optional[float] = None
+    cct: float | None = None
     duv: float = 0.0
-    xy: Optional[Tuple[float, float]] = None
+    xy: tuple[float, float] | None = None
     use_daylight_locus: bool = True
     tolerance: float = 0.005  # Delta uv tolerance
 
@@ -288,7 +288,7 @@ class WhitepointTarget:
         if not self.name:
             self.name = self.preset.value
 
-    def get_xy(self) -> Tuple[float, float]:
+    def get_xy(self) -> tuple[float, float]:
         """Get target xy chromaticity."""
         # Priority: direct xy > CCT > preset
         if self.xy is not None:
@@ -327,7 +327,7 @@ class WhitepointTarget:
         x, y = self.get_xy()
         return xy_to_XYZ(x, y, Y)
 
-    def verify(self, measured_xy: Tuple[float, float]) -> Dict:
+    def verify(self, measured_xy: tuple[float, float]) -> dict:
         """
         Verify measured white point against target.
 
@@ -378,7 +378,7 @@ class WhitepointTarget:
         else:
             return "Uncalibrated"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "preset": self.preset.value,
@@ -392,7 +392,7 @@ class WhitepointTarget:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "WhitepointTarget":
+    def from_dict(cls, data: dict) -> "WhitepointTarget":
         """Create from dictionary."""
         return cls(
             preset=WhitepointPreset(data.get("preset", "D65")),
@@ -444,7 +444,7 @@ WHITEPOINT_D75 = WhitepointTarget(
 )
 
 
-def get_whitepoint_presets() -> List[WhitepointTarget]:
+def get_whitepoint_presets() -> list[WhitepointTarget]:
     """Get list of standard white point presets."""
     return [
         WHITEPOINT_D65,
@@ -459,8 +459,8 @@ def get_whitepoint_presets() -> List[WhitepointTarget]:
 
 
 def create_custom_whitepoint(
-    cct: Optional[float] = None,
-    xy: Optional[Tuple[float, float]] = None,
+    cct: float | None = None,
+    xy: tuple[float, float] | None = None,
     duv: float = 0.0,
     name: str = "Custom"
 ) -> WhitepointTarget:

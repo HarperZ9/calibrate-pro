@@ -9,20 +9,14 @@ Interactive visualization of the CIE 1931 xy chromaticity space with:
 - Mouse interaction: hover tooltips, wheel zoom, click-drag pan
 """
 
-from typing import Optional, List, Tuple, Dict
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass
 
-from PyQt6.QtWidgets import QWidget, QSizePolicy, QToolTip
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, QSize
-from PyQt6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QPainterPath,
-    QPolygonF, QFont, QImage, QPixmap, QMouseEvent, QWheelEvent,
-    QTransform
-)
+from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QMouseEvent, QPainter, QPainterPath, QPen, QPolygonF, QWheelEvent
+from PyQt6.QtWidgets import QSizePolicy, QToolTip, QWidget
 
 from calibrate_pro.gui.app import C
-
 
 # =============================================================================
 # Color Data
@@ -112,7 +106,7 @@ class MeasuredPoint:
 # Planckian Locus Utilities
 # =============================================================================
 
-def _planckian_xy(T: float) -> Tuple[float, float]:
+def _planckian_xy(T: float) -> tuple[float, float]:
     """
     Compute CIE xy chromaticity of a blackbody radiator at temperature T (K).
     Uses the Kang et al. (2002) approximation.
@@ -141,7 +135,7 @@ def _planckian_xy(T: float) -> Tuple[float, float]:
     return (x, y)
 
 
-def _nearest_cct(cx: float, cy: float) -> Optional[float]:
+def _nearest_cct(cx: float, cy: float) -> float | None:
     """
     Estimate the nearest correlated color temperature for an xy point
     using McCamy's approximation.  Returns None if far from the locus.
@@ -162,7 +156,7 @@ def _nearest_cct(cx: float, cy: float) -> Optional[float]:
 # xy to approximate sRGB
 # =============================================================================
 
-def _xy_to_srgb(cx: float, cy: float) -> Tuple[int, int, int]:
+def _xy_to_srgb(cx: float, cy: float) -> tuple[int, int, int]:
     """
     Convert CIE xy chromaticity (at Y=1) to approximate sRGB (0-255).
     This is for rendering purposes only, not colorimetrically exact.
@@ -235,7 +229,7 @@ class CIEDiagramWidget(QWidget):
     _DEFAULT_X0, _DEFAULT_X1 = -0.02, 0.82
     _DEFAULT_Y0, _DEFAULT_Y1 = -0.02, 0.88
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
         self.setMinimumSize(350, 350)
@@ -250,20 +244,20 @@ class CIEDiagramWidget(QWidget):
         self._vy1 = self._DEFAULT_Y1
 
         # Cached chromaticity background image
-        self._bg_cache: Optional[QImage] = None
-        self._bg_cache_size: Optional[QSize] = None
-        self._bg_cache_view: Optional[Tuple] = None
+        self._bg_cache: QImage | None = None
+        self._bg_cache_size: QSize | None = None
+        self._bg_cache_view: tuple | None = None
 
         # Overlays
-        self._display_gamut: Optional[Tuple] = None   # (r_xy, g_xy, b_xy)
-        self._display_wp: Optional[Tuple] = None       # white point xy
-        self._target_gamut: Optional[Tuple] = None     # (r_xy, g_xy, b_xy)
-        self._measured_points: List[MeasuredPoint] = []
+        self._display_gamut: tuple | None = None   # (r_xy, g_xy, b_xy)
+        self._display_wp: tuple | None = None       # white point xy
+        self._target_gamut: tuple | None = None     # (r_xy, g_xy, b_xy)
+        self._measured_points: list[MeasuredPoint] = []
 
         # Pan state
         self._panning = False
-        self._pan_start_pos: Optional[QPointF] = None
-        self._pan_start_view: Optional[Tuple] = None
+        self._pan_start_pos: QPointF | None = None
+        self._pan_start_view: tuple | None = None
 
         # Margin around the plot area (px)
         self._margin = 38
@@ -274,10 +268,10 @@ class CIEDiagramWidget(QWidget):
 
     def set_display_gamut(
         self,
-        r_xy: Tuple[float, float],
-        g_xy: Tuple[float, float],
-        b_xy: Tuple[float, float],
-        w_xy: Optional[Tuple[float, float]] = None,
+        r_xy: tuple[float, float],
+        g_xy: tuple[float, float],
+        b_xy: tuple[float, float],
+        w_xy: tuple[float, float] | None = None,
     ):
         """Set the measured display gamut triangle and optional white point."""
         self._display_gamut = (r_xy, g_xy, b_xy)
@@ -286,15 +280,15 @@ class CIEDiagramWidget(QWidget):
 
     def set_target_gamut(
         self,
-        r_xy: Tuple[float, float] = (0.640, 0.330),
-        g_xy: Tuple[float, float] = (0.300, 0.600),
-        b_xy: Tuple[float, float] = (0.150, 0.060),
+        r_xy: tuple[float, float] = (0.640, 0.330),
+        g_xy: tuple[float, float] = (0.300, 0.600),
+        b_xy: tuple[float, float] = (0.150, 0.060),
     ):
         """Set the target gamut triangle overlay (defaults to sRGB)."""
         self._target_gamut = (r_xy, g_xy, b_xy)
         self.update()
 
-    def set_measured_points(self, points: List[Tuple[float, float, str]]):
+    def set_measured_points(self, points: list[tuple[float, float, str]]):
         """Set measured chromaticity points as list of (x, y, label)."""
         self._measured_points = [
             MeasuredPoint(x, y, label) for x, y, label in points
@@ -326,7 +320,7 @@ class CIEDiagramWidget(QWidget):
         py = r.bottom() - (y - self._vy0) / (self._vy1 - self._vy0) * r.height()
         return QPointF(px, py)
 
-    def _px_to_xy(self, px: float, py: float) -> Tuple[float, float]:
+    def _px_to_xy(self, px: float, py: float) -> tuple[float, float]:
         """Widget pixel coords -> CIE xy."""
         r = self._plot_rect()
         x = self._vx0 + (px - r.left()) / r.width() * (self._vx1 - self._vx0)
@@ -468,7 +462,7 @@ class CIEDiagramWidget(QWidget):
     def _paint_spectral_locus(self, p: QPainter):
         path = QPainterPath()
         first = True
-        for wl, x, y in SPECTRAL_LOCUS:
+        for _wl, x, y in SPECTRAL_LOCUS:
             pt = self._xy_to_px(x, y)
             if first:
                 path.moveTo(pt)
@@ -505,7 +499,7 @@ class CIEDiagramWidget(QWidget):
         path = QPainterPath()
         first = True
         temp_labels = [2000, 3000, 4000, 5000, 6500, 8000, 10000]
-        label_pts: List[Tuple[QPointF, int]] = []
+        label_pts: list[tuple[QPointF, int]] = []
 
         for T in range(2000, 10001, 50):
             x, y = _planckian_xy(T)
@@ -562,7 +556,7 @@ class CIEDiagramWidget(QWidget):
 
     def _paint_gamut_triangle(
         self, p: QPainter,
-        gamut: Tuple,
+        gamut: tuple,
         color: QColor,
         width: float = 2.0,
         style=Qt.PenStyle.SolidLine,

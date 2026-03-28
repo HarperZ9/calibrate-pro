@@ -9,9 +9,9 @@ Provides comprehensive grayscale ramp verification:
 - CCT consistency across grayscale
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional, Callable
+
 import numpy as np
 
 # =============================================================================

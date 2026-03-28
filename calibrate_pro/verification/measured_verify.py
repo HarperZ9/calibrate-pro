@@ -23,12 +23,11 @@ Usage:
     result = mv.verify_colorchecker()
 """
 
-import time
 import sys
-from typing import Callable, Dict, List, Optional, Tuple
+import time
+from collections.abc import Callable
 
 import numpy as np
-
 
 # =============================================================================
 # ColorChecker sRGB reference patches (for display)
@@ -96,9 +95,9 @@ COLORCHECKER_REFERENCE_LAB_D50 = {
 # =============================================================================
 
 def _xyz_to_lab(
-    xyz: Tuple[float, float, float],
+    xyz: tuple[float, float, float],
     illuminant: str = "D50",
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Convert XYZ to CIE Lab."""
     white_points = {
         "D50": (96.422, 100.0, 82.521),
@@ -126,8 +125,8 @@ def _xyz_to_lab(
 
 
 def _delta_e_2000(
-    lab1: Tuple[float, float, float],
-    lab2: Tuple[float, float, float],
+    lab1: tuple[float, float, float],
+    lab2: tuple[float, float, float],
 ) -> float:
     """Compute CIEDE2000 Delta E between two Lab colors."""
     L1, a1, b1 = lab1
@@ -196,7 +195,7 @@ def _delta_e_2000(
 # ArgyllCMS backend helper
 # =============================================================================
 
-def _find_argyll_spotread() -> Optional[str]:
+def _find_argyll_spotread() -> str | None:
     """Locate the ArgyllCMS ``spotread`` binary using the shared ArgyllConfig."""
     import os
     from pathlib import Path
@@ -237,40 +236,34 @@ def _find_argyll_spotread() -> Optional[str]:
     return None
 
 
-def _argyll_measure_xyz(r: float, g: float, b: float) -> Tuple[float, float, float]:
+def _argyll_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, float]:
     """
     Take a single-patch measurement via ArgyllCMS spotread.
 
     Uses our ArgyllBackend which properly handles device communication.
     The (r, g, b) arguments are ignored; the sensor reads whatever is on screen.
     """
-    try:
-        from calibrate_pro.hardware.argyll_backend import ArgyllBackend, ArgyllConfig
+    from calibrate_pro.hardware.argyll_backend import ArgyllBackend, ArgyllConfig
 
-        # Use a module-level cached backend to avoid re-initializing for each patch
-        global _argyll_backend_cache
-        if '_argyll_backend_cache' not in globals() or _argyll_backend_cache is None:
-            config = ArgyllConfig()
-            if not config.find_argyll():
-                raise RuntimeError("ArgyllCMS not found")
-            _argyll_backend_cache = ArgyllBackend(config)
-            devices = _argyll_backend_cache.detect_devices()
-            if not devices:
-                raise RuntimeError("No colorimeter detected")
-            _argyll_backend_cache.connect(0)
+    # Use a module-level cached backend to avoid re-initializing for each patch
+    global _argyll_backend_cache
+    if '_argyll_backend_cache' not in globals() or _argyll_backend_cache is None:
+        config = ArgyllConfig()
+        if not config.find_argyll():
+            raise RuntimeError("ArgyllCMS not found")
+        _argyll_backend_cache = ArgyllBackend(config)
+        devices = _argyll_backend_cache.detect_devices()
+        if not devices:
+            raise RuntimeError("No colorimeter detected")
+        _argyll_backend_cache.connect(0)
 
-        measurement = _argyll_backend_cache.measure_spot()
-        if measurement:
-            return (measurement.X, measurement.Y, measurement.Z)
-        raise RuntimeError("Measurement returned no data")
-
-        raise RuntimeError(f"Could not parse spotread output: {output[:200]}")
-
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("spotread timed out waiting for measurement")
+    measurement = _argyll_backend_cache.measure_spot()
+    if measurement:
+        return (measurement.X, measurement.Y, measurement.Z)
+    raise RuntimeError("Measurement returned no data")
 
 
-def _manual_measure_xyz(r: float, g: float, b: float) -> Tuple[float, float, float]:
+def _manual_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, float]:
     """
     Prompt the user to enter XYZ values manually.
 
@@ -317,7 +310,7 @@ class MeasuredVerification:
                     then falls back to manual entry mode.
     """
 
-    def __init__(self, measure_fn: Optional[Callable] = None):
+    def __init__(self, measure_fn: Callable | None = None):
         self._measure_fn = measure_fn
         self._backend_name = "custom"
 
@@ -346,7 +339,7 @@ class MeasuredVerification:
         g: float,
         b: float,
         display_index: int = 0,
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """
         Display a solid color patch fullscreen, wait for the display to
         settle, then measure.
@@ -427,7 +420,7 @@ class MeasuredVerification:
     # ColorChecker verification
     # -------------------------------------------------------------------------
 
-    def verify_colorchecker(self, display_index: int = 0) -> Dict:
+    def verify_colorchecker(self, display_index: int = 0) -> dict:
         """
         Display each ColorChecker Classic patch fullscreen, measure it,
         and compute Delta E against the reference.
@@ -444,9 +437,9 @@ class MeasuredVerification:
             - ``'delta_e_avg'``, ``'delta_e_max'``
             - ``'grade'``
         """
-        patches_result: List[Dict] = []
-        measured_xyz_list: List[Tuple[float, float, float]] = []
-        delta_e_values: List[float] = []
+        patches_result: list[dict] = []
+        measured_xyz_list: list[tuple[float, float, float]] = []
+        delta_e_values: list[float] = []
 
         total = len(COLORCHECKER_SRGB_PATCHES)
 
@@ -509,7 +502,7 @@ class MeasuredVerification:
         display_index: int = 0,
         steps: int = 21,
         target_gamma: float = 2.2,
-    ) -> Dict:
+    ) -> dict:
         """
         Measure a grayscale ramp from 0% to 100% in ``steps`` increments.
 
@@ -535,9 +528,9 @@ class MeasuredVerification:
             - ``'grade'``
         """
         levels = np.linspace(0.0, 1.0, steps)
-        step_results: List[Dict] = []
-        gamma_errors: List[float] = []
-        delta_e_values: List[float] = []
+        step_results: list[dict] = []
+        gamma_errors: list[float] = []
+        delta_e_values: list[float] = []
 
         # First measure white to establish Y_max for normalization
         print(f"  [1/{steps}] Measuring white reference...")
@@ -568,7 +561,7 @@ class MeasuredVerification:
 
             # Compute Delta E for the gray patch (target = neutral D65)
             # Target Lab for a neutral gray at this level
-            target_Y = target_lum * 100.0  # scale to Y=100 white
+            target_lum * 100.0  # scale to Y=100 white
             target_lab = _xyz_to_lab(
                 (0.95047 * target_lum, target_lum * 1.0, 1.08883 * target_lum),
                 "D65",

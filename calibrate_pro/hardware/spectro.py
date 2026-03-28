@@ -10,18 +10,17 @@ Specialized driver for spectrophotometers including:
 Spectrophotometers provide full spectral data for highest accuracy.
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import subprocess
-import re
 import time
+from pathlib import Path
+
 import numpy as np
 
-from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch
-)
 from calibrate_pro.hardware.argyll_backend import ArgyllBackend
+from calibrate_pro.hardware.colorimeter_base import (
+    ColorMeasurement,
+    DeviceInfo,
+    DeviceType,
+)
 
 
 class SpectroType:
@@ -63,15 +62,15 @@ class SpectrophotometerDriver(ArgyllBackend):
     - Emission and reflective measurement modes
     """
 
-    def __init__(self, argyll_path: Optional[Path] = None):
+    def __init__(self, argyll_path: Path | None = None):
         super().__init__(argyll_path)
         self.model_type: str = SpectroType.UNKNOWN
-        self.spectral_range: Tuple[int, int] = (380, 780)
+        self.spectral_range: tuple[int, int] = (380, 780)
         self.spectral_resolution: int = 10  # nm
         self.observer: str = "1931_2deg"
-        self._last_spectral_data: Optional[Dict[float, float]] = None
+        self._last_spectral_data: dict[float, float] | None = None
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect spectrophotometer devices."""
         all_devices = super().detect_devices()
 
@@ -147,7 +146,7 @@ class SpectrophotometerDriver(ArgyllBackend):
             return True
         return False
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """
         Take spectral measurement.
 
@@ -164,7 +163,7 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         return measurement
 
-    def get_spectral_data(self) -> Optional[Dict[float, float]]:
+    def get_spectral_data(self) -> dict[float, float] | None:
         """
         Get spectral power distribution from last measurement.
 
@@ -178,9 +177,9 @@ class SpectrophotometerDriver(ArgyllBackend):
 
     def spectral_to_xyz(
         self,
-        spectral_data: Dict[float, float],
+        spectral_data: dict[float, float],
         illuminant: str = "D65"
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """
         Convert spectral data to XYZ using color matching functions.
 
@@ -192,7 +191,7 @@ class SpectrophotometerDriver(ArgyllBackend):
             (X, Y, Z) tristimulus values
         """
         # Load color matching functions based on observer
-        cmf = self._get_color_matching_functions()
+        self._get_color_matching_functions()
 
         wavelengths = sorted(spectral_data.keys())
         powers = [spectral_data[w] for w in wavelengths]
@@ -215,13 +214,13 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         return (X * k, Y, Z * k)
 
-    def _get_color_matching_functions(self) -> Dict:
+    def _get_color_matching_functions(self) -> dict:
         """Load CIE color matching functions."""
         if self.observer == "1964_10deg":
             return CIE_1964_10DEG
         return CIE_1931_2DEG
 
-    def _cmf_at_wavelength(self, wavelength: float) -> Tuple[float, float, float]:
+    def _cmf_at_wavelength(self, wavelength: float) -> tuple[float, float, float]:
         """
         Get CIE XYZ color matching function values at wavelength.
 
@@ -244,7 +243,7 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         return (max(0, x), max(0, y), max(0, z))
 
-    def calculate_cri(self, spectral_data: Dict[float, float]) -> float:
+    def calculate_cri(self, spectral_data: dict[float, float]) -> float:
         """
         Calculate Color Rendering Index from spectral data.
 
@@ -270,13 +269,13 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         # McCamy's CCT approximation
         n = (x - 0.3320) / (0.1858 - y)
-        cct = 449 * n**3 + 3525 * n**2 + 6823.3 * n + 5520.33
+        449 * n**3 + 3525 * n**2 + 6823.3 * n + 5520.33
 
         # For emission sources, CRI is typically high (90+)
         # This is a placeholder - real calculation is complex
         return 95.0
 
-    def calculate_tlci(self, spectral_data: Dict[float, float]) -> float:
+    def calculate_tlci(self, spectral_data: dict[float, float]) -> float:
         """
         Calculate Television Lighting Consistency Index.
 
@@ -287,7 +286,7 @@ class SpectrophotometerDriver(ArgyllBackend):
         # Placeholder - TLCI calculation requires camera response data
         return 90.0
 
-    def measure_reflective(self, reference_white: bool = True) -> Optional[ColorMeasurement]:
+    def measure_reflective(self, reference_white: bool = True) -> ColorMeasurement | None:
         """
         Take reflective measurement (for print/material).
 
@@ -330,7 +329,7 @@ class ColorCheckerDisplay(SpectrophotometerDriver):
     optimized for display measurement.
     """
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect ColorChecker Display devices."""
         all_spectros = super().detect_devices()
         return [d for d in all_spectros if "colorchecker" in d.name.lower()]
@@ -353,7 +352,7 @@ class ColorCheckerDisplay(SpectrophotometerDriver):
 class I1Pro(SpectrophotometerDriver):
     """X-Rite i1Pro series driver."""
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect i1Pro devices."""
         all_spectros = super().detect_devices()
         return [d for d in all_spectros if "i1pro" in d.name.lower() or "i1 pro" in d.name.lower()]
@@ -368,7 +367,7 @@ class I1Pro(SpectrophotometerDriver):
         return True
 
 
-def detect_spectrophotometer() -> Optional[SpectrophotometerDriver]:
+def detect_spectrophotometer() -> SpectrophotometerDriver | None:
     """
     Detect and connect to a spectrophotometer.
 
@@ -384,7 +383,7 @@ def detect_spectrophotometer() -> Optional[SpectrophotometerDriver]:
     return None
 
 
-def detect_colorchecker_display() -> Optional[ColorCheckerDisplay]:
+def detect_colorchecker_display() -> ColorCheckerDisplay | None:
     """Detect and connect to ColorChecker Display."""
     driver = ColorCheckerDisplay()
     devices = driver.detect_devices()

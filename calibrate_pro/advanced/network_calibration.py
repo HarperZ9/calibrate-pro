@@ -9,19 +9,18 @@ Provides remote and fleet calibration capabilities:
 - Calibration job scheduling
 """
 
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Optional, Callable, Any
-from datetime import datetime
-from pathlib import Path
-import json
-import hashlib
-import uuid
 import asyncio
+import hashlib
+import json
 import socket
 import struct
-import threading
+import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum, auto
+from typing import Any
 
 # =============================================================================
 # Enums
@@ -81,8 +80,8 @@ class DisplayNode:
 
     # Status
     status: NodeStatus = NodeStatus.OFFLINE
-    last_seen: Optional[datetime] = None
-    last_calibration: Optional[datetime] = None
+    last_seen: datetime | None = None
+    last_calibration: datetime | None = None
 
     # Capabilities
     has_colorimeter: bool = False
@@ -119,8 +118,8 @@ class CalibrationJob:
 
     # Timing
     created_at: datetime = field(default_factory=datetime.now)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     # Results
     results: dict[str, Any] = field(default_factory=dict)
@@ -140,9 +139,9 @@ class ProfilePackage:
     description: str = ""
 
     # Contents
-    icc_profile: Optional[bytes] = None
-    lut_3d: Optional[bytes] = None
-    lut_1d: Optional[bytes] = None
+    icc_profile: bytes | None = None
+    lut_3d: bytes | None = None
+    lut_1d: bytes | None = None
     calibration_data: dict = field(default_factory=dict)
 
     # Metadata
@@ -166,7 +165,7 @@ class ProfilePackage:
 @dataclass
 class SyncState:
     """Profile synchronization state."""
-    last_sync: Optional[datetime] = None
+    last_sync: datetime | None = None
     pending_updates: int = 0
     sync_errors: list[str] = field(default_factory=list)
     synced_profiles: list[str] = field(default_factory=list)
@@ -245,7 +244,7 @@ class CalibrationServer:
     def __init__(self,
                  host: str = "0.0.0.0",
                  port: int = 5678,
-                 server_id: Optional[str] = None):
+                 server_id: str | None = None):
         """
         Initialize calibration server.
 
@@ -270,7 +269,7 @@ class CalibrationServer:
 
         # State
         self._running = False
-        self._server_socket: Optional[socket.socket] = None
+        self._server_socket: socket.socket | None = None
         self._executor = ThreadPoolExecutor(max_workers=10)
 
         # Callbacks
@@ -292,7 +291,7 @@ class CalibrationServer:
             node = self.nodes.pop(node_id)
             self._notify_node_change(node, "unregistered")
 
-    def get_node(self, node_id: str) -> Optional[DisplayNode]:
+    def get_node(self, node_id: str) -> DisplayNode | None:
         """Get node by ID."""
         return self.nodes.get(node_id)
 
@@ -318,7 +317,7 @@ class CalibrationServer:
     def create_job(self,
                    job_type: JobType,
                    target_nodes: list[str],
-                   parameters: Optional[dict] = None,
+                   parameters: dict | None = None,
                    priority: int = 0,
                    created_by: str = "") -> CalibrationJob:
         """
@@ -365,7 +364,7 @@ class CalibrationServer:
         self._notify_job_change(job)
         return True
 
-    def get_job(self, job_id: str) -> Optional[CalibrationJob]:
+    def get_job(self, job_id: str) -> CalibrationJob | None:
         """Get job by ID."""
         return self.jobs.get(job_id)
 
@@ -391,7 +390,7 @@ class CalibrationServer:
         package.calculate_checksum()
         self.profiles[package.package_id] = package
 
-    def get_profile(self, package_id: str) -> Optional[ProfilePackage]:
+    def get_profile(self, package_id: str) -> ProfilePackage | None:
         """Get profile package by ID."""
         return self.profiles.get(package_id)
 
@@ -424,7 +423,7 @@ class CalibrationServer:
     def _send_profile_to_node(self, node: DisplayNode, package: ProfilePackage) -> bool:
         """Send profile package to a node."""
         try:
-            msg = NetworkMessage(
+            NetworkMessage(
                 msg_type=MessageType.PROFILE_PUSH,
                 sender_id=self.server_id,
                 payload={
@@ -447,8 +446,8 @@ class CalibrationServer:
     # =========================================================================
 
     def calibrate_fleet(self,
-                        group: Optional[str] = None,
-                        parameters: Optional[dict] = None) -> CalibrationJob:
+                        group: str | None = None,
+                        parameters: dict | None = None) -> CalibrationJob:
         """
         Create calibration job for entire fleet or group.
 
@@ -474,7 +473,7 @@ class CalibrationServer:
             created_by="fleet_manager",
         )
 
-    def verify_fleet(self, group: Optional[str] = None) -> CalibrationJob:
+    def verify_fleet(self, group: str | None = None) -> CalibrationJob:
         """Create verification job for fleet."""
         if group:
             nodes = self.get_nodes_by_group(group)
@@ -492,7 +491,7 @@ class CalibrationServer:
 
     def apply_profile_to_fleet(self,
                                package_id: str,
-                               group: Optional[str] = None) -> CalibrationJob:
+                               group: str | None = None) -> CalibrationJob:
         """Apply profile to entire fleet or group."""
         if group:
             nodes = self.get_nodes_by_group(group)
@@ -667,7 +666,7 @@ class CalibrationClient:
     def __init__(self,
                  server_host: str,
                  server_port: int = 5678,
-                 node_id: Optional[str] = None):
+                 node_id: str | None = None):
         """
         Initialize calibration client.
 
@@ -688,7 +687,7 @@ class CalibrationClient:
         )
 
         self._connected = False
-        self._socket: Optional[socket.socket] = None
+        self._socket: socket.socket | None = None
 
         # Callbacks
         self._command_handlers: dict[MessageType, Callable] = {}

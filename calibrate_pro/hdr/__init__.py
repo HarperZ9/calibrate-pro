@@ -30,225 +30,216 @@ Usage:
 # PQ ST.2084 (HDR10)
 # =============================================================================
 
-from calibrate_pro.hdr.pq_st2084 import (
-    # Constants
-    PQ_M1,
-    PQ_M2,
-    PQ_C1,
-    PQ_C2,
-    PQ_C3,
-    PQ_REFERENCE_WHITE,
-    SDR_REFERENCE_WHITE,
-    # Transfer functions
-    pq_eotf,
-    pq_oetf,
-    # Calibration functions
-    calculate_pq_eotf_error,
-    generate_pq_calibration_lut,
-    generate_pq_verification_patches,
-    pq_code_to_nits,
-    nits_to_pq_code,
-    assess_pq_display,
-    # Metadata
-    HDR10Metadata,
-    HDR10_PRESETS,
-    PQDisplayAssessment,
-)
-
-# =============================================================================
-# HLG (Hybrid Log-Gamma)
-# =============================================================================
-
-from calibrate_pro.hdr.hlg import (
-    # Constants
-    HLG_A,
-    HLG_B,
-    HLG_C,
-    HLG_REFERENCE_WHITE,
-    HLG_BLACK_LEVEL,
-    SYSTEM_GAMMA_NOMINAL,
-    SYSTEM_GAMMA_BRIGHT,
-    SYSTEM_GAMMA_DARK,
-    # Transfer functions
-    hlg_oetf,
-    hlg_oetf_inv,
-    hlg_eotf,
-    hlg_eotf_inv,
-    hlg_ootf,
-    # Calibration functions
-    generate_hlg_calibration_lut,
-    calculate_hlg_eotf_error,
-    generate_hlg_verification_patches,
-    # Conversion functions
-    hlg_to_pq,
-    pq_to_hlg,
-    hlg_to_sdr,
-    # Settings
-    HLGDisplaySettings,
-)
-
-# =============================================================================
-# HDR10+ Dynamic Metadata
-# =============================================================================
-
-from calibrate_pro.hdr.hdr10plus import (
-    # Constants
-    HDR10PLUS_APPLICATION_IDENTIFIER,
-    HDR10PLUS_APPLICATION_VERSION,
-    MAX_WINDOWS,
-    MAX_BEZIER_ANCHORS,
-    NUM_PERCENTILES,
-    DEFAULT_PERCENTILES,
-    # Enums
-    ProcessingWindowFlag,
-    # Data structures
-    BezierCurve,
-    DistributionData,
-    ProcessingWindow,
-    HDR10PlusMetadata,
-    # Tone mapping
-    HDR10PlusToneMapper,
-    # Analysis functions
-    analyze_frame,
-    detect_scene_change,
-    # Serialization
-    parse_sei_payload,
-    serialize_metadata,
-    # Calibration
-    generate_hdr10plus_test_scenes,
-    create_hdr10plus_calibration_luts,
-)
-
 # =============================================================================
 # Dolby Vision
 # =============================================================================
-
 from calibrate_pro.hdr.dolby_vision import (
-    # Enums
-    DVProfile,
-    DVColorSpace,
-    DVTransferFunction,
-    DVSignalRange,
-    # Data structures
-    DVPrimaries,
-    DVContentRange,
-    DVTrimPass,
-    DVPolynomialCurve,
     DVRPU,
     # Tone mapping
     DolbyVisionToneMapper,
+    # Calibration
+    DVCalibrationResult,
+    DVColorSpace,
+    DVContentRange,
+    DVPolynomialCurve,
+    # Data structures
+    DVPrimaries,
+    # Enums
+    DVProfile,
+    DVSignalRange,
+    DVTransferFunction,
+    DVTrimPass,
+    calibrate_for_dolby_vision,
+    create_calibration_rpu,
     # Profile creation
     create_profile5_rpu,
     create_profile8_rpu,
-    create_calibration_rpu,
+    generate_dv_verification_patches,
     # Parsing
     parse_rpu_header,
-    # Calibration
-    DVCalibrationResult,
-    calibrate_for_dolby_vision,
-    generate_dv_verification_patches,
 )
 
 # =============================================================================
 # EOTF Calibration
 # =============================================================================
-
 from calibrate_pro.hdr.eotf_calibration import (
-    # Enums
-    EOTFType,
-    CalibrationStandard,
     # Constants
     REFERENCE_LEVELS,
-    # Patch generation
-    EOTFPatch,
-    generate_pq_patches,
-    generate_hlg_patches,
+    CalibrationResult,
+    CalibrationStandard,
+    # Calibration workflow
+    CalibrationTarget,
+    EOTFAnalysis,
+    EOTFCalibrator,
     # Measurement and analysis
     EOTFMeasurement,
-    EOTFAnalysis,
-    analyze_pq_eotf,
+    # Patch generation
+    EOTFPatch,
+    # Enums
+    EOTFType,
     analyze_hlg_eotf,
+    analyze_pq_eotf,
     # LUT generation
     generate_eotf_correction_lut,
     generate_grayscale_correction_matrix,
-    # Calibration workflow
-    CalibrationTarget,
-    CalibrationResult,
-    EOTFCalibrator,
+    generate_hlg_patches,
+    generate_pq_patches,
 )
 
 # =============================================================================
-# Tone Mapping
+# HDR10+ Dynamic Metadata
 # =============================================================================
-
-from calibrate_pro.hdr.tone_mapping import (
-    # Operators
-    ToneMapOperator,
-    ToneMapSettings,
-    # Core tone mapping functions
-    tone_map_linear,
-    tone_map_reinhard,
-    tone_map_reinhard_extended,
-    tone_map_aces,
-    tone_map_hable,
-    tone_map_bt2390,
-    tone_map_exponential,
-    # RGB tone mapping
-    tone_map_rgb,
-    # LUT generation
-    generate_tonemap_1d_lut,
-    generate_tonemap_3d_lut,
-    # HDR to SDR conversion
-    HDRToSDRConverter,
-    hdr_to_sdr,
-    compare_operators,
-)
-
-# =============================================================================
-# Professional Mastering Standards
-# =============================================================================
-
-from calibrate_pro.hdr.mastering_standards import (
+from calibrate_pro.hdr.hdr10plus import (
+    DEFAULT_PERCENTILES,
+    # Constants
+    HDR10PLUS_APPLICATION_IDENTIFIER,
+    HDR10PLUS_APPLICATION_VERSION,
+    MAX_BEZIER_ANCHORS,
+    MAX_WINDOWS,
+    NUM_PERCENTILES,
+    # Data structures
+    BezierCurve,
+    DistributionData,
+    HDR10PlusMetadata,
+    # Tone mapping
+    HDR10PlusToneMapper,
+    ProcessingWindow,
     # Enums
-    ComplianceLevel,
-    # Base class
-    MasteringSpec,
-    # Mastering profiles
-    NetflixMasteringProfile,
-    EBUGrade1Profile,
-    DCIMasteringProfile,
-    DisneyPlusProfile,
-    AppleTVProfile,
-    BBCBroadcastProfile,
-    # Validation and utilities
-    validate_mastering_compliance,
-    get_recommended_targets,
-    generate_compliance_report,
+    ProcessingWindowFlag,
+    # Analysis functions
+    analyze_frame,
+    create_hdr10plus_calibration_luts,
+    detect_scene_change,
+    # Calibration
+    generate_hdr10plus_test_scenes,
+    # Serialization
+    parse_sei_payload,
+    serialize_metadata,
 )
 
 # =============================================================================
 # Unified HDR Calibration Suite
 # =============================================================================
-
 from calibrate_pro.hdr.hdr_calibration import (
-    # Enums
-    HDRFormat,
     CalibrationMode,
-    # Configuration and results
-    HDRCalibrationConfig,
-    HDRMeasurement,
-    HDRCalibrationResult,
     # Calibration classes
     HDR10Calibration,
     HDR10PlusCalibration,
-    HLGCalibration,
+    # Configuration and results
+    HDRCalibrationConfig,
+    HDRCalibrationResult,
     # Unified suite
     HDRCalibrationSuite,
+    # Enums
+    HDRFormat,
+    HDRMeasurement,
+    HLGCalibration,
     # Convenience functions
     calibrate_hdr10,
     calibrate_hlg,
 )
 
+# =============================================================================
+# HLG (Hybrid Log-Gamma)
+# =============================================================================
+from calibrate_pro.hdr.hlg import (
+    # Constants
+    HLG_A,
+    HLG_B,
+    HLG_BLACK_LEVEL,
+    HLG_C,
+    HLG_REFERENCE_WHITE,
+    SYSTEM_GAMMA_BRIGHT,
+    SYSTEM_GAMMA_DARK,
+    SYSTEM_GAMMA_NOMINAL,
+    # Settings
+    HLGDisplaySettings,
+    calculate_hlg_eotf_error,
+    # Calibration functions
+    generate_hlg_calibration_lut,
+    generate_hlg_verification_patches,
+    hlg_eotf,
+    hlg_eotf_inv,
+    # Transfer functions
+    hlg_oetf,
+    hlg_oetf_inv,
+    hlg_ootf,
+    # Conversion functions
+    hlg_to_pq,
+    hlg_to_sdr,
+    pq_to_hlg,
+)
+
+# =============================================================================
+# Professional Mastering Standards
+# =============================================================================
+from calibrate_pro.hdr.mastering_standards import (
+    AppleTVProfile,
+    BBCBroadcastProfile,
+    # Enums
+    ComplianceLevel,
+    DCIMasteringProfile,
+    DisneyPlusProfile,
+    EBUGrade1Profile,
+    # Base class
+    MasteringSpec,
+    # Mastering profiles
+    NetflixMasteringProfile,
+    generate_compliance_report,
+    get_recommended_targets,
+    # Validation and utilities
+    validate_mastering_compliance,
+)
+from calibrate_pro.hdr.pq_st2084 import (
+    HDR10_PRESETS,
+    PQ_C1,
+    PQ_C2,
+    PQ_C3,
+    # Constants
+    PQ_M1,
+    PQ_M2,
+    PQ_REFERENCE_WHITE,
+    SDR_REFERENCE_WHITE,
+    # Metadata
+    HDR10Metadata,
+    PQDisplayAssessment,
+    assess_pq_display,
+    # Calibration functions
+    calculate_pq_eotf_error,
+    generate_pq_calibration_lut,
+    generate_pq_verification_patches,
+    nits_to_pq_code,
+    pq_code_to_nits,
+    # Transfer functions
+    pq_eotf,
+    pq_oetf,
+)
+
+# =============================================================================
+# Tone Mapping
+# =============================================================================
+from calibrate_pro.hdr.tone_mapping import (
+    # HDR to SDR conversion
+    HDRToSDRConverter,
+    # Operators
+    ToneMapOperator,
+    ToneMapSettings,
+    compare_operators,
+    # LUT generation
+    generate_tonemap_1d_lut,
+    generate_tonemap_3d_lut,
+    hdr_to_sdr,
+    tone_map_aces,
+    tone_map_bt2390,
+    tone_map_exponential,
+    tone_map_hable,
+    # Core tone mapping functions
+    tone_map_linear,
+    tone_map_reinhard,
+    tone_map_reinhard_extended,
+    # RGB tone mapping
+    tone_map_rgb,
+)
 
 # =============================================================================
 # Public API

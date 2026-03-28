@@ -36,7 +36,6 @@ from __future__ import annotations
 import colorsys
 from dataclasses import dataclass
 
-
 # =============================================================================
 # Patch Dataclass
 # =============================================================================

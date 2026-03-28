@@ -5,9 +5,9 @@ Implements the ARIB STD-B67 / BT.2100 HLG transfer function.
 HLG is designed for broadcast with backwards compatibility to SDR displays.
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Tuple, Optional
+
+import numpy as np
 
 # =============================================================================
 # HLG Constants (ARIB STD-B67 / BT.2100)
@@ -232,7 +232,7 @@ def calculate_hlg_eotf_error(
     signal_levels: np.ndarray,
     display_peak: float,
     system_gamma: float = SYSTEM_GAMMA_NOMINAL
-) -> Tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float]:
     """
     Calculate EOTF tracking error for HLG.
 

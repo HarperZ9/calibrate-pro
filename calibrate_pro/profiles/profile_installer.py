@@ -12,16 +12,14 @@ Uses the Windows Color Management API (ICM/WCS).
 """
 
 import ctypes
+import json
+import shutil
+import winreg
 from ctypes import wintypes
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Tuple, Union
-from pathlib import Path
-from enum import IntEnum
-import shutil
-import json
 from datetime import datetime
-import winreg
-
+from enum import IntEnum
+from pathlib import Path
 
 # =============================================================================
 # Windows Color Management API Definitions
@@ -130,13 +128,13 @@ class MonitorInfo:
     edid_manufacturer: str = ""
     edid_model: str = ""
     edid_serial: str = ""
-    resolution: Tuple[int, int] = (0, 0)
+    resolution: tuple[int, int] = (0, 0)
     refresh_rate: float = 0.0
     hdr_supported: bool = False
-    current_profile: Optional[str] = None
+    current_profile: str | None = None
 
 
-def enumerate_displays() -> List[DisplayDevice]:
+def enumerate_displays() -> list[DisplayDevice]:
     """
     Enumerate all display devices.
 
@@ -260,9 +258,9 @@ def get_profile_directory() -> Path:
 
 
 def install_profile(
-    profile_path: Union[str, Path],
+    profile_path: str | Path,
     scope: ProfileScope = ProfileScope.SYSTEM
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Install ICC profile to system.
 
@@ -309,7 +307,7 @@ def install_profile(
     return True, f"Profile installed: {dest_path}"
 
 
-def uninstall_profile(profile_name: str) -> Tuple[bool, str]:
+def uninstall_profile(profile_name: str) -> tuple[bool, str]:
     """
     Uninstall ICC profile from system.
 
@@ -351,7 +349,7 @@ def associate_profile_with_display(
     profile_name: str,
     device_name: str,
     make_default: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Associate ICC profile with a display.
 
@@ -403,7 +401,7 @@ def associate_profile_with_display(
 def disassociate_profile_from_display(
     profile_name: str,
     device_name: str
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Remove profile association from display.
 
@@ -433,7 +431,7 @@ def disassociate_profile_from_display(
         return False, f"Error: {e}"
 
 
-def get_display_profile(device_name: str) -> Optional[str]:
+def get_display_profile(device_name: str) -> str | None:
     """
     Get the default profile for a display.
 
@@ -469,7 +467,7 @@ def get_display_profile(device_name: str) -> Optional[str]:
     return None
 
 
-def get_associated_profiles(device_name: str) -> List[str]:
+def get_associated_profiles(device_name: str) -> list[str]:
     """
     Get all profiles associated with a display.
 
@@ -511,10 +509,10 @@ def get_associated_profiles(device_name: str) -> List[str]:
 class ProfileBackup:
     """Profile backup data."""
     timestamp: str
-    profiles: Dict[str, str]  # display_name -> profile_name
-    profile_data: Dict[str, bytes]  # profile_name -> bytes
+    profiles: dict[str, str]  # display_name -> profile_name
+    profile_data: dict[str, bytes]  # profile_name -> bytes
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary (profiles only, not bytes)."""
         return {
             "timestamp": self.timestamp,
@@ -523,9 +521,9 @@ class ProfileBackup:
 
 
 def backup_profiles(
-    backup_dir: Union[str, Path],
+    backup_dir: str | Path,
     include_data: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Backup current display profile assignments.
 
@@ -578,9 +576,9 @@ def backup_profiles(
 
 
 def restore_profiles(
-    backup_path: Union[str, Path],
+    backup_path: str | Path,
     restore_data: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Restore profile assignments from backup.
 
@@ -631,7 +629,7 @@ def restore_profiles(
     return True, f"Restored {restored} profile assignments"
 
 
-def list_installed_profiles() -> List[str]:
+def list_installed_profiles() -> list[str]:
     """
     List all installed ICC profiles.
 
@@ -653,9 +651,9 @@ def list_installed_profiles() -> List[str]:
 # =============================================================================
 
 def load_profile_vcgt(
-    profile_path: Union[str, Path],
+    profile_path: str | Path,
     display_id: int = 0
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Load VCGT from profile and apply to display gamma ramp.
 
@@ -666,10 +664,7 @@ def load_profile_vcgt(
     Returns:
         (success, message)
     """
-    from calibrate_pro.profiles.vcgt import (
-        extract_vcgt_from_profile,
-        GammaRampController
-    )
+    from calibrate_pro.profiles.vcgt import GammaRampController, extract_vcgt_from_profile
 
     vcgt = extract_vcgt_from_profile(profile_path)
 
@@ -687,7 +682,7 @@ def load_profile_vcgt(
         return False, "Failed to apply gamma ramp"
 
 
-def reset_display_gamma(display_id: int = 0) -> Tuple[bool, str]:
+def reset_display_gamma(display_id: int = 0) -> tuple[bool, str]:
     """
     Reset display to linear gamma ramp.
 
@@ -715,11 +710,11 @@ def reset_display_gamma(display_id: int = 0) -> Tuple[bool, str]:
 # =============================================================================
 
 def quick_calibrate_display(
-    profile_path: Union[str, Path],
+    profile_path: str | Path,
     display_id: int = 0,
     make_default: bool = True,
     apply_vcgt: bool = True
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Quick display calibration: install profile, set as default, apply VCGT.
 
@@ -769,7 +764,7 @@ def quick_calibrate_display(
     return True, "; ".join(messages)
 
 
-def get_display_calibration_status() -> List[Dict]:
+def get_display_calibration_status() -> list[dict]:
     """
     Get calibration status for all displays.
 

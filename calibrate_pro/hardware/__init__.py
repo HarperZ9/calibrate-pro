@@ -21,18 +21,19 @@ Native drivers are preferred and used by default.
 """
 
 from calibrate_pro.hardware.colorimeter_base import (
+    CalibrationMode,
+    CalibrationPatch,
     ColorimeterBase,
     ColorMeasurement,
     DeviceInfo,
     DeviceType,
-    CalibrationMode,
     MeasurementType,
-    CalibrationPatch,
     generate_grayscale_patches,
     generate_primary_patches,
-    generate_verification_patches,
     generate_profiling_patches,
+    generate_verification_patches,
 )
+
 
 # Check what's available
 def _check_backends():

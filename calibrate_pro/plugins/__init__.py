@@ -13,6 +13,6 @@ optional ``PLUGIN_INFO`` dict. They are discovered from:
 - Python entry points under the ``calibrate_pro.plugins`` group
 """
 
-from calibrate_pro.plugins.manager import PluginManager, PluginInfo
+from calibrate_pro.plugins.manager import PluginInfo, PluginManager
 
 __all__ = ["PluginManager", "PluginInfo"]

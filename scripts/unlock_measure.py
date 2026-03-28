@@ -1,5 +1,9 @@
 """Unlock i1Display3 and take a measurement."""
-import hid, struct, time, sys
+import struct
+import sys
+import time
+
+import hid
 
 device = hid.device()
 device.open(0x0765, 0x5020)
@@ -77,7 +81,7 @@ def unlock_attempt(k0, k1, name):
             print(" -> UNLOCKED!")
             return True
         else:
-            print(f" (rejected)")
+            print(" (rejected)")
     return False
 
 print("\nTrying all unlock keys...")

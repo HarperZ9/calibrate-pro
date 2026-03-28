@@ -10,11 +10,9 @@ calibration tools.
 
 import ctypes
 from ctypes import wintypes
-import numpy as np
-from typing import Tuple, Optional, List
 from dataclasses import dataclass
-from pathlib import Path
 
+import numpy as np
 
 # Windows GDI32 functions for gamma ramp control
 try:
@@ -52,7 +50,7 @@ except Exception:
     VCGT_AVAILABLE = False
 
 
-def get_display_devices() -> List[Tuple[int, str, str]]:
+def get_display_devices() -> list[tuple[int, str, str]]:
     """Get list of active display devices.
 
     Returns:
@@ -77,7 +75,7 @@ def get_display_devices() -> List[Tuple[int, str, str]]:
     return devices
 
 
-def _get_display_dc(display_index: int = 0) -> Optional[wintypes.HDC]:
+def _get_display_dc(display_index: int = 0) -> wintypes.HDC | None:
     """Get device context for a specific display.
 
     Args:
@@ -124,7 +122,7 @@ class CalibrationCurves:
         return ramp
 
 
-def get_current_gamma_ramp(display_index: int = 0) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+def get_current_gamma_ramp(display_index: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     """Get the current gamma ramp from the display.
 
     Args:
@@ -229,8 +227,8 @@ def create_white_balance_curves(
 
 
 def create_whitepoint_correction_curves(
-    native_white_xy: Tuple[float, float],
-    target_white_xy: Tuple[float, float],
+    native_white_xy: tuple[float, float],
+    target_white_xy: tuple[float, float],
     native_gamma: float = 2.2,
     target_gamma: float = 2.2,
 ) -> CalibrationCurves:
@@ -241,10 +239,7 @@ def create_whitepoint_correction_curves(
     RGB channel gains.
     """
     # Import color math
-    import sys
-    from calibrate_pro.hardware.sensorless_calibration import (
-        xy_to_XYZ, bradford_adapt, BRADFORD_M, BRADFORD_M_INV
-    )
+    from calibrate_pro.hardware.sensorless_calibration import BRADFORD_M, xy_to_XYZ
 
     # Convert xy to XYZ
     native_XYZ = xy_to_XYZ(*native_white_xy)
@@ -295,7 +290,7 @@ class VCGTCalibrator:
         return VCGT_AVAILABLE
 
     @staticmethod
-    def get_displays() -> List[Tuple[int, str, str]]:
+    def get_displays() -> list[tuple[int, str, str]]:
         """Get list of available displays.
 
         Returns:
@@ -397,7 +392,7 @@ class VCGTCalibrator:
         self._current_curves = curves
         return set_gamma_ramp(curves, self._display_index)
 
-    def get_current_curves(self) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    def get_current_curves(self) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
         """Get the currently applied gamma curves."""
         return get_current_gamma_ramp(self._display_index)
 

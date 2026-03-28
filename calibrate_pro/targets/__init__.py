@@ -11,131 +11,139 @@ For professional colorists, broadcast engineers, and enthusiasts.
 """
 
 # White Point Targets
-from calibrate_pro.targets.whitepoint import (
-    WhitepointPreset,
-    WhitepointTarget,
-    ILLUMINANT_XY,
-    ILLUMINANT_CCT,
-    cct_to_xy,
-    xy_to_cct,
-    planckian_locus_xy,
-    daylight_locus_xy,
-    apply_duv_offset,
-    xy_to_XYZ,
-    XYZ_to_xy,
-    get_whitepoint_presets,
-    create_custom_whitepoint,
-    # Standard presets
-    WHITEPOINT_D50,
-    WHITEPOINT_D65,
-    WHITEPOINT_DCI,
-    WHITEPOINT_ACES,
-    WHITEPOINT_D75,
-)
+# =============================================================================
+# Unified Calibration Target
+# =============================================================================
+from __future__ import annotations
 
-# Luminance Targets
-from calibrate_pro.targets.luminance import (
-    LuminanceStandard,
-    BlackLevelStandard,
-    LuminanceTarget,
-    GrayscaleTarget,
-    LUMINANCE_STANDARDS,
-    nits_to_footlamberts,
-    footlamberts_to_nits,
-    calculate_contrast_ratio,
-    calculate_black_level,
-    get_luminance_presets,
-    get_sdr_presets as get_sdr_luminance_presets,
-    get_hdr_presets as get_hdr_luminance_presets,
-    create_custom_luminance,
-    calculate_recommended_luminance,
-    # Standard presets
-    LUMINANCE_REC709,
-    LUMINANCE_FILM,
-    LUMINANCE_DCI,
-    LUMINANCE_HDR10,
-    LUMINANCE_HDR10_PLUS,
-    LUMINANCE_DOLBY_VISION,
-    LUMINANCE_CONSUMER_SDR,
-    LUMINANCE_CONSUMER_HDR,
-)
+from dataclasses import dataclass, field
 
 # Gamma/EOTF Targets
 from calibrate_pro.targets.gamma import (
+    # Standard presets
+    GAMMA_22,
+    GAMMA_24,
+    GAMMA_BT1886,
+    GAMMA_HLG,
+    GAMMA_L_STAR,
+    GAMMA_PQ,
+    GAMMA_SRGB,
     GammaPreset,
     GammaTarget,
-    # EOTF functions
-    power_eotf,
-    power_oetf,
-    srgb_eotf,
-    srgb_oetf,
     bt1886_eotf,
     bt1886_oetf,
-    pq_eotf,
-    pq_oetf,
+    create_bt1886_target,
+    create_custom_gamma,
+    get_gamma_presets,
     hlg_eotf,
     hlg_oetf,
     l_star_eotf,
     l_star_oetf,
-    slog3_eotf,
     log_c_eotf,
-    get_gamma_presets,
-    get_sdr_presets as get_sdr_gamma_presets,
+    # EOTF functions
+    power_eotf,
+    power_oetf,
+    pq_eotf,
+    pq_oetf,
+    slog3_eotf,
+    srgb_eotf,
+    srgb_oetf,
+)
+from calibrate_pro.targets.gamma import (
     get_hdr_presets as get_hdr_gamma_presets,
-    create_custom_gamma,
-    create_bt1886_target,
-    # Standard presets
-    GAMMA_22,
-    GAMMA_24,
-    GAMMA_SRGB,
-    GAMMA_BT1886,
-    GAMMA_PQ,
-    GAMMA_HLG,
-    GAMMA_L_STAR,
+)
+from calibrate_pro.targets.gamma import (
+    get_sdr_presets as get_sdr_gamma_presets,
 )
 
 # Gamut Targets
 from calibrate_pro.targets.gamut import (
-    GamutPreset,
-    GamutTarget,
-    ColorPrimaries,
-    calculate_gamut_coverage,
-    calculate_gamut_volume_coverage,
-    get_gamut_presets,
-    get_sdr_presets as get_sdr_gamut_presets,
-    get_wide_gamut_presets,
-    create_custom_gamut,
-    get_gamut_comparison,
-    # Standard primaries
-    PRIMARIES_SRGB,
-    PRIMARIES_REC709,
-    PRIMARIES_DCI_P3,
-    PRIMARIES_DCI_P3_THEATER,
-    PRIMARIES_DISPLAY_P3,
-    PRIMARIES_ADOBE_RGB,
-    PRIMARIES_BT2020,
-    PRIMARIES_PROPHOTO,
-    PRIMARIES_ACES_CG,
-    GAMUT_PRIMARIES,
+    GAMUT_ACES_CG,
+    GAMUT_ADOBE_RGB,
     GAMUT_AREAS,
-    # Standard presets
-    GAMUT_SRGB,
+    GAMUT_BT2020,
     GAMUT_DCI_P3,
     GAMUT_DCI_P3_THEATER,
     GAMUT_DISPLAY_P3,
-    GAMUT_ADOBE_RGB,
-    GAMUT_BT2020,
+    GAMUT_PRIMARIES,
     GAMUT_PROPHOTO,
-    GAMUT_ACES_CG,
+    # Standard presets
+    GAMUT_SRGB,
+    PRIMARIES_ACES_CG,
+    PRIMARIES_ADOBE_RGB,
+    PRIMARIES_BT2020,
+    PRIMARIES_DCI_P3,
+    PRIMARIES_DCI_P3_THEATER,
+    PRIMARIES_DISPLAY_P3,
+    PRIMARIES_PROPHOTO,
+    PRIMARIES_REC709,
+    # Standard primaries
+    PRIMARIES_SRGB,
+    ColorPrimaries,
+    GamutPreset,
+    GamutTarget,
+    calculate_gamut_coverage,
+    calculate_gamut_volume_coverage,
+    create_custom_gamut,
+    get_gamut_comparison,
+    get_gamut_presets,
+    get_wide_gamut_presets,
+)
+from calibrate_pro.targets.gamut import (
+    get_sdr_presets as get_sdr_gamut_presets,
 )
 
-
-# =============================================================================
-# Unified Calibration Target
-# =============================================================================
-
-from dataclasses import dataclass, field
-from typing import Optional, Dict
+# Luminance Targets
+from calibrate_pro.targets.luminance import (
+    LUMINANCE_CONSUMER_HDR,
+    LUMINANCE_CONSUMER_SDR,
+    LUMINANCE_DCI,
+    LUMINANCE_DOLBY_VISION,
+    LUMINANCE_FILM,
+    LUMINANCE_HDR10,
+    LUMINANCE_HDR10_PLUS,
+    # Standard presets
+    LUMINANCE_REC709,
+    LUMINANCE_STANDARDS,
+    BlackLevelStandard,
+    GrayscaleTarget,
+    LuminanceStandard,
+    LuminanceTarget,
+    calculate_black_level,
+    calculate_contrast_ratio,
+    calculate_recommended_luminance,
+    create_custom_luminance,
+    footlamberts_to_nits,
+    get_luminance_presets,
+    nits_to_footlamberts,
+)
+from calibrate_pro.targets.luminance import (
+    get_hdr_presets as get_hdr_luminance_presets,
+)
+from calibrate_pro.targets.luminance import (
+    get_sdr_presets as get_sdr_luminance_presets,
+)
+from calibrate_pro.targets.whitepoint import (
+    ILLUMINANT_CCT,
+    ILLUMINANT_XY,
+    WHITEPOINT_ACES,
+    # Standard presets
+    WHITEPOINT_D50,
+    WHITEPOINT_D65,
+    WHITEPOINT_D75,
+    WHITEPOINT_DCI,
+    WhitepointPreset,
+    WhitepointTarget,
+    XYZ_to_xy,
+    apply_duv_offset,
+    cct_to_xy,
+    create_custom_whitepoint,
+    daylight_locus_xy,
+    get_whitepoint_presets,
+    planckian_locus_xy,
+    xy_to_cct,
+    xy_to_XYZ,
+)
 
 
 @dataclass
@@ -159,7 +167,7 @@ class CalibrationTargetProfile:
         """Check if this is an HDR target profile."""
         return self.luminance.is_hdr() or self.gamma.is_hdr()
 
-    def get_summary(self) -> Dict:
+    def get_summary(self) -> dict:
         """Get summary of all target settings."""
         return {
             "name": self.name,
@@ -188,7 +196,7 @@ class CalibrationTargetProfile:
             }
         }
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "name": self.name,
@@ -200,7 +208,7 @@ class CalibrationTargetProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "CalibrationTargetProfile":
+    def from_dict(cls, data: dict) -> CalibrationTargetProfile:
         """Create from dictionary."""
         return cls(
             name=data.get("name", "Custom"),
@@ -242,7 +250,7 @@ PROFILE_DCI_P3 = CalibrationTargetProfile(
     description="Digital Cinema Initiative standard",
     whitepoint=WHITEPOINT_DCI,
     luminance=LUMINANCE_DCI,
-    gamma=GAMMA_26 if 'GAMMA_26' in dir() else GammaTarget(preset=GammaPreset.POWER_26),
+    gamma=GammaTarget(preset=GammaPreset.POWER_26),
     gamut=GAMUT_DCI_P3_THEATER
 )
 

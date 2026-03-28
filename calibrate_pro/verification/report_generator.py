@@ -15,7 +15,7 @@ Reports include:
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # Type imports for documentation; runtime access via duck typing
 # from calibrate_pro.sensorless.auto_calibration import AutoCalibrationResult
@@ -152,7 +152,7 @@ def _xy_to_cct(x: float, y: float) -> float:
 # Lab to sRGB approximation (for predicted colors in report)
 # =============================================================================
 
-def _lab_to_approx_srgb(lab: Tuple[float, float, float]) -> Tuple[float, float, float]:
+def _lab_to_approx_srgb(lab: tuple[float, float, float]) -> tuple[float, float, float]:
     """
     Convert CIE Lab (D50) to approximate sRGB values for display in the report.
 
@@ -178,7 +178,7 @@ def _lab_to_approx_srgb(lab: Tuple[float, float, float]) -> Tuple[float, float, 
     else:
         x_val = (116.0 * fx - 16.0) / kappa
 
-    if L > kappa * epsilon:
+    if kappa * epsilon < L:
         y_val = fy ** 3
     else:
         y_val = L / kappa
@@ -419,10 +419,10 @@ table.patch-table tr:hover {
 # =============================================================================
 
 def _generate_cie_diagram_svg(
-    panel_red: Tuple[float, float],
-    panel_green: Tuple[float, float],
-    panel_blue: Tuple[float, float],
-    panel_white: Tuple[float, float],
+    panel_red: tuple[float, float],
+    panel_green: tuple[float, float],
+    panel_blue: tuple[float, float],
+    panel_white: tuple[float, float],
 ) -> str:
     """
     Generate an inline SVG of the CIE 1931 chromaticity diagram.
@@ -445,12 +445,12 @@ def _generate_cie_diagram_svg(
     plot_w = svg_w - 2 * margin
     plot_h = svg_h - 2 * margin
 
-    def xy_to_svg(x: float, y: float) -> Tuple[float, float]:
+    def xy_to_svg(x: float, y: float) -> tuple[float, float]:
         sx = margin + (x / 0.8) * plot_w
         sy = svg_h - margin - (y / 0.9) * plot_h
         return (sx, sy)
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{svg_w}" height="{svg_h}" '
@@ -631,12 +631,12 @@ def _generate_gamma_curves_svg(
     plot_w = svg_w - margin_l - margin_r
     plot_h = svg_h - margin_t - margin_b
 
-    def val_to_svg(inp: float, out: float) -> Tuple[float, float]:
+    def val_to_svg(inp: float, out: float) -> tuple[float, float]:
         sx = margin_l + inp * plot_w
         sy = svg_h - margin_b - out * plot_h
         return (sx, sy)
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{svg_w}" height="{svg_h}" '
@@ -769,10 +769,10 @@ def _build_header(
 
 
 def _build_cie_diagram_section(
-    panel_red: Tuple[float, float],
-    panel_green: Tuple[float, float],
-    panel_blue: Tuple[float, float],
-    panel_white: Tuple[float, float],
+    panel_red: tuple[float, float],
+    panel_green: tuple[float, float],
+    panel_blue: tuple[float, float],
+    panel_white: tuple[float, float],
 ) -> str:
     """Build the CIE diagram section."""
     svg = _generate_cie_diagram_svg(panel_red, panel_green, panel_blue, panel_white)
@@ -808,10 +808,10 @@ def _build_summary_section(
     delta_e_max: float,
     grade: str,
     lut_method: str,
-    ddc_changes: Dict[str, Any],
-    gamut_coverage: Optional[Dict[str, float]] = None,
+    ddc_changes: dict[str, Any],
+    gamut_coverage: dict[str, float] | None = None,
     cam16_delta_e_avg: float = 0.0,
-    color_volume: Optional[Dict] = None,
+    color_volume: dict | None = None,
 ) -> str:
     """Build the calibration results summary section."""
     grade_class = _grade_css_class(grade)
@@ -898,8 +898,8 @@ def _build_summary_section(
 
 
 def _build_gamut_coverage_html(
-    coverage: Optional[Dict[str, float]],
-    color_volume: Optional[Dict] = None
+    coverage: dict[str, float] | None,
+    color_volume: dict | None = None
 ) -> str:
     """Build gamut coverage and color volume section HTML."""
     if not coverage:
@@ -979,7 +979,7 @@ def _build_gamut_coverage_html(
             bar_w = svg_w / max(len(levels), 1)
 
             bars_svg = ""
-            for i, (L, area) in enumerate(zip(levels, areas)):
+            for i, (_L, area) in enumerate(zip(levels, areas)):
                 h = (area / max_area) * (svg_h - 20)
                 x = i * bar_w
                 y = svg_h - 10 - h
@@ -1014,10 +1014,10 @@ def _srgb_to_hex(r: float, g: float, b: float) -> str:
 
 
 def _build_patch_table_section(
-    patches: List[Dict[str, Any]],
+    patches: list[dict[str, Any]],
 ) -> str:
     """Build the ColorChecker patch results table."""
-    rows: List[str] = []
+    rows: list[str] = []
 
     for patch in patches:
         name = patch["name"]
@@ -1109,8 +1109,8 @@ def _build_gamma_section(
 
 
 def _build_whitepoint_section(
-    native_wp: Tuple[float, float],
-    target_wp: Tuple[float, float],
+    native_wp: tuple[float, float],
+    target_wp: tuple[float, float],
 ) -> str:
     """Build the white point information section."""
     native_cct = _xy_to_cct(native_wp[0], native_wp[1])
@@ -1163,7 +1163,7 @@ def _html_escape(text: str) -> str:
 def generate_calibration_report(
     result: Any,
     panel: Any,
-    verification: Dict[str, Any],
+    verification: dict[str, Any],
     output_path: Any,
 ) -> Path:
     """
@@ -1240,8 +1240,8 @@ def generate_calibration_report(
     cie_section = _build_cie_diagram_section(
         panel_red, panel_green, panel_blue, panel_white
     )
-    gamut_coverage = verification.get("gamut_coverage", None)
-    color_volume = verification.get("color_volume", None)
+    gamut_coverage = verification.get("gamut_coverage")
+    color_volume = verification.get("color_volume")
     cam16_de_avg = verification.get("cam16_delta_e_avg", 0.0)
 
     summary_section = _build_summary_section(

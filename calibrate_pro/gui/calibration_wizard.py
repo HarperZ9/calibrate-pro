@@ -10,20 +10,32 @@ Guides users through the complete calibration process:
 6. Verification
 """
 
-from typing import Optional, List, Dict, Any, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QLabel,
-    QPushButton, QFrame, QGroupBox, QRadioButton, QButtonGroup,
-    QComboBox, QSpinBox, QDoubleSpinBox, QSlider, QCheckBox,
-    QProgressBar, QScrollArea, QGridLayout, QSizePolicy,
-    QSpacerItem, QListWidget, QListWidgetItem, QTextEdit
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QSpinBox,
+    QStackedWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QColor, QPainter, QPen, QBrush, QLinearGradient
-
 
 # =============================================================================
 # Theme Colors (shared with main_window)
@@ -128,7 +140,7 @@ class WizardStep(QWidget):
     step_complete = pyqtSignal(bool)  # Emitted when step validity changes
     config_changed = pyqtSignal()     # Emitted when configuration changes
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(parent)
         self.config = config
         self._is_valid = False
@@ -168,7 +180,7 @@ class WizardStep(QWidget):
 class DisplaySelectionStep(WizardStep):
     """Step 1: Select display to calibrate."""
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
 
@@ -237,7 +249,7 @@ class DisplaySelectionStep(WizardStep):
             label_widget = QLabel(label)
             label_widget.setStyleSheet(f"color: {COLORS['text_secondary']};")
             value_widget = QLabel("--")
-            value_widget.setStyleSheet(f"font-weight: 600;")
+            value_widget.setStyleSheet("font-weight: 600;")
             self.info_labels[key] = value_widget
             info_layout.addWidget(label_widget, row, 0)
             info_layout.addWidget(value_widget, row, 1)
@@ -313,7 +325,7 @@ class DisplaySelectionStep(WizardStep):
 class TargetSettingsStep(WizardStep):
     """Step 2: Configure calibration targets."""
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
         self._is_valid = True  # Always valid with defaults
@@ -513,7 +525,7 @@ class TargetSettingsStep(WizardStep):
 class CalibrationModeStep(WizardStep):
     """Step 3: Choose calibration method."""
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
         self._is_valid = True
@@ -604,7 +616,7 @@ class CalibrationModeStep(WizardStep):
         layout.addStretch()
 
     def _create_mode_card(self, title: str, description: str,
-                          features: List[str], mode: CalibrationMode,
+                          features: list[str], mode: CalibrationMode,
                           checked: bool) -> QFrame:
         """Create a mode selection card."""
         card = QFrame()
@@ -626,15 +638,15 @@ class CalibrationModeStep(WizardStep):
         header_layout = QHBoxLayout()
         radio = QRadioButton(title)
         radio.setChecked(checked)
-        radio.setStyleSheet(f"""
-            QRadioButton {{
+        radio.setStyleSheet("""
+            QRadioButton {
                 font-size: 16px;
                 font-weight: 600;
-            }}
-            QRadioButton::indicator {{
+            }
+            QRadioButton::indicator {
                 width: 20px;
                 height: 20px;
-            }}
+            }
         """)
         radio.toggled.connect(lambda checked: self._on_mode_changed(mode, checked))
         self.mode_group.addButton(radio)
@@ -676,7 +688,7 @@ class MeasurementStep(WizardStep):
     measurement_started = pyqtSignal()
     measurement_completed = pyqtSignal(dict)  # Results
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
         self._measuring = False
@@ -894,7 +906,7 @@ class MeasurementStep(WizardStep):
 class ProfileGenerationStep(WizardStep):
     """Step 5: Generate and save calibration profile."""
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
         self._is_valid = True
@@ -1001,7 +1013,7 @@ class ProfileGenerationStep(WizardStep):
 class VerificationStep(WizardStep):
     """Step 6: Verify calibration accuracy."""
 
-    def __init__(self, config: CalibrationConfig, parent: Optional[QWidget] = None):
+    def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
         self._setup_ui()
         self._is_valid = True
@@ -1112,7 +1124,7 @@ class CalibrationWizard(QWidget):
     wizard_completed = pyqtSignal(CalibrationConfig)
     wizard_cancelled = pyqtSignal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.config = CalibrationConfig()
         self._setup_ui()

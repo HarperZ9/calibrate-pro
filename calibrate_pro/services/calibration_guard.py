@@ -13,14 +13,14 @@ fighting against Windows' tendency to destroy calibration work.
 Runs as a background thread, checking every N seconds.
 """
 
-import logging
-import time
-import threading
 import ctypes
+import logging
+import threading
+import time
+from collections.abc import Callable
 from ctypes import wintypes
-from pathlib import Path
-from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -31,11 +31,11 @@ class GuardedDisplay:
     """A display whose calibration is being protected."""
     device_name: str          # e.g., "\\\\.\\DISPLAY1"
     display_name: str         # Human-readable
-    icc_profile_path: Optional[str] = None
-    lut_path: Optional[str] = None
-    vcgt_red: Optional[np.ndarray] = None
-    vcgt_green: Optional[np.ndarray] = None
-    vcgt_blue: Optional[np.ndarray] = None
+    icc_profile_path: str | None = None
+    lut_path: str | None = None
+    vcgt_red: np.ndarray | None = None
+    vcgt_green: np.ndarray | None = None
+    vcgt_blue: np.ndarray | None = None
 
 
 class CalibrationGuard:
@@ -50,7 +50,7 @@ class CalibrationGuard:
     def __init__(
         self,
         check_interval: float = 10.0,
-        on_restore: Optional[Callable[[str, str], None]] = None
+        on_restore: Callable[[str, str], None] | None = None
     ):
         """
         Args:
@@ -59,9 +59,9 @@ class CalibrationGuard:
         """
         self.check_interval = check_interval
         self.on_restore = on_restore
-        self._guarded: Dict[str, GuardedDisplay] = {}
+        self._guarded: dict[str, GuardedDisplay] = {}
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._restore_count = 0
 
     @property
@@ -101,14 +101,14 @@ class CalibrationGuard:
             self._thread.join(timeout=15)
             self._thread = None
 
-    def check_now(self) -> List[str]:
+    def check_now(self) -> list[str]:
         """
         Perform an immediate check and restore if needed.
 
         Returns list of display names that were restored.
         """
         restored = []
-        for device_name, display in self._guarded.items():
+        for _device_name, display in self._guarded.items():
             if self._check_and_restore(display):
                 restored.append(display.display_name)
         return restored
@@ -119,7 +119,7 @@ class CalibrationGuard:
         """Main guard loop."""
         while self._running:
             try:
-                for device_name, display in list(self._guarded.items()):
+                for _device_name, display in list(self._guarded.items()):
                     self._check_and_restore(display)
             except Exception as e:
                 logger.error("Guard check failed: %s", e, exc_info=True)
@@ -178,7 +178,7 @@ class CalibrationGuard:
         return np.max(np.abs(a.astype(np.int32) - b.astype(np.int32))) < tolerance
 
     @staticmethod
-    def _read_current_vcgt(device_name: str) -> Optional[tuple]:
+    def _read_current_vcgt(device_name: str) -> tuple | None:
         """Read the current VCGT gamma ramp from a display."""
         try:
             user32 = ctypes.windll.user32

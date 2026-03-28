@@ -20,8 +20,7 @@ Standards supported:
 - EBU Tech 3320 Grade 1
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List
+from dataclasses import dataclass
 
 
 @dataclass
@@ -35,10 +34,10 @@ class CalibrationTarget:
     description: str
 
     # Color space
-    red_xy: Tuple[float, float]
-    green_xy: Tuple[float, float]
-    blue_xy: Tuple[float, float]
-    white_xy: Tuple[float, float]
+    red_xy: tuple[float, float]
+    green_xy: tuple[float, float]
+    blue_xy: tuple[float, float]
+    white_xy: tuple[float, float]
     white_cct: int  # Correlated color temperature
 
     # Transfer function
@@ -308,7 +307,7 @@ REC2020 = CalibrationTarget(
 # Target Registry
 # =============================================================================
 
-ALL_TARGETS: Dict[str, CalibrationTarget] = {
+ALL_TARGETS: dict[str, CalibrationTarget] = {
     "rec709": REC709_BT1886,
     "srgb": SRGB,
     "adobe_rgb": ADOBE_RGB,
@@ -325,12 +324,12 @@ ALL_TARGETS: Dict[str, CalibrationTarget] = {
 }
 
 
-def get_target(name: str) -> Optional[CalibrationTarget]:
+def get_target(name: str) -> CalibrationTarget | None:
     """Get a calibration target by name."""
     return ALL_TARGETS.get(name.lower().replace(" ", "_").replace("-", "_"))
 
 
-def list_targets() -> List[Dict[str, str]]:
+def list_targets() -> list[dict[str, str]]:
     """List all available calibration targets."""
     return [
         {
@@ -344,6 +343,6 @@ def list_targets() -> List[Dict[str, str]]:
     ]
 
 
-def get_targets_by_category(category: str) -> List[CalibrationTarget]:
+def get_targets_by_category(category: str) -> list[CalibrationTarget]:
     """Get all targets in a category (broadcast, cinema, hdr, photography, web)."""
     return [t for t in ALL_TARGETS.values() if t.category == category]

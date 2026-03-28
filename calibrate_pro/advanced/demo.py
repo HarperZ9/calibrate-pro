@@ -13,7 +13,6 @@ Run with: python -m calibrate_pro.advanced.demo
 """
 
 import sys
-import numpy as np
 from pathlib import Path
 
 # Add parent to path for standalone execution
@@ -28,8 +27,11 @@ def demo_uniformity():
     print("=" * 70)
 
     from calibrate_pro.advanced.uniformity import (
-        UniformityGrid, UniformityAnalyzer, UniformityCompensator,
-        create_test_measurements, generate_grid_positions
+        UniformityAnalyzer,
+        UniformityCompensator,
+        UniformityGrid,
+        create_test_measurements,
+        generate_grid_positions,
     )
 
     # Generate measurement positions for 5x5 grid
@@ -72,9 +74,14 @@ def demo_ambient_light():
     print("=" * 70)
 
     from calibrate_pro.advanced.ambient_light import (
-        AdaptationMode, SimulatedSensor, AdaptationController,
-        classify_ambient, condition_to_string, create_default_schedule,
-        LUX_THRESHOLDS, PRESET_PROFILES
+        LUX_THRESHOLDS,
+        PRESET_PROFILES,
+        AdaptationController,
+        AdaptationMode,
+        SimulatedSensor,
+        classify_ambient,
+        condition_to_string,
+        create_default_schedule,
     )
 
     # Show lux thresholds
@@ -123,9 +130,11 @@ def demo_network_calibration():
     print("=" * 70)
 
     from calibrate_pro.advanced.network_calibration import (
-        NodeStatus, JobStatus, JobType,
-        CalibrationServer, CalibrationClient, ProfileSyncManager,
-        create_test_nodes
+        CalibrationServer,
+        JobType,
+        NodeStatus,
+        ProfileSyncManager,
+        create_test_nodes,
     )
 
     # Create test nodes
@@ -184,10 +193,13 @@ def demo_lut_optimization():
     print("=" * 70)
 
     from calibrate_pro.advanced.lut_optimization import (
-        SmoothingMethod, GamutMappingMethod, OptimizationGoal,
-        LUTOptimizer, analyze_lut_quality,
-        smooth_lut_gaussian, smooth_lut_bilateral,
-        create_identity_lut, create_test_lut
+        LUTOptimizer,
+        OptimizationGoal,
+        analyze_lut_quality,
+        create_identity_lut,
+        create_test_lut,
+        smooth_lut_bilateral,
+        smooth_lut_gaussian,
     )
 
     # Create LUTs
@@ -244,15 +256,12 @@ def demo_automation():
     print("AUTOMATION API DEMO")
     print("=" * 70)
 
-    from calibrate_pro.advanced.automation import (
-        TaskStatus, TaskType, WorkflowState,
-        AutomationAPI
-    )
+    from calibrate_pro.advanced.automation import AutomationAPI, TaskType
 
     # Create API
     print("\n[1] Creating Automation API...")
     api = AutomationAPI()
-    print(f"    Available task handlers:")
+    print("    Available task handlers:")
     for task_type in api.engine.handlers:
         print(f"      - {task_type.name}")
 

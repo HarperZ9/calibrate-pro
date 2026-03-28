@@ -12,10 +12,10 @@ Supports:
 For professional colorists, broadcast engineers, and enthusiasts.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List
+from dataclasses import dataclass
 from enum import Enum
+
+import numpy as np
 
 
 class LuminanceStandard(Enum):
@@ -55,7 +55,7 @@ class BlackLevelStandard(Enum):
 
 
 # Standard luminance values (cd/m2 = nits)
-LUMINANCE_STANDARDS: Dict[str, Dict] = {
+LUMINANCE_STANDARDS: dict[str, dict] = {
     # SDR Standards
     "SDR General": {
         "peak": 120.0,
@@ -198,15 +198,15 @@ class LuminanceTarget:
         tolerance_percent: Acceptable deviation percentage
     """
     standard: LuminanceStandard = LuminanceStandard.SDR_GENERAL
-    peak_luminance: Optional[float] = None  # cd/m2
-    reference_white: Optional[float] = None  # cd/m2
-    black_level: Optional[float] = None  # cd/m2
-    target_contrast: Optional[float] = None
+    peak_luminance: float | None = None  # cd/m2
+    reference_white: float | None = None  # cd/m2
+    black_level: float | None = None  # cd/m2
+    target_contrast: float | None = None
     hdr_mode: bool = False
 
     # HDR metadata
-    max_cll: Optional[int] = None  # MaxCLL
-    max_fall: Optional[int] = None  # MaxFALL
+    max_cll: int | None = None  # MaxCLL
+    max_fall: int | None = None  # MaxFALL
 
     # Viewing environment
     surround_luminance: float = 5.0  # cd/m2 (dim surround default)
@@ -275,7 +275,7 @@ class LuminanceTarget:
             return 0.0
         return np.log2(contrast)
 
-    def get_hdr_metadata(self) -> Dict:
+    def get_hdr_metadata(self) -> dict:
         """Get HDR metadata for content creation."""
         peak = int(self.get_peak_luminance())
 
@@ -305,7 +305,7 @@ class LuminanceTarget:
 
         return self.standard in hdr_standards
 
-    def verify(self, measured_peak: float, measured_black: float) -> Dict:
+    def verify(self, measured_peak: float, measured_black: float) -> dict:
         """
         Verify measured luminance against target.
 
@@ -364,7 +364,7 @@ class LuminanceTarget:
         else:
             return "Uncalibrated"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "standard": self.standard.value,
@@ -385,7 +385,7 @@ class LuminanceTarget:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "LuminanceTarget":
+    def from_dict(cls, data: dict) -> "LuminanceTarget":
         """Create from dictionary."""
         return cls(
             standard=LuminanceStandard(data.get("standard", "SDR General")),
@@ -439,7 +439,7 @@ class GrayscaleTarget:
 
         return luminance
 
-    def get_grayscale_ramp(self, steps: int = 21) -> List[Dict]:
+    def get_grayscale_ramp(self, steps: int = 21) -> list[dict]:
         """Generate grayscale target ramp."""
         ramp = []
         for i in range(steps):
@@ -520,7 +520,7 @@ LUMINANCE_CONSUMER_HDR = LuminanceTarget(
 )
 
 
-def get_luminance_presets() -> List[LuminanceTarget]:
+def get_luminance_presets() -> list[LuminanceTarget]:
     """Get list of standard luminance presets."""
     return [
         LUMINANCE_REC709,
@@ -534,12 +534,12 @@ def get_luminance_presets() -> List[LuminanceTarget]:
     ]
 
 
-def get_sdr_presets() -> List[LuminanceTarget]:
+def get_sdr_presets() -> list[LuminanceTarget]:
     """Get SDR-only luminance presets."""
     return [p for p in get_luminance_presets() if not p.is_hdr()]
 
 
-def get_hdr_presets() -> List[LuminanceTarget]:
+def get_hdr_presets() -> list[LuminanceTarget]:
     """Get HDR-only luminance presets."""
     return [p for p in get_luminance_presets() if p.is_hdr()]
 
@@ -547,7 +547,7 @@ def get_hdr_presets() -> List[LuminanceTarget]:
 def create_custom_luminance(
     peak: float,
     black: float = 0.0,
-    reference_white: Optional[float] = None,
+    reference_white: float | None = None,
     hdr_mode: bool = False,
     name: str = "Custom"
 ) -> LuminanceTarget:
@@ -582,7 +582,7 @@ def calculate_recommended_luminance(
     screen_diagonal_inches: float,
     ambient_lux: float = 50.0,
     hdr: bool = False
-) -> Dict:
+) -> dict:
     """
     Calculate recommended luminance based on viewing conditions.
 
@@ -596,7 +596,7 @@ def calculate_recommended_luminance(
         Recommended luminance settings
     """
     # Screen area estimation
-    screen_area = (screen_diagonal_inches * 0.0254) ** 2 * 0.5  # m2 approximate
+    (screen_diagonal_inches * 0.0254) ** 2 * 0.5  # m2 approximate
 
     # Viewing angle factor
     view_angle = np.arctan((screen_diagonal_inches * 0.0254 / 2) / viewing_distance_m)

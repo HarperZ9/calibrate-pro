@@ -24,14 +24,12 @@ Each plugin is a Python file (``.py``) with a top-level
         manager.register_output_format("my_format", my_export_function)
 """
 
-import os
-import sys
 import importlib
 import importlib.util
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
-from dataclasses import dataclass, field
 
 from calibrate_pro import __version__
 
@@ -46,9 +44,9 @@ class PluginInfo:
     author: str
     description: str
     plugin_type: str  # "lut_generator", "device_driver", "output_format", "panel_source"
-    file_path: Optional[str] = None
+    file_path: str | None = None
     loaded: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class PluginManager:
@@ -60,26 +58,26 @@ class PluginManager:
                      Defaults to ``[~/.calibrate-pro/plugins/, ./plugins/]``.
     """
 
-    def __init__(self, plugin_dirs: Optional[List[str]] = None):
+    def __init__(self, plugin_dirs: list[str] | None = None):
         if plugin_dirs is not None:
             self._plugin_dirs = [Path(d) for d in plugin_dirs]
         else:
             self._plugin_dirs = self._default_dirs()
 
-        self._plugins: Dict[str, PluginInfo] = {}
-        self._lut_generators: Dict[str, Callable] = {}
-        self._output_formats: Dict[str, Callable] = {}
-        self._device_drivers: Dict[str, Callable] = {}
-        self._panel_sources: Dict[str, Callable] = {}
+        self._plugins: dict[str, PluginInfo] = {}
+        self._lut_generators: dict[str, Callable] = {}
+        self._output_formats: dict[str, Callable] = {}
+        self._device_drivers: dict[str, Callable] = {}
+        self._panel_sources: dict[str, Callable] = {}
 
     # ------------------------------------------------------------------
     # Default directories
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _default_dirs() -> List[Path]:
+    def _default_dirs() -> list[Path]:
         """Return the default list of plugin directories."""
-        dirs: List[Path] = []
+        dirs: list[Path] = []
 
         # User plugin directory
         home = Path.home()
@@ -121,23 +119,23 @@ class PluginManager:
     # Query API
     # ------------------------------------------------------------------
 
-    def get_lut_generators(self) -> Dict[str, Callable]:
+    def get_lut_generators(self) -> dict[str, Callable]:
         """Get all registered custom LUT generators."""
         return dict(self._lut_generators)
 
-    def get_output_formats(self) -> Dict[str, Callable]:
+    def get_output_formats(self) -> dict[str, Callable]:
         """Get all registered custom output format exporters."""
         return dict(self._output_formats)
 
-    def get_device_drivers(self) -> Dict[str, Callable]:
+    def get_device_drivers(self) -> dict[str, Callable]:
         """Get all registered custom device drivers."""
         return dict(self._device_drivers)
 
-    def get_panel_sources(self) -> Dict[str, Callable]:
+    def get_panel_sources(self) -> dict[str, Callable]:
         """Get all registered custom panel data sources."""
         return dict(self._panel_sources)
 
-    def get_discovered_plugins(self) -> List[PluginInfo]:
+    def get_discovered_plugins(self) -> list[PluginInfo]:
         """Return metadata for all discovered plugins (loaded or not)."""
         return list(self._plugins.values())
 
@@ -145,7 +143,7 @@ class PluginManager:
     # Discovery
     # ------------------------------------------------------------------
 
-    def discover_plugins(self) -> List[PluginInfo]:
+    def discover_plugins(self) -> list[PluginInfo]:
         """
         Scan plugin directories and entry_points for plugins.
 
@@ -171,7 +169,7 @@ class PluginManager:
 
         return list(self._plugins.values())
 
-    def _inspect_file(self, py_file: Path) -> Optional[PluginInfo]:
+    def _inspect_file(self, py_file: Path) -> PluginInfo | None:
         """Read PLUGIN_INFO from a .py file without executing it."""
         try:
             import ast
@@ -179,7 +177,7 @@ class PluginManager:
             source = py_file.read_text(encoding="utf-8")
             tree = ast.parse(source, filename=str(py_file))
 
-            plugin_info_dict: Optional[dict] = None
+            plugin_info_dict: dict | None = None
             has_register = False
 
             for node in ast.iter_child_nodes(tree):
@@ -239,13 +237,8 @@ class PluginManager:
     def _discover_entry_points(self) -> None:
         """Discover plugins registered via setuptools entry_points."""
         try:
-            if sys.version_info >= (3, 10):
-                from importlib.metadata import entry_points
-                eps = entry_points(group="calibrate_pro.plugins")
-            else:
-                from importlib.metadata import entry_points as _all_eps
-                all_eps = _all_eps()
-                eps = all_eps.get("calibrate_pro.plugins", [])
+            from importlib.metadata import entry_points
+            eps = entry_points(group="calibrate_pro.plugins")
 
             for ep in eps:
                 info = PluginInfo(
@@ -347,7 +340,7 @@ class PluginManager:
 # CLI helper
 # ---------------------------------------------------------------------------
 
-def print_discovered_plugins(plugin_dirs: Optional[List[str]] = None) -> None:
+def print_discovered_plugins(plugin_dirs: list[str] | None = None) -> None:
     """
     Print discovered plugins to stdout.
 
@@ -361,12 +354,12 @@ def print_discovered_plugins(plugin_dirs: Optional[List[str]] = None) -> None:
 
     dirs_display = [str(d) for d in mgr._plugin_dirs]
 
-    print(f"\n  Plugin directories:")
+    print("\n  Plugin directories:")
     for d in dirs_display:
         exists_tag = "" if Path(d).is_dir() else " (not found)"
         print(f"    {d}{exists_tag}")
 
-    print(f"\n  Discovered plugins:")
+    print("\n  Discovered plugins:")
 
     if not plugins:
         print(f"    (none - place .py files in {dirs_display[0]})")

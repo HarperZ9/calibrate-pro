@@ -5,23 +5,30 @@ Creates 3D color lookup tables for system-wide color management.
 Supports multiple export formats: .cube, .3dl, .mga, .csp, .clf/.ctf
 """
 
-import numpy as np
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple, Union, List
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+
+import numpy as np
 
 from calibrate_pro.core.color_math import (
-    srgb_to_xyz, xyz_to_srgb, xyz_to_lab, lab_to_xyz,
-    bradford_adapt, D50_WHITE, D65_WHITE, Illuminant,
-    delta_e_2000, gamma_decode, gamma_encode,
-    srgb_gamma_expand, srgb_gamma_compress,
-    pq_eotf, pq_oetf, bt2390_eetf,
-    xyz_abs_to_jzazbz, jzazbz_to_xyz_abs,
-    jzazbz_to_jzczhz, jzczhz_to_jzazbz,
-    primaries_to_xyz_matrix,
     BT2020_TO_XYZ,
+    Illuminant,
+    bt2390_eetf,
+    gamma_decode,
+    gamma_encode,
+    jzazbz_to_jzczhz,
+    jzazbz_to_xyz_abs,
+    jzczhz_to_jzazbz,
+    pq_eotf,
+    pq_oetf,
+    primaries_to_xyz_matrix,
+    srgb_gamma_compress,
+    srgb_gamma_expand,
+    xyz_abs_to_jzazbz,
 )
+
 
 class LUTFormat(Enum):
     """Supported 3D LUT file formats."""
@@ -42,8 +49,8 @@ class LUT3D:
     size: int  # Grid size (e.g., 17, 33, 65)
     data: np.ndarray  # Shape: (size, size, size, 3)
     title: str = "Calibrate Pro 3D LUT"
-    domain_min: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    domain_max: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    domain_min: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    domain_max: tuple[float, float, float] = (1.0, 1.0, 1.0)
 
     @classmethod
     def create_identity(cls, size: int = 33) -> "LUT3D":
@@ -99,7 +106,7 @@ class LUT3D:
             return result.reshape(h, w, 3)
         return result
 
-    def save(self, filepath: Union[str, Path], format: LUTFormat = LUTFormat.CUBE):
+    def save(self, filepath: str | Path, format: LUTFormat = LUTFormat.CUBE):
         """
         Save LUT to file.
 
@@ -197,7 +204,7 @@ class LUT3D:
                         val = self.data[r, g, b]
                         f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
-    def save_clf(self, filepath: Union[str, Path]):
+    def save_clf(self, filepath: str | Path):
         """
         Save in CLF (Common LUT Format) per SMPTE ST 2136-1.
 
@@ -213,7 +220,7 @@ class LUT3D:
             filepath: Output file path (typically .clf or .ctf extension)
         """
         import uuid
-        from xml.etree.ElementTree import Element, SubElement, ElementTree
+        from xml.etree.ElementTree import Element, ElementTree, SubElement
 
         filepath = Path(filepath)
 
@@ -255,7 +262,7 @@ class LUT3D:
         with open(filepath, 'wb') as f:
             tree.write(f, encoding='UTF-8', xml_declaration=True)
 
-    def save_reshade_png(self, filepath: Union[str, Path]):
+    def save_reshade_png(self, filepath: str | Path):
         """
         Save as ReShade-compatible LUT strip PNG.
 
@@ -331,7 +338,7 @@ class LUT3D:
         with open(filepath, 'wb') as f:
             f.write(sig + ihdr + idat + iend)
 
-    def save_specialk_png(self, filepath: Union[str, Path]):
+    def save_specialk_png(self, filepath: str | Path):
         """
         Save as SpecialK-compatible LUT PNG.
 
@@ -340,7 +347,7 @@ class LUT3D:
         """
         self.save_reshade_png(filepath)
 
-    def save_madvr_3dlut(self, filepath: Union[str, Path]):
+    def save_madvr_3dlut(self, filepath: str | Path):
         """
         Save as MadVR .3dlut binary format.
 
@@ -384,9 +391,9 @@ class LUT3D:
 
     def save_mpv_config(
         self,
-        lut_path: Union[str, Path],
-        icc_path: Optional[Union[str, Path]] = None,
-        output_path: Optional[Union[str, Path]] = None,
+        lut_path: str | Path,
+        icc_path: str | Path | None = None,
+        output_path: str | Path | None = None,
     ) -> str:
         """
         Generate an mpv.conf snippet for using this calibration.
@@ -430,7 +437,7 @@ class LUT3D:
 
         return config_text
 
-    def save_obs_lut(self, filepath: Union[str, Path]):
+    def save_obs_lut(self, filepath: str | Path):
         """
         Save as OBS-compatible .cube LUT with setup instructions.
 
@@ -483,7 +490,7 @@ class LUT3D:
                         f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
     @classmethod
-    def load_cube(cls, filepath: Union[str, Path]) -> "LUT3D":
+    def load_cube(cls, filepath: str | Path) -> "LUT3D":
         """Load LUT from .cube file."""
         filepath = Path(filepath)
         size = None
@@ -492,7 +499,7 @@ class LUT3D:
         domain_max = (1.0, 1.0, 1.0)
         values = []
 
-        with open(filepath, 'r') as f:
+        with open(filepath) as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith('#'):
@@ -528,7 +535,7 @@ class LUT3D:
                    domain_min=domain_min, domain_max=domain_max)
 
     @classmethod
-    def load(cls, filepath: Union[str, Path]) -> "LUT3D":
+    def load(cls, filepath: str | Path) -> "LUT3D":
         """
         Load LUT from file, auto-detecting format from extension.
 
@@ -562,13 +569,13 @@ class LUT3D:
             # Try cube format as default
             try:
                 return cls.load_cube(filepath)
-            except Exception:
-                raise ValueError(f"Unsupported LUT format: {ext}")
+            except Exception as e:
+                raise ValueError(f"Unsupported LUT format: {ext}") from e
 
     @classmethod
     def _load_3dl(cls, filepath: Path) -> "LUT3D":
         """Load LUT from .3dl file."""
-        with open(filepath, 'r') as f:
+        with open(filepath) as f:
             lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
 
         # First line is input shaper, skip it
@@ -591,7 +598,7 @@ class LUT3D:
     @classmethod
     def _load_mga(cls, filepath: Path) -> "LUT3D":
         """Load LUT from .mga file."""
-        with open(filepath, 'r') as f:
+        with open(filepath) as f:
             lines = [l.strip() for l in f if l.strip()]
 
         # First line: LUT8, second: size
@@ -611,7 +618,7 @@ class LUT3D:
     @classmethod
     def _load_csp(cls, filepath: Path) -> "LUT3D":
         """Load LUT from .csp file."""
-        with open(filepath, 'r') as f:
+        with open(filepath) as f:
             content = f.read()
 
         lines = [l.strip() for l in content.split('\n') if l.strip()]
@@ -749,10 +756,10 @@ class LUTGenerator:
 
     def create_from_primaries(
         self,
-        source_primaries: Tuple[Tuple[float, float], ...],
-        dest_primaries: Tuple[Tuple[float, float], ...],
-        source_white: Tuple[float, float] = (0.3127, 0.3290),
-        dest_white: Tuple[float, float] = (0.3127, 0.3290),
+        source_primaries: tuple[tuple[float, float], ...],
+        dest_primaries: tuple[tuple[float, float], ...],
+        source_white: tuple[float, float] = (0.3127, 0.3290),
+        dest_white: tuple[float, float] = (0.3127, 0.3290),
         title: str = "Gamut Mapping LUT"
     ) -> LUT3D:
         """
@@ -826,14 +833,14 @@ class LUTGenerator:
 
     def create_calibration_lut(
         self,
-        panel_primaries: Tuple[Tuple[float, float], ...],
-        panel_white: Tuple[float, float],
-        target_primaries: Tuple[Tuple[float, float], ...] = None,
-        target_white: Tuple[float, float] = (0.3127, 0.3290),
+        panel_primaries: tuple[tuple[float, float], ...],
+        panel_white: tuple[float, float],
+        target_primaries: tuple[tuple[float, float], ...] = None,
+        target_white: tuple[float, float] = (0.3127, 0.3290),
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
-        color_matrix: Optional[np.ndarray] = None,
+        color_matrix: np.ndarray | None = None,
         title: str = "Display Calibration LUT",
         target_gamma: float = 2.2
     ) -> LUT3D:
@@ -996,13 +1003,13 @@ class LUTGenerator:
 
     def create_native_gamut_lut(
         self,
-        panel_primaries: Tuple[Tuple[float, float], ...],
-        panel_white: Tuple[float, float],
+        panel_primaries: tuple[tuple[float, float], ...],
+        panel_white: tuple[float, float],
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
         target_gamma: float = 2.2,
-        target_white: Tuple[float, float] = (0.3127, 0.3290),
+        target_white: tuple[float, float] = (0.3127, 0.3290),
         title: str = "Native Gamut Calibration LUT",
         oled_compensation: bool = False,
         panel_type: str = "",
@@ -1034,9 +1041,7 @@ class LUTGenerator:
         Returns:
             Native-gamut calibration LUT
         """
-        from calibrate_pro.core.color_math import (
-            primaries_to_xyz_matrix, bradford_adapt, D65_WHITE, Illuminant
-        )
+        from calibrate_pro.core.color_math import primaries_to_xyz_matrix
 
         panel_to_xyz = primaries_to_xyz_matrix(
             panel_primaries[0], panel_primaries[1],
@@ -1073,7 +1078,7 @@ class LUTGenerator:
         N = self.size
         r_grid, g_grid, b_grid = np.meshgrid(coords, coords, coords, indexing='ij')
         all_rgb = np.stack([r_grid.ravel(), g_grid.ravel(), b_grid.ravel()], axis=1)
-        total = all_rgb.shape[0]
+        all_rgb.shape[0]
 
         is_black = np.all(all_rgb == 0.0, axis=1)
 
@@ -1088,8 +1093,7 @@ class LUTGenerator:
         if oled_compensation and panel_type in ("QD-OLED", "WOLED"):
             try:
                 from calibrate_pro.display.oled import (
-                    get_oled_characteristics, compensate_abl_in_lut,
-                    apply_near_black_correction
+                    get_oled_characteristics,
                 )
                 oled = get_oled_characteristics(panel_type, panel_key)
                 if oled:
@@ -1135,13 +1139,13 @@ class LUTGenerator:
 
     def create_oklab_perceptual_lut(
         self,
-        panel_primaries: Tuple[Tuple[float, float], ...],
-        panel_white: Tuple[float, float],
+        panel_primaries: tuple[tuple[float, float], ...],
+        panel_white: tuple[float, float],
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
-        target_primaries: Tuple[Tuple[float, float], ...] = None,
-        target_white: Tuple[float, float] = (0.3127, 0.3290),
+        target_primaries: tuple[tuple[float, float], ...] = None,
+        target_white: tuple[float, float] = (0.3127, 0.3290),
         target_gamma: float = 2.2,
         title: str = "Oklab Perceptual Calibration LUT"
     ) -> LUT3D:
@@ -1171,8 +1175,9 @@ class LUTGenerator:
             Perceptually-optimized calibration LUT
         """
         from calibrate_pro.core.color_math import (
-            primaries_to_xyz_matrix, linear_srgb_to_oklab,
-            oklab_to_linear_srgb, srgb_gamma_expand, srgb_gamma_compress
+            linear_srgb_to_oklab,
+            oklab_to_linear_srgb,
+            primaries_to_xyz_matrix,
         )
 
         if target_primaries is None:
@@ -1290,8 +1295,8 @@ class LUTGenerator:
 
     def create_hdr_calibration_lut(
         self,
-        panel_primaries: Tuple[Tuple[float, float], ...],
-        panel_white: Tuple[float, float],
+        panel_primaries: tuple[tuple[float, float], ...],
+        panel_white: tuple[float, float],
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
@@ -1341,7 +1346,7 @@ class LUTGenerator:
         # ---- colour-space matrices ----
         # BT.2020 linear RGB -> XYZ (D65)
         bt2020_to_xyz = BT2020_TO_XYZ.copy()
-        xyz_to_bt2020 = np.linalg.inv(bt2020_to_xyz)
+        np.linalg.inv(bt2020_to_xyz)
 
         # Panel linear RGB -> XYZ (D65)  and inverse
         panel_to_xyz = primaries_to_xyz_matrix(
@@ -1361,7 +1366,7 @@ class LUTGenerator:
         # should map to the same absolute luminance on the panel.  We
         # express it as a fraction of the peak so that we can rescale
         # the panel-linear values before gamma encoding.
-        white_scale = target_white_luminance / peak_luminance  # e.g. 0.203
+        target_white_luminance / peak_luminance  # e.g. 0.203
 
         inv_gammas = np.array(
             [1.0 / gamma_red, 1.0 / gamma_green, 1.0 / gamma_blue],
@@ -1436,8 +1441,8 @@ class LUTGenerator:
 
             if Cz > EPS:
                 h_rad = np.radians(hz)
-                cos_h = np.cos(h_rad)
-                sin_h = np.sin(h_rad)
+                np.cos(h_rad)
+                np.sin(h_rad)
 
                 # Binary search: find the maximum chroma in panel gamut
                 lo, hi = 0.0, Cz
@@ -1478,7 +1483,7 @@ class LUTGenerator:
         return lut
 
 
-def create_identity_lut(size: int = 33, filepath: Optional[Path] = None) -> LUT3D:
+def create_identity_lut(size: int = 33, filepath: Path | None = None) -> LUT3D:
     """
     Create and optionally save an identity LUT.
 

@@ -8,17 +8,12 @@ Displays gamma/EOTF curves with:
 - Deviation indicators
 """
 
-from typing import Optional, List, Tuple, Dict
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QSizePolicy
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
-from PyQt6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QPainterPath,
-    QLinearGradient, QFont
-)
-
+from PyQt6.QtCore import QPointF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PyQt6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 # =============================================================================
 # Gamma Functions
@@ -62,7 +57,7 @@ class CurveData:
     """Data for a gamma curve."""
     name: str
     color: QColor
-    points: List[Tuple[float, float]]  # (input, output) normalized 0-1
+    points: list[tuple[float, float]]  # (input, output) normalized 0-1
     visible: bool = True
 
 
@@ -75,15 +70,15 @@ class GammaCurveWidget(QWidget):
 
     point_hovered = pyqtSignal(float, float, float)  # input, target, measured
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(300, 250)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMouseTracking(True)
 
         # Curve data
-        self.target_curve: Optional[CurveData] = None
-        self.measured_curves: Dict[str, CurveData] = {}
+        self.target_curve: CurveData | None = None
+        self.measured_curves: dict[str, CurveData] = {}
 
         # Display options
         self.show_grid = True
@@ -110,7 +105,7 @@ class GammaCurveWidget(QWidget):
         }
 
         # Hover state
-        self._hover_x: Optional[float] = None
+        self._hover_x: float | None = None
 
     def set_target_gamma(self, gamma_type: str, gamma_value: float = 2.2):
         """Set the target gamma curve."""
@@ -138,7 +133,7 @@ class GammaCurveWidget(QWidget):
         )
         self.update()
 
-    def set_measured_grayscale(self, points: List[Tuple[float, float]]):
+    def set_measured_grayscale(self, points: list[tuple[float, float]]):
         """Set measured grayscale response."""
         self.measured_curves["grayscale"] = CurveData(
             name="Measured",
@@ -147,7 +142,7 @@ class GammaCurveWidget(QWidget):
         )
         self.update()
 
-    def set_measured_channel(self, channel: str, points: List[Tuple[float, float]]):
+    def set_measured_channel(self, channel: str, points: list[tuple[float, float]]):
         """Set measured response for a specific channel (R, G, B)."""
         color_map = {"R": "red", "G": "green", "B": "blue"}
         self.measured_curves[channel] = CurveData(
@@ -175,7 +170,7 @@ class GammaCurveWidget(QWidget):
 
         return QPointF(px, py)
 
-    def _pixel_to_value(self, px: float, py: float) -> Tuple[float, float]:
+    def _pixel_to_value(self, px: float, py: float) -> tuple[float, float]:
         """Convert pixel coordinates to normalized values."""
         plot_width = self.width() - 2 * self.margin
         plot_height = self.height() - 2 * self.margin
@@ -270,7 +265,7 @@ class GammaCurveWidget(QWidget):
         if not self.target_curve or "grayscale" not in self.measured_curves:
             return
 
-        target_points = dict(self.target_curve.points)
+        dict(self.target_curve.points)
         measured = self.measured_curves["grayscale"]
 
         # Create fill path
@@ -432,7 +427,7 @@ class GammaCurveWidget(QWidget):
 class GammaInfoPanel(QWidget):
     """Information panel showing gamma statistics."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -465,7 +460,7 @@ class GammaInfoPanel(QWidget):
 
     def update_stats(self, target_gamma: float, measured_gamma: float,
                     avg_deviation: float, max_deviation: float,
-                    rgb_balance: Tuple[float, float, float]):
+                    rgb_balance: tuple[float, float, float]):
         """Update the statistics display."""
         self.target_label.setText(f"Target: γ {target_gamma:.2f}")
         self.measured_label.setText(f"Measured γ: {measured_gamma:.2f}")

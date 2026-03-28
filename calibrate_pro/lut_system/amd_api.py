@@ -13,17 +13,14 @@ Requirements:
 """
 
 import ctypes
-from ctypes import wintypes, POINTER, Structure, c_int, c_uint, c_float
-from ctypes import c_void_p, c_char, byref, sizeof, cast
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union as TypingUnion
-import struct
-import numpy as np
-from enum import IntEnum
-from dataclasses import dataclass
 import sys
 import winreg
+from ctypes import POINTER, Structure, byref, c_char, c_float, c_int, c_void_p, sizeof, wintypes
+from dataclasses import dataclass
+from enum import IntEnum
+from pathlib import Path
 
+import numpy as np
 
 # =============================================================================
 # ADL Constants and Types
@@ -188,7 +185,7 @@ class AMDDisplay:
     is_primary: bool
     is_connected: bool
     is_active: bool
-    resolution: Tuple[int, int]
+    resolution: tuple[int, int]
     refresh_rate: float
     color_depth: int
     display_type: str
@@ -261,9 +258,9 @@ class AMDAPI:
         self._adl2 = None
         self._context = None
         self._malloc_callback = None
-        self._adapters: List[AMDAdapter] = []
-        self._displays: List[AMDDisplay] = []
-        self._active_luts: Dict[int, np.ndarray] = {}
+        self._adapters: list[AMDAdapter] = []
+        self._displays: list[AMDDisplay] = []
+        self._active_luts: dict[int, np.ndarray] = {}
 
         self._initialize()
 
@@ -290,9 +287,7 @@ class AMDAPI:
             self._malloc_callback = ADL_MAIN_MALLOC_CALLBACK(_adl_malloc)
 
             # Initialize ADL2 (preferred) or ADL
-            if self._try_init_adl2():
-                self._initialized = True
-            elif self._try_init_adl1():
+            if self._try_init_adl2() or self._try_init_adl1():
                 self._initialized = True
             else:
                 return False
@@ -303,7 +298,7 @@ class AMDAPI:
 
             return True
 
-        except Exception as e:
+        except (OSError, AttributeError):
             return False
 
     def _try_init_adl2(self) -> bool:
@@ -334,7 +329,7 @@ class AMDAPI:
 
             return False
 
-        except Exception:
+        except (OSError, AttributeError):
             return False
 
     def _try_init_adl1(self) -> bool:
@@ -350,7 +345,7 @@ class AMDAPI:
             status = ADL_Main_Control_Create(self._malloc_callback, 1)
             return status == ADLStatus.OK
 
-        except Exception:
+        except (OSError, AttributeError):
             return False
 
     def _enumerate_adapters(self):
@@ -408,7 +403,7 @@ class AMDAPI:
                                 bus_number=info.iBusNumber
                             ))
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             pass
 
     def _enumerate_displays(self):
@@ -476,7 +471,7 @@ class AMDAPI:
                                     hdr_supported=False
                                 ))
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             # Fall back to Windows enumeration
             self._enumerate_displays_windows()
 
@@ -521,7 +516,7 @@ class AMDAPI:
                         ))
                 i += 1
 
-        except Exception:
+        except OSError:
             pass
 
     def _get_display_type(self, display_type: int) -> str:
@@ -561,12 +556,12 @@ class AMDAPI:
         return self._initialized
 
     @property
-    def adapters(self) -> List[AMDAdapter]:
+    def adapters(self) -> list[AMDAdapter]:
         """Get list of AMD adapters."""
         return self._adapters
 
     @property
-    def displays(self) -> List[AMDDisplay]:
+    def displays(self) -> list[AMDDisplay]:
         """Get list of AMD displays."""
         return self._displays
 
@@ -574,7 +569,7 @@ class AMDAPI:
     # Color Control Methods
     # =========================================================================
 
-    def get_color_settings(self, display_id: int = 0) -> Optional[ColorSettings]:
+    def get_color_settings(self, display_id: int = 0) -> ColorSettings | None:
         """
         Get current color settings for a display.
 
@@ -592,7 +587,7 @@ class AMDAPI:
         # Fall back to registry (Radeon Software settings)
         return self._get_color_via_registry(display_id)
 
-    def _get_color_via_adl(self, display_id: int) -> Optional[ColorSettings]:
+    def _get_color_via_adl(self, display_id: int) -> ColorSettings | None:
         """Get color settings via ADL."""
         if not self._initialized:
             return None
@@ -675,10 +670,10 @@ class AMDAPI:
 
             return settings
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             return None
 
-    def _get_color_via_registry(self, display_id: int) -> Optional[ColorSettings]:
+    def _get_color_via_registry(self, display_id: int) -> ColorSettings | None:
         """Get color settings from Radeon Software registry."""
         try:
             # Radeon Software stores settings in registry
@@ -714,18 +709,18 @@ class AMDAPI:
 
             return settings
 
-        except Exception:
+        except OSError:
             return None
 
     def set_color_settings(
         self,
         display_id: int = 0,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        saturation: Optional[int] = None,
-        hue: Optional[int] = None,
-        color_temp: Optional[int] = None,
-        gamma: Optional[float] = None
+        brightness: int | None = None,
+        contrast: int | None = None,
+        saturation: int | None = None,
+        hue: int | None = None,
+        color_temp: int | None = None,
+        gamma: float | None = None
     ) -> bool:
         """
         Set color settings for a display.
@@ -757,12 +752,12 @@ class AMDAPI:
     def _set_color_via_adl(
         self,
         display_id: int,
-        brightness: Optional[int],
-        contrast: Optional[int],
-        saturation: Optional[int],
-        hue: Optional[int],
-        color_temp: Optional[int],
-        gamma: Optional[float]
+        brightness: int | None,
+        contrast: int | None,
+        saturation: int | None,
+        hue: int | None,
+        color_temp: int | None,
+        gamma: float | None
     ) -> bool:
         """Set color via ADL."""
         if not self._initialized:
@@ -838,15 +833,15 @@ class AMDAPI:
 
             return success
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             return False
 
     def _set_color_via_registry(
         self,
         display_id: int,
-        brightness: Optional[int],
-        contrast: Optional[int],
-        saturation: Optional[int]
+        brightness: int | None,
+        contrast: int | None,
+        saturation: int | None
     ) -> bool:
         """Set color via Radeon Software registry (for persistence)."""
         try:
@@ -875,7 +870,7 @@ class AMDAPI:
                         winreg.SetValueEx(key, "Saturation", 0, winreg.REG_DWORD, saturation)
                     return True
 
-        except Exception:
+        except OSError:
             return False
 
     def reset_color_settings(self, display_id: int = 0) -> bool:
@@ -914,7 +909,7 @@ class AMDAPI:
             True if successful
         """
         try:
-            from calibrate_pro.panels.detection import set_gamma_ramp, enumerate_displays
+            from calibrate_pro.panels.detection import enumerate_displays, set_gamma_ramp
 
             displays = enumerate_displays()
             if display_id < len(displays):
@@ -923,7 +918,7 @@ class AMDAPI:
 
             return False
 
-        except Exception:
+        except (ImportError, OSError):
             return False
 
     # =========================================================================
@@ -980,7 +975,7 @@ class AMDAPI:
 
             if adl_success:
                 return True
-        except Exception:
+        except (ValueError, OSError, ctypes.ArgumentError):
             pass
 
         # Method 2: Fall back to gamma ramp (1D approximation)
@@ -1009,10 +1004,10 @@ class AMDAPI:
 
             return self.load_gamma_ramp(display_id, red_16, green_16, blue_16)
 
-        except Exception:
+        except (ValueError, ImportError, OSError):
             return False
 
-    def _analyze_lut_adjustments(self, lut_data: np.ndarray) -> Dict:
+    def _analyze_lut_adjustments(self, lut_data: np.ndarray) -> dict:
         """Analyze 3D LUT to extract approximate color adjustments."""
         size = lut_data.shape[0]
         adjustments = {}
@@ -1059,7 +1054,7 @@ class AMDAPI:
     def load_lut_file(
         self,
         display_id: int,
-        lut_path: TypingUnion[str, Path]
+        lut_path: str | Path
     ) -> bool:
         """
         Load 3D LUT from file.
@@ -1081,8 +1076,8 @@ class AMDAPI:
             lut = LUT3D.load(lut_path)
             return self.load_3d_lut(display_id, lut.data)
 
-        except Exception as e:
-            raise AMDAPIError(f"Failed to load LUT: {e}")
+        except (ImportError, OSError, ValueError) as e:
+            raise AMDAPIError(f"Failed to load LUT: {e}") from e
 
     def unload_lut(self, display_id: int) -> bool:
         """Remove LUT from display."""
@@ -1091,7 +1086,7 @@ class AMDAPI:
 
         return self.reset_color_settings(display_id)
 
-    def get_active_lut(self, display_id: int) -> Optional[np.ndarray]:
+    def get_active_lut(self, display_id: int) -> np.ndarray | None:
         """Get currently active LUT for a display."""
         return self._active_luts.get(display_id)
 
@@ -1132,12 +1127,12 @@ class AMDAPI:
                 )
                 return status == ADLStatus.OK
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             pass
 
         return False
 
-    def get_color_depth(self, display_id: int = 0) -> Optional[int]:
+    def get_color_depth(self, display_id: int = 0) -> int | None:
         """Get current color depth for a display."""
         if not self._initialized:
             return None
@@ -1166,7 +1161,7 @@ class AMDAPI:
                 if status == ADLStatus.OK:
                     return current.value
 
-        except Exception:
+        except (OSError, ctypes.ArgumentError):
             pass
 
         return None
@@ -1175,7 +1170,7 @@ class AMDAPI:
     # Utility Methods
     # =========================================================================
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get AMD API information."""
         return {
             'available': self._initialized,
@@ -1218,7 +1213,7 @@ class AMDAPI:
                 elif self._adl:
                     if hasattr(self._adl, 'ADL_Main_Control_Destroy'):
                         self._adl.ADL_Main_Control_Destroy()
-            except Exception:
+            except (OSError, ctypes.ArgumentError):
                 pass
 
             self._initialized = False
@@ -1240,7 +1235,7 @@ def check_amd_available() -> bool:
     return available
 
 
-def get_amd_info() -> Dict:
+def get_amd_info() -> dict:
     """Get AMD GPU information."""
     api = AMDAPI()
     info = api.get_info()
@@ -1251,7 +1246,7 @@ def get_amd_info() -> Dict:
 def apply_amd_lut(
     lut_data: np.ndarray,
     display_id: int = 0
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Apply 3D LUT via AMD API.
 
@@ -1275,14 +1270,14 @@ def apply_amd_lut(
             return False, "Failed to apply LUT"
     except AMDAPIError as e:
         return False, str(e)
-    except Exception as e:
+    except (ValueError, OSError, ctypes.ArgumentError) as e:
         return False, f"Error: {e}"
 
 
 def apply_amd_lut_file(
-    lut_path: TypingUnion[str, Path],
+    lut_path: str | Path,
     display_id: int = 0
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Apply 3D LUT file via AMD API.
 
@@ -1306,17 +1301,17 @@ def apply_amd_lut_file(
             return False, "Failed to apply LUT"
     except AMDAPIError as e:
         return False, str(e)
-    except Exception as e:
+    except (ImportError, OSError, ValueError) as e:
         return False, f"Error: {e}"
 
 
 def set_amd_color(
     display_id: int = 0,
-    brightness: Optional[int] = None,
-    contrast: Optional[int] = None,
-    saturation: Optional[int] = None,
-    gamma: Optional[float] = None
-) -> Tuple[bool, str]:
+    brightness: int | None = None,
+    contrast: int | None = None,
+    saturation: int | None = None,
+    gamma: float | None = None
+) -> tuple[bool, str]:
     """
     Set AMD display color settings.
 
@@ -1347,11 +1342,11 @@ def set_amd_color(
             return True, "Color settings applied"
         else:
             return False, "Failed to apply color settings"
-    except Exception as e:
+    except (OSError, ctypes.ArgumentError) as e:
         return False, f"Error: {e}"
 
 
-def reset_amd_color(display_id: int = 0) -> Tuple[bool, str]:
+def reset_amd_color(display_id: int = 0) -> tuple[bool, str]:
     """Reset AMD color settings to defaults."""
     api = AMDAPI()
 
@@ -1364,5 +1359,5 @@ def reset_amd_color(display_id: int = 0) -> Tuple[bool, str]:
             return True, "Color settings reset to defaults"
         else:
             return False, "Failed to reset color settings"
-    except Exception as e:
+    except (OSError, ctypes.ArgumentError) as e:
         return False, f"Error: {e}"

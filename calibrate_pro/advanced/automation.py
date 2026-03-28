@@ -9,18 +9,15 @@ Provides scripting and automation capabilities:
 - Task scheduling
 """
 
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Optional, Callable, Any, Dict, List, Union
-from datetime import datetime, timedelta
-from pathlib import Path
-import json
 import asyncio
+import json
 import logging
-import threading
-import queue
-import sys
-from concurrent.futures import ThreadPoolExecutor, Future
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum, auto
+from typing import Any
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -82,8 +79,8 @@ class EventType(Enum):
 class TaskResult:
     """Result of a task execution."""
     success: bool
-    data: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    data: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
     duration: float = 0.0
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -97,22 +94,22 @@ class AutomationTask:
     description: str = ""
 
     # Task parameters
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
 
     # Dependencies
-    depends_on: List[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
 
     # Execution
     status: TaskStatus = TaskStatus.PENDING
-    result: Optional[TaskResult] = None
+    result: TaskResult | None = None
     retry_count: int = 0
     max_retries: int = 3
 
     # Timing
     timeout: float = 300.0  # 5 minutes default
     created_at: datetime = field(default_factory=datetime.now)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 @dataclass
@@ -123,7 +120,7 @@ class Workflow:
     description: str = ""
 
     # Tasks in execution order
-    tasks: List[AutomationTask] = field(default_factory=list)
+    tasks: list[AutomationTask] = field(default_factory=list)
 
     # State
     state: WorkflowState = WorkflowState.IDLE
@@ -131,17 +128,17 @@ class Workflow:
     progress: float = 0.0
 
     # Results
-    results: Dict[str, TaskResult] = field(default_factory=dict)
-    errors: List[str] = field(default_factory=list)
+    results: dict[str, TaskResult] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
     # Timing
     created_at: datetime = field(default_factory=datetime.now)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     # Metadata
     created_by: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -149,7 +146,7 @@ class AutomationEvent:
     """Automation system event."""
     event_type: EventType
     timestamp: datetime = field(default_factory=datetime.now)
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
     source: str = ""
 
 
@@ -162,9 +159,9 @@ class ScheduledTask:
 
     # Schedule
     cron_expression: str = ""  # Cron-style schedule
-    interval_seconds: Optional[int] = None
-    next_run: Optional[datetime] = None
-    last_run: Optional[datetime] = None
+    interval_seconds: int | None = None
+    next_run: datetime | None = None
+    last_run: datetime | None = None
 
     # State
     enabled: bool = True
@@ -183,7 +180,7 @@ class TaskHandler:
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Execute the task. Override in subclasses."""
         raise NotImplementedError
 
@@ -201,7 +198,7 @@ class CalibrateHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Execute calibration."""
         params = task.parameters
         display_id = params.get("display_id", 0)
@@ -227,9 +224,7 @@ class CalibrateHandler(TaskHandler):
     def validate(self, task: AutomationTask) -> bool:
         """Validate calibration parameters."""
         params = task.parameters
-        if "display_id" not in params:
-            return False
-        return True
+        return "display_id" in params
 
 
 class VerifyHandler(TaskHandler):
@@ -241,7 +236,7 @@ class VerifyHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Execute verification."""
         params = task.parameters
         display_id = params.get("display_id", 0)
@@ -271,7 +266,7 @@ class ProfileHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Generate ICC profile."""
         params = task.parameters
         output_path = params.get("output_path", "profile.icc")
@@ -298,7 +293,7 @@ class LUTHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Generate or apply LUT."""
         params = task.parameters
         action = params.get("action", "generate")
@@ -327,7 +322,7 @@ class ExportHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Export data/reports."""
         params = task.parameters
         export_type = params.get("type", "report")
@@ -355,14 +350,14 @@ class CustomHandler(TaskHandler):
 
     async def execute(self,
                       task: AutomationTask,
-                      context: Dict[str, Any]) -> TaskResult:
+                      context: dict[str, Any]) -> TaskResult:
         """Execute custom script."""
         params = task.parameters
         script = params.get("script", "")
         script_path = params.get("script_path")
 
         if script_path:
-            with open(script_path, 'r') as f:
+            with open(script_path) as f:
                 script = f.read()
 
         if not script:
@@ -372,7 +367,7 @@ class CustomHandler(TaskHandler):
             )
 
         # Execute script in isolated context
-        local_vars: Dict[str, Any] = {"context": context, "result": {}}
+        local_vars: dict[str, Any] = {"context": context, "result": {}}
 
         try:
             exec(script, {"__builtins__": __builtins__}, local_vars)
@@ -400,7 +395,7 @@ class WorkflowEngine:
 
     def __init__(self):
         # Task handlers
-        self.handlers: Dict[TaskType, TaskHandler] = {
+        self.handlers: dict[TaskType, TaskHandler] = {
             TaskType.CALIBRATE: CalibrateHandler(),
             TaskType.VERIFY: VerifyHandler(),
             TaskType.PROFILE: ProfileHandler(),
@@ -411,10 +406,10 @@ class WorkflowEngine:
         }
 
         # Event listeners
-        self._event_listeners: List[Callable[[AutomationEvent], None]] = []
+        self._event_listeners: list[Callable[[AutomationEvent], None]] = []
 
         # Execution context
-        self._context: Dict[str, Any] = {}
+        self._context: dict[str, Any] = {}
         self._executor = ThreadPoolExecutor(max_workers=4)
 
     def register_handler(self,
@@ -444,7 +439,7 @@ class WorkflowEngine:
 
     async def execute_workflow(self,
                                workflow: Workflow,
-                               context: Optional[Dict[str, Any]] = None) -> Workflow:
+                               context: dict[str, Any] | None = None) -> Workflow:
         """
         Execute a complete workflow.
 
@@ -466,7 +461,7 @@ class WorkflowEngine:
 
         try:
             # Build dependency graph
-            task_map = {t.task_id: t for t in workflow.tasks}
+            {t.task_id: t for t in workflow.tasks}
             completed_tasks: set = set()
 
             while len(completed_tasks) < len(workflow.tasks):
@@ -610,7 +605,7 @@ class WorkflowEngine:
 
     async def execute_task(self,
                           task: AutomationTask,
-                          context: Optional[Dict[str, Any]] = None) -> TaskResult:
+                          context: dict[str, Any] | None = None) -> TaskResult:
         """Execute a single task standalone."""
         self._context = context or {}
         return await self._execute_task(task)
@@ -629,8 +624,8 @@ class AutomationAPI:
 
     def __init__(self):
         self.engine = WorkflowEngine()
-        self._workflows: Dict[str, Workflow] = {}
-        self._scheduled_tasks: Dict[str, ScheduledTask] = {}
+        self._workflows: dict[str, Workflow] = {}
+        self._scheduled_tasks: dict[str, ScheduledTask] = {}
         self._task_counter = 0
         self._workflow_counter = 0
 
@@ -641,7 +636,7 @@ class AutomationAPI:
     def create_task(self,
                     task_type: TaskType,
                     name: str,
-                    parameters: Optional[Dict[str, Any]] = None,
+                    parameters: dict[str, Any] | None = None,
                     **kwargs) -> AutomationTask:
         """Create a new automation task."""
         self._task_counter += 1
@@ -769,7 +764,7 @@ class AutomationAPI:
 
     def create_workflow(self,
                         name: str,
-                        tasks: Optional[List[AutomationTask]] = None,
+                        tasks: list[AutomationTask] | None = None,
                         description: str = "") -> Workflow:
         """Create a new workflow."""
         self._workflow_counter += 1
@@ -844,8 +839,8 @@ class AutomationAPI:
 
     def schedule(self,
                  workflow: Workflow,
-                 interval_hours: Optional[float] = None,
-                 cron: Optional[str] = None,
+                 interval_hours: float | None = None,
+                 cron: str | None = None,
                  name: str = "") -> ScheduledTask:
         """Schedule a workflow for recurring execution."""
         schedule_id = f"schedule_{len(self._scheduled_tasks):04d}"
@@ -911,7 +906,7 @@ class AutomationAPI:
 
     def load_workflow(self, path: str) -> Workflow:
         """Load workflow definition from JSON."""
-        with open(path, 'r') as f:
+        with open(path) as f:
             data = json.load(f)
 
         tasks = [
@@ -977,7 +972,7 @@ def create_cli_parser():
     return parser
 
 
-def run_cli(args: Optional[List[str]] = None) -> int:
+def run_cli(args: list[str] | None = None) -> int:
     """Run CLI interface."""
     parser = create_cli_parser()
     parsed = parser.parse_args(args)

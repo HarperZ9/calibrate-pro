@@ -12,15 +12,14 @@ Features:
 - Forum-sourced calibration data integration
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
-from pathlib import Path
-import numpy as np
 import json
 import os
 import time
-
+from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+
+import numpy as np
 
 
 class CalibrationSource(Enum):
@@ -63,14 +62,14 @@ class DisplayCalibrationProfile:
     source: CalibrationSource = CalibrationSource.PANEL_DATABASE
 
     # Calibration parameters
-    target_whitepoint: Tuple[float, float] = (0.3127, 0.3290)  # D65
+    target_whitepoint: tuple[float, float] = (0.3127, 0.3290)  # D65
     target_gamma: float = 2.2
     target_brightness: float = 100.0  # cd/m²
 
     # Generated calibration data
-    lut_3d: Optional[np.ndarray] = None  # 33x33x33x3 LUT
-    lut_path: Optional[str] = None
-    color_matrix: Optional[np.ndarray] = None  # 3x3 color correction
+    lut_3d: np.ndarray | None = None  # 33x33x33x3 LUT
+    lut_path: str | None = None
+    color_matrix: np.ndarray | None = None  # 3x3 color correction
 
     # Status
     is_calibrated: bool = False
@@ -78,7 +77,7 @@ class DisplayCalibrationProfile:
     delta_e_average: float = 0.0
     notes: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to serializable dictionary."""
         return {
             "display_id": self.display_id,
@@ -109,7 +108,7 @@ class PerDisplayCalibrationConfig:
     auto_apply: bool = True
     persist_luts: bool = True
     lut_size: int = 33
-    profiles_dir: Optional[str] = None
+    profiles_dir: str | None = None
 
     def __post_init__(self):
         if self.profiles_dir is None:
@@ -125,7 +124,7 @@ class PerDisplayCalibrationManager:
     generates calibration LUTs, and applies them per-display.
     """
 
-    def __init__(self, config: Optional[PerDisplayCalibrationConfig] = None):
+    def __init__(self, config: PerDisplayCalibrationConfig | None = None):
         """
         Initialize the per-display calibration manager.
 
@@ -133,7 +132,7 @@ class PerDisplayCalibrationManager:
             config: Configuration options
         """
         self.config = config or PerDisplayCalibrationConfig()
-        self.profiles: Dict[int, DisplayCalibrationProfile] = {}
+        self.profiles: dict[int, DisplayCalibrationProfile] = {}
         self._lut_manager = None
         self._panel_db = None
 
@@ -160,7 +159,7 @@ class PerDisplayCalibrationManager:
             self._panel_db = PanelDatabase()
         return self._panel_db
 
-    def detect_displays(self) -> List[DisplayCalibrationProfile]:
+    def detect_displays(self) -> list[DisplayCalibrationProfile]:
         """
         Detect all connected displays and create calibration profiles.
 
@@ -196,11 +195,11 @@ class PerDisplayCalibrationManager:
 
         return list(self.profiles.values())
 
-    def get_display_profile(self, display_id: int) -> Optional[DisplayCalibrationProfile]:
+    def get_display_profile(self, display_id: int) -> DisplayCalibrationProfile | None:
         """Get calibration profile for a display."""
         return self.profiles.get(display_id)
 
-    def list_displays(self) -> List[Dict]:
+    def list_displays(self) -> list[dict]:
         """List all detected displays with their status."""
         return [
             {
@@ -283,7 +282,7 @@ class PerDisplayCalibrationManager:
     def calibrate_all(
         self,
         target: CalibrationTarget = CalibrationTarget.SRGB
-    ) -> Dict[int, bool]:
+    ) -> dict[int, bool]:
         """
         Calibrate all detected displays.
 
@@ -328,7 +327,7 @@ class PerDisplayCalibrationManager:
         # Apply via LUT manager
         return self.lut_manager.load_lut(display_id, lut_data)
 
-    def apply_all(self) -> Dict[int, bool]:
+    def apply_all(self) -> dict[int, bool]:
         """Apply calibration to all displays."""
         results = {}
         for display_id in self.profiles:
@@ -339,7 +338,7 @@ class PerDisplayCalibrationManager:
         """Reset display to no calibration."""
         return self.lut_manager.unload_lut(display_id)
 
-    def reset_all(self) -> Dict[int, bool]:
+    def reset_all(self) -> dict[int, bool]:
         """Reset all displays."""
         results = {}
         for display_id in self.profiles:
@@ -351,7 +350,7 @@ class PerDisplayCalibrationManager:
         profile: DisplayCalibrationProfile,
         panel,
         target: CalibrationTarget
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """
         Generate calibration 3D LUT for a display.
 
@@ -417,7 +416,7 @@ class PerDisplayCalibrationManager:
 
         return lut
 
-    def _get_target_primaries(self, target: CalibrationTarget) -> Optional[Dict]:
+    def _get_target_primaries(self, target: CalibrationTarget) -> dict | None:
         """Get primaries for calibration target."""
         primaries = {
             CalibrationTarget.SRGB: {
@@ -456,8 +455,8 @@ class PerDisplayCalibrationManager:
     def _gamut_map(
         self,
         rgb: np.ndarray,
-        source_primaries: Dict,
-        target_primaries: Dict
+        source_primaries: dict,
+        target_primaries: dict
     ) -> np.ndarray:
         """
         Map colors from source gamut to target gamut.
@@ -468,7 +467,7 @@ class PerDisplayCalibrationManager:
         # Full implementation would use Bradford adaptation
         return np.clip(rgb, 0, 1)
 
-    def _save_lut(self, display_id: int, lut_data: np.ndarray) -> Optional[Path]:
+    def _save_lut(self, display_id: int, lut_data: np.ndarray) -> Path | None:
         """Save LUT to file."""
         try:
             from calibrate_pro.lut_system import LUT3D, save_lut
@@ -496,7 +495,7 @@ class PerDisplayCalibrationManager:
         except Exception as e:
             print(f"Error saving profile: {e}")
 
-    def _load_profile(self, display_id: int) -> Optional[Dict]:
+    def _load_profile(self, display_id: int) -> dict | None:
         """Load saved calibration profile."""
         try:
             profile_path = Path(self.config.profiles_dir) / f"display_{display_id}.json"
@@ -508,7 +507,7 @@ class PerDisplayCalibrationManager:
 
 
 # Singleton instance
-_manager_instance: Optional[PerDisplayCalibrationManager] = None
+_manager_instance: PerDisplayCalibrationManager | None = None
 
 
 def get_per_display_manager() -> PerDisplayCalibrationManager:
@@ -519,7 +518,7 @@ def get_per_display_manager() -> PerDisplayCalibrationManager:
     return _manager_instance
 
 
-def auto_calibrate_all_displays(target: CalibrationTarget = CalibrationTarget.SRGB) -> Dict[int, bool]:
+def auto_calibrate_all_displays(target: CalibrationTarget = CalibrationTarget.SRGB) -> dict[int, bool]:
     """
     Convenience function to auto-detect and calibrate all displays.
 
@@ -554,13 +553,13 @@ def apply_forum_calibration(display_id: int) -> bool:
     )
 
 
-def list_detected_displays() -> List[Dict]:
+def list_detected_displays() -> list[dict]:
     """List all detected displays with panel info."""
     manager = get_per_display_manager()
     return manager.list_displays()
 
 
-def get_display_status(display_id: int) -> Optional[Dict]:
+def get_display_status(display_id: int) -> dict | None:
     """Get calibration status for a display."""
     manager = get_per_display_manager()
     profile = manager.get_display_profile(display_id)

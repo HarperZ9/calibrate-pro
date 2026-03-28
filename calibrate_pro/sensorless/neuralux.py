@@ -8,25 +8,30 @@ This engine uses factory-measured panel characteristics to compute
 precise color corrections without requiring a hardware colorimeter.
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
 from pathlib import Path
 
+import numpy as np
+
 from calibrate_pro.core.color_math import (
-    D50_WHITE, D65_WHITE, Illuminant,
-    xyz_to_lab, lab_to_xyz, srgb_to_xyz, xyz_to_srgb,
-    bradford_adapt, delta_e_2000, srgb_gamma_expand, srgb_gamma_compress,
-    primaries_to_xyz_matrix, xyz_to_rgb_matrix,
-    cam16_environment, xyz_to_cam16, cam16_to_ucs, cam16_ucs_delta_e
+    D50_WHITE,
+    D65_WHITE,
+    bradford_adapt,
+    cam16_environment,
+    cam16_to_ucs,
+    cam16_ucs_delta_e,
+    delta_e_2000,
+    lab_to_xyz,
+    primaries_to_xyz_matrix,
+    xyz_to_cam16,
+    xyz_to_lab,
 )
-from calibrate_pro.core.icc_profile import (
-    ICCProfile, create_display_profile, generate_trc_curve
-)
+from calibrate_pro.core.icc_profile import ICCProfile, create_display_profile
 from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
 from calibrate_pro.panels.database import (
-    PanelDatabase, PanelCharacterization, ChromaticityCoord,
-    get_database, find_panel_for_display
+    PanelCharacterization,
+    PanelDatabase,
+    get_database,
 )
 
 # =============================================================================
@@ -37,8 +42,8 @@ from calibrate_pro.panels.database import (
 class ColorPatch:
     """Reference color patch with Lab and sRGB values."""
     name: str
-    lab_d50: Tuple[float, float, float]  # L*, a*, b* under D50
-    srgb: Tuple[float, float, float]     # sRGB values [0, 1]
+    lab_d50: tuple[float, float, float]  # L*, a*, b* under D50
+    srgb: tuple[float, float, float]     # sRGB values [0, 1]
 
 # X-Rite ColorChecker Classic reference values
 # Lab values are CIE D50 illuminant (standard for color science)
@@ -70,7 +75,7 @@ COLORCHECKER_CLASSIC = [
     ColorPatch("Black", (20.461, -0.079, -0.973), (0.191, 0.194, 0.199)),
 ]
 
-def get_colorchecker_reference() -> List[ColorPatch]:
+def get_colorchecker_reference() -> list[ColorPatch]:
     """Get ColorChecker reference patches."""
     return COLORCHECKER_CLASSIC.copy()
 
@@ -90,7 +95,7 @@ class SensorlessEngine:
     - Reference ColorChecker validation
     """
 
-    def __init__(self, panel_database: Optional[PanelDatabase] = None):
+    def __init__(self, panel_database: PanelDatabase | None = None):
         """
         Initialize Sensorless Calibration Engine.
 
@@ -98,10 +103,10 @@ class SensorlessEngine:
             panel_database: Panel characterization database (uses default if None)
         """
         self.database = panel_database or get_database()
-        self.current_panel: Optional[PanelCharacterization] = None
-        self.calibration_results: Dict = {}
+        self.current_panel: PanelCharacterization | None = None
+        self.calibration_results: dict = {}
 
-    def detect_panel(self, model_string: str) -> Optional[PanelCharacterization]:
+    def detect_panel(self, model_string: str) -> PanelCharacterization | None:
         """
         Detect panel from EDID model string.
 
@@ -117,7 +122,7 @@ class SensorlessEngine:
             return panel
         return None
 
-    def set_panel(self, panel_key: str) -> Optional[PanelCharacterization]:
+    def set_panel(self, panel_key: str) -> PanelCharacterization | None:
         """
         Set current panel by database key.
 
@@ -135,7 +140,7 @@ class SensorlessEngine:
 
     def calculate_correction_matrix(
         self,
-        panel: Optional[PanelCharacterization] = None
+        panel: PanelCharacterization | None = None
     ) -> np.ndarray:
         """
         Calculate 3x3 color correction matrix for panel.
@@ -186,9 +191,9 @@ class SensorlessEngine:
 
     def generate_trc_curves(
         self,
-        panel: Optional[PanelCharacterization] = None,
+        panel: PanelCharacterization | None = None,
         points: int = 1024
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate per-channel TRC curves for panel.
 
@@ -215,9 +220,9 @@ class SensorlessEngine:
 
     def generate_vcgt(
         self,
-        panel: Optional[PanelCharacterization] = None,
+        panel: PanelCharacterization | None = None,
         points: int = 256
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate VCGT (Video Card Gamma Table) for calibration loader.
 
@@ -246,8 +251,8 @@ class SensorlessEngine:
 
     def create_icc_profile(
         self,
-        panel: Optional[PanelCharacterization] = None,
-        profile_name: Optional[str] = None
+        panel: PanelCharacterization | None = None,
+        profile_name: str | None = None
     ) -> ICCProfile:
         """
         Create calibrated ICC profile for panel.
@@ -283,16 +288,16 @@ class SensorlessEngine:
             gamma=(panel.gamma_red.gamma, panel.gamma_green.gamma, panel.gamma_blue.gamma),
             trc_curves=(trc_red, trc_green, trc_blue),
             vcgt=vcgt,
-            copyright=f"Copyright Zain Dana Harper 2022-2026 - Calibrate Pro"
+            copyright="Copyright Zain Dana Harper 2022-2026 - Calibrate Pro"
         )
 
         return profile
 
     def create_3d_lut(
         self,
-        panel: Optional[PanelCharacterization] = None,
+        panel: PanelCharacterization | None = None,
         size: int = 33,
-        lut_name: Optional[str] = None,
+        lut_name: str | None = None,
         hdr_mode: bool = False,
         target: str = "native"
     ) -> LUT3D:
@@ -419,9 +424,9 @@ class SensorlessEngine:
 
     def verify_calibration(
         self,
-        panel: Optional[PanelCharacterization] = None,
-        reference_patches: Optional[List[ColorPatch]] = None
-    ) -> Dict:
+        panel: PanelCharacterization | None = None,
+        reference_patches: list[ColorPatch] | None = None
+    ) -> dict:
         """
         Verify calibration accuracy using ColorChecker reference.
 
@@ -615,7 +620,7 @@ class SensorlessEngine:
         self.calibration_results = results
         return results
 
-    def _calculate_gamut_coverage(self, panel: PanelCharacterization) -> Dict:
+    def _calculate_gamut_coverage(self, panel: PanelCharacterization) -> dict:
         """
         Calculate gamut coverage using exact Sutherland-Hodgman polygon clipping.
 
@@ -725,11 +730,11 @@ class SensorlessEngine:
     def calibrate(
         self,
         model_string: str,
-        output_dir: Optional[Path] = None,
+        output_dir: Path | None = None,
         generate_icc: bool = True,
         generate_lut: bool = True,
         lut_size: int = 33
-    ) -> Dict:
+    ) -> dict:
         """
         Perform full sensorless calibration for a display.
 
@@ -818,7 +823,6 @@ class SensorlessEngine:
             raise ValueError("No panel loaded. Call load_panel_data() first.")
 
         panel = self.current_panel
-        primaries = panel.native_primaries
 
         # Get the color correction matrix (works in LINEAR space)
         # This matrix: sRGB linear -> Panel linear
@@ -930,11 +934,11 @@ class SensorlessEngine:
 
 def calibrate_display(
     model_string: str,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
     generate_icc: bool = True,
     generate_lut: bool = True,
     lut_size: int = 33
-) -> Dict:
+) -> dict:
     """
     Convenience function to calibrate a display.
 
@@ -958,7 +962,7 @@ def calibrate_display(
     )
 
 
-def verify_display(model_string: str) -> Dict:
+def verify_display(model_string: str) -> dict:
     """
     Verify calibration for a display.
 

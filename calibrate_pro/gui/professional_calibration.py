@@ -15,14 +15,11 @@ This application requires Administrator privileges for:
 Designed to match or exceed Light Illusion ColourSpace and DisplayCAL.
 """
 
-import sys
-import os
 import ctypes
-from pathlib import Path
-from typing import Optional, Tuple, Dict, List
-from dataclasses import dataclass
-import json
+import os
+import sys
 import time
+from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -55,40 +52,59 @@ def run_as_admin():
 
 
 try:
+    from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+    from PyQt6.QtGui import QBrush, QColor, QPainter, QPalette, QPen
     from PyQt6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QSlider, QPushButton, QComboBox, QGroupBox, QFormLayout,
-        QSpinBox, QDoubleSpinBox, QCheckBox, QMessageBox, QTabWidget,
-        QProgressBar, QTextEdit, QFrame, QSplitter, QScrollArea,
-        QGridLayout, QSizePolicy, QDialog, QDialogButtonBox, QLineEdit
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QFormLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QMessageBox,
+        QPushButton,
+        QScrollArea,
+        QSlider,
+        QSpinBox,
+        QTabWidget,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
-    from PyQt6.QtGui import QFont, QColor, QPalette, QPainter, QBrush, QPen
 except ImportError:
+    from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+    from PyQt5.QtGui import QBrush, QColor, QPainter, QPalette, QPen
     from PyQt5.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QSlider, QPushButton, QComboBox, QGroupBox, QFormLayout,
-        QSpinBox, QDoubleSpinBox, QCheckBox, QMessageBox, QTabWidget,
-        QProgressBar, QTextEdit, QFrame, QSplitter, QScrollArea,
-        QGridLayout, QSizePolicy, QDialog, QDialogButtonBox, QLineEdit
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QFormLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QMessageBox,
+        QPushButton,
+        QScrollArea,
+        QSlider,
+        QSpinBox,
+        QTabWidget,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
-    from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QThread
-    from PyQt5.QtGui import QFont, QColor, QPalette, QPainter, QBrush, QPen
 
-import numpy as np
 
 # Import calibration modules
-from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode, MonitorSettings
+from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
 from calibrate_pro.lut_system.dwm_lut import (
-    DwmLutController, LUTType, MonitorInfo,
-    generate_hdr_calibration_lut, generate_sdr_calibration_lut,
-    pq_eotf, pq_oetf, get_dwm_lut_directory
+    DwmLutController,
+    LUTType,
+    generate_hdr_calibration_lut,
+    generate_sdr_calibration_lut,
 )
-from calibrate_pro.core.color_math import (
-    D65_WHITE, D50_WHITE, delta_e_2000, xyz_to_lab, srgb_to_xyz,
-    cct_to_xy, xy_to_cct, bradford_adapt
-)
-
 
 # =============================================================================
 # Custom Slider Widgets

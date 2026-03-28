@@ -5,18 +5,26 @@ Provides multi-select file management for ICC/ICM color profiles.
 """
 
 import os
-from pathlib import Path
-from typing import List, Optional
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
-    QPushButton, QLabel, QMessageBox, QHeaderView, QAbstractItemView,
-    QCheckBox, QFrame, QGroupBox, QProgressDialog
-)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QCheckBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMessageBox,
+    QProgressDialog,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 @dataclass
@@ -85,7 +93,7 @@ class ProfileManagerWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.profiles: List[ProfileInfo] = []
+        self.profiles: list[ProfileInfo] = []
         self.setup_ui()
         self.refresh_profiles()
 
@@ -208,7 +216,7 @@ class ProfileManagerWidget(QWidget):
         self.scanner.finished.connect(self._on_scan_complete)
         self.scanner.start()
 
-    def _on_scan_complete(self, profiles: List[ProfileInfo]):
+    def _on_scan_complete(self, profiles: list[ProfileInfo]):
         """Handle scan completion."""
         self.profiles = profiles
         self.table.setRowCount(len(profiles))
@@ -276,7 +284,7 @@ class ProfileManagerWidget(QWidget):
             if checkbox and checkbox.isEnabled():
                 checkbox.setChecked(not profile.is_system)
 
-    def get_selected_profiles(self) -> List[ProfileInfo]:
+    def get_selected_profiles(self) -> list[ProfileInfo]:
         """Get list of selected profiles."""
         selected = []
         for row, profile in enumerate(self.profiles):
@@ -332,7 +340,7 @@ class ProfileManagerWidget(QWidget):
         msg = f"Deleted {deleted} of {len(selected)} profiles."
         if failed:
             msg += f"\n\n{len(failed)} failed (may need administrator rights):"
-            for name, err in failed[:5]:
+            for name, _err in failed[:5]:
                 msg += f"\n  - {name}"
             if len(failed) > 5:
                 msg += f"\n  ... and {len(failed) - 5} more"

@@ -30,55 +30,28 @@ Example usage:
 # =============================================================================
 # Uniformity Compensation
 # =============================================================================
-from .uniformity import (
-    # Enums
-    UniformityGrid,
-    UniformityGrade,
-    CompensationMode,
-
-    # Data Classes
-    UniformityMeasurement,
-    UniformityRegion,
-    UniformityResult,
-    UniformityCorrectionLUT,
-
-    # Main Classes
-    UniformityAnalyzer,
-    UniformityCompensator,
-
-    # Functions
-    generate_grid_positions,
-    grade_from_uniformity,
-    grade_to_string,
-    create_test_measurements,
-    print_uniformity_summary,
-)
-
 # =============================================================================
 # Ambient Light Adaptation
 # =============================================================================
 from .ambient_light import (
-    # Enums
-    AdaptationMode,
-    ProfileType,
-    AmbientCondition,
-
-    # Data Classes
-    AmbientReading,
-    DisplayProfile,
-    CircadianSettings,
-    AdaptationState,
-    ScheduleEntry,
-
-    # Main Classes
-    AmbientSensor,
-    WindowsLightSensor,
-    SimulatedSensor,
-    AdaptationController,
-
     # Functions / Constants
     LUX_THRESHOLDS,
     PRESET_PROFILES,
+    AdaptationController,
+    # Enums
+    AdaptationMode,
+    AdaptationState,
+    AmbientCondition,
+    # Data Classes
+    AmbientReading,
+    # Main Classes
+    AmbientSensor,
+    CircadianSettings,
+    DisplayProfile,
+    ProfileType,
+    ScheduleEntry,
+    SimulatedSensor,
+    WindowsLightSensor,
     classify_ambient,
     condition_to_string,
     create_default_schedule,
@@ -86,91 +59,102 @@ from .ambient_light import (
 )
 
 # =============================================================================
-# Network/Fleet Calibration
+# Automation API
 # =============================================================================
-from .network_calibration import (
-    # Enums
-    NodeStatus,
-    JobStatus,
-    JobType,
-    MessageType,
-    ProfileSyncMode,
-
+from .automation import (
+    AutomationAPI,
+    AutomationEvent,
     # Data Classes
-    DisplayNode,
-    CalibrationJob,
-    ProfilePackage,
-    NetworkMessage,
-    SyncState,
-
+    AutomationTask,
+    EventType,
+    ScheduledTask,
     # Main Classes
-    CalibrationServer,
-    CalibrationClient,
-    ProfileSyncManager,
-
+    TaskHandler,
+    TaskResult,
+    # Enums
+    TaskStatus,
+    TaskType,
+    Workflow,
+    WorkflowEngine,
+    WorkflowState,
+    create_cli_parser,
+    print_workflow_status,
     # Functions
-    create_test_nodes,
-    print_fleet_status,
+    run_cli,
 )
 
 # =============================================================================
 # 3D LUT Optimization
 # =============================================================================
 from .lut_optimization import (
-    # Enums
-    SmoothingMethod,
-    GamutMappingMethod,
-    OptimizationGoal,
-
-    # Data Classes
-    LUTQualityMetrics,
-    OptimizationResult,
-    SmoothingConfig,
     GamutConfig,
-
+    GamutMappingMethod,
     # Main Classes
     LUTOptimizer,
-
+    # Data Classes
+    LUTQualityMetrics,
+    OptimizationGoal,
+    OptimizationResult,
+    SmoothingConfig,
+    # Enums
+    SmoothingMethod,
+    analyze_interpolation_quality,
     # Functions
     analyze_lut_quality,
-    analyze_interpolation_quality,
-    smooth_lut_gaussian,
-    smooth_lut_bilateral,
-    smooth_lut_perceptual,
+    create_identity_lut,
+    create_test_lut,
     map_gamut_clip,
     map_gamut_compress,
     map_gamut_perceptual,
-    create_identity_lut,
-    create_test_lut,
     print_optimization_summary,
+    smooth_lut_bilateral,
+    smooth_lut_gaussian,
+    smooth_lut_perceptual,
 )
 
 # =============================================================================
-# Automation API
+# Network/Fleet Calibration
 # =============================================================================
-from .automation import (
-    # Enums
-    TaskStatus,
-    TaskType,
-    EventType,
-    WorkflowState,
-
-    # Data Classes
-    AutomationTask,
-    TaskResult,
-    Workflow,
-    ScheduledTask,
-    AutomationEvent,
-
+from .network_calibration import (
+    CalibrationClient,
+    CalibrationJob,
     # Main Classes
-    TaskHandler,
-    WorkflowEngine,
-    AutomationAPI,
-
+    CalibrationServer,
+    # Data Classes
+    DisplayNode,
+    JobStatus,
+    JobType,
+    MessageType,
+    NetworkMessage,
+    # Enums
+    NodeStatus,
+    ProfilePackage,
+    ProfileSyncManager,
+    ProfileSyncMode,
+    SyncState,
     # Functions
-    run_cli,
-    create_cli_parser,
-    print_workflow_status,
+    create_test_nodes,
+    print_fleet_status,
+)
+from .uniformity import (
+    CompensationMode,
+    # Main Classes
+    UniformityAnalyzer,
+    UniformityCompensator,
+    UniformityCorrectionLUT,
+    UniformityGrade,
+    # Enums
+    UniformityGrid,
+    # Data Classes
+    UniformityMeasurement,
+    UniformityRegion,
+    UniformityResult,
+    create_test_measurements,
+    # Functions
+    generate_grid_positions,
+    grade_from_uniformity,
+    grade_to_string,
+    print_uniformity_summary,
 )
 
 # =============================================================================

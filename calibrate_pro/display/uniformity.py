@@ -14,10 +14,9 @@ Typical workflow:
 """
 
 import math
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 
+import numpy as np
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -73,7 +72,7 @@ class UniformityCompensation:
 
     def get_correction_factor(
         self, screen_x: float, screen_y: float
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """
         Get per-channel correction factor for a normalised screen position.
 
@@ -107,7 +106,7 @@ class UniformityCompensation:
 
         return (r_factor, g_factor, b_factor)
 
-    def compute_uniformity_stats(self) -> Dict:
+    def compute_uniformity_stats(self) -> dict:
         """
         Compute uniformity statistics from the grid.
 
@@ -172,7 +171,7 @@ class UniformityCompensation:
     @classmethod
     def from_measurements(
         cls,
-        measurements: List[Tuple[int, int, float, float, float]],
+        measurements: list[tuple[int, int, float, float, float]],
     ) -> "UniformityCompensation":
         """
         Create from a list of (row, col, luminance, x, y) measurements.
@@ -249,7 +248,7 @@ def create_uniformity_measurement_plan(
     cols: int = 5,
     display_width: int = 3840,
     display_height: int = 2160,
-) -> List[Tuple[int, int, int, int]]:
+) -> list[tuple[int, int, int, int]]:
     """
     Create a list of (x, y, width, height) rectangles for displaying
     measurement patches at each grid position.
@@ -260,7 +259,7 @@ def create_uniformity_measurement_plan(
     patch_w = max(1, int(display_width * 0.10))
     patch_h = max(1, int(display_height * 0.10))
 
-    patches: List[Tuple[int, int, int, int]] = []
+    patches: list[tuple[int, int, int, int]] = []
 
     for r in range(rows):
         for c in range(cols):
@@ -287,7 +286,7 @@ def generate_simulated_uniformity(
     center_luminance: float = 120.0,
     edge_falloff: float = 0.12,
     seed: int = 42,
-) -> List[Tuple[int, int, float, float, float]]:
+) -> list[tuple[int, int, float, float, float]]:
     """
     Generate realistic simulated uniformity data.
 
@@ -296,7 +295,7 @@ def generate_simulated_uniformity(
     and minor chrominance shifts.
     """
     rng = np.random.RandomState(seed)
-    measurements: List[Tuple[int, int, float, float, float]] = []
+    measurements: list[tuple[int, int, float, float, float]] = []
 
     center_r = (rows - 1) / 2.0
     center_c = (cols - 1) / 2.0

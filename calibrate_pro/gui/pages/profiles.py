@@ -7,39 +7,41 @@ Scans ~/Documents/Calibrate Pro/Calibrations/ for .cube and .icc file pairs.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Dict
 
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy, QMessageBox, QFileDialog,
-    QSpacerItem, QInputDialog,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat, StatusDot
+from calibrate_pro.gui.app import C, Card, Heading, Stat
 
-
-# =============================================================================
 # Constants
-# =============================================================================
 
 CALIBRATIONS_DIR = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
 
 TARGET_GAMUTS = ["sRGB", "Display P3", "BT.709", "Adobe RGB"]
 
 
-# =============================================================================
 # Profile Data
-# =============================================================================
 
-def _scan_profiles() -> List[Dict]:
+def _scan_profiles() -> list[dict]:
     """
     Scan the calibrations directory for .cube / .icc pairs.
 
     Returns a list of dicts with keys:
         name, cube_path, icc_path, cube_size, icc_size
     """
-    profiles: List[Dict] = []
+    profiles: list[dict] = []
 
     if not CALIBRATIONS_DIR.exists():
         return profiles
@@ -110,16 +112,14 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_bytes / (1024 * 1024):.1f} MB"
 
 
-# =============================================================================
 # Profile Card Widget
-# =============================================================================
 
 class ProfileCard(Card):
     """Card showing a single calibration profile."""
 
     clicked = pyqtSignal(dict)
 
-    def __init__(self, profile: Dict, is_active: bool = False, parent=None):
+    def __init__(self, profile: dict, is_active: bool = False, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setMinimumHeight(110)
@@ -326,9 +326,7 @@ class ProfileCard(Card):
             QMessageBox.warning(self, "Delete Error", str(e))
 
 
-# =============================================================================
 # Profiles Page
-# =============================================================================
 
 class ProfilesPage(QWidget):
     """Profile management page."""
@@ -410,7 +408,7 @@ class ProfilesPage(QWidget):
             return
 
         # Determine which profile is currently active (if any)
-        active_stem: Optional[str] = None
+        active_stem: str | None = None
         try:
             from calibrate_pro.utils.startup_manager import StartupManager
             mgr = StartupManager()
@@ -426,7 +424,7 @@ class ProfilesPage(QWidget):
             card.clicked.connect(self._show_detail)
             self._cards_layout.addWidget(card)
 
-    def _show_detail(self, profile: Dict):
+    def _show_detail(self, profile: dict):
         """Show detail section for the selected profile with CIE diagram and stats."""
         # Clear previous detail content
         while self._detail_layout.count():
@@ -479,8 +477,8 @@ class ProfilesPage(QWidget):
 
             # Try to load panel primaries for the display gamut
             try:
-                from calibrate_pro.panels.detection import enumerate_displays, identify_display
                 from calibrate_pro.panels.database import PanelDatabase
+                from calibrate_pro.panels.detection import enumerate_displays, identify_display
                 db = PanelDatabase()
                 displays = enumerate_displays()
                 if displays:
@@ -549,7 +547,7 @@ class ProfilesPage(QWidget):
 
         self._detail_layout.addLayout(content_row)
 
-    def _rename_profile(self, profile: Dict):
+    def _rename_profile(self, profile: dict):
         """Open a dialog to rename the profile files."""
         new_name, ok = QInputDialog.getText(
             self, "Rename Profile", "New name:",

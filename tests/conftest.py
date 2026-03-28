@@ -1,6 +1,7 @@
 """Shared pytest fixtures for Calibrate Pro test suite."""
 
 import sys
+
 import numpy as np
 import pytest
 

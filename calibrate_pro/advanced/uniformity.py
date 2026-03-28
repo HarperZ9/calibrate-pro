@@ -9,14 +9,15 @@ Provides display uniformity measurement and correction:
 - Uniformity-corrected 3D LUT generation
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Callable
+
 import numpy as np
 
 # Optional scipy import
 try:
-    from scipy.interpolate import RegularGridInterpolator, RectBivariateSpline
+    from scipy.interpolate import RectBivariateSpline, RegularGridInterpolator
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -149,9 +150,9 @@ class UniformityCorrectionLUT:
     chromaticity_y_corrections: np.ndarray
 
     # Interpolation functions for sub-pixel correction
-    luminance_interpolator: Optional[Callable] = None
-    chromaticity_x_interpolator: Optional[Callable] = None
-    chromaticity_y_interpolator: Optional[Callable] = None
+    luminance_interpolator: Callable | None = None
+    chromaticity_x_interpolator: Callable | None = None
+    chromaticity_y_interpolator: Callable | None = None
 
     # Applied compensation mode
     mode: CompensationMode = CompensationMode.FULL
@@ -550,7 +551,7 @@ class UniformityCompensator:
 
     def generate_correction_lut(self,
                                 result: UniformityResult,
-                                target_luminance: Optional[float] = None) -> UniformityCorrectionLUT:
+                                target_luminance: float | None = None) -> UniformityCorrectionLUT:
         """
         Generate uniformity correction LUT from measurements.
 
@@ -649,7 +650,7 @@ class UniformityCompensator:
 
     def generate_3d_lut_with_uniformity(self,
                                         lut: UniformityCorrectionLUT,
-                                        base_lut: Optional[np.ndarray] = None,
+                                        base_lut: np.ndarray | None = None,
                                         lut_size: int = 17,
                                         screen_regions: int = 9) -> dict[str, np.ndarray]:
         """

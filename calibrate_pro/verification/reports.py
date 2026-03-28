@@ -9,47 +9,51 @@ Provides comprehensive report generation for calibration verification:
 - Charts and visualizations
 """
 
-from dataclasses import dataclass, field, asdict
+import json
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, auto
 from pathlib import Path
-from typing import Optional, Any
-from datetime import datetime
-import json
-import io
-import base64
 
 # Optional imports for PDF generation
 try:
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch, mm
+    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
     from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        Image, PageBreak, KeepTogether, ListFlowable, ListItem
+        PageBreak,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
     )
-    from reportlab.graphics.shapes import Drawing, Rect, String, Line, Circle
-    from reportlab.graphics.charts.barcharts import VerticalBarChart
-    from reportlab.graphics.charts.linecharts import HorizontalLineChart
-    from reportlab.graphics import renderPDF
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
 
 # Import verification modules
 from calibrate_pro.verification.colorchecker import (
-    ColorCheckerResult, PatchMeasurement, VerificationGrade,
+    ColorCheckerResult,
+    VerificationGrade,
+)
+from calibrate_pro.verification.colorchecker import (
     grade_to_string as cc_grade_to_string,
 )
-from calibrate_pro.verification.grayscale import (
-    GrayscaleResult, GrayscalePatch, GrayscaleGrade,
-    grade_to_string as gs_grade_to_string,
+from calibrate_pro.verification.gamut_volume import (
+    GamutAnalysisResult,
 )
 from calibrate_pro.verification.gamut_volume import (
-    GamutAnalysisResult, GamutCoverage, GamutGrade,
     grade_to_string as gv_grade_to_string,
 )
-
+from calibrate_pro.verification.grayscale import (
+    GrayscaleGrade,
+    GrayscaleResult,
+)
+from calibrate_pro.verification.grayscale import (
+    grade_to_string as gs_grade_to_string,
+)
 
 # =============================================================================
 # Enums
@@ -96,16 +100,16 @@ class ReportConfig:
     include_detailed_data: bool = True
     include_recommendations: bool = True
     color_theme: str = "professional"  # professional, dark, light
-    logo_path: Optional[str] = None
-    output_path: Optional[str] = None
+    logo_path: str | None = None
+    output_path: str | None = None
 
 
 @dataclass
 class VerificationSummary:
     """Summary of all verification results."""
-    colorchecker: Optional[ColorCheckerResult] = None
-    grayscale: Optional[GrayscaleResult] = None
-    gamut: Optional[GamutAnalysisResult] = None
+    colorchecker: ColorCheckerResult | None = None
+    grayscale: GrayscaleResult | None = None
+    gamut: GamutAnalysisResult | None = None
 
     overall_pass: bool = True
     overall_grade: str = "Unknown"
@@ -155,7 +159,7 @@ class ReportGenerator:
     Generates comprehensive verification reports in PDF, HTML, or JSON format.
     """
 
-    def __init__(self, config: Optional[ReportConfig] = None):
+    def __init__(self, config: ReportConfig | None = None):
         """
         Initialize report generator.
 
@@ -168,7 +172,7 @@ class ReportGenerator:
     def generate(self,
                  summary: VerificationSummary,
                  metadata: ReportMetadata,
-                 output_path: Optional[str] = None) -> str:
+                 output_path: str | None = None) -> str:
         """
         Generate verification report.
 
@@ -244,7 +248,7 @@ class ReportGenerator:
             textColor=colors.HexColor(self.colors["secondary"]),
         )
 
-        subheading_style = ParagraphStyle(
+        ParagraphStyle(
             'CustomSubheading',
             parent=styles['Heading3'],
             fontSize=12,
@@ -800,15 +804,7 @@ class ReportGenerator:
                 <th>CCT</th>
                 <th>Grade</th>
             </tr>
-            {"".join(f'''
-            <tr>
-                <td>{name.title()}</td>
-                <td>{analysis.delta_e_mean:.2f}</td>
-                <td>{analysis.gamma_mean:.2f}</td>
-                <td>{analysis.cct_mean:.0f}K</td>
-                <td><span class="grade-badge grade-{analysis.grade.name.lower()}">{analysis.grade.name}</span></td>
-            </tr>
-            ''' for name, analysis in result.region_analysis.items())}
+            {"".join(f"<tr><td>{name.title()}</td><td>{analysis.delta_e_mean:.2f}</td><td>{analysis.gamma_mean:.2f}</td><td>{analysis.cct_mean:.0f}K</td><td><span class=grade-badge grade-{analysis.grade.name.lower()}>{analysis.grade.name}</span></td></tr>" for name, analysis in result.region_analysis.items())}
         </table>
     </div>
 '''
@@ -876,13 +872,7 @@ class ReportGenerator:
                 <th>x</th>
                 <th>y</th>
             </tr>
-            {"".join(f'''
-            <tr>
-                <td>{name}</td>
-                <td>{xy[0]:.4f}</td>
-                <td>{xy[1]:.4f}</td>
-            </tr>
-            ''' for name, xy in result.measured_primaries.items())}
+            {"".join(f"<tr><td>{name}</td><td>{xy[0]:.4f}</td><td>{xy[1]:.4f}</td></tr>" for name, xy in result.measured_primaries.items())}
         </table>
     </div>
 '''
@@ -1070,9 +1060,9 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
 
 
 def create_verification_summary(
-    colorchecker: Optional[ColorCheckerResult] = None,
-    grayscale: Optional[GrayscaleResult] = None,
-    gamut: Optional[GamutAnalysisResult] = None,
+    colorchecker: ColorCheckerResult | None = None,
+    grayscale: GrayscaleResult | None = None,
+    gamut: GamutAnalysisResult | None = None,
 ) -> VerificationSummary:
     """Create a verification summary from individual results."""
     summary = VerificationSummary(
@@ -1119,15 +1109,16 @@ def create_verification_summary(
 # =============================================================================
 
 if __name__ == "__main__":
-    from calibrate_pro.verification.colorchecker import (
-        ColorCheckerVerifier, create_test_measurements as create_cc_test
-    )
-    from calibrate_pro.verification.grayscale import (
-        GrayscaleVerifier, create_test_measurements as create_gs_test
-    )
+    from calibrate_pro.verification.colorchecker import ColorCheckerVerifier
+    from calibrate_pro.verification.colorchecker import create_test_measurements as create_cc_test
     from calibrate_pro.verification.gamut_volume import (
-        GamutAnalyzer, create_test_primaries, generate_gamut_samples, ColorSpace
+        ColorSpace,
+        GamutAnalyzer,
+        create_test_primaries,
+        generate_gamut_samples,
     )
+    from calibrate_pro.verification.grayscale import GrayscaleVerifier
+    from calibrate_pro.verification.grayscale import create_test_measurements as create_gs_test
 
     # Create test results
     cc_verifier = ColorCheckerVerifier()

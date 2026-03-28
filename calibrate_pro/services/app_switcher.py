@@ -30,13 +30,13 @@ For example, profile ``"sRGB"`` loads ``<lut_dir>/sRGB.cube``.
 
 import ctypes
 import ctypes.wintypes
-import json
 import fnmatch
+import json
 import logging
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ def _exe_name(exe_path: str) -> str:
 # Default config
 # ---------------------------------------------------------------------------
 
-_DEFAULT_CONFIG: Dict = {
+_DEFAULT_CONFIG: dict = {
     "default": "native",
     "rules": [
         {"match": "chrome.exe", "profile": "sRGB"},
@@ -144,11 +144,11 @@ class AppProfileSwitcher:
 
     def __init__(
         self,
-        config_path: Optional[str] = None,
-        lut_dir: Optional[str] = None,
+        config_path: str | None = None,
+        lut_dir: str | None = None,
         poll_interval: float = 0.5,
         display_index: int = 0,
-        on_switch: Optional[Callable[[str, str, str], None]] = None,
+        on_switch: Callable[[str, str, str], None] | None = None,
     ):
         """
         Args:
@@ -167,8 +167,8 @@ class AppProfileSwitcher:
         self._on_switch = on_switch
 
         # Load configuration
-        self._config: Dict = _DEFAULT_CONFIG.copy()
-        self._config_path: Optional[Path] = None
+        self._config: dict = _DEFAULT_CONFIG.copy()
+        self._config_path: Path | None = None
         if config_path is not None:
             self._config_path = Path(config_path)
             self._load_config()
@@ -185,11 +185,11 @@ class AppProfileSwitcher:
         self._current_app: str = ""
         self._current_profile: str = ""
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
 
         # Cache loaded LUT objects keyed by profile name
-        self._lut_cache: Dict[str, object] = {}
+        self._lut_cache: dict[str, object] = {}
 
     # ------------------------------------------------------------------
     # Configuration
@@ -201,7 +201,7 @@ class AppProfileSwitcher:
             logger.warning("Config file not found at %s; using defaults", self._config_path)
             return
         try:
-            with open(self._config_path, "r", encoding="utf-8") as f:
+            with open(self._config_path, encoding="utf-8") as f:
                 self._config = json.load(f)
             logger.info("Loaded app profile config from %s", self._config_path)
         except Exception as exc:
@@ -214,7 +214,7 @@ class AppProfileSwitcher:
             self._lut_cache.clear()
 
     @property
-    def rules(self) -> List[Dict]:
+    def rules(self) -> list[dict]:
         """Return the current rule list."""
         return self._config.get("rules", [])
 
@@ -344,8 +344,7 @@ class AppProfileSwitcher:
 
         # --- Method 2: VCGT gamma ramp (1D fallback) ---
         try:
-            from calibrate_pro.core.lut_engine import LUT3D
-            from calibrate_pro.core.vcgt import lut3d_to_vcgt, apply_vcgt_windows
+            from calibrate_pro.core.vcgt import apply_vcgt_windows, lut3d_to_vcgt
 
             if lut_path.exists():
                 lut = self._get_lut(profile_name)
@@ -357,6 +356,7 @@ class AppProfileSwitcher:
             else:
                 # Reset to identity gamma ramp
                 import numpy as np
+
                 from calibrate_pro.core.vcgt import VCGTTable, apply_vcgt_windows
 
                 identity = np.linspace(0.0, 1.0, 256)

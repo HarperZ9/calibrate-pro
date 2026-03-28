@@ -25,11 +25,10 @@ All patterns are rendered with tkinter Canvas -- no PIL or other image
 library required.
 """
 
-import math
 import colorsys
+import math
 import tkinter as tk
-from typing import Callable, List, Tuple, Optional
-
+from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Pattern drawing functions
@@ -41,7 +40,7 @@ from typing import Callable, List, Tuple, Optional
 def _draw_grayscale_ramp(canvas: tk.Canvas, w: int, h: int) -> None:
     """Horizontal gradient from black to white (256 steps)."""
     steps = 256
-    strip_w = max(w / steps, 1.0)
+    max(w / steps, 1.0)
     for i in range(steps):
         v = int(i * 255 / (steps - 1))
         colour = f"#{v:02x}{v:02x}{v:02x}"
@@ -114,7 +113,7 @@ def _draw_checkerboard(canvas: tk.Canvas, w: int, h: int) -> None:
 def _draw_color_gradient(canvas: tk.Canvas, w: int, h: int) -> None:
     """Full hue sweep at constant saturation and lightness."""
     steps = max(int(w), 256)
-    strip_w = max(w / steps, 1.0)
+    max(w / steps, 1.0)
     for i in range(steps):
         hue = i / steps
         r, g, b = colorsys.hls_to_rgb(hue, 0.5, 1.0)
@@ -129,7 +128,7 @@ def _draw_color_gradient(canvas: tk.Canvas, w: int, h: int) -> None:
 # Pattern registry
 # ---------------------------------------------------------------------------
 
-PATTERNS: List[Tuple[str, Callable]] = [
+PATTERNS: list[tuple[str, Callable]] = [
     ("Grayscale Ramp", _draw_grayscale_ramp),
     ("RGB Primaries", _draw_rgb_primaries),
     ("RGBCMY", _draw_rgbcmy),
@@ -151,12 +150,12 @@ class PatternViewer:
     def __init__(
         self,
         display: int = 0,
-        patterns: Optional[List[Tuple[str, Callable]]] = None,
+        patterns: list[tuple[str, Callable]] | None = None,
     ):
         self.display = display
         self.patterns = patterns or PATTERNS
         self.index = 0
-        self._fade_after_id: Optional[str] = None
+        self._fade_after_id: str | None = None
 
         # Create root
         self.root = tk.Tk()

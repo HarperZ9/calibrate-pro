@@ -7,33 +7,42 @@ Every widget has proper layout constraints. Every panel resizes correctly.
 
 import logging
 import sys
-import os
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QFrame, QStackedWidget, QMenuBar, QMenu,
-    QStatusBar, QMessageBox, QFileDialog, QScrollArea, QSplitter,
-    QSizePolicy, QGridLayout, QGroupBox, QSpacerItem, QProgressBar,
-    QSystemTrayIcon, QToolBar, QDialog, QTabWidget, QComboBox,
-    QFormLayout, QRadioButton, QButtonGroup,
-)
 from PyQt6.QtCore import (
-    Qt, QSize, QTimer, QThread, pyqtSignal, QSettings, QMargins,
-    QPropertyAnimation, QEasingCurve, QPoint,
+    QPointF,
+    QRectF,
+    QSettings,
+    Qt,
+    QTimer,
+    pyqtSignal,
 )
-from PyQt6.QtGui import (
-    QAction, QFont, QColor, QIcon, QPixmap, QPainter, QPen, QBrush,
-    QLinearGradient, QGuiApplication, QPolygonF, QShortcut, QKeySequence
+from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QPolygonF, QShortcut
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QStackedWidget,
+    QSystemTrayIcon,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import QPointF, QRectF
-
-from quanta_ui.theme import C, STYLE
-from quanta_ui.widgets import Card, StatusDot, Heading, Stat, NavButton, Sidebar, ToastNotification
-
+from quanta_ui.theme import STYLE, C
+from quanta_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
 
 APP_NAME = "Calibrate Pro"
 APP_VERSION = "1.0.0"
@@ -82,7 +91,6 @@ def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
                           s * 0.04, s * 0.04)
 
         # Single-color calibration arc
-        import math
         cx = s * 0.5
         cy = s * 0.42
         radius = s * 0.18
@@ -176,7 +184,6 @@ def make_app_icon() -> QIcon:
                           s * 0.04, s * 0.04)
 
         # Color calibration arc on screen — three subtle bands (R, G, B)
-        import math
         cx = s * 0.5
         cy = s * 0.42
         radius = s * 0.18
@@ -231,9 +238,7 @@ def make_app_icon() -> QIcon:
     return icon
 
 
-# =============================================================================
 # Calibrate Pro pages list (used for Sidebar construction)
-# =============================================================================
 
 CAL_PAGES = [
     "Dashboard",
@@ -245,9 +250,7 @@ CAL_PAGES = [
 ]
 
 
-# =============================================================================
 # Dashboard Page
-# =============================================================================
 
 class GamutMiniWidget(QWidget):
     """Tiny CIE xy gamut triangle visualization."""
@@ -511,7 +514,7 @@ class LiveSensorCard(Card):
 
         self._toggle_btn = QPushButton("Start")
         self._toggle_btn.setFixedSize(60, 24)
-        self._toggle_btn.setStyleSheet(f"font-size: 10px; padding: 2px 8px;")
+        self._toggle_btn.setStyleSheet("font-size: 10px; padding: 2px 8px;")
         self._toggle_btn.clicked.connect(self._toggle_live)
         header.addWidget(self._toggle_btn)
         layout.addLayout(header)
@@ -555,7 +558,7 @@ class LiveSensorCard(Card):
             self._timer.timeout.connect(self._take_reading)
             self._timer.start(800)  # Read every 800ms
 
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             self._title.setText(f"Error: {e}")
 
     def _stop_live(self):
@@ -581,13 +584,11 @@ class LiveSensorCard(Card):
                 self._xyz_label.setText(f"X {m.X:.2f}   Y {m.Y:.2f}   Z {m.Z:.2f}")
             else:
                 self._xyz_label.setText("No light detected")
-        except Exception:
+        except (OSError, RuntimeError):
             self._xyz_label.setText("Read error")
 
 
-# =============================================================================
 # Add Display Profile Dialog
-# =============================================================================
 
 class AddDisplayDialog(QDialog):
     """Dialog for adding display profiles via EDID auto-detect or JSON import."""
@@ -632,9 +633,7 @@ class AddDisplayDialog(QDialog):
         tabs.addTab(self._build_import_tab(), "Import from file")
         layout.addWidget(tabs)
 
-    # -----------------------------------------------------------------
     # EDID auto-detect tab
-    # -----------------------------------------------------------------
     def _build_edid_tab(self):
         tab = QWidget()
         vbox = QVBoxLayout(tab)
@@ -736,9 +735,7 @@ class AddDisplayDialog(QDialog):
 
         return tab
 
-    # -----------------------------------------------------------------
     # Import-from-file tab
-    # -----------------------------------------------------------------
     def _build_import_tab(self):
         tab = QWidget()
         vbox = QVBoxLayout(tab)
@@ -810,17 +807,18 @@ class AddDisplayDialog(QDialog):
 
         return tab
 
-    # -----------------------------------------------------------------
     # EDID scanning logic
-    # -----------------------------------------------------------------
     def _scan_displays(self):
         """Scan for connected displays not already in the panel database."""
         try:
-            from calibrate_pro.panels.detection import (
-                enumerate_displays, identify_display, get_display_name,
-                get_edid_from_registry, parse_edid,
-            )
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import (
+                enumerate_displays,
+                get_display_name,
+                get_edid_from_registry,
+                identify_display,
+                parse_edid,
+            )
 
             db = PanelDatabase()
             displays = enumerate_displays()
@@ -867,7 +865,7 @@ class AddDisplayDialog(QDialog):
             else:
                 self._on_edid_display_changed(0)
 
-        except Exception as e:
+        except (ImportError, OSError, AttributeError, KeyError) as e:
             self._edid_info_label.setText(f"Error scanning displays: {e}")
             self._create_btn.setEnabled(False)
 
@@ -949,10 +947,7 @@ class AddDisplayDialog(QDialog):
         panel_type_text = self._panel_type_combo.currentText()
 
         try:
-            from calibrate_pro.panels.database import (
-                create_from_edid, PanelDatabase, DDCRecommendations
-            )
-            import json
+            from calibrate_pro.panels.database import DDCRecommendations, PanelDatabase, create_from_edid
 
             panel = create_from_edid(
                 edid_chromaticity=chrom,
@@ -992,12 +987,10 @@ class AddDisplayDialog(QDialog):
             self.display_added.emit()
             self.accept()
 
-        except Exception as e:
+        except (ImportError, OSError, KeyError, ValueError) as e:
             QMessageBox.warning(self, "Error", f"Failed to create profile:\n{e}")
 
-    # -----------------------------------------------------------------
     # File import logic
-    # -----------------------------------------------------------------
     def _browse_import_file(self):
         """Open file dialog to select a .json panel profile."""
         path, _ = QFileDialog.getOpenFileName(
@@ -1017,7 +1010,7 @@ class AddDisplayDialog(QDialog):
         # Preview the file
         try:
             import json
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             if isinstance(data, list):
@@ -1036,7 +1029,7 @@ class AddDisplayDialog(QDialog):
             self._import_preview.show()
             self._import_btn.setEnabled(True)
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, ValueError, KeyError) as e:
             self._import_preview.setText(f"Error reading file: {e}")
             self._import_preview.show()
             self._import_btn.setEnabled(False)
@@ -1049,11 +1042,10 @@ class AddDisplayDialog(QDialog):
         try:
             import json
             import shutil
-            from calibrate_pro.panels.database import (
-                PanelCharacterization, PanelDatabase
-            )
 
-            with open(self._import_file_path, "r", encoding="utf-8") as f:
+            from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase
+
+            with open(self._import_file_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             db = PanelDatabase()
@@ -1095,7 +1087,7 @@ class AddDisplayDialog(QDialog):
             self.display_added.emit()
             self.accept()
 
-        except Exception as e:
+        except (ImportError, OSError, json.JSONDecodeError, ValueError, KeyError) as e:
             QMessageBox.warning(self, "Import Error", f"Failed to import profile:\n{e}")
 
 
@@ -1196,8 +1188,8 @@ class DashboardPage(QWidget):
         # Real display detection
         try:
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display, get_display_name
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, get_display_name, identify_display
 
             db = PanelDatabase()
             displays = enumerate_displays()
@@ -1221,7 +1213,7 @@ class DashboardPage(QWidget):
                     cal = mgr.get_display_calibration(i)
                     if cal and cal.lut_path and Path(cal.lut_path).exists():
                         calibrated = True
-                except Exception as e:
+                except (ImportError, OSError, AttributeError) as e:
                     logger.debug("Could not read calibration status for display %d: %s", i, e)
 
                 # Get primaries for gamut viz
@@ -1252,7 +1244,7 @@ class DashboardPage(QWidget):
                         else:
                             cal_age = f"Calibrated {age.days} days ago"
                         delta_e = cal_state.delta_e_avg or 0.65
-                except Exception as e:
+                except (AttributeError, ValueError, TypeError) as e:
                     logger.debug("Could not read calibration age for display %d: %s", i, e)
 
                 card = DisplayCard(
@@ -1278,7 +1270,7 @@ class DashboardPage(QWidget):
                     self._stat_lut.set_value(f"{len(lut_files)} active", C.GREEN_HI)
                 else:
                     self._stat_lut.set_value("None", C.TEXT3)
-            except Exception:
+            except (ImportError, OSError):
                 self._stat_lut.set_value("N/A", C.TEXT3)
 
             # Guard status
@@ -1292,7 +1284,7 @@ class DashboardPage(QWidget):
                     )
                 else:
                     self._stat_guard.set_value("Inactive", C.TEXT3)
-            except Exception:
+            except (AttributeError, RuntimeError):
                 self._stat_guard.set_value("N/A", C.TEXT3)
 
             # Startup status
@@ -1303,10 +1295,10 @@ class DashboardPage(QWidget):
                     self._stat_startup.set_value("Enabled", C.GREEN_HI)
                 else:
                     self._stat_startup.set_value("Disabled", C.TEXT3)
-            except Exception:
+            except (ImportError, OSError):
                 self._stat_startup.set_value("N/A", C.TEXT3)
 
-        except Exception as e:
+        except (ImportError, OSError, AttributeError) as e:
             err = QLabel(f"Detection error: {e}")
             err.setStyleSheet(f"color: {C.RED};")
             self._cards_layout.addWidget(err)
@@ -1325,7 +1317,7 @@ class DashboardPage(QWidget):
             else:
                 self._sensor_layout.addWidget(SensorCard(False))
                 self._stat_sensor.set_value("None", C.TEXT3)
-        except Exception:
+        except (ImportError, OSError, RuntimeError):
             self._sensor_layout.addWidget(SensorCard(False))
             self._stat_sensor.set_value("N/A", C.TEXT3)
 
@@ -1336,9 +1328,7 @@ class DashboardPage(QWidget):
         dialog.exec()
 
 
-# =============================================================================
 # Placeholder Pages (to be rebuilt individually)
-# =============================================================================
 
 class PlaceholderPage(QWidget):
     def __init__(self, title: str, parent=None):
@@ -1350,9 +1340,7 @@ class PlaceholderPage(QWidget):
         layout.addStretch()
 
 
-# =============================================================================
 # Main Window
-# =============================================================================
 
 class CalibrateProWindow(QMainWindow):
     """Main application window."""
@@ -1392,9 +1380,7 @@ class CalibrateProWindow(QMainWindow):
         self._guard = None
 
         try:
-            from calibrate_pro.services.calibration_guard import (
-                CalibrationGuard, GuardedDisplay
-            )
+            from calibrate_pro.services.calibration_guard import CalibrationGuard, GuardedDisplay
 
             def on_restore(display_name, reason):
                 self.show_toast(
@@ -1416,14 +1402,14 @@ class CalibrateProWindow(QMainWindow):
                         display_name=display_name,
                     )
                     guard.guard_display(gd)
-            except Exception as e:
+            except (ImportError, OSError, AttributeError) as e:
                 logger.debug("Could not enumerate displays for guard: %s", e)
 
             guard.start()
             self._guard = guard
             logger.info("CalibrationGuard started (checking every 15s)")
 
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             logger.debug("CalibrationGuard not started: %s", e)
 
     def show_toast(self, message: str, level: str = "info"):
@@ -1508,7 +1494,7 @@ class CalibrateProWindow(QMainWindow):
                 no_disp = QLabel("No displays detected")
                 no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
                 layout.addWidget(no_disp)
-        except Exception:
+        except (ImportError, OSError):
             no_disp = QLabel("Could not enumerate displays")
             no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
             layout.addWidget(no_disp)
@@ -1525,7 +1511,7 @@ class CalibrateProWindow(QMainWindow):
                 sensor_name = devices[0].get("product", "i1Display3")
                 sensor_text = f"Colorimeter detected: {sensor_name}"
                 sensor_color = C.GREEN_HI
-        except Exception:
+        except (ImportError, OSError, RuntimeError):
             pass
 
         sensor_row = QHBoxLayout()
@@ -1657,7 +1643,7 @@ class CalibrateProWindow(QMainWindow):
             cal_page = CalibratePage()
             cal_page.calibration_completed.connect(self._update_tray_state)
             self.stack.addWidget(cal_page)                          # 1
-        except Exception as e:
+        except (ImportError, AttributeError) as e:
             logger.warning("Failed to load CalibratePage: %s", e)
             self.stack.addWidget(PlaceholderPage("Calibrate"))      # 1
 
@@ -1665,14 +1651,14 @@ class CalibrateProWindow(QMainWindow):
         try:
             from calibrate_pro.gui.pages.verify import VerifyPage
             self.stack.addWidget(VerifyPage())                      # 2
-        except Exception as e:
+        except (ImportError, TypeError) as e:
             logger.warning("Failed to load VerifyPage: %s", e)
             self.stack.addWidget(PlaceholderPage("Verify"))         # 2
         # Profiles page
         try:
             from calibrate_pro.gui.pages.profiles import ProfilesPage
             self.stack.addWidget(ProfilesPage())                    # 3
-        except Exception as e:
+        except ImportError as e:
             logger.warning("Failed to load ProfilesPage: %s", e)
             self.stack.addWidget(PlaceholderPage("Profiles"))       # 3
 
@@ -1680,7 +1666,7 @@ class CalibrateProWindow(QMainWindow):
         try:
             from calibrate_pro.gui.pages.ddc_control import DDCControlPage
             self.stack.addWidget(DDCControlPage())                  # 4
-        except Exception as e:
+        except (ImportError, RuntimeError) as e:
             logger.warning("Failed to load DDCControlPage: %s", e)
             self.stack.addWidget(PlaceholderPage("DDC Control"))    # 4
 
@@ -1688,7 +1674,7 @@ class CalibrateProWindow(QMainWindow):
         try:
             from calibrate_pro.gui.pages.settings import SettingsPage
             self.stack.addWidget(SettingsPage())                    # 5
-        except Exception as e:
+        except (ImportError, OSError) as e:
             logger.warning("Failed to load SettingsPage: %s", e)
             self.stack.addWidget(PlaceholderPage("Settings"))       # 5
 
@@ -1759,9 +1745,10 @@ class CalibrateProWindow(QMainWindow):
             return
 
         try:
-            from calibrate_pro.utils.startup_manager import StartupManager
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
             from datetime import datetime
+
+            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
+            from calibrate_pro.utils.startup_manager import StartupManager
 
             mgr = StartupManager()
             displays = enumerate_displays()
@@ -1801,10 +1788,7 @@ class CalibrateProWindow(QMainWindow):
             elif calibrated_count == total:
                 icon_color = C.GREEN
                 tooltip = f"{APP_NAME} - All displays calibrated"
-            elif stale_count > 0 and (calibrated_count + stale_count) == total:
-                icon_color = C.YELLOW
-                tooltip = f"{APP_NAME} - {', '.join(per_display_status)}"
-            elif calibrated_count > 0 or stale_count > 0:
+            elif stale_count > 0 and (calibrated_count + stale_count) == total or calibrated_count > 0 or stale_count > 0:
                 icon_color = C.YELLOW
                 tooltip = f"{APP_NAME} - {', '.join(per_display_status)}"
             else:
@@ -1814,7 +1798,7 @@ class CalibrateProWindow(QMainWindow):
             self._tray.setIcon(make_tray_icon(icon_color))
             self._tray.setToolTip(tooltip)
 
-        except Exception as e:
+        except (ImportError, OSError, AttributeError) as e:
             logger.debug("Could not update tray state: %s", e)
             # Fall back to default icon
             self._tray.setIcon(make_tray_icon(C.TEXT3))
@@ -1849,7 +1833,7 @@ class CalibrateProWindow(QMainWindow):
             cal = mgr.get_display_calibration(0)
             if cal and cal.lut_path:
                 active_stem = Path(cal.lut_path).stem
-        except Exception:
+        except (ImportError, OSError, AttributeError):
             pass
 
         for cube in cube_files:
@@ -1879,7 +1863,7 @@ class CalibrateProWindow(QMainWindow):
             self.show_toast(f"Switched to: {profile_name}", level="success")
             self._update_tray_state()
             self._rebuild_profile_submenu()
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             self.show_toast(f"Profile switch failed: {e}", level="warning")
 
     def _quit(self):
@@ -1899,8 +1883,8 @@ class CalibrateProWindow(QMainWindow):
         target = self.stack.widget(index)
         if target:
             try:
+                from PyQt6.QtCore import QEasingCurve, QPropertyAnimation
                 from PyQt6.QtWidgets import QGraphicsOpacityEffect
-                from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
 
                 effect = QGraphicsOpacityEffect(target)
                 target.setGraphicsEffect(effect)
@@ -1915,7 +1899,7 @@ class CalibrateProWindow(QMainWindow):
                 anim.finished.connect(lambda: target.setGraphicsEffect(None))
                 self._page_anim = anim  # prevent GC
                 anim.start()
-            except Exception:
+            except (AttributeError, RuntimeError):
                 self.stack.setCurrentIndex(index)
         else:
             self.stack.setCurrentIndex(index)
@@ -1944,17 +1928,17 @@ class CalibrateProWindow(QMainWindow):
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
                 from calibrate_pro.lut_system.dwm_lut import remove_lut
+                from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
                 for i, d in enumerate(enumerate_displays()):
                     reset_gamma_ramp(d.device_name)
                     try:
                         remove_lut(i)
-                    except Exception:
+                    except OSError:
                         pass
                 self._status.setText("Defaults restored")
                 self.dashboard._populate()
-            except Exception as e:
+            except (ImportError, OSError) as e:
                 QMessageBox.warning(self, "Error", str(e))
 
     def _install_profile(self):
@@ -1965,7 +1949,7 @@ class CalibrateProWindow(QMainWindow):
                 from calibrate_pro.panels.detection import install_profile
                 install_profile(path)
                 self._status.setText(f"Installed: {Path(path).name}")
-            except Exception as e:
+            except (ImportError, OSError) as e:
                 QMessageBox.warning(self, "Error", str(e))
 
     def _export(self, fmt: str):
@@ -1980,7 +1964,7 @@ class CalibrateProWindow(QMainWindow):
         try:
             from calibrate_pro.patterns.display import show_patterns
             show_patterns()
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             QMessageBox.warning(self, "Error", str(e))
 
     def _hdr_status(self):
@@ -1992,7 +1976,7 @@ class CalibrateProWindow(QMainWindow):
                 for s in states
             ) or "No displays detected"
             QMessageBox.information(self, "HDR Status", msg)
-        except Exception as e:
+        except (ImportError, OSError) as e:
             QMessageBox.warning(self, "Error", str(e))
 
     def _about(self):
@@ -2027,9 +2011,7 @@ class CalibrateProWindow(QMainWindow):
             event.accept()
 
 
-# =============================================================================
 # Entry Point
-# =============================================================================
 
 def launch():
     """Launch the Calibrate Pro GUI."""
@@ -2037,7 +2019,7 @@ def launch():
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("quanta.calibratepro.1")
-    except Exception:
+    except (AttributeError, OSError):
         pass
 
     app = QApplication(sys.argv)

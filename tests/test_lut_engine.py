@@ -8,7 +8,6 @@ import pytest
 
 from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
 
-
 # -------------------------------------------------------------------------
 # LUT3D.create_identity
 # -------------------------------------------------------------------------

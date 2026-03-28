@@ -10,17 +10,28 @@ Steps:
 3. Verify: Display PRE-CORRECTED patches, re-measure, compare dE
 4. If correction works: save as 3D LUT for system-wide use
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB,
-    BRADFORD_MATRIX, BRADFORD_INVERSE
+    BRADFORD_INVERSE,
+    BRADFORD_MATRIX,
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
 from calibrate_pro.core.lut_engine import LUT3D
 
@@ -313,7 +324,7 @@ def build_correction_function(profile):
         adapt = np.eye(3)
         print(f"\n  White point shift: {wp_shift:.4f} -> within tolerance, skipping adaptation")
 
-    print(f"  Display model check:")
+    print("  Display model check:")
     print(f"    M_norm @ [1,1,1] Y = {(M_norm @ np.array([1,1,1]))[1]:.4f} (should be ~1.0)")
     print(f"    Display WP xy: ({dw_xy[0]:.4f}, {dw_xy[1]:.4f})")
     print(f"    sRGB WP xy:    ({sw_xy[0]:.4f}, {sw_xy[1]:.4f})")
@@ -328,7 +339,7 @@ def build_correction_function(profile):
     #   -> Preserves baseline dE (~2-5) which is better than over-correcting
     # - Smooth blend based on chroma (saturation)
 
-    print(f"  Strategy: chroma-adaptive (full for saturated, identity for neutrals)")
+    print("  Strategy: chroma-adaptive (full for saturated, identity for neutrals)")
 
     def correct(r, g, b):
         """Chroma-adaptive: full correction for saturated, identity for neutrals."""

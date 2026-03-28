@@ -19,11 +19,10 @@ Usage:
     print("Display stable. Ready for calibration.")
 """
 
-import time
 import logging
-from dataclasses import dataclass, field
-from typing import Callable, Optional, List
-from collections import deque
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +66,11 @@ class WarmupMonitor:
 
     def __init__(
         self,
-        measure_luminance_fn: Callable[[], Optional[float]],
+        measure_luminance_fn: Callable[[], float | None],
         interval_seconds: float = 30.0,
         stability_threshold_pct: float = 0.1,
         stability_count: int = 3,
-        display_white_fn: Optional[Callable[[], None]] = None,
+        display_white_fn: Callable[[], None] | None = None,
     ):
         """
         Args:
@@ -86,7 +85,7 @@ class WarmupMonitor:
         self._interval = interval_seconds
         self._threshold = stability_threshold_pct
         self._stability_count = stability_count
-        self._readings: List[WarmupReading] = []
+        self._readings: list[WarmupReading] = []
         self._start_time: float = 0.0
         self._stable_streak: int = 0
         self._is_stable: bool = False
@@ -95,7 +94,7 @@ class WarmupMonitor:
     def is_stable(self) -> bool:
         return self._is_stable
 
-    def take_reading(self) -> Optional[WarmupStatus]:
+    def take_reading(self) -> WarmupStatus | None:
         """Take a single luminance reading and return updated status."""
         if not self._start_time:
             self._start_time = time.time()

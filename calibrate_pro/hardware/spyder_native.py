@@ -13,19 +13,22 @@ Supported devices:
 
 import struct
 import time
-import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
-from calibrate_pro.hardware.usb_device import (
-    USBDeviceInfo, USBTransport, HIDTransport,
-    enumerate_all_colorimeters, get_transport,
-    CommunicationError, DeviceNotFoundError
-)
 from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch
+    ColorimeterBase,
+    ColorMeasurement,
+    DeviceInfo,
+    DeviceType,
+)
+from calibrate_pro.hardware.usb_device import (
+    CommunicationError,
+    USBDeviceInfo,
+    USBTransport,
+    enumerate_all_colorimeters,
+    get_transport,
 )
 
 
@@ -100,15 +103,15 @@ class SpyderNative(ColorimeterBase):
 
     def __init__(self):
         super().__init__()
-        self._transport: Optional[USBTransport] = None
-        self._usb_info: Optional[USBDeviceInfo] = None
-        self._cal_data: Optional[SpyderCalibrationData] = None
+        self._transport: USBTransport | None = None
+        self._usb_info: USBDeviceInfo | None = None
+        self._cal_data: SpyderCalibrationData | None = None
         self._integration_time: float = 1.0
         self._averaging: int = 1
         self._sensor_count: int = 3
         self._default_matrix: np.ndarray = SPYDER_X_MATRIX
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect connected Spyder devices."""
         devices = []
 
@@ -355,7 +358,7 @@ class SpyderNative(ColorimeterBase):
                 pass
         return False
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """Take a spot measurement."""
         if not self.is_connected:
             return None
@@ -431,7 +434,7 @@ class SpyderNative(ColorimeterBase):
 
         return xyz
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """Measure ambient light."""
         if not self.is_connected:
             return None
@@ -473,7 +476,7 @@ class SpyderNative(ColorimeterBase):
 class SpyderX(SpyderNative):
     """Convenience class for SpyderX devices."""
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         all_devices = super().detect_devices()
         return [d for d in all_devices if "SpyderX" in d.name and "X2" not in d.name]
 
@@ -481,12 +484,12 @@ class SpyderX(SpyderNative):
 class SpyderX2(SpyderNative):
     """Convenience class for SpyderX2 devices."""
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         all_devices = super().detect_devices()
         return [d for d in all_devices if "SpyderX2" in d.name]
 
 
-def detect_spyder_native() -> Optional[SpyderNative]:
+def detect_spyder_native() -> SpyderNative | None:
     """Detect and connect to Spyder device."""
     driver = SpyderNative()
     devices = driver.detect_devices()

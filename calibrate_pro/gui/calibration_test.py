@@ -4,20 +4,26 @@ Real-time Calibration Test Application
 Uses Windows Gamma Ramp API for reliable display control.
 """
 
-import sys
 import ctypes
-from ctypes import wintypes, Structure, POINTER, byref
-from typing import Optional, List, Tuple
-import time
+import sys
+from ctypes import Structure, byref, wintypes
 
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QGridLayout, QLabel, QSlider, QPushButton, QGroupBox, QFrame,
-    QComboBox, QProgressBar, QSplitter, QTabWidget
+    QApplication,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread
-from PyQt6.QtGui import QColor, QPainter, QFont, QPen, QBrush, QLinearGradient
-
 
 # ============================================================================
 # Windows Display & Gamma Controller
@@ -90,7 +96,7 @@ class GammaController:
                 self.original_ramps[display_name] = stored
             self.gdi32.DeleteDC(hdc)
 
-    def get_gamma_ramp(self, display_idx: int) -> Optional[GAMMA_RAMP]:
+    def get_gamma_ramp(self, display_idx: int) -> GAMMA_RAMP | None:
         """Get current gamma ramp for a display."""
         if display_idx >= len(self.displays):
             return None
@@ -270,7 +276,7 @@ class ColorGradient(QFrame):
     def paintEvent(self, event):
         painter = QPainter(self)
         width = self.width()
-        height = self.height()
+        self.height()
 
         gradient = QLinearGradient(0, 0, width, 0)
 

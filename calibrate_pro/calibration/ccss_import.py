@@ -36,16 +36,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # CGATS parsing helpers
 # ---------------------------------------------------------------------------
 
-def _parse_cgats_keywords(text: str) -> Dict[str, str]:
+def _parse_cgats_keywords(text: str) -> dict[str, str]:
     """
     Extract KEYWORD/value pairs from CGATS header lines.
 
@@ -58,7 +56,7 @@ def _parse_cgats_keywords(text: str) -> Dict[str, str]:
     Returns a dict mapping uppercase keyword names to their string values
     (quotes stripped).
     """
-    keywords: Dict[str, str] = {}
+    keywords: dict[str, str] = {}
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
@@ -76,7 +74,7 @@ def _parse_cgats_keywords(text: str) -> Dict[str, str]:
     return keywords
 
 
-def _extract_data_block(text: str) -> Tuple[List[str], List[List[str]]]:
+def _extract_data_block(text: str) -> tuple[list[str], list[list[str]]]:
     """
     Extract the field names and data rows between BEGIN_DATA_FORMAT /
     END_DATA_FORMAT and BEGIN_DATA / END_DATA markers.
@@ -88,7 +86,7 @@ def _extract_data_block(text: str) -> Tuple[List[str], List[List[str]]]:
     lines = text.splitlines()
 
     # --- field names ---
-    fields: List[str] = []
+    fields: list[str] = []
     in_format = False
     for line in lines:
         stripped = line.strip()
@@ -102,7 +100,7 @@ def _extract_data_block(text: str) -> Tuple[List[str], List[List[str]]]:
             fields.extend(stripped.split())
 
     # --- data rows ---
-    rows: List[List[str]] = []
+    rows: list[list[str]] = []
     in_data = False
     for line in lines:
         stripped = line.strip()
@@ -122,7 +120,7 @@ def _extract_data_block(text: str) -> Tuple[List[str], List[List[str]]]:
 # CCMX loading
 # ---------------------------------------------------------------------------
 
-def load_ccmx(path: Union[str, Path]) -> np.ndarray:
+def load_ccmx(path: str | Path) -> np.ndarray:
     """
     Load a CCMX (Colorimeter Correction Matrix) file.
 
@@ -151,11 +149,11 @@ def load_ccmx(path: Union[str, Path]) -> np.ndarray:
             f"CCMX file must contain at least 3 data rows, got {len(rows)}"
         )
 
-    matrix_rows: List[List[float]] = []
+    matrix_rows: list[list[float]] = []
     for row in rows[:3]:
         # Some CCMX files include a row index as the first column; detect
         # and skip non-numeric leading tokens.
-        floats: List[float] = []
+        floats: list[float] = []
         for token in row:
             try:
                 floats.append(float(token))
@@ -175,7 +173,7 @@ def load_ccmx(path: Union[str, Path]) -> np.ndarray:
 # CCSS loading
 # ---------------------------------------------------------------------------
 
-def load_ccss(path: Union[str, Path]) -> dict:
+def load_ccss(path: str | Path) -> dict:
     """
     Load a CCSS (Colorimeter Calibration Spectral Sample) file.
 
@@ -208,7 +206,7 @@ def load_ccss(path: Union[str, Path]) -> dict:
     fields, rows = _extract_data_block(text)
 
     # Identify spectral columns: SPEC_380, SPEC_390, etc.
-    spec_indices: List[Tuple[int, float]] = []
+    spec_indices: list[tuple[int, float]] = []
     for i, field in enumerate(fields):
         m = re.match(r"^SPEC_(\d+(?:\.\d+)?)$", field, re.IGNORECASE)
         if m:
@@ -226,9 +224,9 @@ def load_ccss(path: Union[str, Path]) -> dict:
     col_indices = [idx for idx, _ in spec_indices]
 
     # Extract spectral data from each row
-    samples: List[np.ndarray] = []
+    samples: list[np.ndarray] = []
     for row in rows:
-        spd_values: List[float] = []
+        spd_values: list[float] = []
         for ci in col_indices:
             if ci < len(row):
                 try:
@@ -276,7 +274,6 @@ def apply_ccmx(xyz: np.ndarray, ccmx: np.ndarray) -> np.ndarray:
     if ccmx.shape != (3, 3):
         raise ValueError(f"CCMX must be (3, 3), got {ccmx.shape}")
 
-    original_shape = xyz.shape
 
     if xyz.ndim == 1:
         return ccmx @ xyz

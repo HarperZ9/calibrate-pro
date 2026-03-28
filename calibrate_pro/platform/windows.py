@@ -9,10 +9,10 @@ thin wrapper that exposes them through the unified
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 from calibrate_pro.platform.base import (
     DisplayInfo as PlatformDisplayInfo,
+)
+from calibrate_pro.platform.base import (
     PlatformBackend,
 )
 
@@ -30,15 +30,17 @@ class WindowsBackend(PlatformBackend):
     # Display enumeration
     # ------------------------------------------------------------------
 
-    def enumerate_displays(self) -> List[PlatformDisplayInfo]:
+    def enumerate_displays(self) -> list[PlatformDisplayInfo]:
         """Enumerate active displays via EnumDisplayDevicesW."""
         from calibrate_pro.panels.detection import (
             enumerate_displays as win_enumerate,
+        )
+        from calibrate_pro.panels.detection import (
             get_display_name,
         )
 
         win_displays = win_enumerate()
-        results: List[PlatformDisplayInfo] = []
+        results: list[PlatformDisplayInfo] = []
 
         for idx, d in enumerate(win_displays):
             try:
@@ -74,9 +76,9 @@ class WindowsBackend(PlatformBackend):
     def apply_gamma_ramp(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """
         Apply a gamma ramp via ``SetDeviceGammaRamp``.
@@ -84,8 +86,11 @@ class WindowsBackend(PlatformBackend):
         Delegates to ``calibrate_pro.panels.detection.set_gamma_ramp``.
         """
         import numpy as np
+
         from calibrate_pro.panels.detection import (
             enumerate_displays as win_enumerate,
+        )
+        from calibrate_pro.panels.detection import (
             set_gamma_ramp,
         )
 
@@ -105,6 +110,8 @@ class WindowsBackend(PlatformBackend):
         """Reset gamma ramp to linear identity."""
         from calibrate_pro.panels.detection import (
             enumerate_displays as win_enumerate,
+        )
+        from calibrate_pro.panels.detection import (
             reset_gamma_ramp,
         )
 
@@ -132,6 +139,8 @@ class WindowsBackend(PlatformBackend):
         """
         from calibrate_pro.panels.detection import (
             enumerate_displays as win_enumerate,
+        )
+        from calibrate_pro.panels.detection import (
             install_profile,
             set_display_profile,
         )
@@ -148,10 +157,12 @@ class WindowsBackend(PlatformBackend):
         device_name = displays[display_index].device_name
         return set_display_profile(device_name, profile_path)
 
-    def get_icc_profile(self, display_index: int) -> Optional[str]:
+    def get_icc_profile(self, display_index: int) -> str | None:
         """Get the active ICC profile path for a display."""
         from calibrate_pro.panels.detection import (
             enumerate_displays as win_enumerate,
+        )
+        from calibrate_pro.panels.detection import (
             get_display_profile,
         )
 

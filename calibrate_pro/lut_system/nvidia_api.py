@@ -13,16 +13,23 @@ Requirements:
 """
 
 import ctypes
-from ctypes import wintypes, POINTER, Structure, Union, c_int, c_uint, c_float
-from ctypes import c_void_p, c_char, c_wchar, byref, sizeof, cast
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union as TypingUnion
-import struct
-import numpy as np
-from enum import IntEnum, IntFlag
-from dataclasses import dataclass
 import sys
+from ctypes import (
+    POINTER,
+    Structure,
+    byref,
+    c_char,
+    c_int,
+    c_uint,
+    c_void_p,
+    sizeof,
+    wintypes,
+)
+from dataclasses import dataclass
+from enum import IntEnum, IntFlag
+from pathlib import Path
 
+import numpy as np
 
 # =============================================================================
 # NVAPI Constants and Types
@@ -182,7 +189,7 @@ class NvidiaDisplayInfo:
     is_active: bool
     is_hdr_capable: bool
     is_hdr_enabled: bool
-    resolution: Tuple[int, int]
+    resolution: tuple[int, int]
     refresh_rate: float
     connector_type: str
 
@@ -230,10 +237,10 @@ class NvidiaAPI:
     def __init__(self):
         self._initialized = False
         self._nvapi = None
-        self._funcs: Dict[str, ctypes.CFUNCTYPE] = {}
-        self._gpus: List[NvidiaGpuInfo] = []
-        self._displays: List[NvidiaDisplayInfo] = []
-        self._active_luts: Dict[int, np.ndarray] = {}
+        self._funcs: dict[str, ctypes.CFUNCTYPE] = {}
+        self._gpus: list[NvidiaGpuInfo] = []
+        self._displays: list[NvidiaDisplayInfo] = []
+        self._active_luts: dict[int, np.ndarray] = {}
 
         self._initialize()
 
@@ -278,10 +285,8 @@ class NvidiaAPI:
 
             return True
 
-        except OSError as e:
-            # nvapi.dll not found (not NVIDIA GPU or driver not installed)
-            return False
-        except Exception as e:
+        except (OSError, AttributeError):
+            # nvapi.dll not found or function missing
             return False
 
     def _cache_functions(self, query_interface):
@@ -465,7 +470,7 @@ class NvidiaAPI:
                             connector_type="Unknown"
                         ))
                 i += 1
-        except Exception:
+        except OSError:
             pass
 
     # =========================================================================
@@ -478,12 +483,12 @@ class NvidiaAPI:
         return self._initialized
 
     @property
-    def gpus(self) -> List[NvidiaGpuInfo]:
+    def gpus(self) -> list[NvidiaGpuInfo]:
         """Get list of NVIDIA GPUs."""
         return self._gpus
 
     @property
-    def displays(self) -> List[NvidiaDisplayInfo]:
+    def displays(self) -> list[NvidiaDisplayInfo]:
         """Get list of NVIDIA displays."""
         return self._displays
 
@@ -491,7 +496,7 @@ class NvidiaAPI:
     # Color Control Methods
     # =========================================================================
 
-    def get_color_settings(self, display_id: int = 0) -> Optional[ColorSettings]:
+    def get_color_settings(self, display_id: int = 0) -> ColorSettings | None:
         """
         Get current color settings for a display.
 
@@ -509,7 +514,7 @@ class NvidiaAPI:
         # Fall back to registry-based settings
         return self._get_color_via_registry(display_id)
 
-    def _get_color_via_nvapi(self, display_id: int) -> Optional[ColorSettings]:
+    def _get_color_via_nvapi(self, display_id: int) -> ColorSettings | None:
         """Get color settings via NVAPI (may not work on all driver versions)."""
         if not self._initialized or 'ColorControl' not in self._funcs:
             return None
@@ -544,7 +549,7 @@ class NvidiaAPI:
 
         return None
 
-    def _get_nvapi_display_id(self, display_index: int) -> Optional[int]:
+    def _get_nvapi_display_id(self, display_index: int) -> int | None:
         """Get the NVAPI display ID for a display index."""
         try:
             if not self._nvapi:
@@ -563,10 +568,10 @@ class NvidiaAPI:
                     return display_id.value
 
             return None
-        except Exception:
+        except (OSError, AttributeError):
             return None
 
-    def _get_color_via_registry(self, display_id: int) -> Optional[ColorSettings]:
+    def _get_color_via_registry(self, display_id: int) -> ColorSettings | None:
         """Get color settings from NVIDIA registry keys."""
         try:
             import winreg
@@ -584,17 +589,17 @@ class NvidiaAPI:
                     pass
 
             return ColorSettings()  # Return defaults
-        except Exception:
+        except OSError:
             return None
 
     def set_color_settings(
         self,
         display_id: int = 0,
-        brightness: Optional[int] = None,
-        contrast: Optional[int] = None,
-        gamma: Optional[int] = None,
-        saturation: Optional[int] = None,
-        hue: Optional[int] = None
+        brightness: int | None = None,
+        contrast: int | None = None,
+        gamma: int | None = None,
+        saturation: int | None = None,
+        hue: int | None = None
     ) -> bool:
         """
         Set color settings for a display.
@@ -626,11 +631,11 @@ class NvidiaAPI:
     def _set_color_via_nvapi(
         self,
         display_id: int,
-        brightness: Optional[int],
-        contrast: Optional[int],
-        gamma: Optional[int],
-        saturation: Optional[int],
-        hue: Optional[int]
+        brightness: int | None,
+        contrast: int | None,
+        gamma: int | None,
+        saturation: int | None,
+        hue: int | None
     ) -> bool:
         """Set color via NVAPI (may not work on all driver versions)."""
         if not self._initialized or 'ColorControl' not in self._funcs:
@@ -698,7 +703,6 @@ class NvidiaAPI:
         """Set Digital Vibrance via NVIDIA registry keys."""
         try:
             import winreg
-            import subprocess
 
             # Map -100 to 100 range to 0-100 for DVibrance
             vibrance = int((saturation + 100) / 2)
@@ -720,7 +724,7 @@ class NvidiaAPI:
             # Would need to restart NVIDIA driver service or use NvAPI
             return True
 
-        except Exception:
+        except OSError:
             return False
 
     def reset_color_settings(self, display_id: int = 0) -> bool:
@@ -798,10 +802,10 @@ class NvidiaAPI:
                 gamma=adjustments.get('gamma', 0),
                 saturation=adjustments.get('saturation', 0)
             )
-        except Exception:
+        except (ValueError, OSError):
             return False
 
-    def _analyze_lut_adjustments(self, lut_data: np.ndarray) -> Dict[str, int]:
+    def _analyze_lut_adjustments(self, lut_data: np.ndarray) -> dict[str, int]:
         """
         Analyze 3D LUT to extract approximate color adjustments.
 
@@ -849,7 +853,7 @@ class NvidiaAPI:
         # Estimate saturation by comparing color channel separation
         # At white, check if channels are equal (desaturated) or separated
         white_rgb = lut_data[-1, -1, -1]
-        channel_std = np.std(white_rgb)
+        np.std(white_rgb)
         adjustments['saturation'] = 0  # Hard to estimate from LUT
 
         return adjustments
@@ -857,7 +861,7 @@ class NvidiaAPI:
     def load_lut_file(
         self,
         display_id: int,
-        lut_path: TypingUnion[str, Path]
+        lut_path: str | Path
     ) -> bool:
         """
         Load 3D LUT from file.
@@ -879,8 +883,8 @@ class NvidiaAPI:
             lut = LUT3D.load(lut_path)
             return self.load_3d_lut(display_id, lut.data)
 
-        except Exception as e:
-            raise NvidiaAPIError(f"Failed to load LUT: {e}")
+        except (OSError, ValueError) as e:
+            raise NvidiaAPIError(f"Failed to load LUT: {e}") from e
 
     def unload_lut(self, display_id: int) -> bool:
         """
@@ -897,7 +901,7 @@ class NvidiaAPI:
 
         return self.reset_color_settings(display_id)
 
-    def get_active_lut(self, display_id: int) -> Optional[np.ndarray]:
+    def get_active_lut(self, display_id: int) -> np.ndarray | None:
         """Get currently active LUT for a display."""
         return self._active_luts.get(display_id)
 
@@ -905,7 +909,7 @@ class NvidiaAPI:
     # HDR Methods
     # =========================================================================
 
-    def get_hdr_capabilities(self, display_id: int = 0) -> Dict:
+    def get_hdr_capabilities(self, display_id: int = 0) -> dict:
         """
         Get HDR capabilities for a display.
 
@@ -968,7 +972,7 @@ class NvidiaAPI:
     # Utility Methods
     # =========================================================================
 
-    def get_info(self) -> Dict:
+    def get_info(self) -> dict:
         """Get NVIDIA API information."""
         return {
             'available': self._initialized,
@@ -1011,7 +1015,7 @@ class NvidiaAPI:
                         ctypes.CFUNCTYPE(c_int)
                     )
                     NvAPI_Unload()
-            except Exception:
+            except OSError:
                 pass
 
             self._initialized = False
@@ -1033,7 +1037,7 @@ def check_nvidia_available() -> bool:
     return available
 
 
-def get_nvidia_info() -> Dict:
+def get_nvidia_info() -> dict:
     """Get NVIDIA GPU information."""
     api = NvidiaAPI()
     info = api.get_info()
@@ -1044,7 +1048,7 @@ def get_nvidia_info() -> Dict:
 def apply_nvidia_lut(
     lut_data: np.ndarray,
     display_id: int = 0
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Apply 3D LUT via NVIDIA API.
 
@@ -1068,7 +1072,7 @@ def apply_nvidia_lut(
             return False, "Failed to apply LUT"
     except NvidiaAPIError as e:
         return False, str(e)
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         return False, f"Error: {e}"
     finally:
         # Don't cleanup - keep settings active
@@ -1076,9 +1080,9 @@ def apply_nvidia_lut(
 
 
 def apply_nvidia_lut_file(
-    lut_path: TypingUnion[str, Path],
+    lut_path: str | Path,
     display_id: int = 0
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Apply 3D LUT file via NVIDIA API.
 
@@ -1102,17 +1106,17 @@ def apply_nvidia_lut_file(
             return False, "Failed to apply LUT"
     except NvidiaAPIError as e:
         return False, str(e)
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         return False, f"Error: {e}"
 
 
 def set_nvidia_color(
     display_id: int = 0,
-    brightness: Optional[int] = None,
-    contrast: Optional[int] = None,
-    gamma: Optional[int] = None,
-    saturation: Optional[int] = None
-) -> Tuple[bool, str]:
+    brightness: int | None = None,
+    contrast: int | None = None,
+    gamma: int | None = None,
+    saturation: int | None = None
+) -> tuple[bool, str]:
     """
     Set NVIDIA display color settings.
 
@@ -1143,11 +1147,11 @@ def set_nvidia_color(
             return True, "Color settings applied"
         else:
             return False, "Failed to apply color settings"
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         return False, f"Error: {e}"
 
 
-def reset_nvidia_color(display_id: int = 0) -> Tuple[bool, str]:
+def reset_nvidia_color(display_id: int = 0) -> tuple[bool, str]:
     """Reset NVIDIA color settings to defaults."""
     api = NvidiaAPI()
 
@@ -1160,5 +1164,5 @@ def reset_nvidia_color(display_id: int = 0) -> Tuple[bool, str]:
             return True, "Color settings reset to defaults"
         else:
             return False, "Failed to reset color settings"
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         return False, f"Error: {e}"

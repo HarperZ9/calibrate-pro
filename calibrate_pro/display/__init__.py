@@ -3,13 +3,18 @@ Display-specific intelligence modules.
 """
 
 from .oled import (
-    ABLModel, NearBlackModel, OLEDCharacteristics,
-    get_abl_model, get_oled_characteristics,
-    apply_near_black_correction, compensate_abl_in_lut,
-    ABL_MODELS, NEAR_BLACK_MODELS
+    ABL_MODELS,
+    NEAR_BLACK_MODELS,
+    ABLModel,
+    NearBlackModel,
+    OLEDCharacteristics,
+    apply_near_black_correction,
+    compensate_abl_in_lut,
+    get_abl_model,
+    get_oled_characteristics,
 )
-
 from .uniformity import (
-    UniformityGrid, UniformityCompensation,
+    UniformityCompensation,
+    UniformityGrid,
     create_uniformity_measurement_plan,
 )

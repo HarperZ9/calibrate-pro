@@ -11,16 +11,14 @@ Professional-grade ICC v4.4 profile creation with:
 Reference: ICC.1:2022 Specification
 """
 
-import numpy as np
+import hashlib
+import struct
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any, Union
+from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-import struct
-import hashlib
-from datetime import datetime
-import zlib
 
+import numpy as np
 
 # =============================================================================
 # ICC Profile Constants
@@ -188,7 +186,7 @@ class DateTimeNumber:
 @dataclass
 class MultiLocalizedString:
     """Multi-localized Unicode string (mluc type)."""
-    strings: Dict[Tuple[str, str], str] = field(default_factory=dict)
+    strings: dict[tuple[str, str], str] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.strings:
@@ -270,7 +268,7 @@ class ParametricCurve:
         )
 
     @classmethod
-    def gamma(cls, gamma: float) -> 'ParametricCurve':
+    def gamma(cls, gamma: float) -> 'ParametricCurve':  # noqa: F811
         """Create simple gamma curve."""
         return cls(function_type=0, gamma=gamma)
 
@@ -313,7 +311,7 @@ class ParametricCurve:
 class CurveData:
     """TRC curve data (curv type)."""
     values: np.ndarray = field(default_factory=lambda: np.array([]))
-    gamma: Optional[float] = None  # If set, use gamma instead of table
+    gamma: float | None = None  # If set, use gamma instead of table
 
     @classmethod
     def from_gamma(cls, gamma: float) -> 'CurveData':
@@ -465,36 +463,36 @@ class ICCProfile:
     blue_primary: XYZNumber = field(default_factory=lambda: XYZNumber(0.1431, 0.0606, 0.7139))
 
     # Chromatic adaptation
-    chromatic_adaptation: Optional[np.ndarray] = None  # 3x3 matrix
+    chromatic_adaptation: np.ndarray | None = None  # 3x3 matrix
 
     # TRC (Transfer Response Curves)
-    red_trc: Optional[Union[CurveData, ParametricCurve]] = None
-    green_trc: Optional[Union[CurveData, ParametricCurve]] = None
-    blue_trc: Optional[Union[CurveData, ParametricCurve]] = None
+    red_trc: CurveData | ParametricCurve | None = None
+    green_trc: CurveData | ParametricCurve | None = None
+    blue_trc: CurveData | ParametricCurve | None = None
 
     # LUT data
-    a2b0: Optional[CLUT] = None  # Device to PCS (perceptual)
-    b2a0: Optional[CLUT] = None  # PCS to device
+    a2b0: CLUT | None = None  # Device to PCS (perceptual)
+    b2a0: CLUT | None = None  # PCS to device
 
     # VCGT (Video Card Gamma Table)
-    vcgt_red: Optional[np.ndarray] = None
-    vcgt_green: Optional[np.ndarray] = None
-    vcgt_blue: Optional[np.ndarray] = None
+    vcgt_red: np.ndarray | None = None
+    vcgt_green: np.ndarray | None = None
+    vcgt_blue: np.ndarray | None = None
 
     # MHC2 (Windows HDR)
-    mhc2_data: Optional[bytes] = None
+    mhc2_data: bytes | None = None
 
     # Measurement data
-    measurement: Optional[MeasurementData] = None
+    measurement: MeasurementData | None = None
 
     # Multi-localized strings
-    localized_descriptions: Dict[Tuple[str, str], str] = field(default_factory=dict)
+    localized_descriptions: dict[tuple[str, str], str] = field(default_factory=dict)
 
     # Creation date
     creation_date: DateTimeNumber = field(default_factory=DateTimeNumber.now)
 
     # Custom tags
-    custom_tags: Dict[bytes, bytes] = field(default_factory=dict)
+    custom_tags: dict[bytes, bytes] = field(default_factory=dict)
 
     def _build_header(self, profile_size: int, tag_count: int) -> bytes:
         """Build 128-byte profile header."""
@@ -551,7 +549,7 @@ class ICCProfile:
 
         return bytes(header)
 
-    def _build_tag_table(self, tags: List[Tuple[bytes, int, int]]) -> bytes:
+    def _build_tag_table(self, tags: list[tuple[bytes, int, int]]) -> bytes:
         """Build tag table."""
         data = struct.pack('>I', len(tags))
 
@@ -598,7 +596,7 @@ class ICCProfile:
 
         return mluc.to_bytes()
 
-    def _build_vcgt_tag(self) -> Optional[bytes]:
+    def _build_vcgt_tag(self) -> bytes | None:
         """Build VCGT tag."""
         if self.vcgt_red is None:
             return None
@@ -746,7 +744,7 @@ class ICCProfile:
 
         return bytes(profile)
 
-    def save(self, path: Union[str, Path]):
+    def save(self, path: str | Path):
         """Save profile to file."""
         path = Path(path)
         data = self.build()
@@ -806,10 +804,10 @@ class ICCProfile:
 # =============================================================================
 
 def create_calibration_profile(
-    red_xyz: Tuple[float, float, float],
-    green_xyz: Tuple[float, float, float],
-    blue_xyz: Tuple[float, float, float],
-    white_xyz: Tuple[float, float, float],
+    red_xyz: tuple[float, float, float],
+    green_xyz: tuple[float, float, float],
+    blue_xyz: tuple[float, float, float],
+    white_xyz: tuple[float, float, float],
     trc_red: np.ndarray,
     trc_green: np.ndarray,
     trc_blue: np.ndarray,

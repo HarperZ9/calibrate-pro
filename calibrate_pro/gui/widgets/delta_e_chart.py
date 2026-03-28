@@ -7,20 +7,12 @@ Displays Delta E (color difference) measurements:
 - Statistics summary
 """
 
-from typing import Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QSizePolicy, QToolTip
-)
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
-from PyQt6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QPainterPath,
-    QLinearGradient, QFont
-)
-
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPen
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QToolTip, QVBoxLayout, QWidget
 
 # =============================================================================
 # Delta E Classifications
@@ -71,8 +63,8 @@ class DeltaEMeasurement:
     """A single Delta E measurement."""
     label: str
     value: float
-    target_color: Tuple[int, int, int] = (128, 128, 128)  # RGB
-    measured_color: Tuple[int, int, int] = (128, 128, 128)
+    target_color: tuple[int, int, int] = (128, 128, 128)  # RGB
+    measured_color: tuple[int, int, int] = (128, 128, 128)
 
 
 # =============================================================================
@@ -85,14 +77,14 @@ class DeltaEBarChart(QWidget):
     bar_clicked = pyqtSignal(int, DeltaEMeasurement)  # index, measurement
     bar_hovered = pyqtSignal(int, DeltaEMeasurement)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(400, 200)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMouseTracking(True)
 
         # Data
-        self.measurements: List[DeltaEMeasurement] = []
+        self.measurements: list[DeltaEMeasurement] = []
 
         # Display options
         self.show_grid = True
@@ -118,7 +110,7 @@ class DeltaEBarChart(QWidget):
         # Hover state
         self._hover_index: int = -1
 
-    def set_measurements(self, measurements: List[DeltaEMeasurement]):
+    def set_measurements(self, measurements: list[DeltaEMeasurement]):
         """Set the measurements to display."""
         self.measurements = measurements
 
@@ -130,8 +122,8 @@ class DeltaEBarChart(QWidget):
         self.update()
 
     def add_measurement(self, label: str, value: float,
-                       target_rgb: Tuple[int, int, int] = None,
-                       measured_rgb: Tuple[int, int, int] = None):
+                       target_rgb: tuple[int, int, int] = None,
+                       measured_rgb: tuple[int, int, int] = None):
         """Add a single measurement."""
         m = DeltaEMeasurement(
             label=label,
@@ -211,7 +203,7 @@ class DeltaEBarChart(QWidget):
         """Draw threshold indicator lines."""
         plot_height = self.height() - self.margin_top - self.margin_bottom
 
-        for value, color, label in self.thresholds:
+        for value, color, _label in self.thresholds:
             if value > self.max_display_value:
                 continue
 
@@ -365,7 +357,7 @@ class DeltaEBarChart(QWidget):
 class DeltaEStatsPanel(QWidget):
     """Statistics summary for Delta E measurements."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -423,7 +415,7 @@ class DeltaEStatsPanel(QWidget):
 
         return frame
 
-    def update_stats(self, measurements: List[DeltaEMeasurement], threshold: float = 2.0):
+    def update_stats(self, measurements: list[DeltaEMeasurement], threshold: float = 2.0):
         """Update statistics from measurements."""
         if not measurements:
             return

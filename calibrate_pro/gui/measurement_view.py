@@ -8,18 +8,23 @@ Displays real-time calibration measurements:
 - Measurement history
 """
 
-from typing import Optional, List, Tuple, Dict
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QGridLayout, QProgressBar, QScrollArea, QSizePolicy,
-    QTableWidget, QTableWidgetItem, QHeaderView
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QProgressBar,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QBrush, QPen
-
 
 # =============================================================================
 # Theme Colors
@@ -50,14 +55,14 @@ class Measurement:
     timestamp: datetime = field(default_factory=datetime.now)
 
     # Target values
-    target_rgb: Tuple[int, int, int] = (128, 128, 128)
-    target_xyz: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    target_lab: Tuple[float, float, float] = (50.0, 0.0, 0.0)
+    target_rgb: tuple[int, int, int] = (128, 128, 128)
+    target_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    target_lab: tuple[float, float, float] = (50.0, 0.0, 0.0)
 
     # Measured values
-    measured_xyz: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    measured_lab: Tuple[float, float, float] = (50.0, 0.0, 0.0)
-    measured_xy: Tuple[float, float] = (0.3127, 0.3290)
+    measured_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    measured_lab: tuple[float, float, float] = (50.0, 0.0, 0.0)
+    measured_xy: tuple[float, float] = (0.3127, 0.3290)
 
     # Delta E
     delta_e: float = 0.0
@@ -73,7 +78,7 @@ class Measurement:
 class ColorPatchDisplay(QFrame):
     """Large color patch showing current target and measured colors."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(200, 200)
         self.setStyleSheet(f"""
@@ -134,7 +139,7 @@ class ColorPatchDisplay(QFrame):
 class DeltaEDisplay(QFrame):
     """Large Delta E value display with color coding."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(150, 100)
         self.setStyleSheet(f"""
@@ -201,7 +206,7 @@ class DeltaEDisplay(QFrame):
 class ValuesPanel(QFrame):
     """Display panel for color values (XYZ, Lab, xy)."""
 
-    def __init__(self, title: str = "Values", parent: Optional[QWidget] = None):
+    def __init__(self, title: str = "Values", parent: QWidget | None = None):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame {{
@@ -275,7 +280,7 @@ class MeasurementHistoryTable(QWidget):
 
     row_selected = pyqtSignal(int)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -371,9 +376,9 @@ class MeasurementView(QWidget):
 
     measurement_complete = pyqtSignal(Measurement)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.measurements: List[Measurement] = []
+        self.measurements: list[Measurement] = []
         self._current_index = 0
         self._setup_ui()
 
@@ -488,14 +493,14 @@ class MeasurementView(QWidget):
         self.progress_bar.setValue(0)
         self._update_progress_label(total_patches)
 
-    def set_target(self, rgb: Tuple[int, int, int], xyz: Tuple[float, float, float],
-                   lab: Tuple[float, float, float]):
+    def set_target(self, rgb: tuple[int, int, int], xyz: tuple[float, float, float],
+                   lab: tuple[float, float, float]):
         """Set current target values."""
         self.color_patch.set_target(*rgb)
         self.target_values.set_xyz(*xyz)
         self.target_values.set_lab(*lab)
 
-    def set_measured(self, xyz: Tuple[float, float, float], lab: Tuple[float, float, float],
+    def set_measured(self, xyz: tuple[float, float, float], lab: tuple[float, float, float],
                      delta_e: float):
         """Set measured values and Delta E."""
         # Convert XYZ to RGB for display (simplified)

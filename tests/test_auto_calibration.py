@@ -1,20 +1,17 @@
 """Tests for calibrate_pro.sensorless.auto_calibration — AutoCalibrationEngine."""
 
-import struct
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from calibrate_pro.sensorless.auto_calibration import (
     AutoCalibrationEngine,
     AutoCalibrationResult,
-    CalibrationTarget,
     CalibrationRisk,
+    CalibrationTarget,
     UserConsent,
 )
-
 
 # -------------------------------------------------------------------------
 # AutoCalibrationEngine can be instantiated

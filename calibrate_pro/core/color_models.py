@@ -15,10 +15,9 @@ Author: Zain Dana / Quanta
 License: MIT
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Tuple, Union, Optional
-import math
+
+import numpy as np
 
 # =============================================================================
 # Constants and Matrices
@@ -400,7 +399,7 @@ class CAM16:
 
         return xyz
 
-    def to_ucs(self, J: float, M: float, h: float) -> Tuple[float, float, float]:
+    def to_ucs(self, J: float, M: float, h: float) -> tuple[float, float, float]:
         """
         Convert CAM16 JMh to CAM16-UCS coordinates.
 
@@ -423,8 +422,8 @@ class CAM16:
 
         return (J_prime, a_prime, b_prime)
 
-    def delta_E_cam16(self, jmh1: Tuple[float, float, float],
-                      jmh2: Tuple[float, float, float]) -> float:
+    def delta_E_cam16(self, jmh1: tuple[float, float, float],
+                      jmh2: tuple[float, float, float]) -> float:
         """
         Calculate CAM16-UCS color difference.
 
@@ -856,7 +855,7 @@ class ICtCp:
 # =============================================================================
 
 def xyz_to_cam16_jmh(xyz: np.ndarray,
-                     viewing_conditions: CAM16ViewingConditions = None) -> Tuple[float, float, float]:
+                     viewing_conditions: CAM16ViewingConditions = None) -> tuple[float, float, float]:
     """
     Quick conversion from XYZ to CAM16 JMh (Lightness, Colorfulness, Hue).
 

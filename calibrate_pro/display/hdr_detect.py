@@ -10,12 +10,8 @@ Uses multiple detection methods:
 3. dwm_lut: Check if HDR LUTs are loaded
 """
 
-import ctypes
-from ctypes import wintypes
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 import winreg
+from dataclasses import dataclass
 
 
 @dataclass
@@ -32,7 +28,7 @@ class HDRDisplayState:
     bit_depth: int              # 8, 10, or 12
 
 
-def detect_hdr_state() -> List[HDRDisplayState]:
+def detect_hdr_state() -> list[HDRDisplayState]:
     """
     Detect HDR state for all connected displays.
 
@@ -60,8 +56,8 @@ def detect_hdr_state() -> List[HDRDisplayState]:
         hdr_capable = False
         peak_lum = 0.0
         try:
-            from calibrate_pro.panels.detection import identify_display
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import identify_display
             db = PanelDatabase()
             key = identify_display(display)
             if key:
@@ -194,7 +190,7 @@ class HDRModeWatcher:
         self.poll_interval = poll_interval
         self._running = False
         self._thread = None
-        self._last_states: Dict[int, bool] = {}
+        self._last_states: dict[int, bool] = {}
 
     def start(self):
         """Start watching for HDR changes in a background thread."""

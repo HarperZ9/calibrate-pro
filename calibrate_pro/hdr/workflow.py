@@ -10,22 +10,17 @@ End-to-end HDR10 and HLG display calibration:
 6. HDR-aware ICC/LUT export
 """
 
-import numpy as np
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, List
+
+import numpy as np
 
 from calibrate_pro.core.color_math import (
+    bt2390_eetf,
+    hlg_eotf,
     pq_eotf,
     pq_oetf,
-    hlg_oetf,
-    hlg_eotf,
-    hlg_ootf_rgb,
-    bt2390_eetf,
-    BT2020_TO_XYZ,
-    D65_WHITE,
 )
-
 
 # =========================================================================
 # HDR Standards & Targets
@@ -90,7 +85,7 @@ class HDRCalibrationResult:
     peak_measured: float                # Measured peak luminance
     gamut_coverage_bt2020: float        # % of BT.2020 covered
     tone_map_curve: np.ndarray          # Applied EETF curve
-    lut_data: Optional[np.ndarray] = None  # 3D LUT if generated
+    lut_data: np.ndarray | None = None  # 3D LUT if generated
 
 
 # =========================================================================
@@ -111,7 +106,7 @@ class HDRWorkflow:
 
     def __init__(self, target: HDRTarget):
         self.target = target
-        self._result: Optional[HDRCalibrationResult] = None
+        self._result: HDRCalibrationResult | None = None
 
     # -----------------------------------------------------------------
     # Step 1 — EOTF Verification Patches
@@ -288,7 +283,7 @@ class HDRWorkflow:
         size = lut.shape[0]
         meta = self.generate_hdr_metadata()
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"TITLE \"Calibrate Pro HDR {self.target.standard.value}\"")
         lines.append(f"# HDR Standard: {meta['standard']}")
         lines.append(
@@ -325,7 +320,7 @@ class HDRWorkflow:
 
     def run(
         self,
-        measured_luminances: Optional[np.ndarray] = None,
+        measured_luminances: np.ndarray | None = None,
         lut_size: int = 17,
     ) -> HDRCalibrationResult:
         """

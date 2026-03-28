@@ -10,16 +10,26 @@ Steps:
 3. Apply: Load via dwm_lut
 4. Verify: Re-measure ColorChecker patches, compare before/after dE
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
 from calibrate_pro.core.lut_engine import LUT3D
 
@@ -329,7 +339,6 @@ def build_correction_lut(levels, trc_r, trc_g, trc_b, M_display, black_xyz, whit
     # sRGB target: what XYZ should each sRGB value produce?
     # XYZ_target = SRGB_TO_XYZ @ srgb_expand(rgb)
     # But we need to normalize to match the display's luminance level
-    norm = white_Y  # Display white luminance
 
     # The target white XYZ (from sRGB spec): SRGB_TO_XYZ @ [1,1,1] = D65 white
     srgb_white_xyz = SRGB_TO_XYZ @ np.array([1.0, 1.0, 1.0])
@@ -340,7 +349,7 @@ def build_correction_lut(levels, trc_r, trc_g, trc_b, M_display, black_xyz, whit
     # We want the LUT to map sRGB values such that:
     # Display produces the correct relative XYZ for each color
     # Use Bradford chromatic adaptation from D65 -> display white point
-    from calibrate_pro.core.color_math import BRADFORD_MATRIX, BRADFORD_INVERSE
+    from calibrate_pro.core.color_math import BRADFORD_INVERSE, BRADFORD_MATRIX
     wp_source = srgb_white_xyz / srgb_white_xyz[1]  # D65 (normalized)
     wp_dest = display_white_xyz / display_white_xyz[1]  # Display white (normalized)
 
@@ -403,7 +412,7 @@ def measure_colorchecker(device, display, white_Y):
     norm_factor = 100.0 / white_Y if white_Y > 0 else 1.0
     results = []
 
-    for i, (name, r, g, b) in enumerate(COLORCHECKER):
+    for _i, (name, r, g, b) in enumerate(COLORCHECKER):
         display.show(r, g, b)
         freq = measure_freq(device, integration=1.0)
 
@@ -456,7 +465,7 @@ def print_comparison(before, after):
         if avg_a < avg_b:
             print(f"\n  CALIBRATION IMPROVED BY {pct:.0f}%")
         else:
-            print(f"\n  WARNING: Calibration did not improve. May need iterative refinement.")
+            print("\n  WARNING: Calibration did not improve. May need iterative refinement.")
 
 
 # =============================================================================
@@ -548,7 +557,7 @@ if __name__ == "__main__":
             time.sleep(3)  # Let DWM process the LUT
         else:
             print("  WARNING: dwm_lut not available. LUT saved but not applied.")
-            print(f"  Manually copy to C:\\Windows\\Temp\\luts\\")
+            print("  Manually copy to C:\\Windows\\Temp\\luts\\")
     except Exception as e:
         print(f"  LUT application failed: {e}")
         print(f"  LUT saved at: {lut_path}")

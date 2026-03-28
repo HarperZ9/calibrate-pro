@@ -10,19 +10,13 @@ Supports:
 - Calibrite ColorChecker Display
 """
 
-from typing import Dict, List, Optional, Tuple, Type
-from pathlib import Path
-import numpy as np
 
-from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch,
-    generate_grayscale_patches, generate_primary_patches,
-    generate_verification_patches, generate_profiling_patches
-)
+from calibrate_pro.hardware.colorimeter_base import ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType
 from calibrate_pro.hardware.usb_device import (
-    enumerate_all_colorimeters, check_usb_available,
-    USBDeviceInfo, COLORIMETER_USB_IDS
+    COLORIMETER_USB_IDS,
+    USBDeviceInfo,
+    check_usb_available,
+    enumerate_all_colorimeters,
 )
 
 
@@ -36,10 +30,10 @@ class NativeBackend(ColorimeterBase):
 
     def __init__(self):
         super().__init__()
-        self._driver: Optional[ColorimeterBase] = None
-        self._driver_class: Optional[Type[ColorimeterBase]] = None
+        self._driver: ColorimeterBase | None = None
+        self._driver_class: type[ColorimeterBase] | None = None
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect all connected colorimeters."""
         devices = []
         usb_available, msg = check_usb_available()
@@ -90,7 +84,7 @@ class NativeBackend(ColorimeterBase):
         }
         return manufacturers.get(vendor_id, "Unknown")
 
-    def _get_driver_for_device(self, usb_dev: USBDeviceInfo) -> Optional[ColorimeterBase]:
+    def _get_driver_for_device(self, usb_dev: USBDeviceInfo) -> ColorimeterBase | None:
         """Get appropriate driver for device."""
         vid, pid = usb_dev.vendor_id, usb_dev.product_id
 
@@ -149,13 +143,13 @@ class NativeBackend(ColorimeterBase):
             return self._driver.calibrate_device()
         return False
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """Take spot measurement."""
         if self._driver:
             return self._driver.measure_spot()
         return None
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """Measure ambient light."""
         if self._driver:
             return self._driver.measure_ambient()
@@ -180,18 +174,18 @@ class NativeBackend(ColorimeterBase):
         return True
 
 
-def check_native_available() -> Tuple[bool, str]:
+def check_native_available() -> tuple[bool, str]:
     """Check if native colorimeter support is available."""
     return check_usb_available()
 
 
-def detect_colorimeters() -> List[DeviceInfo]:
+def detect_colorimeters() -> list[DeviceInfo]:
     """Detect all connected colorimeters."""
     backend = NativeBackend()
     return backend.detect_devices()
 
 
-def auto_connect() -> Optional[NativeBackend]:
+def auto_connect() -> NativeBackend | None:
     """
     Automatically detect and connect to a colorimeter.
 
@@ -231,7 +225,7 @@ def auto_connect() -> Optional[NativeBackend]:
 
 
 # Convenient aliases
-def measure_xyz() -> Optional[Tuple[float, float, float]]:
+def measure_xyz() -> tuple[float, float, float] | None:
     """Quick one-shot XYZ measurement."""
     backend = auto_connect()
     if backend:
@@ -244,7 +238,7 @@ def measure_xyz() -> Optional[Tuple[float, float, float]]:
     return None
 
 
-def get_luminance() -> Optional[float]:
+def get_luminance() -> float | None:
     """Quick luminance measurement in cd/m²."""
     backend = auto_connect()
     if backend:
@@ -257,7 +251,7 @@ def get_luminance() -> Optional[float]:
     return None
 
 
-def get_white_point() -> Optional[Tuple[float, float]]:
+def get_white_point() -> tuple[float, float] | None:
     """Quick white point measurement as xy chromaticity."""
     backend = auto_connect()
     if backend:

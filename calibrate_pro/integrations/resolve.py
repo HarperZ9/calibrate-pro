@@ -12,8 +12,6 @@ This module handles:
 
 import shutil
 from pathlib import Path
-from typing import Optional, List
-
 
 # Known Resolve LUT directories by platform
 RESOLVE_LUT_PATHS = {
@@ -30,7 +28,7 @@ RESOLVE_LUT_PATHS = {
 }
 
 
-def find_resolve_lut_dir() -> Optional[Path]:
+def find_resolve_lut_dir() -> Path | None:
     """Find DaVinci Resolve's LUT directory."""
     import sys
     platform = sys.platform
@@ -50,7 +48,7 @@ def find_resolve_lut_dir() -> Optional[Path]:
 def install_lut_to_resolve(
     lut_path: str,
     subfolder: str = "Calibrate Pro"
-) -> Optional[Path]:
+) -> Path | None:
     """
     Copy a calibration LUT into Resolve's LUT directory.
 
@@ -124,7 +122,7 @@ def detect_resolve_installed() -> bool:
     return find_resolve_lut_dir() is not None
 
 
-def list_installed_luts(subfolder: str = "Calibrate Pro") -> List[Path]:
+def list_installed_luts(subfolder: str = "Calibrate Pro") -> list[Path]:
     """List LUTs installed in Resolve's Calibrate Pro subfolder."""
     resolve_dir = find_resolve_lut_dir()
     if resolve_dir is None:

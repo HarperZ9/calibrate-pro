@@ -23,14 +23,13 @@ References:
 - "ACES 2.0 - A New Color Management System" (AMPAS)
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Tuple, Optional, Dict, List
 from enum import Enum
-import math
+
+import numpy as np
 
 # Import our color models for JMh conversions
-from .color_models import CAM16, CAM16ViewingConditions, pq_eotf, pq_oetf
+from .color_models import CAM16, CAM16ViewingConditions, pq_oetf
 
 # =============================================================================
 # ACES Color Spaces and Primaries
@@ -285,20 +284,20 @@ class ACES2Tonescale:
         result = np.zeros_like(J)
 
         # Toe region (shadows)
-        toe_mask = J < self.toe_start
+        toe_mask = self.toe_start > J
         if np.any(toe_mask):
             t = J[toe_mask] / self.toe_start
             result[toe_mask] = self.toe_start * np.power(t, self.toe_power) * 0.5
 
         # Linear region (mid-tones)
-        linear_mask = (J >= self.toe_start) & (J < self.shoulder_start)
+        linear_mask = (self.toe_start <= J) & (self.shoulder_start > J)
         if np.any(linear_mask):
             # Apply contrast around pivot
             normalized = J[linear_mask] / self.pivot
             result[linear_mask] = self.pivot * np.power(normalized, 1.0 / self.contrast)
 
         # Shoulder region (highlights)
-        shoulder_mask = J >= self.shoulder_start
+        shoulder_mask = self.shoulder_start <= J
         if np.any(shoulder_mask):
             # Soft rolloff towards peak
             x = J[shoulder_mask] / self.shoulder_start
@@ -404,7 +403,7 @@ class ACES2GamutMapper:
         self.boundary_M = np.zeros(361)
 
         output_matrix = primaries_to_matrix(self.output_primaries)
-        output_inv = np.linalg.inv(output_matrix)
+        np.linalg.inv(output_matrix)
 
         for i, h in enumerate(self.boundary_hues):
             # Find maximum M (colorfulness) at this hue
@@ -418,7 +417,7 @@ class ACES2GamutMapper:
                     max_M = max(max_M, result['M'])
             self.boundary_M[i] = max(max_M, 1.0)  # Minimum boundary
 
-    def _get_gamut_edges(self) -> List[Tuple[float, float, float]]:
+    def _get_gamut_edges(self) -> list[tuple[float, float, float]]:
         """Get sample points on RGB cube edges."""
         edges = []
         # Sample along each edge of the RGB cube
@@ -445,7 +444,7 @@ class ACES2GamutMapper:
         next_idx = (idx + 1) % 361
         return self.boundary_M[idx] * (1 - frac) + self.boundary_M[next_idx] * frac
 
-    def compress(self, J: float, M: float, h: float) -> Tuple[float, float, float]:
+    def compress(self, J: float, M: float, h: float) -> tuple[float, float, float]:
         """
         Apply gamut compression to JMh values.
 
@@ -469,10 +468,10 @@ class ACES2GamutMapper:
         M_threshold = M_boundary * self.threshold
         M_limit = M_boundary * self.limit
 
-        if M <= M_threshold:
+        if M_threshold >= M:
             # Below threshold: no compression
             return (J, M, h)
-        elif M >= M_limit:
+        elif M_limit <= M:
             # Above limit: hard clip to boundary
             return (J, M_boundary, h)
         else:
@@ -483,7 +482,7 @@ class ACES2GamutMapper:
             M_compressed = M_threshold + (M_boundary - M_threshold) * y_norm
             return (J, M_compressed, h)
 
-    def compress_chroma(self, J: float, M: float, h: float) -> Tuple[float, float, float]:
+    def compress_chroma(self, J: float, M: float, h: float) -> tuple[float, float, float]:
         """
         Apply chroma-only compression (preserve lightness).
 
@@ -752,7 +751,7 @@ class ACES2LookTransform:
 # OCIO 2.4 Compatibility
 # =============================================================================
 
-def generate_ocio_config(output_configs: List[OutputConfig],
+def generate_ocio_config(output_configs: list[OutputConfig],
                           config_name: str = "ACES 2.0") -> str:
     """
     Generate OpenColorIO 2.4 configuration for ACES 2.0.

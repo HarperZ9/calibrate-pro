@@ -9,14 +9,13 @@ Provides automatic display adaptation based on ambient conditions:
 - Viewing condition presets
 """
 
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Optional, Callable, Any
-from datetime import datetime, time, timedelta
-from pathlib import Path
 import json
 import threading
 import time as time_module
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime, time
+from enum import Enum, auto
 
 # =============================================================================
 # Enums
@@ -63,7 +62,7 @@ class AmbientReading:
     """Single ambient light sensor reading."""
     timestamp: datetime
     lux: float              # Illuminance in lux
-    cct: Optional[float] = None  # Color temperature if available
+    cct: float | None = None  # Color temperature if available
     condition: AmbientCondition = AmbientCondition.OFFICE
 
     def __post_init__(self):
@@ -83,16 +82,16 @@ class DisplayProfile:
     black_level: float = 0.5        # Target black level cd/m²
 
     # ICC profile path
-    icc_path: Optional[str] = None
+    icc_path: str | None = None
 
     # 3D LUT path
-    lut_path: Optional[str] = None
+    lut_path: str | None = None
 
     # Conditions when this profile should be active
     min_lux: float = 0
     max_lux: float = float('inf')
-    start_time: Optional[time] = None
-    end_time: Optional[time] = None
+    start_time: time | None = None
+    end_time: time | None = None
 
     # Blue light filter (0-100%)
     blue_light_filter: float = 0
@@ -154,11 +153,11 @@ class CircadianSettings:
 class AdaptationState:
     """Current adaptation system state."""
     mode: AdaptationMode
-    active_profile: Optional[DisplayProfile] = None
+    active_profile: DisplayProfile | None = None
     current_lux: float = 300
     current_condition: AmbientCondition = AmbientCondition.OFFICE
-    last_reading: Optional[AmbientReading] = None
-    last_switch: Optional[datetime] = None
+    last_reading: AmbientReading | None = None
+    last_switch: datetime | None = None
 
     # Smoothed values for stable adaptation
     smoothed_lux: float = 300
@@ -167,8 +166,8 @@ class AdaptationState:
     # Transition state
     in_transition: bool = False
     transition_progress: float = 0.0
-    transition_from: Optional[DisplayProfile] = None
-    transition_to: Optional[DisplayProfile] = None
+    transition_from: DisplayProfile | None = None
+    transition_to: DisplayProfile | None = None
 
 
 # =============================================================================
@@ -290,7 +289,7 @@ class AmbientSensor:
     """
 
     def __init__(self):
-        self._last_reading: Optional[AmbientReading] = None
+        self._last_reading: AmbientReading | None = None
         self._callbacks: list[Callable[[AmbientReading], None]] = []
 
     def read(self) -> AmbientReading:
@@ -339,7 +338,7 @@ class SimulatedSensor(AmbientSensor):
         super().__init__()
         self.base_lux = base_lux
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     def read(self) -> AmbientReading:
         """Read simulated ambient light."""
@@ -435,7 +434,7 @@ class AdaptationController:
 
     def __init__(self,
                  mode: AdaptationMode = AdaptationMode.MANUAL,
-                 sensor: Optional[AmbientSensor] = None):
+                 sensor: AmbientSensor | None = None):
         """
         Initialize adaptation controller.
 
@@ -448,7 +447,7 @@ class AdaptationController:
 
         # Profiles
         self.profiles: dict[str, DisplayProfile] = dict(PRESET_PROFILES)
-        self.active_profile: Optional[DisplayProfile] = None
+        self.active_profile: DisplayProfile | None = None
 
         # Schedule
         self.schedule: list[ScheduleEntry] = []
@@ -483,7 +482,7 @@ class AdaptationController:
         if key in self.profiles:
             del self.profiles[key]
 
-    def get_profile(self, name: str) -> Optional[DisplayProfile]:
+    def get_profile(self, name: str) -> DisplayProfile | None:
         """Get profile by name."""
         return self.profiles.get(name.lower())
 
@@ -511,7 +510,7 @@ class AdaptationController:
         if 0 <= index < len(self.schedule):
             del self.schedule[index]
 
-    def get_scheduled_profile(self, dt: Optional[datetime] = None) -> Optional[DisplayProfile]:
+    def get_scheduled_profile(self, dt: datetime | None = None) -> DisplayProfile | None:
         """Get the profile that should be active according to schedule."""
         dt = dt or datetime.now()
 
@@ -526,7 +525,7 @@ class AdaptationController:
     # =========================================================================
 
     def calculate_circadian_settings(self,
-                                     dt: Optional[datetime] = None) -> dict[str, float]:
+                                     dt: datetime | None = None) -> dict[str, float]:
         """
         Calculate display settings based on circadian rhythm.
 
@@ -572,7 +571,7 @@ class AdaptationController:
     # Ambient Adaptation
     # =========================================================================
 
-    def process_reading(self, reading: AmbientReading) -> Optional[DisplayProfile]:
+    def process_reading(self, reading: AmbientReading) -> DisplayProfile | None:
         """
         Process an ambient light reading and determine if profile switch needed.
 
@@ -611,7 +610,7 @@ class AdaptationController:
 
         return None
 
-    def _find_best_profile(self) -> Optional[DisplayProfile]:
+    def _find_best_profile(self) -> DisplayProfile | None:
         """Find the best profile for current conditions."""
         lux = self.state.smoothed_lux
         now = datetime.now()
@@ -752,7 +751,7 @@ class AdaptationController:
 
     def load_config(self, path: str) -> None:
         """Load configuration from JSON file."""
-        with open(path, 'r') as f:
+        with open(path) as f:
             config = json.load(f)
 
         # Load mode
@@ -776,7 +775,7 @@ class AdaptationController:
             )
 
         # Load custom profiles
-        for name, pdata in config.get("profiles", {}).items():
+        for _name, pdata in config.get("profiles", {}).items():
             profile = DisplayProfile(
                 name=pdata["name"],
                 profile_type=ProfileType[pdata.get("type", "CUSTOM")],

@@ -13,9 +13,9 @@ Supports three measurement modes:
 
 import time
 import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional, Tuple
 
 import numpy as np
 
@@ -25,7 +25,7 @@ class MeasurementConfig:
     """Configuration for the measurement coordinator."""
     settle_time: float = 1.5      # Seconds to wait after displaying patch
     display_index: int = 0        # Which display to measure
-    argyll_path: Optional[str] = None  # Path to ArgyllCMS bin directory
+    argyll_path: str | None = None  # Path to ArgyllCMS bin directory
     device_index: int = 0         # Colorimeter device index
     mode: str = "argyll"          # "argyll", "manual", or "simulated"
 
@@ -38,7 +38,7 @@ class MeasurementCoordinator:
     the colorimeter to get measured XYZ values.
     """
 
-    def __init__(self, config: Optional[MeasurementConfig] = None):
+    def __init__(self, config: MeasurementConfig | None = None):
         self.config = config or MeasurementConfig()
         self._tk_root = None
         self._tk_canvas = None
@@ -62,9 +62,7 @@ class MeasurementCoordinator:
     def _init_argyll(self) -> bool:
         """Initialize ArgyllCMS backend."""
         try:
-            from calibrate_pro.hardware.argyll_backend import (
-                ArgyllBackend, ArgyllConfig
-            )
+            from calibrate_pro.hardware.argyll_backend import ArgyllBackend, ArgyllConfig
             config = ArgyllConfig()
             if self.config.argyll_path:
                 config.bin_path = Path(self.config.argyll_path)
@@ -89,7 +87,7 @@ class MeasurementCoordinator:
             self._init_error = f"error: {e}"
             return False
 
-    def measure(self, r: float, g: float, b: float) -> Tuple[float, float, float]:
+    def measure(self, r: float, g: float, b: float) -> tuple[float, float, float]:
         """
         Display a patch and measure its XYZ values.
 
@@ -164,7 +162,7 @@ class MeasurementCoordinator:
             self._tk_root = None
             self._tk_canvas = None
 
-    def _get_display_geometry(self) -> Optional[Tuple[int, int, int, int]]:
+    def _get_display_geometry(self) -> tuple[int, int, int, int] | None:
         """Get the geometry of the target display."""
         try:
             from calibrate_pro.panels.detection import enumerate_displays
@@ -176,7 +174,7 @@ class MeasurementCoordinator:
             pass
         return None
 
-    def _measure_argyll(self) -> Tuple[float, float, float]:
+    def _measure_argyll(self) -> tuple[float, float, float]:
         """Take a measurement using ArgyllCMS spotread."""
         if self._argyll_backend is None:
             raise RuntimeError("ArgyllCMS backend not initialized")
@@ -187,10 +185,10 @@ class MeasurementCoordinator:
 
         return (result.X, result.Y, result.Z)
 
-    def _measure_manual(self, r: float, g: float, b: float) -> Tuple[float, float, float]:
+    def _measure_manual(self, r: float, g: float, b: float) -> tuple[float, float, float]:
         """Prompt user to enter measured XYZ values."""
         print(f"\n  Patch displayed: RGB({r:.3f}, {g:.3f}, {b:.3f})")
-        print(f"  Read your colorimeter and enter measured XYZ values.")
+        print("  Read your colorimeter and enter measured XYZ values.")
 
         while True:
             try:
@@ -203,14 +201,14 @@ class MeasurementCoordinator:
             except (ValueError, EOFError):
                 print("  Invalid input. Enter three numbers separated by spaces.")
 
-    def _measure_simulated(self, r: float, g: float, b: float) -> Tuple[float, float, float]:
+    def _measure_simulated(self, r: float, g: float, b: float) -> tuple[float, float, float]:
         """
         Simulate a measurement for testing without hardware.
 
         Returns the expected XYZ with small random noise to simulate
         real-world measurement variation.
         """
-        from calibrate_pro.core.color_math import srgb_gamma_expand, SRGB_TO_XYZ
+        from calibrate_pro.core.color_math import SRGB_TO_XYZ, srgb_gamma_expand
 
         rgb_linear = srgb_gamma_expand(np.array([r, g, b]))
         xyz = SRGB_TO_XYZ @ rgb_linear
@@ -244,8 +242,8 @@ class MeasurementCoordinator:
 
 
 def create_measure_fn(
-    config: Optional[MeasurementConfig] = None
-) -> Optional[Callable]:
+    config: MeasurementConfig | None = None
+) -> Callable | None:
     """
     Create a measure(r, g, b) -> (X, Y, Z) function from config.
 
@@ -257,7 +255,7 @@ def create_measure_fn(
         coordinator.close()
         return None
 
-    def measure(r: float, g: float, b: float) -> Tuple[float, float, float]:
+    def measure(r: float, g: float, b: float) -> tuple[float, float, float]:
         return coordinator.measure(r, g, b)
 
     # Attach close method for cleanup

@@ -5,13 +5,18 @@ Detects connected displays using Windows APIs and EDID data.
 Provides display information for calibration target selection.
 """
 
+from __future__ import annotations
+
 import ctypes
+import re
+import struct
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
-import struct
-import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # =============================================================================
 # Windows API Definitions (only loaded on Windows)
@@ -155,7 +160,7 @@ class DisplayInfo:
     panel_database_key: str = ""    # Matched panel database key
 
     # Current ICC profile
-    current_profile: Optional[str] = None
+    current_profile: str | None = None
 
     def get_resolution_string(self) -> str:
         """Get resolution as string (e.g., '3840x2160')."""
@@ -197,7 +202,7 @@ class DisplayInfo:
         """Check if display is high refresh rate."""
         return self.refresh_rate >= 120
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
             "device_name": self.device_name,
@@ -230,7 +235,7 @@ class DisplayInfo:
 # Cross-Platform Display Detection
 # =============================================================================
 
-def _enumerate_displays_cross_platform() -> List[DisplayInfo]:
+def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
     """Enumerate displays on macOS/Linux via the platform backend."""
     try:
         from calibrate_pro.platform import get_platform_backend
@@ -268,7 +273,7 @@ def _enumerate_displays_cross_platform() -> List[DisplayInfo]:
 # Display Detection
 # =============================================================================
 
-def enumerate_displays() -> List[DisplayInfo]:
+def enumerate_displays() -> list[DisplayInfo]:
     """
     Enumerate all connected displays.
 
@@ -350,7 +355,7 @@ def enumerate_displays() -> List[DisplayInfo]:
     return displays
 
 
-def parse_device_id(device_id: str) -> Tuple[str, str]:
+def parse_device_id(device_id: str) -> tuple[str, str]:
     """
     Parse manufacturer and model from device ID.
 
@@ -400,7 +405,7 @@ def parse_device_id(device_id: str) -> Tuple[str, str]:
 # Enhanced EDID Detection (Reads raw EDID from registry)
 # =============================================================================
 
-def get_edid_from_registry(device_id: str) -> Optional[bytes]:
+def get_edid_from_registry(device_id: str) -> bytes | None:
     """
     Read raw EDID data from Windows registry.
 
@@ -464,7 +469,7 @@ def get_edid_from_registry(device_id: str) -> Optional[bytes]:
     return None
 
 
-def parse_edid(edid: bytes) -> Dict:
+def parse_edid(edid: bytes) -> dict:
     """
     Parse EDID data to extract display information.
 
@@ -797,7 +802,7 @@ KNOWN_MINI_LED_MODELS = {
 }
 
 
-def detect_panel_type(model_name: str, manufacturer: str, edid_info: Dict = None) -> str:
+def detect_panel_type(model_name: str, manufacturer: str, edid_info: dict = None) -> str:
     """
     Detect panel type from model name and EDID information.
 
@@ -992,7 +997,7 @@ def enrich_display_info(display: DisplayInfo) -> DisplayInfo:
     return display
 
 
-def enumerate_displays_enhanced() -> List[DisplayInfo]:
+def enumerate_displays_enhanced() -> list[DisplayInfo]:
     """
     Enumerate all displays with enhanced detection and panel matching.
 
@@ -1003,7 +1008,7 @@ def enumerate_displays_enhanced() -> List[DisplayInfo]:
     return [enrich_display_info(display) for display in displays]
 
 
-def identify_display(display: DisplayInfo) -> Optional[str]:
+def identify_display(display: DisplayInfo) -> str | None:
     """
     Attempt to identify display using multiple methods.
 
@@ -1057,7 +1062,7 @@ def identify_display(display: DisplayInfo) -> Optional[str]:
     return None
 
 
-def get_enhanced_display_info(display_number: int = None) -> List[Dict]:
+def get_enhanced_display_info(display_number: int = None) -> list[dict]:
     """
     Get enhanced display information including EDID data.
 
@@ -1097,7 +1102,7 @@ def get_enhanced_display_info(display_number: int = None) -> List[Dict]:
     return results
 
 
-def get_primary_display() -> Optional[DisplayInfo]:
+def get_primary_display() -> DisplayInfo | None:
     """Get the primary display."""
     displays = enumerate_displays()
     for display in displays:
@@ -1106,7 +1111,7 @@ def get_primary_display() -> Optional[DisplayInfo]:
     return displays[0] if displays else None
 
 
-def get_display_by_name(device_name: str) -> Optional[DisplayInfo]:
+def get_display_by_name(device_name: str) -> DisplayInfo | None:
     """Get display by device name."""
     displays = enumerate_displays()
     for display in displays:
@@ -1115,7 +1120,7 @@ def get_display_by_name(device_name: str) -> Optional[DisplayInfo]:
     return None
 
 
-def get_display_by_number(number: int) -> Optional[DisplayInfo]:
+def get_display_by_number(number: int) -> DisplayInfo | None:
     """Get display by number (1-based)."""
     displays = enumerate_displays()
     for display in displays:
@@ -1149,7 +1154,7 @@ except Exception:
     HAS_MSCMS = False
 
 
-def get_display_profile(device_name: str) -> Optional[str]:
+def get_display_profile(device_name: str) -> str | None:
     """
     Get the current ICC profile for a display.
 
@@ -1247,7 +1252,7 @@ def get_color_directory() -> Path:
     return Path(r"C:\WINDOWS\System32\spool\drivers\color")
 
 
-def list_installed_profiles() -> List[Path]:
+def list_installed_profiles() -> list[Path]:
     """List all installed ICC profiles."""
     color_dir = get_color_directory()
     if color_dir.exists():
@@ -1268,7 +1273,7 @@ if sys.platform == "win32":
         ]
 
 
-def get_gamma_ramp(device_name: str) -> Optional[Tuple]:
+def get_gamma_ramp(device_name: str) -> tuple | None:
     """
     Get the current gamma ramp for a display.
 
@@ -1301,9 +1306,9 @@ def get_gamma_ramp(device_name: str) -> Optional[Tuple]:
 
 def set_gamma_ramp(
     device_name: str,
-    red: 'np.ndarray',
-    green: 'np.ndarray',
-    blue: 'np.ndarray'
+    red: np.ndarray,
+    green: np.ndarray,
+    blue: np.ndarray
 ) -> bool:
     """
     Set the gamma ramp for a display.
@@ -1385,7 +1390,7 @@ def get_display_name(display: DisplayInfo) -> str:
     if display.manufacturer and display.model:
         return f"{display.manufacturer} {display.model}"
 
-    return display.monitor_name or f"Display"
+    return display.monitor_name or "Display"
 
 
 def print_display_info():

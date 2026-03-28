@@ -26,119 +26,115 @@ Usage:
 # =============================================================================
 
 from calibrate_pro.profiles.icc_v4 import (
+    CLUT,
     # Constants
     ICC_MAGIC,
     ICC_VERSION_4_4,
+    ColorSpace,
+    CurveData,
+    DateTimeNumber,
+    # Main profile class
+    ICCProfile,
+    MeasurementData,
+    MultiLocalizedString,
+    ParametricCurve,
+    Platform,
     # Enums
     ProfileClass,
-    ColorSpace,
-    Platform,
     RenderingIntent,
     TagSignature,
     # Data structures
     XYZNumber,
-    DateTimeNumber,
-    MultiLocalizedString,
-    ParametricCurve,
-    CurveData,
-    MeasurementData,
-    CLUT,
-    # Main profile class
-    ICCProfile,
     # Helper functions
     create_calibration_profile,
     create_lut_profile,
 )
 
 # =============================================================================
-# Video Card Gamma Table (VCGT)
-# =============================================================================
-
-from calibrate_pro.profiles.vcgt import (
-    # Constants
-    VCGT_SIZE_STANDARD,
-    VCGT_SIZE_EXTENDED,
-    VCGT_SIZE_MAXIMUM,
-    GAMMA_RAMP_SIZE,
-    # Main VCGT class
-    VCGTTable,
-    # Gamma ramp controller
-    GammaRampController,
-    # Profile VCGT extraction
-    extract_vcgt_from_profile,
-    embed_vcgt_in_profile,
-    # Calibration helpers
-    generate_correction_vcgt,
-    generate_rgb_correction_vcgt,
-    generate_whitepoint_vcgt,
-)
-
-# =============================================================================
 # Windows HDR MHC2 Tag
 # =============================================================================
-
 from calibrate_pro.profiles.mhc2 import (
+    DEFAULT_MAX_LUMINANCE,
+    DEFAULT_MIN_LUMINANCE,
+    DEFAULT_SDR_WHITE_LEVEL,
     # Constants
     MHC2_TAG_SIGNATURE,
     MHC2_VERSION_1,
     MHC2_VERSION_2,
-    DEFAULT_SDR_WHITE_LEVEL,
-    DEFAULT_MIN_LUMINANCE,
-    DEFAULT_MAX_LUMINANCE,
-    SDR_WHITE_MIN,
     SDR_WHITE_MAX,
+    SDR_WHITE_MIN,
     # Data structures
     MHC2ColorMatrix,
-    MHC2ToneCurve,
     MHC2Tag,
+    MHC2ToneCurve,
     WindowsHDRSettings,
+    calculate_hdr_headroom,
+    create_hdr_profile_with_mhc2,
     # Profile integration
     extract_mhc2_from_profile,
-    create_hdr_profile_with_mhc2,
     # MHC2 ICC profile generation (Phase 2.1)
     generate_mhc2_profile,
-    install_mhc2_profile,
     # Helpers
     get_recommended_sdr_white,
-    calculate_hdr_headroom,
+    install_mhc2_profile,
 )
 
 # =============================================================================
 # Profile Installation and Management
 # =============================================================================
-
 from calibrate_pro.profiles.profile_installer import (
-    # Constants
-    ProfileScope,
-    ProfileAssociation,
     ColorProfileType,
     # Display enumeration
     DisplayDevice,
     MonitorInfo,
+    ProfileAssociation,
+    # Backup and restore
+    ProfileBackup,
+    # Constants
+    ProfileScope,
+    # Profile association
+    associate_profile_with_display,
+    backup_profiles,
+    disassociate_profile_from_display,
     enumerate_displays,
+    get_associated_profiles,
+    get_display_calibration_status,
+    get_display_profile,
     get_monitor_info,
     # Profile installation
     get_profile_directory,
     install_profile,
-    uninstall_profile,
     list_installed_profiles,
-    # Profile association
-    associate_profile_with_display,
-    disassociate_profile_from_display,
-    get_display_profile,
-    get_associated_profiles,
-    # Backup and restore
-    ProfileBackup,
-    backup_profiles,
-    restore_profiles,
     # VCGT loading
     load_profile_vcgt,
-    reset_display_gamma,
     # Convenience functions
     quick_calibrate_display,
-    get_display_calibration_status,
+    reset_display_gamma,
+    restore_profiles,
+    uninstall_profile,
 )
 
+# =============================================================================
+# Video Card Gamma Table (VCGT)
+# =============================================================================
+from calibrate_pro.profiles.vcgt import (
+    GAMMA_RAMP_SIZE,
+    VCGT_SIZE_EXTENDED,
+    VCGT_SIZE_MAXIMUM,
+    # Constants
+    VCGT_SIZE_STANDARD,
+    # Gamma ramp controller
+    GammaRampController,
+    # Main VCGT class
+    VCGTTable,
+    embed_vcgt_in_profile,
+    # Profile VCGT extraction
+    extract_vcgt_from_profile,
+    # Calibration helpers
+    generate_correction_vcgt,
+    generate_rgb_correction_vcgt,
+    generate_whitepoint_vcgt,
+)
 
 # =============================================================================
 # Public API

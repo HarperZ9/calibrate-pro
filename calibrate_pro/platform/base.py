@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -33,7 +32,7 @@ class DisplayInfo:
     manufacturer: str = ""
     model: str = ""
     serial: str = ""
-    current_icc_profile: Optional[str] = None
+    current_icc_profile: str | None = None
 
 
 class PlatformBackend(abc.ABC):
@@ -49,7 +48,7 @@ class PlatformBackend(abc.ABC):
     # ------------------------------------------------------------------
 
     @abc.abstractmethod
-    def enumerate_displays(self) -> List[DisplayInfo]:
+    def enumerate_displays(self) -> list[DisplayInfo]:
         """
         Enumerate all connected, active displays.
 
@@ -67,9 +66,9 @@ class PlatformBackend(abc.ABC):
     def apply_gamma_ramp(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """
         Set the hardware gamma look-up table (VCGT) for *display_index*.
@@ -133,7 +132,7 @@ class PlatformBackend(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_icc_profile(self, display_index: int) -> Optional[str]:
+    def get_icc_profile(self, display_index: int) -> str | None:
         """
         Get the path of the currently active ICC profile for *display_index*.
 

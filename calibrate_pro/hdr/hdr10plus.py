@@ -11,13 +11,12 @@ HDR10+ extends HDR10 with:
 - Distribution percentiles
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any, Union
-from enum import IntEnum
 import struct
-import json
+from dataclasses import dataclass, field
+from enum import IntEnum
+from typing import Any
 
+import numpy as np
 
 # =============================================================================
 # HDR10+ Constants
@@ -59,7 +58,7 @@ class BezierCurve:
     """
     knee_point_x: float = 0.0      # Normalized [0, 1]
     knee_point_y: float = 0.0      # Normalized [0, 1]
-    anchors: List[float] = field(default_factory=list)  # Up to 15 anchor points
+    anchors: list[float] = field(default_factory=list)  # Up to 15 anchor points
 
     def evaluate(self, t: np.ndarray) -> np.ndarray:
         """
@@ -111,10 +110,10 @@ class DistributionData:
     Describes how brightness values are distributed in the scene
     using percentile values.
     """
-    percentiles: List[int] = field(default_factory=lambda: DEFAULT_PERCENTILES.copy())
-    values: List[float] = field(default_factory=list)  # Luminance at each percentile
+    percentiles: list[int] = field(default_factory=lambda: DEFAULT_PERCENTILES.copy())
+    values: list[float] = field(default_factory=list)  # Luminance at each percentile
 
-    def get_percentile_value(self, percentile: int) -> Optional[float]:
+    def get_percentile_value(self, percentile: int) -> float | None:
         """Get luminance value at a specific percentile."""
         if percentile in self.percentiles:
             idx = self.percentiles.index(percentile)
@@ -123,12 +122,12 @@ class DistributionData:
         return None
 
     @property
-    def median(self) -> Optional[float]:
+    def median(self) -> float | None:
         """Get median (50th percentile) luminance."""
         return self.get_percentile_value(50)
 
     @property
-    def peak(self) -> Optional[float]:
+    def peak(self) -> float | None:
         """Get 99th percentile as approximate peak."""
         return self.get_percentile_value(99)
 
@@ -151,14 +150,14 @@ class ProcessingWindow:
     rotation: float = 0.0
 
     # Scene content light levels (cd/m²)
-    max_scl: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # RGB maxima
+    max_scl: tuple[float, float, float] = (0.0, 0.0, 0.0)  # RGB maxima
     average_maxrgb: float = 0.0
 
     # Distribution
     distribution: DistributionData = field(default_factory=DistributionData)
 
     # Tone mapping curve
-    tone_mapping_curve: Optional[BezierCurve] = None
+    tone_mapping_curve: BezierCurve | None = None
 
     # Fraction of bright pixels
     fraction_bright_pixels: float = 0.0
@@ -182,7 +181,7 @@ class HDR10PlusMetadata:
 
     # Processing windows
     num_windows: int = 1
-    windows: List[ProcessingWindow] = field(default_factory=lambda: [ProcessingWindow()])
+    windows: list[ProcessingWindow] = field(default_factory=lambda: [ProcessingWindow()])
 
     # Frame info
     frame_number: int = 0
@@ -201,7 +200,7 @@ class HDR10PlusMetadata:
             return 0.0
         return sum(w.average_maxrgb for w in self.windows) / len(self.windows)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "application_identifier": self.application_identifier,
@@ -225,7 +224,7 @@ class HDR10PlusMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "HDR10PlusMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "HDR10PlusMetadata":
         """Create from dictionary."""
         metadata = cls(
             targeted_system_display_maximum_luminance=data.get("targeted_display_max_luminance", 1000.0),
@@ -276,7 +275,7 @@ class HDR10PlusToneMapper:
         self.target_min = target_min_luminance
 
         # Cache for generated LUTs
-        self._lut_cache: Dict[int, np.ndarray] = {}
+        self._lut_cache: dict[int, np.ndarray] = {}
 
     def generate_tone_curve(
         self,
@@ -324,11 +323,11 @@ class HDR10PlusToneMapper:
             output = t
         else:
             # Apply tone mapping with soft roll-off
-            ratio = self.target_max / source_peak
+            self.target_max / source_peak
 
             # Knee point at 50% of target peak
             knee = 0.5 * self.target_max
-            knee_norm = knee / source_peak
+            knee / source_peak
 
             # Below knee: linear with slight compression
             # Above knee: soft roll-off
@@ -485,7 +484,7 @@ def detect_scene_change(
 # HDR10+ Metadata Parsing
 # =============================================================================
 
-def parse_sei_payload(data: bytes) -> Optional[HDR10PlusMetadata]:
+def parse_sei_payload(data: bytes) -> HDR10PlusMetadata | None:
     """
     Parse HDR10+ SEI (Supplemental Enhancement Information) payload.
 
@@ -560,7 +559,7 @@ def serialize_metadata(metadata: HDR10PlusMetadata) -> bytes:
 # HDR10+ Calibration
 # =============================================================================
 
-def generate_hdr10plus_test_scenes() -> List[HDR10PlusMetadata]:
+def generate_hdr10plus_test_scenes() -> list[HDR10PlusMetadata]:
     """
     Generate test scenes for HDR10+ calibration.
 
@@ -613,7 +612,7 @@ def create_hdr10plus_calibration_luts(
     target_peak: float,
     target_black: float = 0.005,
     size: int = 33
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Create calibration LUTs for different HDR10+ scene types.
 

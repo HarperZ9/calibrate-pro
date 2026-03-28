@@ -9,15 +9,15 @@ Provides advanced LUT optimization techniques:
 - Interpolation quality analysis
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional, Callable, Tuple
+
 import numpy as np
 
 # Optional scipy import
 try:
-    from scipy.ndimage import gaussian_filter, uniform_filter
     from scipy.interpolate import RegularGridInterpolator
+    from scipy.ndimage import gaussian_filter, uniform_filter
     from scipy.optimize import minimize
     SCIPY_AVAILABLE = True
 except ImportError:
@@ -144,7 +144,7 @@ def rgb_to_xyz(rgb: np.ndarray, gamma: float = 2.2) -> np.ndarray:
 
 
 def xyz_to_lab(xyz: np.ndarray,
-               white: Tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
+               white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
     """Convert XYZ to Lab."""
     xyz_normalized = xyz / np.array(white)
 
@@ -164,7 +164,7 @@ def xyz_to_lab(xyz: np.ndarray,
 
 
 def lab_to_xyz(lab: np.ndarray,
-               white: Tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
+               white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
     """Convert Lab to XYZ."""
     L, a, b = lab[..., 0], lab[..., 1], lab[..., 2]
 
@@ -281,7 +281,7 @@ def delta_e_2000(lab1: np.ndarray, lab2: np.ndarray) -> np.ndarray:
 # =============================================================================
 
 def analyze_lut_quality(lut: np.ndarray,
-                        reference: Optional[np.ndarray] = None) -> LUTQualityMetrics:
+                        reference: np.ndarray | None = None) -> LUTQualityMetrics:
     """
     Analyze quality metrics of a 3D LUT.
 
@@ -340,7 +340,7 @@ def analyze_lut_quality(lut: np.ndarray,
 
 
 def analyze_interpolation_quality(lut: np.ndarray,
-                                  test_points: int = 1000) -> Tuple[float, float]:
+                                  test_points: int = 1000) -> tuple[float, float]:
     """
     Analyze interpolation quality of a LUT.
 
@@ -497,7 +497,7 @@ def map_gamut_compress(lut: np.ndarray,
     lut_lab = rgb_to_lab(lut.reshape(-1, 3)).reshape(size, size, size, 3)
 
     # Get chroma
-    L = lut_lab[..., 0]
+    lut_lab[..., 0]
     a = lut_lab[..., 1]
     b = lut_lab[..., 2]
     C = np.sqrt(a**2 + b**2)
@@ -582,8 +582,8 @@ class LUTOptimizer:
 
     def __init__(self,
                  goal: OptimizationGoal = OptimizationGoal.BALANCED,
-                 smoothing_config: Optional[SmoothingConfig] = None,
-                 gamut_config: Optional[GamutConfig] = None):
+                 smoothing_config: SmoothingConfig | None = None,
+                 gamut_config: GamutConfig | None = None):
         """
         Initialize optimizer.
 
@@ -598,7 +598,7 @@ class LUTOptimizer:
 
     def optimize(self,
                  lut: np.ndarray,
-                 reference: Optional[np.ndarray] = None,
+                 reference: np.ndarray | None = None,
                  target_delta_e: float = 1.0) -> OptimizationResult:
         """
         Optimize a 3D LUT.
@@ -666,7 +666,7 @@ class LUTOptimizer:
 
     def _optimize_accuracy(self,
                           lut: np.ndarray,
-                          reference: Optional[np.ndarray],
+                          reference: np.ndarray | None,
                           target_delta_e: float) -> np.ndarray:
         """Optimize for minimum Delta E."""
         if reference is None:
@@ -699,7 +699,7 @@ class LUTOptimizer:
 
     def _optimize_max_error(self,
                            lut: np.ndarray,
-                           reference: Optional[np.ndarray]) -> np.ndarray:
+                           reference: np.ndarray | None) -> np.ndarray:
         """Optimize to minimize maximum error."""
         if reference is None:
             return lut
@@ -732,7 +732,7 @@ class LUTOptimizer:
 
     def _optimize_balanced(self,
                           lut: np.ndarray,
-                          reference: Optional[np.ndarray],
+                          reference: np.ndarray | None,
                           target_delta_e: float) -> np.ndarray:
         """Balance accuracy and smoothness."""
         # First optimize accuracy

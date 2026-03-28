@@ -14,9 +14,8 @@ perceptual compression (no hue shifts in blue/purple).
 """
 
 import logging
-from pathlib import Path
-from typing import Optional
 import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class GamutClamp:
     def __init__(self, display_index: int = 0):
         self.display_index = display_index
         self._active = False
-        self._lut_path: Optional[Path] = None
+        self._lut_path: Path | None = None
 
     @property
     def is_active(self) -> bool:
@@ -89,11 +88,11 @@ class GamutClamp:
             self.enable(panel_key)
             return True
 
-    def _generate_clamp_lut(self, panel_key: str = None) -> Optional[Path]:
+    def _generate_clamp_lut(self, panel_key: str = None) -> Path | None:
         """Generate an sRGB compression LUT for the panel."""
         try:
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
             # Find panel

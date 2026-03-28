@@ -35,165 +35,128 @@ Usage:
     run_application()
 """
 
-# =============================================================================
 # Main Application
-# =============================================================================
 
-from calibrate_pro.gui.main_window import (
-    MainWindow,
-    run_application,
-    APP_NAME,
-    APP_VERSION,
-    APP_ORGANIZATION,
-    COLORS,
-    DARK_STYLESHEET,
-    IconFactory,
-    ColorManagementStatus,
-    ConsentDialog,
-    CalibrationWorker,
-    SimulatedMeasurementWindow,
-    DashboardPage,
-    CalibrationPage,
-    VerificationPage,
-    ProfilesPage,
-    VCGTToolsPage,
-    SoftwareColorControlPage,
-    DDCControlPage,
-    SettingsPage,
-)
-
-# =============================================================================
 # Calibration Wizard
-# =============================================================================
-
 from calibrate_pro.gui.calibration_wizard import (
-    CalibrationWizard,
     CalibrationConfig,
     CalibrationMode,
-    WhitepointTarget,
+    CalibrationModeStep,
+    CalibrationWizard,
+    DisplaySelectionStep,
     GammaTarget,
     GamutTarget,
-    WizardStep,
-    DisplaySelectionStep,
-    TargetSettingsStep,
-    CalibrationModeStep,
     MeasurementStep,
     ProfileGenerationStep,
+    TargetSettingsStep,
     VerificationStep,
+    WhitepointTarget,
+    WizardStep,
 )
+from calibrate_pro.gui.dialogs import ConsentDialog, SimulatedMeasurementWindow
 
-# =============================================================================
 # Display Selection
-# =============================================================================
-
 from calibrate_pro.gui.display_selector import (
-    DisplaySelector,
+    CalibrationStatus,
+    DisplayInfo,
+    DisplayInfoPanel,
     DisplayLayoutPreview,
     DisplayMonitorWidget,
-    DisplayInfoPanel,
-    DisplayInfo,
+    DisplaySelector,
     DisplayTechnology,
-    CalibrationStatus,
 )
+from calibrate_pro.gui.icons import IconFactory
 
-# =============================================================================
+# LUT Preview
+from calibrate_pro.gui.lut_preview import (
+    LUT3D,
+    BeforeAfterView,
+    LUTCubeView,
+    LUTPreviewWidget,
+    LUTSliceView,
+)
+from calibrate_pro.gui.main_window import MainWindow, run_application
+
+# Measurement View
+from calibrate_pro.gui.measurement_view import (
+    ColorPatchDisplay,
+    DeltaEDisplay,
+    Measurement,
+    MeasurementHistoryTable,
+    MeasurementView,
+    ValuesPanel,
+)
+from calibrate_pro.gui.pages.calibration_page import CalibrationPage
+from calibrate_pro.gui.pages.color_control_page import SoftwareColorControlPage
+from calibrate_pro.gui.pages.dashboard_page import DashboardPage
+from calibrate_pro.gui.pages.ddc_control_page import DDCControlPage
+from calibrate_pro.gui.pages.profiles_page import ProfilesPage
+from calibrate_pro.gui.pages.settings_page import SettingsPage
+from calibrate_pro.gui.pages.vcgt_tools_page import VCGTToolsPage
+from calibrate_pro.gui.pages.verification_page import VerificationPage
+
 # Pattern Window
-# =============================================================================
-
 from calibrate_pro.gui.pattern_window import (
-    PatternWindow,
     PatternCanvas,
+    PatternConfig,
     PatternRenderer,
     PatternSequencer,
     PatternType,
-    PatternConfig,
+    PatternWindow,
 )
 
-# =============================================================================
-# Measurement View
-# =============================================================================
-
-from calibrate_pro.gui.measurement_view import (
-    MeasurementView,
-    Measurement,
-    ColorPatchDisplay,
-    DeltaEDisplay,
-    ValuesPanel,
-    MeasurementHistoryTable,
-)
-
-# =============================================================================
-# LUT Preview
-# =============================================================================
-
-from calibrate_pro.gui.lut_preview import (
-    LUTPreviewWidget,
-    LUTCubeView,
-    LUTSliceView,
-    BeforeAfterView,
-    LUT3D,
-)
-
-# =============================================================================
 # Report Viewer
-# =============================================================================
-
 from calibrate_pro.gui.report_viewer import (
-    ReportViewer,
-    ReportSummaryPanel,
-    SummaryCard,
     CalibrationReport,
-    GrayscaleResult,
     ColorCheckerResult,
     GamutCoverage,
+    GrayscaleResult,
+    ReportSummaryPanel,
+    ReportViewer,
+    SummaryCard,
 )
+from calibrate_pro.gui.theme import APP_NAME, APP_ORGANIZATION, APP_VERSION, COLORS, DARK_STYLESHEET
 
-# =============================================================================
 # Visualization Widgets
-# =============================================================================
-
 from calibrate_pro.gui.widgets import (
-    # CIE Diagram
-    CIEDiagramWidget,
-    MeasuredPoint,
+    GAMUTS,
     SPECTRAL_LOCUS,
     WHITE_POINTS,
-    GAMUTS,
-    # Gamma Curves
-    GammaCurveWidget,
-    GammaInfoPanel,
-    CurveData,
-    srgb_eotf,
-    srgb_oetf,
-    bt1886_eotf,
-    power_law_eotf,
-    l_star_eotf,
-    # Delta E Charts
-    DeltaEBarChart,
-    DeltaEStatsPanel,
-    DeltaEMeasurement,
-    DeltaEQuality,
-    classify_delta_e,
-    get_delta_e_color,
+    # CIE Diagram
+    CIEDiagramWidget,
+    ColorGrid,
+    ColorInfoPanel,
     # Color Swatches
     ColorSwatch,
     ComparisonSwatch,
-    ColorInfoPanel,
-    ColorGrid,
-    rgb_to_xyz,
-    xyz_to_lab,
-    rgb_to_lab,
+    CurveData,
+    # Delta E Charts
+    DeltaEBarChart,
+    DeltaEMeasurement,
+    DeltaEQuality,
+    DeltaEStatsPanel,
+    # Gamma Curves
+    GammaCurveWidget,
+    GammaInfoPanel,
+    MeasuredPoint,
+    bt1886_eotf,
+    classify_delta_e,
     delta_e_2000,
+    get_delta_e_color,
+    l_star_eotf,
+    power_law_eotf,
+    rgb_to_lab,
+    rgb_to_xyz,
+    srgb_eotf,
+    srgb_oetf,
+    xyz_to_lab,
 )
+from calibrate_pro.gui.workers import CalibrationWorker, ColorManagementStatus
 
-# =============================================================================
 # Public API
-# =============================================================================
 
 __all__ = [
-    # -------------------------------------------------------------------------
     # Main Application
-    # -------------------------------------------------------------------------
     "MainWindow",
     "run_application",
     "APP_NAME",
@@ -215,9 +178,7 @@ __all__ = [
     "DDCControlPage",
     "SettingsPage",
 
-    # -------------------------------------------------------------------------
     # Calibration Wizard
-    # -------------------------------------------------------------------------
     "CalibrationWizard",
     "CalibrationConfig",
     "CalibrationMode",
@@ -232,9 +193,7 @@ __all__ = [
     "ProfileGenerationStep",
     "VerificationStep",
 
-    # -------------------------------------------------------------------------
     # Display Selection
-    # -------------------------------------------------------------------------
     "DisplaySelector",
     "DisplayLayoutPreview",
     "DisplayMonitorWidget",
@@ -243,9 +202,7 @@ __all__ = [
     "DisplayTechnology",
     "CalibrationStatus",
 
-    # -------------------------------------------------------------------------
     # Pattern Window
-    # -------------------------------------------------------------------------
     "PatternWindow",
     "PatternCanvas",
     "PatternRenderer",
@@ -253,9 +210,7 @@ __all__ = [
     "PatternType",
     "PatternConfig",
 
-    # -------------------------------------------------------------------------
     # Measurement View
-    # -------------------------------------------------------------------------
     "MeasurementView",
     "Measurement",
     "ColorPatchDisplay",
@@ -263,18 +218,14 @@ __all__ = [
     "ValuesPanel",
     "MeasurementHistoryTable",
 
-    # -------------------------------------------------------------------------
     # LUT Preview
-    # -------------------------------------------------------------------------
     "LUTPreviewWidget",
     "LUTCubeView",
     "LUTSliceView",
     "BeforeAfterView",
     "LUT3D",
 
-    # -------------------------------------------------------------------------
     # Report Viewer
-    # -------------------------------------------------------------------------
     "ReportViewer",
     "ReportSummaryPanel",
     "SummaryCard",
@@ -283,18 +234,14 @@ __all__ = [
     "ColorCheckerResult",
     "GamutCoverage",
 
-    # -------------------------------------------------------------------------
     # CIE Diagram Widget
-    # -------------------------------------------------------------------------
     "CIEDiagramWidget",
     "MeasuredPoint",
     "SPECTRAL_LOCUS",
     "WHITE_POINTS",
     "GAMUTS",
 
-    # -------------------------------------------------------------------------
     # Gamma Curve Widget
-    # -------------------------------------------------------------------------
     "GammaCurveWidget",
     "GammaInfoPanel",
     "CurveData",
@@ -304,9 +251,7 @@ __all__ = [
     "power_law_eotf",
     "l_star_eotf",
 
-    # -------------------------------------------------------------------------
     # Delta E Chart Widget
-    # -------------------------------------------------------------------------
     "DeltaEBarChart",
     "DeltaEStatsPanel",
     "DeltaEMeasurement",
@@ -314,9 +259,7 @@ __all__ = [
     "classify_delta_e",
     "get_delta_e_color",
 
-    # -------------------------------------------------------------------------
     # Color Swatch Widgets
-    # -------------------------------------------------------------------------
     "ColorSwatch",
     "ComparisonSwatch",
     "ColorInfoPanel",

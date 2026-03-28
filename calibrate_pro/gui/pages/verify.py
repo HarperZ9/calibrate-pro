@@ -5,31 +5,32 @@ Shows a 6x4 ColorChecker grid (reference vs. predicted), Delta E statistics,
 accuracy grade, and gamut coverage bars. Runs verification in a QThread.
 """
 
-import math
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional, Dict, List
 
+from PyQt6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QScrollArea, QComboBox, QSizePolicy, QGridLayout, QProgressBar,
-    QFileDialog, QMessageBox
-)
-from PyQt6.QtCore import (
-    Qt, QThread, pyqtSignal, QTimer, QRectF, QPointF
-)
-from PyQt6.QtGui import (
-    QFont, QColor, QPainter, QPen, QBrush, QPainterPath
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat, GamutBar
+from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat
 from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
 
-
-# =============================================================================
 # Worker Thread
-# =============================================================================
 
 class VerifyWorker(QThread):
     """Runs SensorlessEngine.verify_calibration() off the main thread."""
@@ -44,10 +45,8 @@ class VerifyWorker(QThread):
     def run(self):
         try:
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-            from calibrate_pro.panels.detection import (
-                enumerate_displays, identify_display
-            )
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
             displays = enumerate_displays()
@@ -117,18 +116,12 @@ class NativeVerifyWorker(QThread):
 
     def run(self):
         try:
-            import numpy as np
-            import hid
             import struct
             import time
 
-            from calibrate_pro.calibration.native_loop import (
-                COLORCHECKER_SRGB, COLORCHECKER_REF_LAB, compute_de,
-            )
-            from calibrate_pro.core.color_math import (
-                xyz_to_lab, bradford_adapt, delta_e_2000,
-                D50_WHITE, D65_WHITE,
-            )
+            import hid
+            import numpy as np
+
 
             OLED_MATRIX = np.array([
                 [0.03836831, -0.02175997, 0.01696057],
@@ -221,9 +214,7 @@ class NativeVerifyWorker(QThread):
             self.finished.emit(False, f"Native verify error: {exc}\n{tb}")
 
 
-# =============================================================================
 # ColorChecker Patch Widget
-# =============================================================================
 
 class ColorPatchWidget(QWidget):
     """
@@ -299,9 +290,7 @@ class ColorPatchWidget(QWidget):
         p.end()
 
 
-# =============================================================================
 # ColorChecker Grid Widget
-# =============================================================================
 
 class ColorCheckerGrid(QWidget):
     """6x4 grid of ColorChecker patches."""
@@ -311,9 +300,9 @@ class ColorCheckerGrid(QWidget):
         self._grid_layout = QGridLayout(self)
         self._grid_layout.setSpacing(4)
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
-        self._patches: List[ColorPatchWidget] = []
+        self._patches: list[ColorPatchWidget] = []
 
-    def set_results(self, patches: List[Dict]):
+    def set_results(self, patches: list[dict]):
         """
         Populate the grid from verification results.
 
@@ -353,9 +342,8 @@ class ColorCheckerGrid(QWidget):
         """
         try:
             import numpy as np
-            from calibrate_pro.core.color_math import (
-                lab_to_xyz, xyz_to_srgb, bradford_adapt, D50_WHITE, D65_WHITE
-            )
+
+            from calibrate_pro.core.color_math import D50_WHITE, D65_WHITE, bradford_adapt, lab_to_xyz, xyz_to_srgb
             lab_arr = np.array(lab, dtype=float)
             xyz_d50 = lab_to_xyz(lab_arr, D50_WHITE)
             xyz_d65 = bradford_adapt(xyz_d50, D50_WHITE, D65_WHITE)
@@ -369,9 +357,7 @@ class ColorCheckerGrid(QWidget):
             return (v, v, v)
 
 
-# =============================================================================
 # Grayscale Tracking Chart Widget
-# =============================================================================
 
 class GrayscaleTrackingChart(QWidget):
     """
@@ -390,19 +376,19 @@ class GrayscaleTrackingChart(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # Data
-        self._steps: List[float] = []
+        self._steps: list[float] = []
         self._target_gamma: float = 2.2
-        self._measured: List[float] = []
-        self._per_channel: Optional[Dict[str, List[float]]] = None
-        self._delta_es: List[float] = []
+        self._measured: list[float] = []
+        self._per_channel: dict[str, list[float]] | None = None
+        self._delta_es: list[float] = []
 
     def set_data(
         self,
-        steps: List[float],
+        steps: list[float],
         target_gamma: float,
-        measured_luminances: List[float],
-        per_channel: Optional[Dict[str, List[float]]] = None,
-        delta_es: Optional[List[float]] = None,
+        measured_luminances: list[float],
+        per_channel: dict[str, list[float]] | None = None,
+        delta_es: list[float] | None = None,
     ):
         """
         Populate the chart.
@@ -437,9 +423,7 @@ class GrayscaleTrackingChart(QWidget):
 
         self.update()
 
-    # ------------------------------------------------------------------ #
     # Painting
-    # ------------------------------------------------------------------ #
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -629,9 +613,7 @@ class GrayscaleTrackingChart(QWidget):
         p.end()
 
 
-# =============================================================================
 # Gamut Coverage Bars Widget
-# =============================================================================
 
 class GamutCoverageSection(QWidget):
     """Three labeled gamut coverage bars: sRGB, P3, BT.2020."""
@@ -666,24 +648,20 @@ class GamutCoverageSection(QWidget):
         old_bar.deleteLater()
 
 
-# =============================================================================
 # Verify Page
-# =============================================================================
 
 class VerifyPage(QWidget):
     """Verification results page with ColorChecker grid, stats, and gamut bars."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._worker: Optional[VerifyWorker] = None
-        self._last_results: Optional[Dict] = None
+        self._worker: VerifyWorker | None = None
+        self._last_results: dict | None = None
         self._displays = []
         self._build()
         QTimer.singleShot(300, self._detect_displays)
 
-    # --------------------------------------------------------------------- #
     # Build UI
-    # --------------------------------------------------------------------- #
 
     def _build(self):
         outer = QVBoxLayout(self)
@@ -949,9 +927,7 @@ class VerifyPage(QWidget):
         # Seed the grid with default ColorChecker patches (no delta E yet)
         self._seed_default_grid()
 
-    # --------------------------------------------------------------------- #
     # Seed default grid
-    # --------------------------------------------------------------------- #
 
     def _seed_default_grid(self):
         """Show the ColorChecker with reference colors and dashes before verification."""
@@ -1009,7 +985,7 @@ class VerifyPage(QWidget):
         per_channel = {}
         for ch_name, bias in [('red', 0.006), ('green', -0.003), ('blue', 0.010)]:
             ch_data = []
-            for i, s in enumerate(steps):
+            for _i, s in enumerate(steps):
                 target_y = s ** target_gamma
                 ch_dev = bias * s + random.uniform(-0.005, 0.005)
                 ch_data.append(max(0.0, min(1.0, target_y + ch_dev)))
@@ -1036,9 +1012,7 @@ class VerifyPage(QWidget):
                 f"font-size: 12px; color: {max_color}; font-weight: 500;"
             )
 
-    # --------------------------------------------------------------------- #
     # Display Detection
-    # --------------------------------------------------------------------- #
 
     def _detect_displays(self):
         self._display_combo.clear()
@@ -1069,9 +1043,7 @@ class VerifyPage(QWidget):
                 f"font-size: 11px; color: {C.GREEN_HI}; font-style: italic;"
             )
 
-    # --------------------------------------------------------------------- #
     # Verification
-    # --------------------------------------------------------------------- #
 
     def _run_verification(self):
         if self._worker is not None and self._worker.isRunning():
@@ -1126,7 +1098,7 @@ class VerifyPage(QWidget):
 
         self._worker = None
 
-    def _populate_results(self, results: Dict):
+    def _populate_results(self, results: dict):
         """Fill the UI with verification data."""
         patches = results.get("patches", [])
 
@@ -1207,7 +1179,7 @@ class VerifyPage(QWidget):
 
         # Grayscale tracking chart — use data from results if available,
         # otherwise generate from the grayscale patches in the results.
-        gs_data = results.get("grayscale", None)
+        gs_data = results.get("grayscale")
         if gs_data:
             self._gs_chart.set_data(
                 gs_data.get("steps", []),
@@ -1262,9 +1234,7 @@ class VerifyPage(QWidget):
 
         self._gs_chart.set_data(steps, target_gamma, measured, delta_es=delta_es)
 
-    # --------------------------------------------------------------------- #
     # Export Report
-    # --------------------------------------------------------------------- #
 
     def _build_html_report(self, results: dict) -> str:
         """Build a self-contained HTML report string from verification results."""
@@ -1342,12 +1312,13 @@ class VerifyPage(QWidget):
 
                 # Try the dedicated report generator for richer HTML
                 try:
-                    from calibrate_pro.verification.report_generator import (
-                        generate_calibration_report,
-                    )
                     # The generator writes to a file; generate to temp HTML
                     # then use that content for PDF conversion
                     import tempfile
+
+                    from calibrate_pro.verification.report_generator import (
+                        generate_calibration_report,
+                    )
                     with tempfile.NamedTemporaryFile(
                         suffix=".html", delete=False, mode="w", encoding="utf-8"
                     ) as tmp:
@@ -1445,9 +1416,7 @@ class VerifyPage(QWidget):
                 f"Verification report saved to:\n{path}"
             )
 
-    # --------------------------------------------------------------------- #
     # Helpers
-    # --------------------------------------------------------------------- #
 
     def _show_error(self, msg: str):
         self._error_label.setText(msg)

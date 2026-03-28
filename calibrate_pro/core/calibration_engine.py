@@ -6,33 +6,34 @@ hardware colorimeter modes. Manages calibration workflow and
 profile/LUT generation.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union, Callable, TYPE_CHECKING
-from pathlib import Path
-from enum import Enum
-from datetime import datetime
 import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import numpy as np
 
 from calibrate_pro.core.color_math import (
-    D50_WHITE, D65_WHITE, Illuminant,
-    xyz_to_lab, lab_to_xyz, srgb_to_xyz, xyz_to_srgb,
-    bradford_adapt, delta_e_2000, cct_to_xy, xy_to_cct
+    D50_WHITE,
+    D65_WHITE,
+    bradford_adapt,
+    cct_to_xy,
+    delta_e_2000,
+    xyz_to_lab,
 )
 from calibrate_pro.core.icc_profile import (
-    ICCProfile, create_display_profile, generate_trc_curve,
-    generate_srgb_trc, generate_bt1886_trc
+    ICCProfile,
+    create_display_profile,
 )
-from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator, LUTFormat
-from calibrate_pro.panels.database import (
-    PanelDatabase, PanelCharacterization, get_database
-)
-from calibrate_pro.sensorless.neuralux import (
-    SensorlessEngine, get_colorchecker_reference
-)
+from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
+from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase, get_database
+from calibrate_pro.sensorless.neuralux import SensorlessEngine, get_colorchecker_reference
 
 if TYPE_CHECKING:
-    from calibrate_pro.hardware.colorimeter_base import ColorimeterBase, ColorMeasurement
+    from calibrate_pro.hardware.colorimeter_base import ColorimeterBase
 
 class CalibrationMode(Enum):
     """Calibration mode selection."""
@@ -73,19 +74,19 @@ class GamutTarget(Enum):
 class CalibrationTarget:
     """Target calibration parameters."""
     whitepoint: WhitepointTarget = WhitepointTarget.D65
-    whitepoint_xy: Optional[Tuple[float, float]] = None
-    whitepoint_cct: Optional[int] = None
+    whitepoint_xy: tuple[float, float] | None = None
+    whitepoint_cct: int | None = None
 
     gamma: GammaTarget = GammaTarget.POWER_22
     gamma_value: float = 2.2
 
     gamut: GamutTarget = GamutTarget.SRGB
-    gamut_primaries: Optional[Tuple[Tuple[float, float], ...]] = None
+    gamut_primaries: tuple[tuple[float, float], ...] | None = None
 
-    luminance_target: Optional[float] = None  # cd/m2
-    black_level_target: Optional[float] = None  # cd/m2
+    luminance_target: float | None = None  # cd/m2
+    black_level_target: float | None = None  # cd/m2
 
-    def get_whitepoint_xy(self) -> Tuple[float, float]:
+    def get_whitepoint_xy(self) -> tuple[float, float]:
         """Get white point as xy chromaticity."""
         if self.whitepoint_xy:
             return self.whitepoint_xy
@@ -102,7 +103,7 @@ class CalibrationTarget:
         }
         return whitepoints.get(self.whitepoint, (0.3127, 0.3290))
 
-    def get_gamut_primaries(self) -> Tuple[Tuple[float, float], ...]:
+    def get_gamut_primaries(self) -> tuple[tuple[float, float], ...]:
         """Get gamut as primary xy coordinates."""
         if self.gamut_primaries:
             return self.gamut_primaries
@@ -147,17 +148,17 @@ class CalibrationResult:
     delta_e_avg: float = 0.0
     delta_e_max: float = 0.0
     grade: str = ""
-    patch_results: List[Dict] = field(default_factory=list)
+    patch_results: list[dict] = field(default_factory=list)
 
     # Generated files
-    icc_profile_path: Optional[Path] = None
-    lut_path: Optional[Path] = None
-    report_path: Optional[Path] = None
+    icc_profile_path: Path | None = None
+    lut_path: Path | None = None
+    report_path: Path | None = None
 
     # Timestamps
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "success": self.success,
@@ -182,7 +183,7 @@ class CalibrationEngine:
     def __init__(
         self,
         mode: CalibrationMode = CalibrationMode.SENSORLESS,
-        panel_database: Optional[PanelDatabase] = None
+        panel_database: PanelDatabase | None = None
     ):
         """
         Initialize calibration engine.
@@ -199,12 +200,12 @@ class CalibrationEngine:
         self.colorimeter = None
 
         # Current state
-        self.current_panel: Optional[PanelCharacterization] = None
+        self.current_panel: PanelCharacterization | None = None
         self.target = CalibrationTarget()
-        self.result: Optional[CalibrationResult] = None
+        self.result: CalibrationResult | None = None
 
         # Progress callback
-        self.progress_callback: Optional[Callable[[str, float], None]] = None
+        self.progress_callback: Callable[[str, float], None] | None = None
 
     def set_mode(self, mode: CalibrationMode):
         """Set calibration mode."""
@@ -223,7 +224,7 @@ class CalibrationEngine:
         if self.progress_callback:
             self.progress_callback(message, progress)
 
-    def detect_display(self, model_string: str) -> Optional[PanelCharacterization]:
+    def detect_display(self, model_string: str) -> PanelCharacterization | None:
         """
         Detect display panel from model string.
 
@@ -328,7 +329,7 @@ class CalibrationEngine:
         generate_lut: bool = True,
         lut_size: int = 33,
         patch_count: int = 729,
-        display_callback: Optional[Callable] = None
+        display_callback: Callable | None = None
     ) -> CalibrationResult:
         """
         Perform hardware colorimeter calibration.
@@ -350,7 +351,7 @@ class CalibrationEngine:
             try:
                 from calibrate_pro.hardware import auto_connect
                 self.colorimeter = auto_connect()
-            except Exception:
+            except (ImportError, OSError, RuntimeError):
                 pass
 
         if self.colorimeter is None:
@@ -456,7 +457,7 @@ class CalibrationEngine:
         generate_icc: bool = True,
         generate_lut: bool = True,
         lut_size: int = 33,
-        display_callback: Optional[Callable] = None
+        display_callback: Callable | None = None
     ) -> CalibrationResult:
         """
         Perform hybrid calibration: sensorless + hardware verification.
@@ -488,7 +489,7 @@ class CalibrationEngine:
             try:
                 from calibrate_pro.hardware import auto_connect
                 self.colorimeter = auto_connect()
-            except Exception:
+            except (ImportError, OSError, RuntimeError):
                 pass
 
         if self.colorimeter is None:
@@ -530,9 +531,9 @@ class CalibrationEngine:
 
     def _measure_with_display(
         self,
-        rgb: Tuple[float, float, float],
-        display_callback: Optional[Callable] = None
-    ) -> Optional[Dict]:
+        rgb: tuple[float, float, float],
+        display_callback: Callable | None = None
+    ) -> dict | None:
         """
         Display a color and measure it.
 
@@ -562,8 +563,8 @@ class CalibrationEngine:
 
     def _measure_primaries(
         self,
-        display_callback: Optional[Callable] = None
-    ) -> Dict[str, Dict]:
+        display_callback: Callable | None = None
+    ) -> dict[str, dict]:
         """Measure display primaries."""
         primaries = {}
 
@@ -585,8 +586,8 @@ class CalibrationEngine:
     def _measure_grayscale(
         self,
         steps: int = 21,
-        display_callback: Optional[Callable] = None
-    ) -> List[Dict]:
+        display_callback: Callable | None = None
+    ) -> list[dict]:
         """Measure grayscale ramp."""
         results = []
 
@@ -603,8 +604,8 @@ class CalibrationEngine:
     def _measure_profiling_patches(
         self,
         count: int,
-        display_callback: Optional[Callable] = None
-    ) -> List[Dict]:
+        display_callback: Callable | None = None
+    ) -> list[dict]:
         """Measure profiling patch set."""
         from calibrate_pro.hardware.colorimeter_base import generate_profiling_patches
 
@@ -629,7 +630,7 @@ class CalibrationEngine:
 
     def _create_icc_from_measurements(
         self,
-        cal_data: Dict,
+        cal_data: dict,
         panel: PanelCharacterization
     ) -> ICCProfile:
         """Create ICC profile from measurement data."""
@@ -659,7 +660,7 @@ class CalibrationEngine:
 
     def _calculate_gamma_from_grayscale(
         self,
-        grayscale: List[Dict]
+        grayscale: list[dict]
     ) -> float:
         """Calculate effective gamma from grayscale measurements."""
         if len(grayscale) < 3:
@@ -694,7 +695,7 @@ class CalibrationEngine:
 
     def _create_lut_from_measurements(
         self,
-        cal_data: Dict,
+        cal_data: dict,
         panel: PanelCharacterization,
         size: int = 33
     ) -> LUT3D:
@@ -714,8 +715,8 @@ class CalibrationEngine:
 
     def _verify_hardware(
         self,
-        display_callback: Optional[Callable] = None
-    ) -> Dict:
+        display_callback: Callable | None = None
+    ) -> dict:
         """Verify calibration with hardware measurements."""
         from calibrate_pro.hardware.colorimeter_base import generate_verification_patches
 
@@ -777,7 +778,7 @@ class CalibrationEngine:
     def calibrate(
         self,
         model_string: str,
-        output_dir: Union[str, Path],
+        output_dir: str | Path,
         generate_icc: bool = True,
         generate_lut: bool = True,
         lut_size: int = 33,
@@ -818,8 +819,8 @@ class CalibrationEngine:
     def verify(
         self,
         model_string: str,
-        reference_patches: Optional[List] = None
-    ) -> Dict:
+        reference_patches: list | None = None
+    ) -> dict:
         """
         Verify calibration accuracy.
 
@@ -837,11 +838,11 @@ class CalibrationEngine:
             panel, reference_patches=reference_patches
         )
 
-    def get_available_panels(self) -> List[str]:
+    def get_available_panels(self) -> list[str]:
         """Get list of available panel profiles."""
         return self.database.list_panels()
 
-    def get_panel_info(self, panel_key: str) -> Optional[Dict]:
+    def get_panel_info(self, panel_key: str) -> dict | None:
         """Get information about a specific panel."""
         panel = self.database.get_panel(panel_key)
         if panel is None:
@@ -880,7 +881,7 @@ class CalibrationEngine:
 
 def quick_calibrate(
     model_string: str,
-    output_dir: Union[str, Path] = ".",
+    output_dir: str | Path = ".",
     mode: CalibrationMode = CalibrationMode.SENSORLESS
 ) -> CalibrationResult:
     """
@@ -898,7 +899,7 @@ def quick_calibrate(
     return engine.calibrate(model_string, output_dir)
 
 
-def verify_calibration(model_string: str) -> Dict:
+def verify_calibration(model_string: str) -> dict:
     """
     Quick verification of calibration accuracy.
 
@@ -912,13 +913,13 @@ def verify_calibration(model_string: str) -> Dict:
     return engine.verify(model_string)
 
 
-def list_supported_displays() -> List[str]:
+def list_supported_displays() -> list[str]:
     """Get list of displays with built-in profiles."""
     engine = CalibrationEngine()
     return engine.get_available_panels()
 
 
-def get_display_info(panel_key: str) -> Optional[Dict]:
+def get_display_info(panel_key: str) -> dict | None:
     """Get information about a supported display."""
     engine = CalibrationEngine()
     return engine.get_panel_info(panel_key)

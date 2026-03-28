@@ -8,17 +8,28 @@ Combines the two complementary corrections:
 
 Expected result: dE < 3.0 average across all 24 patches.
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB,
-    BRADFORD_MATRIX, BRADFORD_INVERSE
+    BRADFORD_INVERSE,
+    BRADFORD_MATRIX,
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
 
 OLED_MATRIX = np.array([
@@ -154,7 +165,7 @@ if __name__ == "__main__":
     # Baseline
     show(1,1,1); wY = mxyz(1.0)[1]; norm = 100.0/wY
     print(f"  White Y = {wY:.1f} cd/m2, WP = D65 (CCMX-corrected)")
-    print(f"  Measuring baseline...\n")
+    print("  Measuring baseline...\n")
 
     base = []
     for name,r,g,b in COLORCHECKER:

@@ -22,12 +22,9 @@ For professional monitors with hardware LUT support:
 
 import ctypes
 from ctypes import wintypes
-from typing import Optional, Dict, List, Tuple, Any
 from dataclasses import dataclass, field
 from enum import IntEnum
-from pathlib import Path
-import struct
-
+from typing import Any
 
 # =============================================================================
 # DDC/CI VCP (Virtual Control Panel) Codes - VESA MCCS Standard
@@ -292,8 +289,8 @@ class PHYSICAL_MONITOR(ctypes.Structure):
 class MonitorCapabilities:
     """DDC/CI capabilities for a monitor."""
     model: str = ""
-    supported_vcp_codes: List[int] = field(default_factory=list)
-    color_temp_range: Tuple[int, int] = (0, 0)
+    supported_vcp_codes: list[int] = field(default_factory=list)
+    color_temp_range: tuple[int, int] = (0, 0)
     has_rgb_gain: bool = False
     has_rgb_black_level: bool = False
     has_hardware_lut: bool = False
@@ -370,7 +367,7 @@ class DDCCIController:
 
     def __init__(self):
         self._load_libraries()
-        self._monitors: List[Dict[str, Any]] = []
+        self._monitors: list[dict[str, Any]] = []
         self._last_command_time: float = 0.0
         self._handle_refresh_count: int = 0
 
@@ -380,7 +377,7 @@ class DDCCIController:
             self.dxva2 = ctypes.windll.dxva2
             self.user32 = ctypes.windll.user32
             self._available = True
-        except Exception:
+        except OSError:
             self._available = False
 
     @property
@@ -388,7 +385,7 @@ class DDCCIController:
         """Check if DDC/CI is available on this system."""
         return self._available
 
-    def enumerate_monitors(self) -> List[Dict[str, Any]]:
+    def enumerate_monitors(self) -> list[dict[str, Any]]:
         """
         Enumerate all monitors with DDC/CI support.
 
@@ -433,11 +430,11 @@ class DDCCIController:
                             try:
                                 caps = self._get_capabilities(pm.hPhysicalMonitor)
                                 monitor_info['capabilities'] = caps
-                            except Exception:
+                            except OSError:
                                 pass
 
                             self._monitors.append(monitor_info)
-            except Exception:
+            except OSError:
                 pass
             return True
 
@@ -534,7 +531,7 @@ class DDCCIController:
             time.sleep((self._MIN_COMMAND_INTERVAL_MS - elapsed) / 1000.0)
         self._last_command_time = time.time() * 1000
 
-    def get_vcp(self, monitor: Dict, code: VCPCode, retries: int = 3) -> Tuple[int, int]:
+    def get_vcp(self, monitor: dict, code: VCPCode, retries: int = 3) -> tuple[int, int]:
         """
         Get VCP value from monitor with retry logic.
 
@@ -548,7 +545,6 @@ class DDCCIController:
             raise RuntimeError("DDC/CI not available")
 
         import time
-        last_error = None
 
         for attempt in range(retries):
             self._rate_limit()
@@ -566,8 +562,8 @@ class DDCCIController:
                     ctypes.byref(maximum)
                 ):
                     return (current.value, maximum.value)
-            except Exception as e:
-                last_error = e
+            except OSError:
+                pass
 
             # Wait before retry (exponential backoff)
             if attempt < retries - 1:
@@ -581,7 +577,7 @@ class DDCCIController:
 
         raise RuntimeError(f"Failed to get VCP code 0x{code:02X}")
 
-    def set_vcp(self, monitor: Dict, code: VCPCode, value: int, retries: int = 3) -> bool:
+    def set_vcp(self, monitor: dict, code: VCPCode, value: int, retries: int = 3) -> bool:
         """
         Set VCP value on monitor with retry logic.
 
@@ -608,7 +604,7 @@ class DDCCIController:
             try:
                 if self.dxva2.SetVCPFeature(monitor['handle'], code, value):
                     return True
-            except Exception:
+            except OSError:
                 pass
 
             # Wait before retry
@@ -621,14 +617,14 @@ class DDCCIController:
 
         return False
 
-    def diagnose_monitor(self, monitor: Dict) -> List[str]:
+    def diagnose_monitor(self, monitor: dict) -> list[str]:
         """
         Diagnose DDC/CI communication issues for a monitor.
 
         Returns a list of diagnostic messages and recommendations.
         """
         diag = []
-        name = monitor.get("name", "Unknown")
+        monitor.get("name", "Unknown")
 
         # Check connection type
         conn_type = self._get_connection_type(monitor)
@@ -640,7 +636,7 @@ class DDCCIController:
             val, mx = self.get_vcp(monitor, VCPCode.BRIGHTNESS, retries=2)
             diag.append(f"DDC/CI: Working (brightness={val}/{mx})")
             return diag
-        except Exception:
+        except RuntimeError:
             pass
 
         # DDC/CI failed — provide specific troubleshooting
@@ -659,7 +655,7 @@ class DDCCIController:
 
         return diag
 
-    def _get_connection_type(self, monitor: Dict) -> Optional[str]:
+    def _get_connection_type(self, monitor: dict) -> str | None:
         """Detect the video connection type (HDMI, DisplayPort, etc.) via WMI."""
         try:
             import subprocess
@@ -687,18 +683,18 @@ class DDCCIController:
                 }
 
                 # Find matching monitor by name in InstanceName
-                hmonitor_id = str(monitor.get("hmonitor", ""))
+                str(monitor.get("hmonitor", ""))
                 for entry in data:
-                    inst = entry.get("InstanceName", "")
+                    entry.get("InstanceName", "")
                     tech = entry.get("VideoOutputTechnology", -1)
                     tech_name = tech_map.get(tech, f"Unknown ({tech})")
                     # Return the first match or the one closest to our monitor
                     return tech_name
-        except Exception:
+        except (subprocess.SubprocessError, json.JSONDecodeError, OSError, ValueError):
             pass
         return None
 
-    def _get_brightness_wmi(self, monitor: Dict) -> Optional[int]:
+    def _get_brightness_wmi(self, monitor: dict) -> int | None:
         """Fallback: read brightness via WMI (works when DXVA2 doesn't)."""
         try:
             import subprocess
@@ -710,7 +706,7 @@ class DDCCIController:
             )
             if result.returncode == 0 and result.stdout.strip():
                 return int(result.stdout.strip())
-        except Exception:
+        except (subprocess.SubprocessError, OSError, ValueError):
             pass
         return None
 
@@ -726,14 +722,14 @@ class DDCCIController:
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return result.returncode == 0
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             return False
 
     def scan_all_vcp_codes(
         self,
-        monitor: Dict,
-        progress_callback: Optional[callable] = None
-    ) -> Dict[int, Tuple[int, int]]:
+        monitor: dict,
+        progress_callback=None
+    ) -> dict[int, tuple[int, int]]:
         """
         Scan ALL VCP codes (0x00-0xFF) to discover what the monitor supports.
 
@@ -772,12 +768,12 @@ class DDCCIController:
                     # Some monitors return success but max=0 for unsupported
                     if maximum.value > 0 or current.value > 0:
                         supported[code] = (current.value, maximum.value)
-            except Exception:
+            except OSError:
                 pass
 
         return supported
 
-    def try_set_vcp(self, monitor: Dict, code: int, value: int) -> Tuple[bool, str]:
+    def try_set_vcp(self, monitor: dict, code: int, value: int) -> tuple[bool, str]:
         """
         Try to set a VCP value and return detailed result.
 
@@ -837,21 +833,21 @@ class DDCCIController:
 
             return True, f"Set 0x{code:02X} to {value} (cannot verify)"
 
-        except Exception as e:
+        except OSError as e:
             return False, f"Error: {e}"
 
-    def get_settings(self, monitor: Dict) -> MonitorSettings:
+    def get_settings(self, monitor: dict) -> MonitorSettings:
         """Get all available hardware settings from monitor."""
         settings = MonitorSettings()
 
         try:
             settings.brightness, _ = self.get_vcp(monitor, VCPCode.BRIGHTNESS)
-        except Exception:
+        except RuntimeError:
             pass
 
         try:
             settings.contrast, _ = self.get_vcp(monitor, VCPCode.CONTRAST)
-        except Exception:
+        except RuntimeError:
             pass
 
         # RGB Gain
@@ -859,7 +855,7 @@ class DDCCIController:
             settings.red_gain, _ = self.get_vcp(monitor, VCPCode.RED_GAIN)
             settings.green_gain, _ = self.get_vcp(monitor, VCPCode.GREEN_GAIN)
             settings.blue_gain, _ = self.get_vcp(monitor, VCPCode.BLUE_GAIN)
-        except Exception:
+        except RuntimeError:
             pass
 
         # RGB Black Level
@@ -867,17 +863,17 @@ class DDCCIController:
             settings.red_black_level, _ = self.get_vcp(monitor, VCPCode.RED_BLACK_LEVEL)
             settings.green_black_level, _ = self.get_vcp(monitor, VCPCode.GREEN_BLACK_LEVEL)
             settings.blue_black_level, _ = self.get_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL)
-        except Exception:
+        except RuntimeError:
             pass
 
         try:
             settings.color_preset, _ = self.get_vcp(monitor, VCPCode.COLOR_PRESET)
-        except Exception:
+        except RuntimeError:
             pass
 
         return settings
 
-    def set_rgb_gain(self, monitor: Dict, red: int, green: int, blue: int) -> bool:
+    def set_rgb_gain(self, monitor: dict, red: int, green: int, blue: int) -> bool:
         """
         Set RGB gain values for white point adjustment.
 
@@ -894,7 +890,7 @@ class DDCCIController:
         success &= self.set_vcp(monitor, VCPCode.BLUE_GAIN, blue)
         return success
 
-    def set_rgb_black_level(self, monitor: Dict, red: int, green: int, blue: int) -> bool:
+    def set_rgb_black_level(self, monitor: dict, red: int, green: int, blue: int) -> bool:
         """
         Set RGB black level values for black point adjustment.
 
@@ -911,11 +907,11 @@ class DDCCIController:
         success &= self.set_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL, blue)
         return success
 
-    def set_color_preset(self, monitor: Dict, preset: ColorPreset) -> bool:
+    def set_color_preset(self, monitor: dict, preset: ColorPreset) -> bool:
         """Set color temperature/mode preset."""
         return self.set_vcp(monitor, VCPCode.COLOR_PRESET, preset)
 
-    def read_all_settings(self, monitor: Dict) -> Dict[str, any]:
+    def read_all_settings(self, monitor: dict) -> dict[str, any]:
         """
         Read all available DDC/CI settings from a monitor.
 
@@ -946,16 +942,16 @@ class DDCCIController:
             try:
                 current, maximum = self.get_vcp(monitor, code)
                 result[name] = {"current": current, "max": maximum}
-            except Exception:
+            except RuntimeError:
                 pass
         return result
 
     def auto_setup_for_calibration(
         self,
-        monitor: Dict,
+        monitor: dict,
         ddc_recommendations=None,
         log_fn=None,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Automatically configure a monitor's OSD for optimal calibration.
 
@@ -980,7 +976,7 @@ class DDCCIController:
             if log_fn:
                 log_fn(msg)
 
-        caps = monitor.get("capabilities")
+        monitor.get("capabilities")
 
         if ddc_recommendations:
             rec = ddc_recommendations
@@ -1052,7 +1048,7 @@ class DDCCIController:
                     if max_val > 0:
                         self.set_vcp(monitor, code, max_val)
                         log(f"{name} gain -> {max_val} (max)")
-                except Exception:
+                except RuntimeError:
                     pass
 
         return changes
@@ -1063,7 +1059,7 @@ class DDCCIController:
             for monitor in self._monitors:
                 try:
                     self.dxva2.DestroyPhysicalMonitor(monitor['handle'])
-                except Exception:
+                except OSError:
                     pass
         self._monitors = []
 
@@ -1086,8 +1082,8 @@ class HardwareCalibrationTarget:
 class HardwareCalibrationResult:
     """Results from hardware calibration."""
     success: bool = False
-    rgb_gain: Tuple[int, int, int] = (100, 100, 100)
-    rgb_black: Tuple[int, int, int] = (50, 50, 50)
+    rgb_gain: tuple[int, int, int] = (100, 100, 100)
+    rgb_black: tuple[int, int, int] = (50, 50, 50)
     brightness: int = 50
     contrast: int = 50
     measured_white_x: float = 0.0
@@ -1128,7 +1124,7 @@ class HardwareCalibrator:
 
     def calibrate_white_point(
         self,
-        monitor: Dict,
+        monitor: dict,
         target: HardwareCalibrationTarget,
         max_iterations: int = 20,
         tolerance: float = 0.002  # xy chromaticity tolerance
@@ -1168,7 +1164,7 @@ class HardwareCalibrator:
         # Set to User color mode for manual RGB control
         try:
             self.ddc.set_color_preset(monitor, ColorPreset.USER_1)
-        except Exception:
+        except OSError:
             pass
 
         for iteration in range(max_iterations):
@@ -1247,10 +1243,10 @@ class HardwareCalibrator:
 
     def calibrate_brightness(
         self,
-        monitor: Dict,
+        monitor: dict,
         target_nits: float,
         tolerance: float = 5.0  # cd/m² tolerance
-    ) -> Tuple[bool, int]:
+    ) -> tuple[bool, int]:
         """
         Adjust monitor brightness to target luminance.
 
@@ -1346,7 +1342,7 @@ class HardwareLUTUploader:
             "Consider using the manufacturer's calibration software for now."
         )
 
-    def get_supported_monitors(self) -> List[str]:
+    def get_supported_monitors(self) -> list[str]:
         """Get list of detected monitors with hardware LUT support."""
         return list(self._supported_monitors.keys())
 
@@ -1355,14 +1351,14 @@ class HardwareLUTUploader:
 # Convenience Functions
 # =============================================================================
 
-def detect_ddc_monitors() -> List[Dict]:
+def detect_ddc_monitors() -> list[dict]:
     """Quick detection of all DDC/CI capable monitors."""
     controller = DDCCIController()
     monitors = controller.enumerate_monitors()
     return monitors
 
 
-def print_monitor_capabilities(monitor: Dict):
+def print_monitor_capabilities(monitor: dict):
     """Print monitor DDC/CI capabilities for debugging."""
     print(f"\nMonitor: {monitor['name']}")
     caps = monitor.get('capabilities')
@@ -1396,7 +1392,7 @@ if __name__ == "__main__":
                 print(f"  Current Brightness: {settings.brightness}")
                 print(f"  Current Contrast: {settings.contrast}")
                 print(f"  RGB Gain: R={settings.red_gain} G={settings.green_gain} B={settings.blue_gain}")
-            except Exception as e:
+            except RuntimeError as e:
                 print(f"  Could not read settings: {e}")
 
         controller.close()

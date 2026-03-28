@@ -21,16 +21,15 @@ ICC profiles:
 from __future__ import annotations
 
 import logging
-import os
 import re
 import shutil
-import struct
 import subprocess
 from pathlib import Path
-from typing import List, Optional
 
 from calibrate_pro.platform.base import (
     DisplayInfo as PlatformDisplayInfo,
+)
+from calibrate_pro.platform.base import (
     PlatformBackend,
 )
 
@@ -41,7 +40,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # =====================================================================
 
-def _run_cmd(cmd: list[str], timeout: int = 10) -> Optional[str]:
+def _run_cmd(cmd: list[str], timeout: int = 10) -> str | None:
     """Run a shell command and return stdout, or None on failure."""
     try:
         result = subprocess.run(
@@ -105,7 +104,7 @@ def _parse_edid_name(edid_bytes: bytes) -> tuple[str, str, str]:
     return manufacturer, model, serial
 
 
-def _read_drm_edid(card_path: Path) -> Optional[bytes]:
+def _read_drm_edid(card_path: Path) -> bytes | None:
     """Read raw EDID from /sys/class/drm/<card>/edid."""
     edid_path = card_path / "edid"
     try:
@@ -193,7 +192,7 @@ class LinuxBackend(PlatformBackend):
     # Display enumeration
     # ------------------------------------------------------------------
 
-    def enumerate_displays(self) -> List[PlatformDisplayInfo]:
+    def enumerate_displays(self) -> list[PlatformDisplayInfo]:
         """
         Enumerate active displays.
 
@@ -218,7 +217,7 @@ class LinuxBackend(PlatformBackend):
         )
         return []
 
-    def _enumerate_xrandr(self) -> List[PlatformDisplayInfo]:
+    def _enumerate_xrandr(self) -> list[PlatformDisplayInfo]:
         """Enumerate displays via xrandr --query."""
         output = _run_cmd(["xrandr", "--query"])
         if output is None:
@@ -228,7 +227,7 @@ class LinuxBackend(PlatformBackend):
         if not parsed:
             return []
 
-        results: List[PlatformDisplayInfo] = []
+        results: list[PlatformDisplayInfo] = []
         drm_edid_map = self._build_drm_edid_map()
 
         for idx, d in enumerate(parsed):
@@ -270,13 +269,13 @@ class LinuxBackend(PlatformBackend):
 
         return results
 
-    def _enumerate_drm(self) -> List[PlatformDisplayInfo]:
+    def _enumerate_drm(self) -> list[PlatformDisplayInfo]:
         """Enumerate displays via /sys/class/drm/."""
         drm_base = Path("/sys/class/drm")
         if not drm_base.exists():
             return []
 
-        results: List[PlatformDisplayInfo] = []
+        results: list[PlatformDisplayInfo] = []
         idx = 0
 
         try:
@@ -367,9 +366,9 @@ class LinuxBackend(PlatformBackend):
     def apply_gamma_ramp(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """
         Apply a gamma ramp on Linux.
@@ -388,9 +387,9 @@ class LinuxBackend(PlatformBackend):
     def _apply_gamma_xlib(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """Apply gamma ramp via python-xlib XRRSetCrtcGamma."""
         try:
@@ -445,9 +444,9 @@ class LinuxBackend(PlatformBackend):
     def _apply_gamma_xrandr(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """
         Approximate gamma ramp via xrandr --gamma R:G:B.
@@ -462,7 +461,7 @@ class LinuxBackend(PlatformBackend):
         output_name = displays[display_index]
 
         # Estimate per-channel gamma from the LUT midpoint
-        def _estimate_gamma(lut: List[int]) -> float:
+        def _estimate_gamma(lut: list[int]) -> float:
             mid = lut[128] / 65535.0  # Actual midpoint value
             if mid <= 0.0 or mid >= 1.0:
                 return 1.0
@@ -564,7 +563,7 @@ class LinuxBackend(PlatformBackend):
 
         return True
 
-    def get_icc_profile(self, display_index: int) -> Optional[str]:
+    def get_icc_profile(self, display_index: int) -> str | None:
         """
         Get the active ICC profile for a display.
 
@@ -594,7 +593,7 @@ class LinuxBackend(PlatformBackend):
         parsed = _parse_xrandr_output(output)
         return [d['name'] for d in parsed]
 
-    def _get_colord_profile(self, output_name: str) -> Optional[str]:
+    def _get_colord_profile(self, output_name: str) -> str | None:
         """Get the active ICC profile path for an xrandr output via colord."""
         # Try colormgr CLI first
         device_path = self._find_colord_device(output_name)
@@ -615,7 +614,7 @@ class LinuxBackend(PlatformBackend):
 
         return None
 
-    def _find_colord_device(self, output_name: str) -> Optional[str]:
+    def _find_colord_device(self, output_name: str) -> str | None:
         """Find the colord device object path for an xrandr output."""
         output = _run_cmd([
             "colormgr", "find-device-by-property", "OutputName", output_name,

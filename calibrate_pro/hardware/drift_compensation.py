@@ -18,11 +18,11 @@ This is critical for:
 - Displays that haven't fully warmed up
 """
 
-import time
 import logging
+import time
+from dataclasses import dataclass
+
 import numpy as np
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class DriftStats:
     reference_count: int = 0
     max_drift_pct: float = 0.0
     avg_drift_pct: float = 0.0
-    per_channel_drift: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    per_channel_drift: tuple[float, float, float] = (0.0, 0.0, 0.0)
     compensated_patches: int = 0
 
 
@@ -58,7 +58,7 @@ class DriftCompensator:
     def __init__(
         self,
         reference_interval: int = 25,
-        reference_color: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        reference_color: tuple[float, float, float] = (1.0, 1.0, 1.0),
     ):
         """
         Args:
@@ -67,8 +67,8 @@ class DriftCompensator:
         """
         self.interval = reference_interval
         self.reference_color = reference_color
-        self._references: List[DriftReading] = []
-        self._initial_xyz: Optional[np.ndarray] = None
+        self._references: list[DriftReading] = []
+        self._initial_xyz: np.ndarray | None = None
         self._patch_count: int = 0
         self._compensated_count: int = 0
 

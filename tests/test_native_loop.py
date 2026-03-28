@@ -1,13 +1,18 @@
 """Tests for the native calibration loop module."""
 
 import numpy as np
-import pytest
+
 from calibrate_pro.calibration.native_loop import (
-    DisplayProfile, build_correction_lut, compute_de,
-    COLORCHECKER_REF_LAB, COLORCHECKER_SRGB,
-    _chromaticity, compute_ccmx, QDOLED_CCMX,
+    COLORCHECKER_REF_LAB,
+    COLORCHECKER_SRGB,
+    QDOLED_CCMX,
+    DisplayProfile,
+    _chromaticity,
+    build_correction_lut,
+    compute_ccmx,
+    compute_de,
 )
-from calibrate_pro.core.color_math import SRGB_TO_XYZ, srgb_gamma_expand
+from calibrate_pro.core.color_math import SRGB_TO_XYZ
 
 
 class TestChromaticity:
@@ -106,7 +111,7 @@ class TestComputeDe:
 class TestColorCheckerData:
     def test_all_patches_have_references(self):
         """Every patch in COLORCHECKER_SRGB should have a reference Lab."""
-        for name, r, g, b in COLORCHECKER_SRGB:
+        for name, _r, _g, _b in COLORCHECKER_SRGB:
             assert name in COLORCHECKER_REF_LAB, f"Missing ref for {name}"
 
     def test_24_patches(self):
@@ -138,7 +143,7 @@ class TestCCMX:
         def xy_to_XYZ(x, y):
             return np.array([x/y, 1.0, (1-x-y)/y])
         sensor_w = xy_to_XYZ(0.3134, 0.3240)
-        true_w = xy_to_XYZ(0.3134, 0.3291)
+        xy_to_XYZ(0.3134, 0.3291)
         corrected = QDOLED_CCMX @ sensor_w
         # Chromaticity should match true white
         cx = corrected[0] / sum(corrected)
