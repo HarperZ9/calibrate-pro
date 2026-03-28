@@ -14,26 +14,25 @@ Author: Zain Dana / Quanta
 License: MIT
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional, Callable
-from enum import Enum
-from pathlib import Path
 import json
 import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
 
-from .pq_st2084 import (
-    pq_eotf, pq_oetf, HDR10Metadata, PQDisplayAssessment,
-    calculate_pq_eotf_error, generate_pq_verification_patches,
-    assess_pq_display, pq_code_to_nits, nits_to_pq_code
-)
-from .hlg import (
-    hlg_eotf, hlg_oetf, HLGDisplaySettings,
-    calculate_hlg_eotf_error, generate_hlg_verification_patches
-)
+import numpy as np
+
+from .hlg import calculate_hlg_eotf_error, hlg_eotf
 from .mastering_standards import (
-    MasteringSpec, NetflixMasteringProfile, EBUGrade1Profile,
-    validate_mastering_compliance, ComplianceLevel
+    ComplianceLevel,
+    validate_mastering_compliance,
+)
+from .pq_st2084 import (
+    PQDisplayAssessment,
+    assess_pq_display,
+    generate_pq_verification_patches,
+    pq_eotf,
 )
 
 
@@ -68,7 +67,7 @@ class HDRCalibrationConfig:
     hlg_system_gamma: float = 1.2
 
     # Mastering standard for validation
-    mastering_standard: Optional[str] = "netflix"
+    mastering_standard: str | None = "netflix"
 
     # Calibration options
     enable_near_black_optimization: bool = True
@@ -82,9 +81,9 @@ class HDRMeasurement:
     signal_level: float  # Input signal [0, 1]
     target_luminance: float  # Expected luminance (cd/m²)
     measured_luminance: float  # Actual luminance (cd/m²)
-    measured_xyz: Optional[Tuple[float, float, float]] = None
-    delta_e: Optional[float] = None
-    eotf_error_percent: Optional[float] = None
+    measured_xyz: tuple[float, float, float] | None = None
+    delta_e: float | None = None
+    eotf_error_percent: float | None = None
     timestamp: float = field(default_factory=time.time)
 
 
@@ -92,7 +91,7 @@ class HDRMeasurement:
 class HDRCalibrationResult:
     """Complete HDR calibration result."""
     config: HDRCalibrationConfig
-    measurements: List[HDRMeasurement]
+    measurements: list[HDRMeasurement]
 
     # Summary statistics
     peak_luminance: float
@@ -103,19 +102,19 @@ class HDRCalibrationResult:
     near_black_error: float
 
     # Corrections generated
-    correction_lut_path: Optional[Path] = None
-    icc_profile_path: Optional[Path] = None
+    correction_lut_path: Path | None = None
+    icc_profile_path: Path | None = None
 
     # Compliance
     compliance_level: ComplianceLevel = ComplianceLevel.FAILED
-    compliance_issues: List[str] = field(default_factory=list)
+    compliance_issues: list[str] = field(default_factory=list)
 
     # Metadata
     display_name: str = ""
     calibration_date: str = ""
     duration_seconds: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "display": self.display_name,
@@ -266,7 +265,7 @@ class HDR10Calibration:
 
     def generate_correction_lut(
         self,
-        measurements: List[HDRMeasurement],
+        measurements: list[HDRMeasurement],
         lut_size: int = 65
     ) -> np.ndarray:
         """
@@ -282,14 +281,14 @@ class HDR10Calibration:
         # Extract measurement data
         signals = np.array([m.signal_level for m in measurements])
         measured = np.array([m.measured_luminance for m in measurements])
-        targets = np.array([m.target_luminance for m in measurements])
+        np.array([m.target_luminance for m in measurements])
 
         # Create LUT by interpolating corrections
         lut_signals = np.linspace(0, 1, lut_size)
         lut_targets = self.get_target_luminance(lut_signals)
 
         # Interpolate measured response
-        lut_measured = np.interp(lut_signals, signals, measured)
+        np.interp(lut_signals, signals, measured)
 
         # Calculate correction (what input gives desired output)
         corrections = np.zeros(lut_size)
@@ -328,7 +327,7 @@ class HDR10PlusCalibration(HDR10Calibration):
             config = HDRCalibrationConfig(format=HDRFormat.HDR10_PLUS)
         super().__init__(config)
 
-    def generate_scene_test_patches(self, num_scenes: int = 5) -> List[Dict]:
+    def generate_scene_test_patches(self, num_scenes: int = 5) -> list[dict]:
         """
         Generate test patches simulating different HDR10+ scenes.
 
@@ -473,7 +472,7 @@ class HDRCalibrationSuite:
         else:
             self.calibrator = HDR10Calibration(self.config)
 
-    def get_test_patches(self) -> Dict[str, np.ndarray]:
+    def get_test_patches(self) -> dict[str, np.ndarray]:
         """
         Get all test patches for calibration.
 
@@ -506,7 +505,7 @@ class HDRCalibrationSuite:
         self,
         grayscale_signals: np.ndarray,
         grayscale_luminance: np.ndarray,
-        primary_measurements: Optional[Dict] = None
+        primary_measurements: dict | None = None
     ) -> HDRCalibrationResult:
         """
         Analyze calibration measurements.
@@ -534,7 +533,7 @@ class HDRCalibrationSuite:
         self,
         result: HDRCalibrationResult,
         output_format: str = "cube"
-    ) -> Tuple[np.ndarray, Optional[Path]]:
+    ) -> tuple[np.ndarray, Path | None]:
         """
         Generate correction LUT from calibration result.
 
@@ -557,7 +556,7 @@ class HDRCalibrationSuite:
         black_level: float,
         sample_luminances: np.ndarray,
         sample_signals: np.ndarray
-    ) -> Dict:
+    ) -> dict:
         """
         Quick HDR capability assessment without full calibration.
 

@@ -12,16 +12,13 @@ This approach can achieve Delta E < 2.0 for well-characterized panels,
 approaching colorimeter accuracy for known display models.
 """
 
-import numpy as np
+import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Tuple, Callable, Union
 from pathlib import Path
-from enum import Enum, auto
-import time
-import struct
-import ctypes
-from ctypes import wintypes
+from typing import Any
 
+import numpy as np
 
 # =============================================================================
 # Color Science Constants
@@ -154,12 +151,12 @@ class CalibrationResult:
     estimated_cct_error: int = 0
 
     # Correction data
-    rgb_gain_matrix: Optional[np.ndarray] = None
-    gamma_correction: Optional[Dict[str, float]] = None
+    rgb_gain_matrix: np.ndarray | None = None
+    gamma_correction: dict[str, float] | None = None
 
     # Profile/LUT generated
-    icc_profile_path: Optional[str] = None
-    lut_path: Optional[str] = None
+    icc_profile_path: str | None = None
+    lut_path: str | None = None
 
     # VCGT applied flag
     vcgt_applied: bool = False
@@ -168,7 +165,7 @@ class CalibrationResult:
     lut_applied: bool = False
 
     # Messages
-    messages: List[str] = field(default_factory=list)
+    messages: list[str] = field(default_factory=list)
 
 
 # =============================================================================
@@ -184,7 +181,7 @@ def xy_to_XYZ(x: float, y: float, Y: float = 1.0) -> np.ndarray:
     return np.array([X, Y, Z])
 
 
-def XYZ_to_xy(XYZ: np.ndarray) -> Tuple[float, float]:
+def XYZ_to_xy(XYZ: np.ndarray) -> tuple[float, float]:
     """Convert XYZ to CIE 1931 xy chromaticity."""
     total = XYZ[0] + XYZ[1] + XYZ[2]
     if total == 0:
@@ -230,7 +227,7 @@ def Lab_to_XYZ(Lab: np.ndarray, illuminant: str = "D65") -> np.ndarray:
     kappa = 24389 / 27
 
     xr = fx**3 if fx**3 > epsilon else (116 * fx - 16) / kappa
-    yr = ((L + 16) / 116)**3 if L > kappa * epsilon else L / kappa
+    yr = ((L + 16) / 116)**3 if kappa * epsilon < L else L / kappa
     zr = fz**3 if fz**3 > epsilon else (116 * fz - 16) / kappa
 
     return np.array([xr, yr, zr]) * ref_XYZ
@@ -335,7 +332,7 @@ def bradford_adapt(XYZ_source: np.ndarray,
     return M_adapt @ XYZ_source
 
 
-def primaries_to_matrix(primaries: Dict[str, Tuple[float, float]]) -> np.ndarray:
+def primaries_to_matrix(primaries: dict[str, tuple[float, float]]) -> np.ndarray:
     """
     Calculate RGB to XYZ matrix from chromaticity coordinates.
 
@@ -383,7 +380,7 @@ def calculate_cct(x: float, y: float) -> int:
     return int(round(CCT))
 
 
-def cct_to_xy(cct: int) -> Tuple[float, float]:
+def cct_to_xy(cct: int) -> tuple[float, float]:
     """
     Convert CCT to xy chromaticity (Planckian locus approximation).
 
@@ -407,7 +404,7 @@ def cct_to_xy(cct: int) -> Tuple[float, float]:
 # EDID Parsing for Colorimetry
 # =============================================================================
 
-def parse_edid_colorimetry(edid_bytes: bytes) -> Optional[Dict[str, Any]]:
+def parse_edid_colorimetry(edid_bytes: bytes) -> dict[str, Any] | None:
     """
     Parse display colorimetry from EDID data.
 
@@ -455,11 +452,11 @@ def parse_edid_colorimetry(edid_bytes: bytes) -> Optional[Dict[str, Any]]:
             "cct": calculate_cct(white_x, white_y),
         }
 
-    except Exception:
+    except (IndexError, ValueError):
         return None
 
 
-def get_edid_from_registry(display_index: int = 0) -> Optional[bytes]:
+def get_edid_from_registry(display_index: int = 0) -> bytes | None:
     """
     Read EDID data from Windows registry for a display.
     """
@@ -503,7 +500,7 @@ def get_edid_from_registry(display_index: int = 0) -> Optional[bytes]:
 
         return None
 
-    except Exception:
+    except OSError:
         return None
 
 
@@ -529,7 +526,7 @@ class SensorlessCalibrationEngine:
         self._panel_profile = None
         self._edid_colorimetry = None
         self._display_state = DisplayState()
-        self._progress_callback: Optional[Callable[[str, float], None]] = None
+        self._progress_callback: Callable[[str, float], None] | None = None
         self._vcgt_calibrator = None
         self._display_index = 0
         self._vcgt_applied = False
@@ -605,7 +602,7 @@ class SensorlessCalibrationEngine:
                 # Use fallback
                 self._panel_profile = db.get_fallback()
 
-        except Exception as e:
+        except (ImportError, KeyError, AttributeError) as e:
             print(f"Warning: Could not load panel profile: {e}")
             self._panel_profile = None
 
@@ -615,7 +612,7 @@ class SensorlessCalibrationEngine:
             edid = get_edid_from_registry(display_index)
             if edid:
                 self._edid_colorimetry = parse_edid_colorimetry(edid)
-        except Exception:
+        except (IndexError, ValueError, OSError):
             self._edid_colorimetry = None
 
     def _read_display_state(self):
@@ -635,7 +632,7 @@ class SensorlessCalibrationEngine:
             self._display_state.green_black = settings.green_black_level
             self._display_state.blue_black = settings.blue_black_level
 
-        except Exception:
+        except (RuntimeError, OSError):
             pass
 
         # Load native primaries from panel profile or EDID
@@ -670,7 +667,7 @@ class SensorlessCalibrationEngine:
 
     def calibrate(self,
                   target: CalibrationTarget,
-                  output_dir: Optional[Path] = None) -> CalibrationResult:
+                  output_dir: Path | None = None) -> CalibrationResult:
         """
         Perform sensorless hardware calibration.
 
@@ -788,7 +785,7 @@ class SensorlessCalibrationEngine:
         target_XYZ = xy_to_XYZ(*target_white_xy)
         estimated_XYZ = xy_to_XYZ(*estimated_white)
 
-        native_Lab = XYZ_to_Lab(native_XYZ)
+        XYZ_to_Lab(native_XYZ)
         target_Lab = XYZ_to_Lab(target_XYZ)
         estimated_Lab = XYZ_to_Lab(estimated_XYZ)
 
@@ -870,8 +867,8 @@ class SensorlessCalibrationEngine:
         return result
 
     def _calculate_rgb_gains_for_whitepoint(self,
-                                            native_xy: Tuple[float, float],
-                                            target_xy: Tuple[float, float]) -> np.ndarray:
+                                            native_xy: tuple[float, float],
+                                            target_xy: tuple[float, float]) -> np.ndarray:
         """
         Calculate RGB gain adjustments to achieve target white point.
 
@@ -882,8 +879,8 @@ class SensorlessCalibrationEngine:
         return self._iterative_white_balance(native_xy, target_xy)
 
     def _iterative_white_balance(self,
-                                  native_xy: Tuple[float, float],
-                                  target_xy: Tuple[float, float],
+                                  native_xy: tuple[float, float],
+                                  target_xy: tuple[float, float],
                                   max_iterations: int = 50,
                                   tolerance: float = 0.00001) -> np.ndarray:
         """
@@ -902,11 +899,11 @@ class SensorlessCalibrationEngine:
 
         try:
             M = primaries_to_matrix(native_primaries)
-        except Exception:
+        except (np.linalg.LinAlgError, ValueError):
             return self._calculate_rgb_gains_from_cct(native_xy, target_xy)
 
         # Target XYZ (normalized to Y=1)
-        target_XYZ = xy_to_XYZ(*target_xy, Y=1.0)
+        xy_to_XYZ(*target_xy, Y=1.0)
 
         # We need to find RGB gains (g) such that M @ g produces XYZ with target xy
         # This is a constrained optimization problem
@@ -918,7 +915,7 @@ class SensorlessCalibrationEngine:
         # Start with equal gains
         gains = np.array([1.0, 1.0, 1.0])
 
-        for iteration in range(max_iterations):
+        for _iteration in range(max_iterations):
             # Calculate current XYZ
             current_XYZ = M @ gains
             current_xy = XYZ_to_xy(current_XYZ)
@@ -968,7 +965,7 @@ class SensorlessCalibrationEngine:
                 # Normalize to keep maximum at 1.0 (will scale to 100 later)
                 gains = gains / np.max(gains)
 
-            except Exception:
+            except (np.linalg.LinAlgError, ValueError):
                 # Fallback to gradient descent if pseudo-inverse fails
                 lr = 0.5
                 gains[0] += lr * error_x * 2.0
@@ -984,8 +981,8 @@ class SensorlessCalibrationEngine:
         return gains_scaled
 
     def _calculate_rgb_gains_direct(self,
-                                     native_xy: Tuple[float, float],
-                                     target_xy: Tuple[float, float]) -> np.ndarray:
+                                     native_xy: tuple[float, float],
+                                     target_xy: tuple[float, float]) -> np.ndarray:
         """
         Direct calculation of RGB gains using matrix math.
         """
@@ -1027,13 +1024,13 @@ class SensorlessCalibrationEngine:
 
             return gains_normalized
 
-        except Exception:
+        except (np.linalg.LinAlgError, ValueError):
             # Fallback: simple CCT-based adjustment
             return self._calculate_rgb_gains_from_cct(native_xy, target_xy)
 
     def _calculate_rgb_gains_from_cct(self,
-                                       native_xy: Tuple[float, float],
-                                       target_xy: Tuple[float, float]) -> np.ndarray:
+                                       native_xy: tuple[float, float],
+                                       target_xy: tuple[float, float]) -> np.ndarray:
         """
         Fallback: Calculate RGB gains using CCT difference.
 
@@ -1094,7 +1091,7 @@ class SensorlessCalibrationEngine:
         return brightness
 
     def _estimate_white_point_after_adjustment(self,
-                                                rgb_gains: np.ndarray) -> Tuple[float, float]:
+                                                rgb_gains: np.ndarray) -> tuple[float, float]:
         """
         Estimate the white point that will be achieved after RGB gain adjustment.
 
@@ -1122,7 +1119,7 @@ class SensorlessCalibrationEngine:
             # Convert XYZ to xy chromaticity
             return XYZ_to_xy(adjusted_XYZ)
 
-        except Exception:
+        except (np.linalg.LinAlgError, ValueError):
             # Fallback: assume linear adjustment
             return (self._display_state.native_white_x,
                    self._display_state.native_white_y)
@@ -1191,10 +1188,10 @@ class SensorlessCalibrationEngine:
 
             return M_correction
 
-        except Exception:
+        except (np.linalg.LinAlgError, ValueError):
             return np.eye(3)  # Identity matrix as fallback
 
-    def _calculate_gamma_correction(self, target: CalibrationTarget) -> Dict[str, float]:
+    def _calculate_gamma_correction(self, target: CalibrationTarget) -> dict[str, float]:
         """
         Calculate per-channel gamma correction factors.
         """
@@ -1237,11 +1234,11 @@ class SensorlessCalibrationEngine:
             # If native is significantly larger, we need gamut mapping
             return native_area > target_area * 1.1
 
-        except Exception:
+        except (KeyError, ValueError):
             return True  # Safe default
 
     def _generate_icc_profile(self, target: CalibrationTarget,
-                              output_dir: Path) -> Optional[Path]:
+                              output_dir: Path) -> Path | None:
         """
         Generate ICC profile for the calibrated display.
 
@@ -1308,14 +1305,14 @@ class SensorlessCalibrationEngine:
 
             return profile_path
 
-        except Exception as e:
+        except (ImportError, OSError, ValueError) as e:
             import traceback
             print(f"ICC profile generation failed: {e}")
             traceback.print_exc()
             return None
 
     def _generate_3d_lut(self, target: CalibrationTarget,
-                         output_dir: Path) -> Optional[Path]:
+                         output_dir: Path) -> Path | None:
         """
         Generate 3D LUT for gamut mapping and color correction.
 
@@ -1348,7 +1345,7 @@ class SensorlessCalibrationEngine:
             correction_matrix = None
             try:
                 correction_matrix = self._calculate_correction_matrix(target)
-            except Exception:
+            except (np.linalg.LinAlgError, ValueError):
                 pass  # Will be computed from primaries
 
             # Create LUT generator with 33x33x33 grid (good balance of quality/size)
@@ -1391,7 +1388,7 @@ class SensorlessCalibrationEngine:
 
             return lut_path
 
-        except Exception as e:
+        except (ImportError, OSError, ValueError) as e:
             import traceback
             print(f"3D LUT generation failed: {e}")
             traceback.print_exc()
@@ -1409,9 +1406,9 @@ class SensorlessCalibrationEngine:
         """
         try:
             from calibrate_pro.profiles.profile_installer import (
-                install_profile,
                 associate_profile_with_display,
-                enumerate_displays
+                enumerate_displays,
+                install_profile,
             )
 
             # Install profile to system
@@ -1445,7 +1442,7 @@ class SensorlessCalibrationEngine:
         except ImportError as e:
             print(f"Profile installer not available: {e}")
             return False
-        except Exception as e:
+        except OSError as e:
             print(f"Profile installation error: {e}")
             return False
 
@@ -1455,7 +1452,7 @@ class SensorlessCalibrationEngine:
             try:
                 from calibrate_pro.hardware.ddc_ci import VCPCode
                 self._ddc_controller.set_vcp(self._monitor, VCPCode.BRIGHTNESS, value)
-            except Exception:
+            except (RuntimeError, OSError):
                 pass
 
     def _set_rgb_gain(self, r: int, g: int, b: int):
@@ -1463,7 +1460,7 @@ class SensorlessCalibrationEngine:
         if self._ddc_controller and self._monitor:
             try:
                 self._ddc_controller.set_rgb_gain(self._monitor, r, g, b)
-            except Exception:
+            except (RuntimeError, OSError):
                 pass
 
     def reset_vcgt(self) -> bool:
@@ -1491,7 +1488,7 @@ class SensorlessCalibrationEngine:
         """Check if VCGT calibration is currently applied."""
         return self._vcgt_applied
 
-    def apply_lut_system_wide(self, lut_path: Optional[Path] = None) -> bool:
+    def apply_lut_system_wide(self, lut_path: Path | None = None) -> bool:
         """
         Apply 3D LUT system-wide via DWM.
 
@@ -1543,7 +1540,7 @@ class SensorlessCalibrationEngine:
         except ImportError as e:
             print(f"DWM LUT module not available: {e}")
             return False
-        except Exception as e:
+        except OSError as e:
             print(f"Failed to apply system-wide LUT: {e}")
             return False
 
@@ -1563,7 +1560,7 @@ class SensorlessCalibrationEngine:
 
             return controller.unload_lut(self._display_index)
 
-        except Exception as e:
+        except (ImportError, OSError) as e:
             print(f"Failed to remove system LUT: {e}")
             return False
 
@@ -1659,7 +1656,7 @@ def run_sensorless_calibration(
     luminance: float = 120.0,
     gamma: float = 2.2,
     gamut: str = "sRGB",
-    output_dir: Optional[str] = None
+    output_dir: str | None = None
 ) -> CalibrationResult:
     """
     Convenience function to run sensorless calibration.
@@ -1718,14 +1715,14 @@ class DisplayInfo:
     name: str
     edid_model: str
     panel_type: str
-    native_white_xy: Tuple[float, float]
+    native_white_xy: tuple[float, float]
     native_cct: int
-    edid_primaries: Dict[str, Tuple[float, float]]
+    edid_primaries: dict[str, tuple[float, float]]
     has_panel_profile: bool
     manufacturer: str = ""
 
 
-def detect_displays() -> List[DisplayInfo]:
+def detect_displays() -> list[DisplayInfo]:
     """
     Detect all connected displays and gather information about each.
 
@@ -1800,7 +1797,7 @@ def auto_calibrate(
     whitepoint: str = "D65",
     gamma: float = 2.2,
     luminance: float = 120.0
-) -> Tuple[bool, str, Optional[CalibrationResult]]:
+) -> tuple[bool, str, CalibrationResult | None]:
     """
     Automatically detect display and apply calibration.
 
@@ -1841,7 +1838,7 @@ def auto_calibrate(
     )
 
     if result.success:
-        msg += f"\nCalibration applied successfully!\n"
+        msg += "\nCalibration applied successfully!\n"
         msg += f"VCGT correction: R={result.red_gain}%, G={result.green_gain}%, B={result.blue_gain}%\n"
         msg += f"Estimated Delta E: {result.estimated_delta_e_white:.3f}\n"
 
@@ -1864,7 +1861,7 @@ def auto_calibrate(
 # System-wide LUT Functions
 # =============================================================================
 
-def apply_lut(lut_path: Union[str, Path], display_index: int = 0) -> Tuple[bool, str]:
+def apply_lut(lut_path: str | Path, display_index: int = 0) -> tuple[bool, str]:
     """
     Apply a 3D LUT file system-wide to a display.
 
@@ -1911,11 +1908,11 @@ def apply_lut(lut_path: Union[str, Path], display_index: int = 0) -> Tuple[bool,
                 "Use the .cube file in color-managed apps (DaVinci Resolve, Photoshop)."
             )
 
-    except Exception as e:
+    except (ImportError, OSError) as e:
         return False, f"Error applying LUT: {e}"
 
 
-def remove_lut(display_index: int = 0) -> Tuple[bool, str]:
+def remove_lut(display_index: int = 0) -> tuple[bool, str]:
     """
     Remove system-wide LUT from a display (restore identity).
 
@@ -1939,11 +1936,11 @@ def remove_lut(display_index: int = 0) -> Tuple[bool, str]:
         else:
             return False, "Failed to remove LUT"
 
-    except Exception as e:
+    except (ImportError, OSError) as e:
         return False, f"Error removing LUT: {e}"
 
 
-def get_lut_status() -> Dict[int, Dict]:
+def get_lut_status() -> dict[int, dict]:
     """
     Get status of active LUTs on all displays.
 
@@ -1971,5 +1968,5 @@ def get_lut_status() -> Dict[int, Dict]:
 
         return result
 
-    except Exception:
+    except (ImportError, OSError):
         return {}

@@ -8,22 +8,23 @@ Provides interactive 3D visualization of color lookup tables:
 - LUT statistics
 """
 
-from typing import Optional, List, Tuple
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
+
 import numpy as np
-
+from PyQt6.QtCore import QPointF, Qt, QTimer
+from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QSlider, QComboBox, QGroupBox, QGridLayout,
-    QSizePolicy, QStackedWidget, QTabWidget
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QSlider,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QPointF, QTimer, pyqtSignal
-from PyQt6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QPainterPath,
-    QImage, QPixmap, QLinearGradient, QTransform, QFont
-)
-
 
 # =============================================================================
 # Theme Colors
@@ -65,7 +66,7 @@ class LUT3D:
     @classmethod
     def from_cube_file(cls, path: str) -> 'LUT3D':
         """Load from .cube file."""
-        with open(path, 'r') as f:
+        with open(path) as f:
             lines = f.readlines()
 
         size = 0
@@ -91,7 +92,7 @@ class LUT3D:
         data = np.array(data_lines, dtype=np.float32).reshape((size, size, size, 3))
         return cls(size=size, data=data)
 
-    def lookup(self, r: float, g: float, b: float) -> Tuple[float, float, float]:
+    def lookup(self, r: float, g: float, b: float) -> tuple[float, float, float]:
         """Look up color with trilinear interpolation."""
         # Scale to LUT indices
         r_idx = r * (self.size - 1)
@@ -159,14 +160,14 @@ class LUT3D:
 class LUTCubeView(QWidget):
     """3D rotating cube view of LUT."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(300, 300)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMouseTracking(True)
 
         # LUT data
-        self.lut: Optional[LUT3D] = None
+        self.lut: LUT3D | None = None
 
         # View parameters
         self.rotation_x = 30  # degrees
@@ -380,20 +381,20 @@ class LUTCubeView(QWidget):
 class LUTSliceView(QWidget):
     """2D slice view of LUT (R, G, or B plane)."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(200, 200)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # LUT data
-        self.lut: Optional[LUT3D] = None
+        self.lut: LUT3D | None = None
 
         # Slice settings
         self.slice_axis = 'B'  # R, G, or B
         self.slice_position = 0.5  # 0.0 to 1.0
 
         # Pre-rendered image
-        self._slice_image: Optional[QImage] = None
+        self._slice_image: QImage | None = None
 
     def set_lut(self, lut: LUT3D):
         """Set the LUT to display."""
@@ -514,14 +515,14 @@ class LUTSliceView(QWidget):
 class BeforeAfterView(QWidget):
     """Side-by-side or split comparison view."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(400, 200)
         self.setMouseTracking(True)
 
         # Source image
-        self._source_image: Optional[QImage] = None
-        self._processed_image: Optional[QImage] = None
+        self._source_image: QImage | None = None
+        self._processed_image: QImage | None = None
 
         # View mode
         self.split_position = 0.5  # For split view
@@ -644,12 +645,12 @@ class BeforeAfterView(QWidget):
 class LUTPreviewWidget(QWidget):
     """Complete LUT preview with multiple views."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
         # Current LUT
-        self.lut: Optional[LUT3D] = None
+        self.lut: LUT3D | None = None
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

@@ -12,13 +12,10 @@ This is the main entry point for the compiled executable.
 """
 
 import argparse
-import sys
 import os
+import sys
 import time
-import threading
 from pathlib import Path
-from typing import Optional, List, Dict
-import json
 
 # Ensure we can find our modules
 if getattr(sys, 'frozen', False):
@@ -70,9 +67,9 @@ def cmd_detect(args) -> int:
 
 def cmd_calibrate(args) -> int:
     """Calibrate a display and generate ICC profile + 3D LUT."""
-    from calibrate_pro.panels.detection import enumerate_displays, get_display_by_number
     from calibrate_pro.core.calibration_engine import CalibrationEngine, CalibrationMode
     from calibrate_pro.lut_system.color_loader import get_color_loader
+    from calibrate_pro.panels.detection import enumerate_displays, get_display_by_number
 
     print(get_banner())
 
@@ -102,7 +99,7 @@ def cmd_calibrate(args) -> int:
     print(f"Calibrating: {model_string}")
     print(f"Resolution: {display.width}x{display.height} @ {display.refresh_rate}Hz")
     if args.hdr:
-        print(f"HDR Mode: ENABLED")
+        print("HDR Mode: ENABLED")
     print()
 
     # Output directory
@@ -489,7 +486,7 @@ def cmd_status(args) -> int:
         print(f"\n  Display {display_id + 1}{primary}: {display['monitor']}")
 
         if cal:
-            print(f"    Status: CALIBRATED")
+            print("    Status: CALIBRATED")
             if cal['lut']:
                 print(f"    LUT: {Path(cal['lut']).name}")
             if cal['icc']:
@@ -498,7 +495,7 @@ def cmd_status(args) -> int:
                 age = time.time() - cal['last_applied']
                 print(f"    Last Applied: {age:.0f}s ago")
         else:
-            print(f"    Status: Not calibrated")
+            print("    Status: Not calibrated")
 
     return 0
 

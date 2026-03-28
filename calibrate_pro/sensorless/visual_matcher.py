@@ -7,7 +7,7 @@ calibration without a hardware colorimeter.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Callable
+
 import numpy as np
 
 
@@ -94,7 +94,7 @@ class VisualMatcher:
         return patch
 
     def create_display_patch(self, target_rgb: tuple[int, int, int],
-                              adjustment: Optional[CalibrationAdjustment] = None,
+                              adjustment: CalibrationAdjustment | None = None,
                               size: tuple[int, int] = (200, 200)) -> np.ndarray:
         """
         Create an adjusted display patch for comparison.
@@ -267,7 +267,7 @@ class GrayscaleBalancer:
     Guides users through RGB balance adjustment for neutral grays.
     """
 
-    def __init__(self, matcher: Optional[VisualMatcher] = None):
+    def __init__(self, matcher: VisualMatcher | None = None):
         """
         Initialize grayscale balancer.
 

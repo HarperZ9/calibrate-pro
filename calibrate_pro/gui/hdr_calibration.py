@@ -7,11 +7,10 @@ Generates HDR 3D LUTs with PQ EOTF for system-wide color correction.
 Requires administrator privileges for DWM LUT injection.
 """
 
-import sys
-import os
 import ctypes
+import os
+import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -56,30 +55,58 @@ def run_as_admin():
         return False
 
 try:
-    from PyQt6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QSlider, QPushButton, QComboBox, QGroupBox, QFormLayout,
-        QSpinBox, QDoubleSpinBox, QCheckBox, QMessageBox, QTabWidget,
-        QProgressBar, QTextEdit, QFrame, QSplitter
-    )
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt6.QtGui import QFont, QColor, QPalette
-except ImportError:
-    from PyQt5.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QLabel, QSlider, QPushButton, QComboBox, QGroupBox, QFormLayout,
-        QSpinBox, QDoubleSpinBox, QCheckBox, QMessageBox, QTabWidget,
-        QProgressBar, QTextEdit, QFrame, QSplitter
+    from PyQt6.QtGui import QColor, QPalette
+    from PyQt6.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QDoubleSpinBox,
+        QFormLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QMessageBox,
+        QPushButton,
+        QSlider,
+        QSpinBox,
+        QTabWidget,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
+except ImportError:
     from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt5.QtGui import QFont, QColor, QPalette
+    from PyQt5.QtGui import QColor, QPalette
+    from PyQt5.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QDoubleSpinBox,
+        QFormLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QMessageBox,
+        QPushButton,
+        QSlider,
+        QSpinBox,
+        QTabWidget,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
+    )
 
-import numpy as np
 
 from calibrate_pro.lut_system.dwm_lut import (
-    DwmLutController, LUTType, MonitorInfo,
-    generate_hdr_calibration_lut, generate_sdr_calibration_lut,
-    list_monitors, get_dwm_lut_directory, pq_eotf, pq_oetf
+    DwmLutController,
+    LUTType,
+    MonitorInfo,
+    generate_hdr_calibration_lut,
+    generate_sdr_calibration_lut,
+    list_monitors,
 )
 
 
@@ -187,7 +214,7 @@ class HDRCalibrationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.controller = DwmLutController()
-        self.current_monitor: Optional[MonitorInfo] = None
+        self.current_monitor: MonitorInfo | None = None
         self.live_update = False
 
         self.setWindowTitle("HDR Calibration - Calibrate Pro")
@@ -435,7 +462,7 @@ class HDRCalibrationWindow(QMainWindow):
         """Handle monitor selection change."""
         if index >= 0:
             data = self.monitor_combo.itemData(index)
-            monitors = self.controller.get_monitors()
+            self.controller.get_monitors()
             if data and 'index' in data:
                 self.current_monitor = self.controller.get_monitor_by_index(data['index'])
                 self._log(f"Selected: {data['friendly_name']}")
@@ -559,7 +586,7 @@ class HDRCalibrationWindow(QMainWindow):
             if success:
                 self._log(f"Applied {lut_type.value.upper()} LUT: {params['lut_size']}³")
             else:
-                self._log(f"Failed to apply LUT")
+                self._log("Failed to apply LUT")
 
             self._update_status()
 
@@ -605,7 +632,7 @@ class HDRCalibrationWindow(QMainWindow):
             if success:
                 self._log(f"Removed {lut_type.value.upper()} LUT")
             else:
-                self._log(f"Failed to remove LUT")
+                self._log("Failed to remove LUT")
 
             self._update_status()
 
@@ -643,7 +670,7 @@ class HDRCalibrationWindow(QMainWindow):
             # Try to start
             self.controller.start_dwm_lut_gui()
             self._log("Started DwmLutGUI")
-        except Exception as e:
+        except Exception:
             # Needs admin - show instructions
             QMessageBox.information(
                 self,

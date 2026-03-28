@@ -13,28 +13,24 @@ Author: Zain Dana / Quanta
 License: MIT
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Callable, Optional, Tuple, Union, List, Dict
-from pathlib import Path
-from enum import Enum
-import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+
+import numpy as np
+
+from .color_math import (
+    lab_to_xyz,
+    primaries_to_xyz_matrix,
+    srgb_to_xyz,
+    xyz_to_lab,
+    xyz_to_srgb,
+)
+from .color_models import CAM16, CAM16ViewingConditions, Jzazbz, pq_oetf
 
 # Import core modules
-from .lut_engine import LUT3D, LUTFormat, LUTGenerator
-from .color_math import (
-    srgb_to_xyz, xyz_to_srgb, xyz_to_lab, lab_to_xyz,
-    bradford_adapt, D50_WHITE, D65_WHITE, Illuminant,
-    delta_e_2000, gamma_decode, gamma_encode,
-    srgb_gamma_expand, srgb_gamma_compress,
-    primaries_to_xyz_matrix
-)
-from .color_models import (
-    CAM16, CAM16ViewingConditions, Jzazbz, ICtCp,
-    pq_eotf, pq_oetf, xyz_to_cam16_jmh, delta_e_hdr
-)
+from .lut_engine import LUT3D, LUTFormat
 
 # =============================================================================
 # Advanced LUT Class with Extended Features
@@ -59,7 +55,7 @@ class AdvancedLUT3D(LUT3D):
     - Perceptual optimization
     """
     interpolation: LUTInterpolation = LUTInterpolation.TETRAHEDRAL
-    hdr_metadata: Dict = field(default_factory=dict)
+    hdr_metadata: dict = field(default_factory=dict)
     is_hdr: bool = False
     peak_luminance: float = 100.0  # cd/m²
     min_luminance: float = 0.0001
@@ -234,7 +230,7 @@ class AdvancedLUTGenerator:
 
     def create_calibration_lut_cam16(
         self,
-        panel_profile: Dict,
+        panel_profile: dict,
         target_colorspace: str = 'srgb',
         gamut_mapping: str = 'cam16',
         preserve_black: bool = True,
@@ -457,7 +453,7 @@ class AdvancedLUTGenerator:
         except (ValueError, np.linalg.LinAlgError, ZeroDivisionError):
             return np.clip(rgb_linear, 0, 1)
 
-    def _get_colorspace_primaries(self, colorspace: str) -> Tuple:
+    def _get_colorspace_primaries(self, colorspace: str) -> tuple:
         """Get primaries for named colorspace."""
         primaries = {
             'srgb': ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
@@ -469,9 +465,9 @@ class AdvancedLUTGenerator:
 
     def single_pass_multi_target(
         self,
-        panel_profile: Dict,
-        targets: List[str] = ['srgb', 'p3', 'bt2020']
-    ) -> Dict[str, AdvancedLUT3D]:
+        panel_profile: dict,
+        targets: list[str] = None
+    ) -> dict[str, AdvancedLUT3D]:
         """
         Generate multiple target calibrations from single profile.
 
@@ -484,6 +480,8 @@ class AdvancedLUTGenerator:
         Returns:
             Dictionary of {target_name: LUT}
         """
+        if targets is None:
+            targets = ['srgb', 'p3', 'bt2020']
         results = {}
 
         for target in targets:
@@ -498,7 +496,7 @@ class AdvancedLUTGenerator:
 
     def create_hdr_calibration_lut(
         self,
-        panel_profile: Dict,
+        panel_profile: dict,
         peak_luminance: float = 1000.0,
         min_luminance: float = 0.0001,
         transfer_function: str = 'pq',
@@ -787,9 +785,9 @@ class LUTManipulator:
 # =============================================================================
 
 def create_256_cube_lut(
-    panel_profile: Dict,
+    panel_profile: dict,
     target: str = 'srgb',
-    output_path: Optional[Path] = None
+    output_path: Path | None = None
 ) -> AdvancedLUT3D:
     """
     Create maximum accuracy 256³ calibration LUT.
@@ -818,9 +816,9 @@ def create_256_cube_lut(
 
 
 def create_hdr_lut_suite(
-    panel_profile: Dict,
+    panel_profile: dict,
     peak_luminance: float = 1000.0
-) -> Dict[str, AdvancedLUT3D]:
+) -> dict[str, AdvancedLUT3D]:
     """
     Create complete HDR LUT suite for professional mastering.
 

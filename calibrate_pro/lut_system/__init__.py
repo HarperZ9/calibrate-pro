@@ -27,27 +27,28 @@ Usage:
     manager = LUTManager(preferred_backend="nvidia")
 """
 
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Optional, Union
+
 import numpy as np
 
 # Import LUT format handlers
 from calibrate_pro.lut_system.lut_formats import (
     LUT1D,
     LUT3D,
-    LUTType,
     LUTFormat,
     LUTReader,
+    LUTType,
     LUTWriter,
-    load_lut,
-    save_lut,
+    combine_luts,
     convert_lut,
     create_identity_lut,
-    combine_luts,
-    resize_lut,
     invert_lut,
+    load_lut,
+    resize_lut,
+    save_lut,
 )
 
 
@@ -69,7 +70,7 @@ class DisplayInfo:
     gpu_vendor: str
     resolution: tuple
     hdr_capable: bool
-    current_lut: Optional[str] = None
+    current_lut: str | None = None
 
 
 @dataclass
@@ -90,7 +91,7 @@ class LUTManager:
     a consistent interface for LUT loading and management.
     """
 
-    def __init__(self, preferred_backend: Optional[str] = None):
+    def __init__(self, preferred_backend: str | None = None):
         """
         Initialize LUT manager.
 
@@ -100,8 +101,8 @@ class LUTManager:
         """
         self._backends = {}
         self._active_backend = None
-        self._displays: List[DisplayInfo] = []
-        self._loaded_luts: Dict[int, str] = {}
+        self._displays: list[DisplayInfo] = []
+        self._loaded_luts: dict[int, str] = {}
 
         self._initialize_backends()
         self._select_backend(preferred_backend)
@@ -153,7 +154,7 @@ class LUTManager:
         except Exception:
             pass
 
-    def _select_backend(self, preferred: Optional[str]):
+    def _select_backend(self, preferred: str | None):
         """Select the best available backend."""
         if preferred:
             preferred_enum = {
@@ -264,16 +265,16 @@ class LUTManager:
         return self._active_backend is not None
 
     @property
-    def active_backend(self) -> Optional[LUTBackend]:
+    def active_backend(self) -> LUTBackend | None:
         """Get the active backend."""
         return self._active_backend
 
     @property
-    def displays(self) -> List[DisplayInfo]:
+    def displays(self) -> list[DisplayInfo]:
         """Get list of available displays."""
         return self._displays
 
-    def get_backend_status(self) -> Dict[str, BackendStatus]:
+    def get_backend_status(self) -> dict[str, BackendStatus]:
         """Get status of all backends."""
         status = {}
 
@@ -309,7 +310,7 @@ class LUTManager:
     def load_lut(
         self,
         display_id: int,
-        lut: Union[LUT3D, np.ndarray],
+        lut: LUT3D | np.ndarray,
         persist: bool = False
     ) -> bool:
         """
@@ -337,11 +338,7 @@ class LUTManager:
             # Different backends have different interfaces
             if self._active_backend == LUTBackend.DWM:
                 return backend.load_lut(display_id, lut.data)
-            elif self._active_backend == LUTBackend.NVIDIA:
-                return backend.load_3d_lut(display_id, lut.data)
-            elif self._active_backend == LUTBackend.AMD:
-                return backend.load_3d_lut(display_id, lut.data)
-            elif self._active_backend == LUTBackend.INTEL:
+            elif self._active_backend == LUTBackend.NVIDIA or self._active_backend == LUTBackend.AMD or self._active_backend == LUTBackend.INTEL:
                 return backend.load_3d_lut(display_id, lut.data)
             elif self._active_backend == LUTBackend.GAMMA_RAMP:
                 # Convert 3D LUT to 1D approximation for gamma ramp
@@ -359,7 +356,7 @@ class LUTManager:
     def load_lut_file(
         self,
         display_id: int,
-        filepath: Union[str, Path],
+        filepath: str | Path,
         persist: bool = True
     ) -> bool:
         """
@@ -431,7 +428,7 @@ class LUTManager:
         except Exception:
             return False
 
-    def reload_all_luts(self) -> Dict[int, bool]:
+    def reload_all_luts(self) -> dict[int, bool]:
         """
         Reload all previously loaded LUTs.
 
@@ -443,14 +440,14 @@ class LUTManager:
             results[display_id] = self.load_lut_file(display_id, filepath, persist=False)
         return results
 
-    def get_display_info(self, display_id: int) -> Optional[DisplayInfo]:
+    def get_display_info(self, display_id: int) -> DisplayInfo | None:
         """Get information about a specific display."""
         for display in self._displays:
             if display.id == display_id:
                 return display
         return None
 
-    def get_loaded_lut(self, display_id: int) -> Optional[str]:
+    def get_loaded_lut(self, display_id: int) -> str | None:
         """Get path of currently loaded LUT for a display."""
         return self._loaded_luts.get(display_id)
 
@@ -472,15 +469,15 @@ class LUTManager:
 
 # Convenience functions
 
-def get_lut_manager(preferred_backend: Optional[str] = None) -> LUTManager:
+def get_lut_manager(preferred_backend: str | None = None) -> LUTManager:
     """Get a LUT manager instance."""
     return LUTManager(preferred_backend)
 
 
 def apply_lut_to_display(
     display_id: int,
-    lut_path: Union[str, Path],
-    backend: Optional[str] = None
+    lut_path: str | Path,
+    backend: str | None = None
 ) -> bool:
     """
     Quick function to apply a LUT file to a display.
@@ -497,7 +494,7 @@ def apply_lut_to_display(
     return manager.load_lut_file(display_id, lut_path)
 
 
-def reset_display_lut(display_id: int, backend: Optional[str] = None) -> bool:
+def reset_display_lut(display_id: int, backend: str | None = None) -> bool:
     """
     Quick function to reset a display's LUT.
 
@@ -512,13 +509,13 @@ def reset_display_lut(display_id: int, backend: Optional[str] = None) -> bool:
     return manager.unload_lut(display_id)
 
 
-def list_displays() -> List[DisplayInfo]:
+def list_displays() -> list[DisplayInfo]:
     """Get list of all displays."""
     manager = LUTManager()
     return manager.displays
 
 
-def check_lut_support() -> Dict[str, BackendStatus]:
+def check_lut_support() -> dict[str, BackendStatus]:
     """Check which LUT backends are available."""
     manager = LUTManager()
     return manager.get_backend_status()
@@ -527,27 +524,26 @@ def check_lut_support() -> Dict[str, BackendStatus]:
 # Import color loader
 from calibrate_pro.lut_system.color_loader import (
     ColorLoader,
+    DisplayCalibration,
     LoaderConfig,
     LoaderStatus,
-    DisplayCalibration,
-    get_color_loader,
     apply_calibration,
+    get_color_loader,
 )
 
 # Import per-display calibration
 from calibrate_pro.lut_system.per_display_calibration import (
-    PerDisplayCalibrationManager,
-    PerDisplayCalibrationConfig,
-    DisplayCalibrationProfile,
     CalibrationSource,
     CalibrationTarget,
-    get_per_display_manager,
-    auto_calibrate_all_displays,
+    DisplayCalibrationProfile,
+    PerDisplayCalibrationConfig,
+    PerDisplayCalibrationManager,
     apply_forum_calibration,
-    list_detected_displays,
+    auto_calibrate_all_displays,
     get_display_status,
+    get_per_display_manager,
+    list_detected_displays,
 )
-
 
 __all__ = [
     # Main classes

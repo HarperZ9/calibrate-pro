@@ -12,19 +12,29 @@ This is the final calibration pipeline:
 3. Build full correction LUT (TRC + gamut, no chroma-adaptive hack needed)
 4. Verify via pre-corrected patches
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 from scipy.interpolate import interp1d
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB,
-    BRADFORD_MATRIX, BRADFORD_INVERSE
+    BRADFORD_INVERSE,
+    BRADFORD_MATRIX,
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
-from calibrate_pro.core.lut_engine import LUT3D
 
 OLED_MATRIX = np.array([
     [0.03836831, -0.02175997, 0.01696057],
@@ -197,7 +207,7 @@ if __name__ == "__main__":
     print(f"    White Y = {white_Y:.1f} cd/m2")
 
     baseline = []
-    for i, (name, r, g, b) in enumerate(COLORCHECKER):
+    for _i, (name, r, g, b) in enumerate(COLORCHECKER):
         show(r, g, b)
         xyz = measure_xyz(1.0)
         if xyz is not None:

@@ -2,16 +2,18 @@
 Native ColorChecker measurement using the i1Display3 EEPROM OLED matrix.
 No ArgyllCMS required. Displays patches via tkinter, measures via USB HID.
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, SRGB_TO_XYZ
-)
+from calibrate_pro.core.color_math import D50_WHITE, D65_WHITE, bradford_adapt, delta_e_2000, xyz_to_lab
 
 # OLED calibration matrix from device EEPROM at offset 0x191C
 OLED_MATRIX = np.array([
@@ -199,7 +201,7 @@ if __name__ == "__main__":
         print(f"  Average Delta E: {avg:.2f}")
         print(f"  Maximum Delta E: {mx:.2f}")
         print(f"  Patches passing: {passing}/{len(valid)}")
-        print(f"  ALL MEASUREMENTS ARE NATIVE (no ArgyllCMS)")
+        print("  ALL MEASUREMENTS ARE NATIVE (no ArgyllCMS)")
     else:
         print("  No valid measurements")
     print("=" * 65)

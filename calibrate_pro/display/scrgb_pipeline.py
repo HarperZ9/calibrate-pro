@@ -41,10 +41,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -402,7 +400,7 @@ class ScRGBPipelineModel:
         self,
         n_samples: int = 256,
         tolerance: float = 1e-4,
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """
         Verify that compositor -> display -> compositor round-trips
         within *tolerance*.

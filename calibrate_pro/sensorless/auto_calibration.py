@@ -17,10 +17,11 @@ nothing but the software, PC, and display.
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Dict, Any, Callable, List, Tuple
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -70,16 +71,14 @@ class UserConsent:
         """Check if consent covers the given risk level."""
         if not self.user_acknowledged_risks:
             return False
-        if level == CalibrationRisk.HIGH and not self.hardware_modification_approved:
-            return False
-        return True
+        return not (level == CalibrationRisk.HIGH and not self.hardware_modification_approved)
 
 
 @dataclass
 class CalibrationTarget:
     """Target color characteristics for calibration."""
     whitepoint: str = "D65"  # D50, D55, D65, or CCT value
-    whitepoint_xy: Tuple[float, float] = (0.3127, 0.3290)
+    whitepoint_xy: tuple[float, float] = (0.3127, 0.3290)
     gamma: float = 2.2
     gamma_type: str = "power"  # power, srgb, bt1886
     luminance: float = 250.0  # cd/m2 peak brightness
@@ -97,8 +96,8 @@ class AutoCalibrationResult:
 
     # Calibration data
     delta_e_predicted: float = 0.0
-    icc_profile_path: Optional[str] = None
-    lut_path: Optional[str] = None
+    icc_profile_path: str | None = None
+    lut_path: str | None = None
 
     # LUT application tracking
     lut_application_method: str = ""  # "dwm_lut", "vcgt_from_3dlut", "vcgt_direct", "gamma_ramp", or ""
@@ -106,16 +105,16 @@ class AutoCalibrationResult:
 
     # DDC/CI changes
     ddc_available: bool = False
-    ddc_changes_made: Dict[str, Any] = field(default_factory=dict)
-    original_ddc_settings: Dict[str, Any] = field(default_factory=dict)
+    ddc_changes_made: dict[str, Any] = field(default_factory=dict)
+    original_ddc_settings: dict[str, Any] = field(default_factory=dict)
 
     # Verification
-    verification: Dict[str, Any] = field(default_factory=dict)
+    verification: dict[str, Any] = field(default_factory=dict)
 
     # Status
     message: str = ""
-    warnings: List[str] = field(default_factory=list)
-    steps_completed: List[CalibrationStep] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    steps_completed: list[CalibrationStep] = field(default_factory=list)
 
 
 # =============================================================================
@@ -151,7 +150,7 @@ By proceeding, you acknowledge you understand these changes.
 
 def generate_consent_warning(
     display_name: str,
-    changes: List[str],
+    changes: list[str],
     risk_level: CalibrationRisk
 ) -> str:
     """Generate consent warning text."""
@@ -180,9 +179,9 @@ class AutoCalibrationEngine:
     """
 
     def __init__(self):
-        self._progress_callback: Optional[Callable[[str, float, CalibrationStep], None]] = None
-        self._consent: Optional[UserConsent] = None
-        self._result: Optional[AutoCalibrationResult] = None
+        self._progress_callback: Callable[[str, float, CalibrationStep], None] | None = None
+        self._consent: UserConsent | None = None
+        self._result: AutoCalibrationResult | None = None
 
     def set_progress_callback(
         self,
@@ -238,15 +237,15 @@ class AutoCalibrationEngine:
 
     def run_calibration(
         self,
-        target: Optional[CalibrationTarget] = None,
-        output_dir: Optional[Path] = None,
+        target: CalibrationTarget | None = None,
+        output_dir: Path | None = None,
         apply_ddc: bool = False,
         apply_lut: bool = True,
         install_profile: bool = True,
-        consent: Optional[UserConsent] = None,
+        consent: UserConsent | None = None,
         display_index: int = 0,
-        profile_name: Optional[str] = None,
-        display_name: Optional[str] = None,
+        profile_name: str | None = None,
+        display_name: str | None = None,
         hdr_mode: bool = False
     ) -> AutoCalibrationResult:
         """
@@ -357,7 +356,7 @@ class AutoCalibrationEngine:
                 saved_lut = LUT3D.load(lut_path)
                 saved_lut.save_reshade_png(output_dir / f"{safe_name}_reshade.png")
                 saved_lut.save_specialk_png(output_dir / f"{safe_name}_specialk.png")
-            except Exception:
+            except OSError:
                 pass  # Community format export is non-critical
 
             # Save MadVR .3dlut format
@@ -365,7 +364,7 @@ class AutoCalibrationEngine:
                 from calibrate_pro.core.lut_engine import LUT3D as _LUT3D
                 _lut = _LUT3D.load(lut_path)
                 _lut.save_madvr_3dlut(output_dir / f"{safe_name}.3dlut")
-            except Exception:
+            except OSError:
                 pass  # MadVR export is non-critical
 
             # Save mpv configuration snippet
@@ -377,7 +376,7 @@ class AutoCalibrationEngine:
                     icc_path=icc_path,
                     output_path=output_dir / f"{safe_name}_mpv.conf",
                 )
-            except Exception:
+            except OSError:
                 pass  # mpv config export is non-critical
 
             # Save OBS-compatible .cube LUT
@@ -385,7 +384,7 @@ class AutoCalibrationEngine:
                 from calibrate_pro.core.lut_engine import LUT3D as _LUT3D_obs
                 _lut_obs = _LUT3D_obs.load(lut_path)
                 _lut_obs.save_obs_lut(output_dir / f"{safe_name}_obs.cube")
-            except Exception:
+            except OSError:
                 pass  # OBS export is non-critical
 
             # Generate MHC2 HDR profile alongside regular files when --hdr
@@ -422,7 +421,7 @@ class AutoCalibrationEngine:
                         f"MHC2 HDR profile saved: {mhc2_path}", 0.72,
                         CalibrationStep.GENERATE_ICC_PROFILE
                     )
-                except Exception as e:
+                except (ImportError, OSError, ValueError) as e:
                     result.warnings.append(f"MHC2 HDR profile generation failed: {e}")
 
             # Step 8: Install Profile
@@ -488,7 +487,7 @@ class AutoCalibrationEngine:
                 report_path = output_dir / f"{safe_name}_report.html"
                 generate_calibration_report(result, panel, result.verification, report_path)
                 result.message += f" Report: {report_path}"
-            except Exception:
+            except (ImportError, OSError):
                 pass  # Report generation is non-critical
 
         except Exception as e:
@@ -503,8 +502,8 @@ class AutoCalibrationEngine:
         """Auto-configure monitor OSD via DDC/CI before calibration."""
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
             ddc = DDCCIController()
             monitors = ddc.enumerate_monitors()
@@ -527,7 +526,7 @@ class AutoCalibrationEngine:
                             f"Applying {panel.name} DDC settings...",
                             0.03, CalibrationStep.READ_DDC_SETTINGS
                         )
-            except Exception:
+            except (ImportError, OSError):
                 pass
 
             changes = ddc.auto_setup_for_calibration(
@@ -541,16 +540,14 @@ class AutoCalibrationEngine:
                 import time
                 time.sleep(1.0)  # Let monitor settle
 
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError) as e:
             import logging
             logging.getLogger(__name__).debug("DDC auto-setup skipped: %s", e)
 
-    def _detect_display(self, display_index: int) -> Dict[str, Any]:
+    def _detect_display(self, display_index: int) -> dict[str, Any]:
         """Detect display information via Windows APIs."""
         try:
-            from calibrate_pro.panels.detection import (
-                enumerate_displays, get_edid_from_registry, parse_edid
-            )
+            from calibrate_pro.panels.detection import enumerate_displays, get_edid_from_registry, parse_edid
 
             displays = enumerate_displays()
             if display_index >= len(displays):
@@ -590,10 +587,10 @@ class AutoCalibrationEngine:
 
             return info
 
-        except Exception as e:
+        except (ImportError, OSError) as e:
             return {"name": f"Display {display_index + 1}", "device_name": "", "error": str(e)}
 
-    def _match_panel(self, display_info: Dict[str, Any]):
+    def _match_panel(self, display_info: dict[str, Any]):
         """
         Match display to panel database with EDID-based fallback.
 
@@ -604,7 +601,7 @@ class AutoCalibrationEngine:
         4. Dynamic panel creation from EDID chromaticity data
         5. Generic sRGB fallback (last resort)
         """
-        from calibrate_pro.panels.database import get_database, create_from_edid
+        from calibrate_pro.panels.database import create_from_edid, get_database
 
         db = get_database()
 
@@ -622,9 +619,7 @@ class AutoCalibrationEngine:
         # Method 3: Fingerprint matching (resolution@refresh_manufacturer)
         if panel is None:
             try:
-                from calibrate_pro.panels.detection import (
-                    enumerate_displays, identify_display
-                )
+                from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
                 displays = enumerate_displays()
                 # Find the display matching our display_info
@@ -639,15 +634,13 @@ class AutoCalibrationEngine:
                         if panel_key:
                             panel = db.get_panel(panel_key)
                             break
-            except Exception:
+            except (ImportError, OSError):
                 pass
 
         # Method 4: Build from EDID chromaticity (much better than generic sRGB)
         if panel is None:
             try:
-                from calibrate_pro.panels.detection import (
-                    get_edid_from_registry, parse_edid
-                )
+                from calibrate_pro.panels.detection import get_edid_from_registry, parse_edid
 
                 device_id = display_info.get("device_id", "")
                 edid_data = get_edid_from_registry(device_id) if device_id else None
@@ -691,7 +684,7 @@ class AutoCalibrationEngine:
                         "No EDID data available for '%s' (device_id: %s).",
                         name or "Unknown", device_id,
                     )
-            except Exception as e:
+            except (ImportError, OSError, IndexError, ValueError) as e:
                 logger.warning(
                     "EDID-based profile creation failed for '%s': %s",
                     name or "Unknown", e,
@@ -710,7 +703,7 @@ class AutoCalibrationEngine:
         return panel
 
     @staticmethod
-    def _extract_edid_chromaticity(edid_bytes: bytes) -> Optional[Dict]:
+    def _extract_edid_chromaticity(edid_bytes: bytes) -> dict | None:
         """
         Extract CIE 1931 chromaticity coordinates from raw EDID bytes.
 
@@ -764,7 +757,7 @@ class AutoCalibrationEngine:
         except (IndexError, ValueError):
             return None
 
-    def _read_ddc_settings(self, display_index: int) -> Dict[str, Any]:
+    def _read_ddc_settings(self, display_index: int) -> dict[str, Any]:
         """Read current DDC/CI settings for backup."""
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
@@ -793,16 +786,16 @@ class AutoCalibrationEngine:
                 try:
                     current, max_val = controller.get_vcp(monitor, code)
                     settings[name] = {"current": current, "max": max_val}
-                except Exception:
+                except RuntimeError:
                     pass
 
             controller.close()
             return settings
 
-        except Exception:
+        except (ImportError, OSError, RuntimeError):
             return {}
 
-    def _calculate_corrections(self, panel, target: CalibrationTarget) -> Dict[str, Any]:
+    def _calculate_corrections(self, panel, target: CalibrationTarget) -> dict[str, Any]:
         """
         Calculate comprehensive corrections based on panel characterization and target.
 
@@ -914,8 +907,8 @@ class AutoCalibrationEngine:
     def _apply_ddc_corrections(
         self,
         display_index: int,
-        corrections: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        corrections: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Apply comprehensive DDC/CI hardware pre-calibration.
 
@@ -944,7 +937,7 @@ class AutoCalibrationEngine:
         changes_made = {}
 
         try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode, ColorPreset
+            from calibrate_pro.hardware.ddc_ci import ColorPreset, DDCCIController, VCPCode
 
             controller = DDCCIController()
             if not controller.available:
@@ -976,12 +969,12 @@ class AutoCalibrationEngine:
             try:
                 if controller.set_color_preset(monitor, ColorPreset.USER_1):
                     changes_made["color_preset"] = (current.color_preset, ColorPreset.USER_1.value)
-            except Exception:
+            except (RuntimeError, OSError):
                 # Try native mode as fallback
                 try:
                     controller.set_color_preset(monitor, ColorPreset.NATIVE)
                     changes_made["color_preset"] = (current.color_preset, ColorPreset.NATIVE.value)
-                except Exception:
+                except (RuntimeError, OSError):
                     pass
 
             # ===================================================================
@@ -991,8 +984,8 @@ class AutoCalibrationEngine:
 
             # Adjust for panel-specific brightness behavior
             # Some panels have non-linear brightness response
-            panel_max_lum = corrections.get("panel_max_luminance", 250)
-            target_lum = corrections.get("target_luminance", 120)
+            corrections.get("panel_max_luminance", 250)
+            corrections.get("target_luminance", 120)
 
             # Apply gamma-like correction to brightness curve
             # (most displays are non-linear in brightness control)
@@ -1065,7 +1058,7 @@ class AutoCalibrationEngine:
             controller.close()
 
             # Log summary
-            num_changes = len([k for k in changes_made.keys()
+            num_changes = len([k for k in changes_made
                               if k not in ("status", "original_settings")])
             changes_made["status"] = f"Applied {num_changes} DDC/CI adjustments"
 
@@ -1120,7 +1113,7 @@ class AutoCalibrationEngine:
                 shutil.copy2(str(profile_path), str(dest))
         except PermissionError:
             pass  # Need admin — non-fatal, the profile is still usable from its output location
-        except Exception:
+        except OSError:
             pass
 
         # Step 2: Register and associate with display
@@ -1130,7 +1123,7 @@ class AutoCalibrationEngine:
             install_profile(str(profile_path))
             if device_name:
                 set_display_profile(device_name, str(profile_path))
-        except Exception as e:
+        except (ImportError, OSError) as e:
             logger.warning("ICC profile registration failed: %s (profile saved at %s)", e, profile_path)
 
     def _apply_lut(
@@ -1138,7 +1131,7 @@ class AutoCalibrationEngine:
         lut_path: Path,
         display_index: int,
         panel=None,
-        target: Optional[CalibrationTarget] = None,
+        target: CalibrationTarget | None = None,
         device_name: str = ""
     ) -> str:
         """
@@ -1189,7 +1182,7 @@ class AutoCalibrationEngine:
                         "DWM LUT: dwm_lut tool not found. "
                         "Install from https://github.com/ledoge/dwm_lut for best quality."
                     )
-            except Exception as e:
+            except (ImportError, OSError, ValueError) as e:
                 errors.append(f"DWM LUT: {e}")
 
         # =====================================================================
@@ -1198,7 +1191,7 @@ class AutoCalibrationEngine:
         if lut_path.exists():
             try:
                 from calibrate_pro.core.lut_engine import LUT3D
-                from calibrate_pro.core.vcgt import lut3d_to_vcgt, apply_vcgt_windows
+                from calibrate_pro.core.vcgt import apply_vcgt_windows, lut3d_to_vcgt
 
                 lut = LUT3D.load(lut_path)
 
@@ -1218,7 +1211,7 @@ class AutoCalibrationEngine:
                     return "vcgt_from_3dlut"
                 else:
                     errors.append("VCGT from 3D LUT: apply_vcgt_windows returned False")
-            except Exception as e:
+            except (ImportError, OSError, ValueError) as e:
                 errors.append(f"VCGT from 3D LUT: {e}")
 
         # =====================================================================
@@ -1227,7 +1220,7 @@ class AutoCalibrationEngine:
         # =====================================================================
         if panel is not None and target is not None:
             try:
-                from calibrate_pro.core.vcgt import apply_vcgt_windows, VCGTTable
+                from calibrate_pro.core.vcgt import apply_vcgt_windows
 
                 vcgt = self._generate_vcgt_from_panel(panel, target)
 
@@ -1243,7 +1236,7 @@ class AutoCalibrationEngine:
                     errors.append(
                         "Direct VCGT: apply_vcgt_windows returned False"
                     )
-            except Exception as e:
+            except (ImportError, OSError, ValueError) as e:
                 errors.append(f"Direct VCGT: {e}")
 
         # =====================================================================
@@ -1269,7 +1262,7 @@ class AutoCalibrationEngine:
                         errors.append("Direct gamma ramp: set_gamma_ramp returned False")
                 else:
                     errors.append("Direct gamma ramp: could not build correction curves")
-            except Exception as e:
+            except (ImportError, OSError, ValueError) as e:
                 errors.append(f"Direct gamma ramp: {e}")
 
         # =====================================================================
@@ -1302,7 +1295,7 @@ class AutoCalibrationEngine:
             displays = enumerate_displays()
             if 0 <= display_index < len(displays):
                 return displays[display_index].device_name
-        except Exception:
+        except (ImportError, OSError):
             pass
         return ""
 
@@ -1399,7 +1392,7 @@ class AutoCalibrationEngine:
             wp_r = max(0.5, min(1.0, wp_r))
             wp_g = max(0.5, min(1.0, wp_g))
             wp_b = max(0.5, min(1.0, wp_b))
-        except Exception:
+        except (AttributeError, ValueError, ZeroDivisionError):
             pass  # Keep gains at 1.0 if anything fails
 
         # Build the correction curves
@@ -1417,10 +1410,10 @@ class AutoCalibrationEngine:
 
     @staticmethod
     def _build_gamma_curves(
-        lut_path: Optional[Path],
+        lut_path: Path | None,
         panel=None,
-        target: Optional[CalibrationTarget] = None
-    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+        target: CalibrationTarget | None = None
+    ) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]:
         """
         Build 256-entry normalized (0-1) gamma correction curves for the
         detection module's set_gamma_ramp API.
@@ -1465,7 +1458,7 @@ class AutoCalibrationEngine:
                 b_curve = np.clip(b_curve, 0.0, 1.0)
 
                 return r_curve, g_curve, b_curve
-            except Exception:
+            except (ImportError, OSError, ValueError):
                 pass
 
         # Fall back to panel characterization
@@ -1473,12 +1466,12 @@ class AutoCalibrationEngine:
             try:
                 vcgt = AutoCalibrationEngine._generate_vcgt_from_panel(panel, target)
                 return vcgt.red.copy(), vcgt.green.copy(), vcgt.blue.copy()
-            except Exception:
+            except (ImportError, OSError, ValueError):
                 pass
 
         return None, None, None
 
-    def _verify_calibration(self, panel) -> Dict[str, Any]:
+    def _verify_calibration(self, panel) -> dict[str, Any]:
         """Verify calibration accuracy."""
         from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
@@ -1520,7 +1513,7 @@ class AutoCalibrationEngine:
             controller.close()
             return True
 
-        except Exception:
+        except (ImportError, OSError, RuntimeError):
             return False
 
 
@@ -1529,8 +1522,8 @@ class AutoCalibrationEngine:
 # =============================================================================
 
 def one_click_calibrate(
-    output_dir: Optional[Path] = None,
-    callback: Optional[Callable[[str, float], None]] = None,
+    output_dir: Path | None = None,
+    callback: Callable[[str, float], None] | None = None,
     display_index: int = 0,
     use_ddc: bool = True,
     persist: bool = True,
@@ -1594,12 +1587,12 @@ def one_click_calibrate(
 
 
 def auto_calibrate_all(
-    output_dir: Optional[Path] = None,
-    callback: Optional[Callable[[str, float, str], None]] = None,
+    output_dir: Path | None = None,
+    callback: Callable[[str, float, str], None] | None = None,
     use_ddc: bool = True,
     persist: bool = True,
     hdr_mode: bool = False
-) -> List[AutoCalibrationResult]:
+) -> list[AutoCalibrationResult]:
     """
     Automatically calibrate ALL connected displays.
 
@@ -1632,7 +1625,7 @@ def auto_calibrate_all(
         try:
             from calibrate_pro.panels.detection import get_display_name
             display_name = get_display_name(display)
-        except Exception:
+        except (ImportError, OSError):
             display_name = display.monitor_name or f"Display {i + 1}"
 
         if callback:
@@ -1642,11 +1635,11 @@ def auto_calibrate_all(
                 display_name
             )
 
-        def per_display_callback(msg, prog):
+        def per_display_callback(msg, prog, _i=i, _display_name=display_name):
             if callback:
                 # Scale progress within this display's slice
-                overall = (i + prog) / total
-                callback(msg, overall, display_name)
+                overall = (_i + prog) / total
+                callback(msg, overall, _display_name)
 
         result = one_click_calibrate(
             output_dir=output_dir,
@@ -1665,7 +1658,7 @@ def auto_calibrate_all(
             manager = StartupManager()
             if not manager.is_startup_enabled():
                 manager.enable_startup(silent=True)
-        except Exception:
+        except (ImportError, OSError):
             pass
 
     return results
@@ -1687,7 +1680,7 @@ def _persist_calibration(result: AutoCalibrationResult, display_index: int):
             delta_e_avg=result.delta_e_predicted,
             delta_e_max=result.verification.get("delta_e_max", 0.0)
         )
-    except Exception as e:
+    except (ImportError, OSError) as e:
         logger.error("Failed to persist calibration for display %d: %s", display_index, e)
 
 
@@ -1733,7 +1726,7 @@ if __name__ == "__main__":
             if result.lut_application_method:
                 print(f"    LUT Method: {result.lut_application_method}")
             elif not result.lut_applied:
-                print(f"    LUT Method: NOT APPLIED")
+                print("    LUT Method: NOT APPLIED")
             if result.verification:
                 grade = result.verification.get("grade", "Unknown")
                 print(f"    Quality Grade: {grade}")

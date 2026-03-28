@@ -5,17 +5,16 @@ Specialized driver for Datacolor Spyder colorimeters.
 Uses ArgyllCMS backend with device-specific optimizations.
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import subprocess
 import re
+import subprocess
 import time
+from pathlib import Path
 
-from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch
-)
 from calibrate_pro.hardware.argyll_backend import ArgyllBackend
+from calibrate_pro.hardware.colorimeter_base import (
+    ColorMeasurement,
+    DeviceInfo,
+)
 
 
 class SpyderType:
@@ -130,14 +129,14 @@ class SpyderDriver(ArgyllBackend):
     - Display analysis features
     """
 
-    def __init__(self, argyll_path: Optional[Path] = None):
+    def __init__(self, argyll_path: Path | None = None):
         super().__init__(argyll_path)
         self.model_type: str = SpyderType.UNKNOWN
-        self.specs: Dict = {}
-        self._correction_matrix: Optional[List[List[float]]] = None
+        self.specs: dict = {}
+        self._correction_matrix: list[list[float]] | None = None
         self._fast_mode: bool = False
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect Spyder devices specifically."""
         all_devices = super().detect_devices()
 
@@ -236,7 +235,7 @@ class SpyderDriver(ArgyllBackend):
             return True
         return False
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """
         Measure ambient light level.
 
@@ -268,7 +267,7 @@ class SpyderDriver(ArgyllBackend):
 
         return None
 
-    def _parse_ambient_output(self, output: str) -> Optional[ColorMeasurement]:
+    def _parse_ambient_output(self, output: str) -> ColorMeasurement | None:
         """Parse ambient measurement output."""
         lux_match = re.search(r'Lux:\s*([\d.]+)', output)
         cct_match = re.search(r'CCT:\s*([\d.]+)', output)
@@ -285,7 +284,7 @@ class SpyderDriver(ArgyllBackend):
 
         return None
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """
         Take spot measurement with Spyder-specific options.
         """
@@ -329,7 +328,7 @@ class SpyderDriver(ArgyllBackend):
 
         return super().calibrate_device()
 
-    def analyze_display(self) -> Optional[Dict]:
+    def analyze_display(self) -> dict | None:
         """
         Perform quick display analysis.
 
@@ -388,7 +387,7 @@ class SpyderDriver(ArgyllBackend):
 class SpyderX(SpyderDriver):
     """Convenience class for SpyderX devices."""
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect only SpyderX devices."""
         all_spyders = super().detect_devices()
         return [d for d in all_spyders if "spyderx" in d.name.lower()]
@@ -397,13 +396,13 @@ class SpyderX(SpyderDriver):
 class SpyderX2(SpyderDriver):
     """Convenience class for SpyderX2 devices."""
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect only SpyderX2 devices."""
         all_spyders = super().detect_devices()
         return [d for d in all_spyders if "spyderx2" in d.name.lower() or "spyder x2" in d.name.lower()]
 
 
-def detect_spyder() -> Optional[SpyderDriver]:
+def detect_spyder() -> SpyderDriver | None:
     """
     Convenience function to detect and connect to a Spyder.
 

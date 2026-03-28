@@ -6,9 +6,8 @@ where calibration is older than a configurable threshold. Checks that
 the referenced LUT and ICC files still exist on disk.
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from calibrate_pro import __version__
@@ -20,16 +19,16 @@ class CalibrationStatus:
     display_index: int
     display_name: str
     is_calibrated: bool
-    last_calibrated: Optional[datetime]
+    last_calibrated: datetime | None
     age_days: float
     needs_recalibration: bool  # True if older than threshold
     lut_applied: bool
-    lut_path: Optional[str]
+    lut_path: str | None
     icc_installed: bool
-    icc_path: Optional[str]
+    icc_path: str | None
 
 
-def check_calibration_status(max_age_days: int = 30) -> List[CalibrationStatus]:
+def check_calibration_status(max_age_days: int = 30) -> list[CalibrationStatus]:
     """
     Check calibration freshness for all displays.
 
@@ -49,11 +48,11 @@ def check_calibration_status(max_age_days: int = 30) -> List[CalibrationStatus]:
     manager = StartupManager()
     calibrations = manager.get_all_calibrations()
     now = datetime.now()
-    results: List[CalibrationStatus] = []
+    results: list[CalibrationStatus] = []
 
-    for key, state in calibrations.items():
+    for _key, state in calibrations.items():
         # Parse last_calibrated timestamp
-        last_cal: Optional[datetime] = None
+        last_cal: datetime | None = None
         age_days = 0.0
         if state.last_calibrated:
             try:
@@ -111,7 +110,7 @@ def _format_age(age_days: float) -> str:
     return f"{days} days ago"
 
 
-def _file_status(path: Optional[str], exists: bool) -> str:
+def _file_status(path: str | None, exists: bool) -> str:
     """Format a file path with existence indicator."""
     if not path:
         return "(none)"
@@ -157,7 +156,7 @@ def print_calibration_status(max_age_days: int = 30) -> None:
             age_str = _format_age(s.age_days)
             print(f"    Calibrated: {date_str} ({age_str})")
         else:
-            print(f"    Calibrated: never")
+            print("    Calibrated: never")
 
         # LUT line
         print(f"    LUT: {_file_status(s.lut_path, s.lut_applied)}")
@@ -167,15 +166,15 @@ def print_calibration_status(max_age_days: int = 30) -> None:
 
         # Status line
         if not s.is_calibrated:
-            print(f"    Status: Not calibrated")
+            print("    Status: Not calibrated")
         elif s.needs_recalibration:
             stale_count += 1
             print(f"    Status: Re-calibration recommended (>{max_age_days} days)")
         else:
-            print(f"    Status: Current")
+            print("    Status: Current")
 
     print()
 
     if stale_count > 0:
         print(f"  WARNING: {stale_count} display(s) may need re-calibration.")
-        print(f"  Run 'calibrate-pro auto' to refresh.\n")
+        print("  Run 'calibrate-pro auto' to refresh.\n")

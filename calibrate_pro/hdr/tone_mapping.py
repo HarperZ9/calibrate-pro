@@ -13,11 +13,10 @@ Algorithms:
 - Custom S-curve
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Tuple, Callable, Dict, Any
 from enum import Enum
 
+import numpy as np
 
 # =============================================================================
 # Tone Mapping Algorithms
@@ -208,7 +207,6 @@ def tone_map_bt2390(
 
     # EETF parameters
     KS = 1.5 * LMax - 0.5  # Knee start
-    KB = LMin  # Black offset
 
     # Spline-based mapping
     # Below knee: linear
@@ -228,7 +226,6 @@ def tone_map_bt2390(
 
     # Above knee - spline
     P1 = KS
-    P2 = 1.0
     T1 = 1.0  # Tangent at P1
     T2 = 0.0  # Tangent at P2 (horizontal)
 
@@ -587,7 +584,7 @@ def hdr_to_sdr(
 def compare_operators(
     source_peak: float = 1000.0,
     target_peak: float = 100.0
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Compare different tone mapping operators.
 

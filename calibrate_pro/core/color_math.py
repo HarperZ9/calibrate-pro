@@ -7,15 +7,14 @@ for professional display calibration.
 All calculations follow ICC specifications and use high-precision floating point arithmetic.
 """
 
-import numpy as np
-from dataclasses import dataclass
-from typing import Tuple, Union, Optional
 import math
+from dataclasses import dataclass
 
-from quanta_color import spaces as _qc_spaces
+import numpy as np
 from quanta_color import adaptation as _qc_adapt
 from quanta_color import difference as _qc_diff
 from quanta_color import gamut as _qc_gamut
+from quanta_color import spaces as _qc_spaces
 
 
 def _illuminant_to_array(ill: 'Illuminant') -> np.ndarray:
@@ -277,7 +276,7 @@ def delta_e_2000(
     kL: float = 1.0,
     kC: float = 1.0,
     kH: float = 1.0
-) -> Union[float, np.ndarray]:
+) -> float | np.ndarray:
     """
     Calculate CIEDE2000 color difference.
 
@@ -390,7 +389,7 @@ def xy_to_cct(x: float, y: float) -> float:
     """
     return _qc_adapt.xy_to_cct_mccamy(x, y)
 
-def cct_to_xy(cct: float) -> Tuple[float, float]:
+def cct_to_xy(cct: float) -> tuple[float, float]:
     """
     Calculate CIE xy chromaticity from CCT (Planckian locus).
 
@@ -408,7 +407,7 @@ def cct_to_xy(cct: float) -> Tuple[float, float]:
 # Gamut Utilities
 # =============================================================================
 
-def is_in_gamut(rgb: np.ndarray, tolerance: float = 0.0) -> Union[bool, np.ndarray]:
+def is_in_gamut(rgb: np.ndarray, tolerance: float = 0.0) -> bool | np.ndarray:
     """
     Check if RGB values are within gamut [0, 1].
 
@@ -454,10 +453,10 @@ def gamut_compress(
 # =============================================================================
 
 def primaries_to_xyz_matrix(
-    red_xy: Tuple[float, float],
-    green_xy: Tuple[float, float],
-    blue_xy: Tuple[float, float],
-    white_xy: Tuple[float, float]
+    red_xy: tuple[float, float],
+    green_xy: tuple[float, float],
+    blue_xy: tuple[float, float],
+    white_xy: tuple[float, float]
 ) -> np.ndarray:
     """
     Calculate RGB to XYZ matrix from primary chromaticities.
@@ -1706,7 +1705,7 @@ def gamut_map_chroma_compress(
 
     max_C = get_max_chroma(boundary, L, h)
 
-    if C <= max_C:
+    if max_C >= C:
         return lab.copy()
 
     if method == "clip":

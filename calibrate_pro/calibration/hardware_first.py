@@ -15,11 +15,11 @@ This produces better results than software-only calibration because:
 """
 
 import logging
-import time
 import os
-from pathlib import Path
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Optional, List, Callable, Tuple
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -32,17 +32,17 @@ class HardwareFirstResult:
     message: str = ""
 
     # Hardware phase results
-    ddc_adjustments: List[str] = field(default_factory=list)
+    ddc_adjustments: list[str] = field(default_factory=list)
     initial_brightness: int = 0
     final_brightness: int = 0
-    initial_rgb_gains: Tuple[int, int, int] = (100, 100, 100)
-    final_rgb_gains: Tuple[int, int, int] = (100, 100, 100)
-    white_point_achieved: Tuple[float, float] = (0.0, 0.0)
+    initial_rgb_gains: tuple[int, int, int] = (100, 100, 100)
+    final_rgb_gains: tuple[int, int, int] = (100, 100, 100)
+    white_point_achieved: tuple[float, float] = (0.0, 0.0)
     luminance_achieved: float = 0.0
 
     # Profile phase results
-    lut_path: Optional[str] = None
-    icc_path: Optional[str] = None
+    lut_path: str | None = None
+    icc_path: str | None = None
     avg_de_before_lut: float = 0.0
     avg_de_after_lut: float = 0.0
 
@@ -55,12 +55,12 @@ class HardwareFirstResult:
 def run_hardware_first_calibration(
     display_index: int = 0,
     target_luminance: float = 120.0,
-    target_whitepoint: Tuple[float, float] = (0.3127, 0.3290),
+    target_whitepoint: tuple[float, float] = (0.3127, 0.3290),
     target_gamma: float = 2.2,
-    measure_fn: Optional[Callable[[], Optional[np.ndarray]]] = None,
-    display_fn: Optional[Callable[[float, float, float], None]] = None,
-    progress_fn: Optional[Callable[[str, float], None]] = None,
-    output_dir: Optional[str] = None,
+    measure_fn: Callable[[], np.ndarray | None] | None = None,
+    display_fn: Callable[[float, float, float], None] | None = None,
+    progress_fn: Callable[[str, float], None] | None = None,
+    output_dir: str | None = None,
 ) -> HardwareFirstResult:
     """
     Run the complete hardware-first calibration workflow.
@@ -132,8 +132,8 @@ def run_hardware_first_calibration(
         # Auto-setup monitor OSD via DDC/CI
         ddc_rec = None
         try:
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
             displays = enumerate_displays()
             if display_index < len(displays):
@@ -275,9 +275,7 @@ def run_hardware_first_calibration(
         report("Phase 3: Profiling hardware-calibrated display...", 0.60)
 
         if measure_fn is not None and display_fn is not None:
-            from calibrate_pro.calibration.native_loop import (
-                profile_display, build_correction_lut
-            )
+            from calibrate_pro.calibration.native_loop import build_correction_lut, profile_display
 
             def profile_progress(msg, frac):
                 report(msg, 0.60 + frac * 0.25)
@@ -315,8 +313,8 @@ def run_hardware_first_calibration(
             # Sensorless: generate LUT from panel database
             report("Generating sensorless correction LUT...", 0.85)
             try:
-                from calibrate_pro.sensorless.neuralux import SensorlessEngine
                 from calibrate_pro.panels.database import PanelDatabase
+                from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
                 db = PanelDatabase()
                 displays = enumerate_displays()
@@ -329,7 +327,7 @@ def run_hardware_first_calibration(
                 engine = SensorlessEngine()
                 engine.current_panel = panel
                 lut = engine.create_3d_lut(panel, size=33, target="sRGB")
-                lut_path = os.path.join(output_dir, f"sensorless_calibration.cube")
+                lut_path = os.path.join(output_dir, "sensorless_calibration.cube")
                 lut.save(lut_path)
                 result.lut_path = lut_path
                 report(f"Sensorless LUT saved: {lut_path}", 0.90)

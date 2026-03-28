@@ -9,9 +9,7 @@ even when both are "calibrated" because they target their own native
 capabilities. Multi-display matching finds the common ground.
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -22,7 +20,7 @@ class DisplayTarget:
     panel_type: str
 
     # Matched targets (common across all displays)
-    target_white_xy: Tuple[float, float]
+    target_white_xy: tuple[float, float]
     target_luminance: float       # cd/m2 — limited to weakest display's capability
     target_gamma: float
 
@@ -36,14 +34,14 @@ class DisplayTarget:
 @dataclass
 class MatchingResult:
     """Result from multi-display matching analysis."""
-    matched_white: Tuple[float, float]     # Common white point (typically D65)
+    matched_white: tuple[float, float]     # Common white point (typically D65)
     matched_luminance: float               # Common achievable brightness
     matched_gamma: float                   # Common gamma target
-    per_display: List[DisplayTarget]
-    notes: List[str]
+    per_display: list[DisplayTarget]
+    notes: list[str]
 
 
-def analyze_matching(panels: List[dict]) -> MatchingResult:
+def analyze_matching(panels: list[dict]) -> MatchingResult:
     """
     Analyze multiple displays and compute matching targets.
 
@@ -147,7 +145,7 @@ def analyze_matching(panels: List[dict]) -> MatchingResult:
 def _compute_wp_gains(
     panel_x: float, panel_y: float,
     target_x: float, target_y: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """
     Compute RGB gain adjustments to shift white point from panel to target.
 
@@ -181,8 +179,8 @@ def _compute_wp_gains(
 
 def print_matching_plan(result: MatchingResult):
     """Print a human-readable matching plan."""
-    print(f"\nMulti-Display Matching Plan")
-    print(f"=" * 50)
+    print("\nMulti-Display Matching Plan")
+    print("=" * 50)
     print(f"  Target white point: ({result.matched_white[0]:.4f}, {result.matched_white[1]:.4f})")
     print(f"  Target luminance:   {result.matched_luminance:.0f} cd/m2")
     print(f"  Target gamma:       {result.matched_gamma}")

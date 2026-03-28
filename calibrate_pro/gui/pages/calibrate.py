@@ -8,26 +8,29 @@ Runs AutoCalibrationEngine in a QThread with live progress updates.
 import sys
 import traceback
 from pathlib import Path
-from typing import Optional
 
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QScrollArea, QComboBox, QCheckBox, QProgressBar, QTextEdit,
-    QSizePolicy, QSlider, QGridLayout, QGroupBox
-)
-from PyQt6.QtCore import (
-    Qt, QThread, pyqtSignal, QTimer
-)
-from PyQt6.QtGui import (
-    QFont, QColor, QPainter, QPen
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSlider,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat
+from calibrate_pro.gui.app import C, Card, Heading
 
-
-# =============================================================================
 # Worker Thread
-# =============================================================================
 
 class CalibrationWorker(QThread):
     """Runs AutoCalibrationEngine.run_calibration() off the main thread.
@@ -63,8 +66,8 @@ class CalibrationWorker(QThread):
 
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
             ddc = DDCCIController()
             monitors = ddc.enumerate_monitors()
@@ -115,8 +118,8 @@ class CalibrationWorker(QThread):
 
             from calibrate_pro.sensorless.auto_calibration import (
                 AutoCalibrationEngine,
-                CalibrationTarget,
                 CalibrationStep,
+                CalibrationTarget,
             )
 
             engine = AutoCalibrationEngine()
@@ -206,11 +209,12 @@ class NativeCalibrationWorker(QThread):
 
     def run(self):
         try:
-            import numpy as np
-            import hid
+            import os
             import struct
             import time
-            import os
+
+            import hid
+            import numpy as np
 
             OLED_MATRIX = np.array([
                 [0.03836831, -0.02175997, 0.01696057],
@@ -281,9 +285,7 @@ class NativeCalibrationWorker(QThread):
             self.log_line.emit("Measuring per-channel TRC ramps (17 steps)...")
             self.log_line.emit("Place sensor against display center.")
 
-            from calibrate_pro.calibration.native_loop import (
-                profile_display, build_correction_lut
-            )
+            from calibrate_pro.calibration.native_loop import build_correction_lut, profile_display
 
             def progress_cb(msg, frac):
                 self.progress.emit(msg, 0.1 + frac * 0.5, "Profiling")
@@ -364,10 +366,11 @@ class HardwareFirstWorker(QThread):
 
     def run(self):
         try:
-            import numpy as np
-            import hid
             import struct
             import time
+
+            import hid
+            import numpy as np
 
             OLED_MATRIX = np.array([
                 [0.03836831, -0.02175997, 0.01696057],
@@ -457,9 +460,7 @@ class HardwareFirstWorker(QThread):
             self.finished.emit(False, f"Hardware-first calibration error: {exc}")
 
 
-# =============================================================================
-# Mode Card — selectable card for Sensorless / Measured / Hybrid
-# =============================================================================
+# Mode Card
 
 class ModeCard(Card):
     """Selectable mode card with icon area, title, and subtitle."""
@@ -558,9 +559,7 @@ class ModeCard(Card):
         super().mousePressEvent(event)
 
 
-# =============================================================================
 # Calibrate Page
-# =============================================================================
 
 class CalibratePage(QWidget):
     """Full calibration workflow page."""
@@ -569,15 +568,13 @@ class CalibratePage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._worker: Optional[CalibrationWorker] = None
+        self._worker: CalibrationWorker | None = None
         self._sensor_detected = False
         self._displays = []
         self._build()
         QTimer.singleShot(300, self._detect_environment)
 
-    # --------------------------------------------------------------------- #
     # Build UI
-    # --------------------------------------------------------------------- #
 
     def _build(self):
         outer = QVBoxLayout(self)
@@ -894,9 +891,7 @@ class CalibratePage(QWidget):
         self._layout.addStretch()
         scroll.setWidget(content)
 
-    # --------------------------------------------------------------------- #
     # Environment Detection
-    # --------------------------------------------------------------------- #
 
     def _detect_environment(self):
         """Populate display list and detect sensor presence."""
@@ -941,9 +936,7 @@ class CalibratePage(QWidget):
         if self._sensor_detected:
             self._select_mode(self._mode_measured)
 
-    # --------------------------------------------------------------------- #
     # Interactions
-    # --------------------------------------------------------------------- #
 
     def _select_mode(self, card: ModeCard):
         for mc in self._mode_cards:
@@ -980,9 +973,7 @@ class CalibratePage(QWidget):
         self._error_label.setText("")
         self._error_label.setVisible(False)
 
-    # --------------------------------------------------------------------- #
     # Calibration
-    # --------------------------------------------------------------------- #
 
     def _start_calibration(self):
         if self._worker is not None and self._worker.isRunning():
@@ -1044,8 +1035,8 @@ class CalibratePage(QWidget):
 
         # Create the patch window on first call
         if not hasattr(self, '_patch_window') or self._patch_window is None:
-            from PyQt6.QtWidgets import QWidget
             from PyQt6.QtCore import Qt as QtConst
+            from PyQt6.QtWidgets import QWidget
 
             self._patch_window = QWidget()
             self._patch_window.setWindowFlags(

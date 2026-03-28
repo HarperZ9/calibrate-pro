@@ -37,12 +37,11 @@ Note: GUI commands automatically request administrator privileges for
 """
 
 import argparse
-import sys
-import os
-import time
 import ctypes
+import os
+import sys
+import time
 from pathlib import Path
-from typing import Optional
 
 from calibrate_pro import __version__
 
@@ -73,24 +72,38 @@ def run_as_admin():
         return False
 
 
-from calibrate_pro.core.calibration_engine import (
-    CalibrationEngine, CalibrationMode, CalibrationTarget,
-    quick_calibrate, verify_calibration, list_supported_displays, get_display_info
-)
-from calibrate_pro.panels.detection import (
-    enumerate_displays, get_display_by_number, print_display_info
-)
+from calibrate_pro.core.calibration_engine import CalibrationEngine, CalibrationMode, get_display_info
+from calibrate_pro.panels.detection import enumerate_displays, get_display_by_number, print_display_info
 from calibrate_pro.targets import (
-    WhitepointPreset, WhitepointTarget, LuminanceTarget, LuminanceStandard,
-    GammaPreset, GammaTarget, GamutPreset, GamutTarget,
-    CalibrationTargetProfile, get_profile_presets,
-    get_whitepoint_presets, get_luminance_presets, get_gamma_presets, get_gamut_presets,
-    create_custom_whitepoint, create_custom_luminance, create_custom_gamma,
-    WHITEPOINT_D65, WHITEPOINT_D50, WHITEPOINT_DCI,
-    LUMINANCE_REC709, LUMINANCE_HDR10, LUMINANCE_CONSUMER_SDR,
-    GAMMA_22, GAMMA_24, GAMMA_SRGB, GAMMA_BT1886, GAMMA_PQ,
-    GAMUT_SRGB, GAMUT_DCI_P3, GAMUT_BT2020
+    GAMMA_22,
+    GAMMA_24,
+    GAMMA_BT1886,
+    GAMMA_PQ,
+    GAMMA_SRGB,
+    GAMUT_BT2020,
+    GAMUT_DCI_P3,
+    GAMUT_SRGB,
+    LUMINANCE_CONSUMER_SDR,
+    LUMINANCE_HDR10,
+    LUMINANCE_REC709,
+    WHITEPOINT_D65,
+    WHITEPOINT_DCI,
+    GammaPreset,
+    GammaTarget,
+    GamutPreset,
+    GamutTarget,
+    WhitepointPreset,
+    WhitepointTarget,
+    create_custom_gamma,
+    create_custom_luminance,
+    create_custom_whitepoint,
+    get_gamma_presets,
+    get_gamut_presets,
+    get_luminance_presets,
+    get_profile_presets,
+    get_whitepoint_presets,
 )
+
 
 def cmd_detect(args):
     """Detect and list connected displays and colorimeters."""
@@ -109,8 +122,8 @@ def cmd_detect(args):
             for d in devices:
                 product = d.get("product", "i1Display3")
                 print(f"  {product}")
-                print(f"    Driver: Native USB HID (no ArgyllCMS needed)")
-                print(f"    Ready for: calibrate-pro calibrate (Measured mode)")
+                print("    Driver: Native USB HID (no ArgyllCMS needed)")
+                print("    Ready for: calibrate-pro calibrate (Measured mode)")
     except Exception:
         pass
 
@@ -127,7 +140,7 @@ def cmd_detect(args):
                     for d in devices:
                         print(f"  {d.name} ({d.manufacturer})")
                         print(f"    Driver: ArgyllCMS ({config.bin_path})")
-                        print(f"    Ready for: calibrate-pro refine")
+                        print("    Ready for: calibrate-pro refine")
         except Exception:
             pass
 
@@ -148,7 +161,7 @@ def cmd_detect(args):
                     print(f"  {m.get('name', f'Monitor {i+1}')}: {caps.summary()}")
                 else:
                     print(f"  {m.get('name', f'Monitor {i+1}')}: DDC/CI available")
-            print(f"  Run 'calibrate-pro ddc-info' for detailed capabilities")
+            print("  Run 'calibrate-pro ddc-info' for detailed capabilities")
         else:
             print("\nDDC/CI: no monitors detected")
     except Exception:
@@ -262,7 +275,7 @@ def cmd_calibrate(args):
             gamut_target = GamutTarget(preset=gamut_map[args.gamut])
 
     # Print target settings
-    print(f"\nTarget Settings:")
+    print("\nTarget Settings:")
     print(f"  White Point: {whitepoint_target.preset.value} ({whitepoint_target.get_cct():.0f}K)")
     print(f"  Luminance: {luminance_target.get_peak_luminance():.0f} cd/m2 peak")
     if luminance_target.get_black_level() > 0:
@@ -271,7 +284,7 @@ def cmd_calibrate(args):
     print(f"  Gamma: {gamma_target.preset.value}")
     print(f"  Gamut: {gamut_target.preset.value}")
     if luminance_target.is_hdr():
-        print(f"  Mode: HDR")
+        print("  Mode: HDR")
 
     # Output directory
     output_dir = Path(args.output) if args.output else Path(".")
@@ -310,12 +323,12 @@ def cmd_calibrate(args):
         print("\nCalibration Complete!")
         print(f"  Panel: {result.panel_name}")
         print(f"  Type: {result.panel_type}")
-        print(f"\nAccuracy:")
+        print("\nAccuracy:")
         print(f"  Average Delta E: {result.delta_e_avg:.2f}")
         print(f"  Maximum Delta E: {result.delta_e_max:.2f}")
         print(f"  Grade: {result.grade}")
 
-        print(f"\nGenerated Files:")
+        print("\nGenerated Files:")
         if result.icc_profile_path:
             print(f"  ICC Profile: {result.icc_profile_path}")
         if result.lut_path:
@@ -362,8 +375,8 @@ def cmd_list_targets(args):
 
 def cmd_verify(args):
     """Verify calibration accuracy."""
-    from calibrate_pro.panels.detection import get_display_name, identify_display
     from calibrate_pro.panels.database import PanelDatabase
+    from calibrate_pro.panels.detection import get_display_name, identify_display
     from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
     print(f"\nCalibrate Pro v{__version__}")
@@ -398,7 +411,7 @@ def cmd_verify(args):
 
     if use_measured:
         from calibrate_pro.verification.measured_verify import (
-            MeasuredVerification, _find_argyll_spotread,
+            MeasuredVerification,
         )
 
         print("\n  Mode: Measured (colorimeter-based)")
@@ -417,7 +430,7 @@ def cmd_verify(args):
 
         display_index = (args.display - 1) if args.display else 0
 
-        print(f"\nColorChecker Measured Verification:")
+        print("\nColorChecker Measured Verification:")
         print("-" * 56)
 
         result = mv.verify_colorchecker(display_index=display_index)
@@ -432,10 +445,10 @@ def cmd_verify(args):
         print("-" * 56)
         print(f"\n  CIEDE2000:  avg {result['delta_e_avg']:.2f}   max {result['delta_e_max']:.2f}")
         print(f"  Grade: {result['grade']}")
-        print(f"\n  Note: These values are measured with a colorimeter.")
+        print("\n  Note: These values are measured with a colorimeter.")
 
         # Also run grayscale
-        print(f"\nGrayscale Measured Verification (21 steps):")
+        print("\nGrayscale Measured Verification (21 steps):")
         print("-" * 56)
 
         gs_result = mv.verify_grayscale(display_index=display_index, steps=21)
@@ -476,7 +489,7 @@ def cmd_verify(args):
     engine.current_panel = panel
     result = engine.verify_calibration(panel)
 
-    print(f"\nColorChecker Verification:")
+    print("\nColorChecker Verification:")
     print("-" * 56)
 
     for patch in result['patches']:
@@ -489,8 +502,8 @@ def cmd_verify(args):
     print(f"\n  CIEDE2000:  avg {result['delta_e_avg']:.2f}   max {result['delta_e_max']:.2f}")
     print(f"  CAM16-UCS: avg {result.get('cam16_delta_e_avg', 0):.2f}   max {result.get('cam16_delta_e_max', 0):.2f}")
     print(f"  Grade: {result['grade']}")
-    print(f"\n  Note: These values are predicted from the panel database,")
-    print(f"  not measured. For verified accuracy, use --measured with a colorimeter.")
+    print("\n  Note: These values are predicted from the panel database,")
+    print("  not measured. For verified accuracy, use --measured with a colorimeter.")
 
     coverage = result.get('gamut_coverage', {})
     if coverage:
@@ -559,18 +572,18 @@ def cmd_info(args):
     print(f"  Model: {info['model']}")
     print(f"  Type: {info['type']}")
 
-    print(f"\n  Native Primaries:")
+    print("\n  Native Primaries:")
     print(f"    Red:   ({info['primaries']['red'][0]:.4f}, {info['primaries']['red'][1]:.4f})")
     print(f"    Green: ({info['primaries']['green'][0]:.4f}, {info['primaries']['green'][1]:.4f})")
     print(f"    Blue:  ({info['primaries']['blue'][0]:.4f}, {info['primaries']['blue'][1]:.4f})")
     print(f"    White: ({info['primaries']['white'][0]:.4f}, {info['primaries']['white'][1]:.4f})")
 
-    print(f"\n  Gamma:")
+    print("\n  Gamma:")
     print(f"    Red:   {info['gamma']['red']:.4f}")
     print(f"    Green: {info['gamma']['green']:.4f}")
     print(f"    Blue:  {info['gamma']['blue']:.4f}")
 
-    print(f"\n  Capabilities:")
+    print("\n  Capabilities:")
     print(f"    SDR Peak: {info['capabilities']['max_sdr']} cd/m2")
     print(f"    HDR Peak: {info['capabilities']['max_hdr']} cd/m2")
     print(f"    HDR: {'Yes' if info['capabilities']['hdr'] else 'No'}")
@@ -630,12 +643,11 @@ def cmd_generate_profiles(args):
     for multiple target color spaces (sRGB, DCI-P3, Rec.709, AdobeRGB).
     This lets users switch between profiles without re-running calibration.
     """
-    from calibrate_pro.panels.detection import enumerate_displays, identify_display
-    from calibrate_pro.panels.database import PanelDatabase
-    from calibrate_pro.sensorless.neuralux import SensorlessEngine
+    from calibrate_pro.core.color_math import primaries_to_xyz_matrix
     from calibrate_pro.core.icc_profile import create_display_profile
     from calibrate_pro.core.lut_engine import LUTGenerator
-    from calibrate_pro.core.color_math import primaries_to_xyz_matrix
+    from calibrate_pro.panels.database import PanelDatabase
+    from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
     print(f"\nCalibrate Pro v{__version__} - Multi-Profile Generation")
     print("=" * 60)
@@ -754,9 +766,9 @@ def cmd_generate_profiles(args):
     print(f"\n{'=' * 60}")
     print(f"  Generated {len(generated)} profiles: {', '.join(generated)}")
     print(f"  Output: {output_dir.absolute()}")
-    print(f"\n  To apply a profile:")
-    print(f"    calibrate-pro calibrate --profile sRGB")
-    print(f"    calibrate-pro calibrate --profile DCI-P3")
+    print("\n  To apply a profile:")
+    print("    calibrate-pro calibrate --profile sRGB")
+    print("    calibrate-pro calibrate --profile DCI-P3")
     print(f"{'=' * 60}\n")
 
     return 0
@@ -769,9 +781,7 @@ def cmd_restore(args):
     Resets gamma ramps to linear, removes DWM LUTs, and clears
     saved calibration state. This is the undo button.
     """
-    from calibrate_pro.panels.detection import (
-        enumerate_displays, reset_gamma_ramp, get_display_name
-    )
+    from calibrate_pro.panels.detection import enumerate_displays, get_display_name, reset_gamma_ramp
 
     print(f"\nCalibrate Pro v{__version__} - Restore Defaults")
     print("=" * 60)
@@ -799,7 +809,7 @@ def cmd_restore(args):
         try:
             from calibrate_pro.lut_system.dwm_lut import remove_lut as dwm_remove_lut
             if dwm_remove_lut(idx):
-                print(f"    DWM LUT removed")
+                print("    DWM LUT removed")
                 dwm_removed = True
         except Exception:
             pass
@@ -807,12 +817,12 @@ def cmd_restore(args):
         # 2. Reset gamma ramp to linear (in case VCGT was used)
         try:
             if reset_gamma_ramp(display.device_name):
-                print(f"    Gamma ramp reset")
+                print("    Gamma ramp reset")
         except Exception:
             pass
 
         if not dwm_removed:
-            print(f"    Display reset to defaults")
+            print("    Display reset to defaults")
 
         # 3. Clear saved calibration state
         try:
@@ -830,13 +840,13 @@ def cmd_restore(args):
             from calibrate_pro.utils.startup_manager import StartupManager
             manager = StartupManager()
             manager.disable_startup()
-            print(f"\n[OK] Auto-start disabled")
+            print("\n[OK] Auto-start disabled")
         except Exception:
             pass
 
     print(f"\n{'=' * 60}")
     print(f"  Restored {restored} display(s) to defaults.")
-    print(f"  Your display is now using uncalibrated settings.")
+    print("  Your display is now using uncalibrated settings.")
     print(f"{'=' * 60}\n")
 
     return 0
@@ -854,10 +864,11 @@ def cmd_gui(args):
 
     try:
         from PyQt6.QtWidgets import QApplication
+
         from calibrate_pro.gui.app import CalibrateProWindow
     except ImportError as e:
-        print(f"Error: PyQt6 is required for GUI mode.")
-        print(f"Install with: pip install \".[gui]\"")
+        print("Error: PyQt6 is required for GUI mode.")
+        print("Install with: pip install \".[gui]\"")
         print(f"Details: {e}")
         return 1
 
@@ -869,10 +880,11 @@ def cmd_gui(args):
 
 def cmd_native_calibrate(args):
     """Native i1Display3 calibration - no ArgyllCMS required."""
-    import numpy as np
-    import hid
     import struct
     import tkinter as tk
+
+    import hid
+    import numpy as np
 
     print("=" * 65)
     print("  NATIVE DISPLAY CALIBRATION")
@@ -969,9 +981,7 @@ def cmd_native_calibrate(args):
         time.sleep(1.2)
 
     # Profile
-    from calibrate_pro.calibration.native_loop import (
-        profile_display, build_correction_lut
-    )
+    from calibrate_pro.calibration.native_loop import build_correction_lut, profile_display
 
     print(f"\nProfiling display ({args.steps} steps per channel)...")
     profile = profile_display(measure_xyz_native, display_fn, n_steps=args.steps)
@@ -1034,13 +1044,13 @@ def cmd_ddc_info(args):
 
         for i, monitor in enumerate(monitors):
             name = monitor.get("name", f"Monitor {i}")
-            caps = monitor.get("capabilities")
+            monitor.get("capabilities")
 
             print(f"\n  Monitor {i + 1}: {name}")
             print(f"  {'=' * 55}")
 
             # Always try direct VCP reads (capability string may be empty even when DDC works)
-            print(f"    DDC/CI Direct Reads:")
+            print("    DDC/CI Direct Reads:")
             readable = [
                 (VCPCode.BRIGHTNESS, "Brightness"),
                 (VCPCode.CONTRAST, "Contrast"),
@@ -1068,12 +1078,12 @@ def cmd_ddc_info(args):
                     pass
 
             if not found_any:
-                print(f"      (no VCP codes responded)")
+                print("      (no VCP codes responded)")
 
                 # Show DDC recommendations if panel is in database
                 try:
-                    from calibrate_pro.panels.detection import enumerate_displays, identify_display
                     from calibrate_pro.panels.database import PanelDatabase
+                    from calibrate_pro.panels.detection import enumerate_displays, identify_display
 
                     displays = enumerate_displays()
                     if i < len(displays):
@@ -1095,24 +1105,24 @@ def cmd_ddc_info(args):
                     pass
 
             else:
-                print(f"    Capabilities: could not be read")
+                print("    Capabilities: could not be read")
 
             # Run diagnostics for monitors with issues
             diag = ddc.diagnose_monitor(monitor)
             if diag and "Not responding" in str(diag):
-                print(f"\n    Diagnostics:")
+                print("\n    Diagnostics:")
                 for line in diag:
                     print(f"    {line}")
 
             if hasattr(args, 'scan') and args.scan:
-                print(f"\n    Full VCP scan (this takes a few seconds)...")
+                print("\n    Full VCP scan (this takes a few seconds)...")
                 found = ddc.scan_all_vcp_codes(monitor)
                 print(f"    Found {len(found)} supported VCP codes:")
                 for code_val, (cur, mx) in sorted(found.items()):
                     try:
                         code_name = VCPCode(code_val).name
                     except ValueError:
-                        code_name = f"UNKNOWN"
+                        code_name = "UNKNOWN"
                     print(f"      0x{code_val:02X} ({code_name:30s})  {cur:5d} / {mx}")
 
     except ImportError as e:
@@ -1134,14 +1144,21 @@ def cmd_ddc_calibrate(args):
     print(f"\nCalibrate Pro v{__version__} - DDC/CI-First Calibration")
     print("=" * 60)
 
-    from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
-    from calibrate_pro.panels.database import PanelDatabase
-    from calibrate_pro.core.lut_engine import LUTGenerator, LUTFormat
-    from calibrate_pro.core.color_math import primaries_to_xyz_matrix, xyz_to_lab, bradford_adapt, D50_WHITE, D65_WHITE, delta_e_2000
-    from calibrate_pro.sensorless.neuralux import SensorlessEngine
-    import numpy as np
     import shutil
     import time
+
+    import numpy as np
+
+    from calibrate_pro.core.color_math import (
+        D65_WHITE,
+        delta_e_2000,
+        primaries_to_xyz_matrix,
+        xyz_to_lab,
+    )
+    from calibrate_pro.core.lut_engine import LUTFormat
+    from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
+    from calibrate_pro.panels.database import PanelDatabase
+    from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
     # Get display
     displays = enumerate_displays()
@@ -1294,7 +1311,7 @@ def cmd_ddc_calibrate(args):
     time.sleep(0.3)
 
     # Set gamma
-    print(f"[Step 2] Setting Gamma: 2.2 (VCP value: 22)")
+    print("[Step 2] Setting Gamma: 2.2 (VCP value: 22)")
     try:
         ddc.set_vcp(monitor, 0x72, 22)
     except Exception:
@@ -1302,14 +1319,14 @@ def cmd_ddc_calibrate(args):
     time.sleep(0.3)
 
     # Set RGB offsets to neutral
-    print(f"[Step 3] Setting RGB Offsets: 50/50/50 (neutral)")
+    print("[Step 3] Setting RGB Offsets: 50/50/50 (neutral)")
     ddc.set_vcp(monitor, VCPCode.RED_BLACK_LEVEL, 50)
     ddc.set_vcp(monitor, VCPCode.GREEN_BLACK_LEVEL, 50)
     ddc.set_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL, 50)
     time.sleep(0.3)
 
     # Iterative RGB gain calibration
-    print(f"\n[Step 4] Iterative RGB Gain Calibration for D65 White Point")
+    print("\n[Step 4] Iterative RGB Gain Calibration for D65 White Point")
     print("-" * 60)
 
     # Target: D65 (0.3127, 0.3290)
@@ -1326,7 +1343,7 @@ def cmd_ddc_calibrate(args):
 
     # If panel is already D65 native and close, just go directly to 100/100/100
     if test_de < 1.0:
-        print(f"  [INFO] Panel is D65-native, iterating toward 100/100/100")
+        print("  [INFO] Panel is D65-native, iterating toward 100/100/100")
 
     # Apply initial gains
     ddc.set_vcp(monitor, VCPCode.RED_GAIN, r_gain)
@@ -1340,7 +1357,7 @@ def cmd_ddc_calibrate(args):
     accumulated_r = 0.0
     accumulated_g = 0.0
     accumulated_b = 0.0
-    prev_de = float('inf')
+    float('inf')
     stall_count = 0
 
     while iteration < max_iterations:
@@ -1419,7 +1436,6 @@ def cmd_ddc_calibrate(args):
         ddc.set_vcp(monitor, VCPCode.BLUE_GAIN, b_gain)
 
         # Update previous Delta E
-        prev_de = delta_e
 
         # Delay so user can see OSD changes
         time.sleep(0.4)
@@ -1535,11 +1551,9 @@ def cmd_match(args):
     Computes common white point, brightness, and gamma targets that
     all connected displays can achieve, then shows the adjustment plan.
     """
-    from calibrate_pro.panels.detection import (
-        enumerate_displays, identify_display, get_display_name
-    )
-    from calibrate_pro.panels.database import PanelDatabase
     from calibrate_pro.calibration.multi_display import analyze_matching, print_matching_plan
+    from calibrate_pro.panels.database import PanelDatabase
+    from calibrate_pro.panels.detection import enumerate_displays, get_display_name, identify_display
 
     print(f"\nCalibrate Pro v{__version__} - Multi-Display Matching")
     print("=" * 60)
@@ -1574,12 +1588,10 @@ def cmd_refine(args):
     corrects residual error until convergence. Requires a colorimeter
     (supported via ArgyllCMS) or manual XYZ entry.
     """
-    from calibrate_pro.panels.detection import (
-        enumerate_displays, identify_display, get_display_name
-    )
-    from calibrate_pro.panels.database import PanelDatabase
     from calibrate_pro.calibration.hybrid import HybridCalibrationEngine
     from calibrate_pro.hardware.measurement import MeasurementConfig, create_measure_fn
+    from calibrate_pro.panels.database import PanelDatabase
+    from calibrate_pro.panels.detection import enumerate_displays, get_display_name, identify_display
 
     print(f"\nCalibrate Pro v{__version__} - Hybrid Calibration (Sensorless + Measured)")
     print("=" * 60)
@@ -1626,13 +1638,13 @@ def cmd_refine(args):
         _found = _ac.find_argyll()
         if _found:
             print(f"\n  ArgyllCMS found: {_ac.bin_path}")
-            print(f"  No colorimeter detected. Connect your colorimeter and try again.")
-            print(f"  Supported: i1Display Pro, SpyderX, ColorMunki, and most USB colorimeters.")
+            print("  No colorimeter detected. Connect your colorimeter and try again.")
+            print("  Supported: i1Display Pro, SpyderX, ColorMunki, and most USB colorimeters.")
         else:
-            print(f"\n  ArgyllCMS not found. Install from https://www.argyllcms.com/")
-        print(f"\n  Alternatives:")
-        print(f"    calibrate-pro refine --manual    (type XYZ values manually)")
-        print(f"    calibrate-pro refine --simulated (testing without hardware)")
+            print("\n  ArgyllCMS not found. Install from https://www.argyllcms.com/")
+        print("\n  Alternatives:")
+        print("    calibrate-pro refine --manual    (type XYZ values manually)")
+        print("    calibrate-pro refine --simulated (testing without hardware)")
         return 1
 
     output_dir = Path(args.output) if hasattr(args, 'output') and args.output else None
@@ -1718,7 +1730,7 @@ def cmd_auto(args):
     all_passed = True
     report_paths = []
 
-    for i, result in enumerate(results):
+    for _i, result in enumerate(results):
         print(f"\n  {result.display_name}")
         if result.success:
             grade = result.verification.get("grade", "N/A") if result.verification else "N/A"
@@ -1762,7 +1774,7 @@ def cmd_auto(args):
         print("  Calibration persists across reboots.")
 
     if report_paths:
-        print(f"\n  Reports saved to:")
+        print("\n  Reports saved to:")
         for rp in report_paths:
             print(f"    {rp}")
 
@@ -1839,10 +1851,11 @@ def cmd_hdr(args):
 
     try:
         from PyQt6.QtWidgets import QApplication
+
         from calibrate_pro.gui.hdr_calibration import HDRCalibrationWindow
     except ImportError as e:
-        print(f"\nError: PyQt6 is required for GUI mode.")
-        print(f"Install with: pip install PyQt6")
+        print("\nError: PyQt6 is required for GUI mode.")
+        print("Install with: pip install PyQt6")
         print(f"Details: {e}")
         return 1
 
@@ -1869,7 +1882,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # detect command
-    detect_parser = subparsers.add_parser("detect", help="Detect connected displays")
+    subparsers.add_parser("detect", help="Detect connected displays")
 
     # calibrate command
     calibrate_parser = subparsers.add_parser("calibrate", help="Calibrate a display")
@@ -1971,10 +1984,10 @@ def main():
     )
 
     # list-panels command
-    list_parser = subparsers.add_parser("list-panels", help="List supported panel profiles")
+    subparsers.add_parser("list-panels", help="List supported panel profiles")
 
     # list-targets command
-    targets_parser = subparsers.add_parser("list-targets", help="List calibration target presets")
+    subparsers.add_parser("list-targets", help="List calibration target presets")
 
     # info command
     info_parser = subparsers.add_parser("info", help="Show panel information")
@@ -1985,10 +1998,10 @@ def main():
     )
 
     # enable-startup command
-    enable_startup_parser = subparsers.add_parser("enable-startup", help="Enable auto-start at Windows boot")
+    subparsers.add_parser("enable-startup", help="Enable auto-start at Windows boot")
 
     # disable-startup command
-    disable_startup_parser = subparsers.add_parser("disable-startup", help="Disable auto-start")
+    subparsers.add_parser("disable-startup", help="Disable auto-start")
 
     # restore command - undo calibration
     restore_parser = subparsers.add_parser(
@@ -2025,12 +2038,12 @@ def main():
 
     # match command - multi-display matching
     # hdr-status command
-    hdr_status_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "hdr-status",
         help="Show HDR mode status for all displays"
     )
 
-    match_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "match",
         help="Analyze and match multiple displays for consistent appearance"
     )
@@ -2062,10 +2075,10 @@ def main():
     )
 
     # gui command - launches professional calibration GUI
-    gui_parser = subparsers.add_parser("gui", help="Launch Professional Calibration GUI (runs as admin)")
+    subparsers.add_parser("gui", help="Launch Professional Calibration GUI (runs as admin)")
 
     # hdr command - launches HDR calibration GUI
-    hdr_parser = subparsers.add_parser("hdr", help="Launch HDR Calibration GUI (runs as admin)")
+    subparsers.add_parser("hdr", help="Launch HDR Calibration GUI (runs as admin)")
 
     # auto command - fully automatic zero-input calibration
     auto_parser = subparsers.add_parser(
@@ -2099,7 +2112,7 @@ def main():
     )
 
     # tray command - system tray application
-    tray_parser = subparsers.add_parser("tray", help="Launch system tray application")
+    subparsers.add_parser("tray", help="Launch system tray application")
 
     # patterns command - fullscreen test pattern viewer
     patterns_parser = subparsers.add_parser("patterns", help="Display fullscreen test patterns")

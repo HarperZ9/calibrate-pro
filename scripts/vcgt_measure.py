@@ -1,14 +1,16 @@
 """VCGT gamma ramp calibration + measured verification."""
-import subprocess, tempfile, os, sys, time
+import os
+import subprocess
+import sys
+import tempfile
+import time
+
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, SRGB_TO_XYZ
-)
-from calibrate_pro.panels.detection import enumerate_displays, set_gamma_ramp, reset_gamma_ramp
+from calibrate_pro.core.color_math import D50_WHITE, D65_WHITE, bradford_adapt, delta_e_2000, xyz_to_lab
+from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp, set_gamma_ramp
 
 DISPREAD = os.path.join(
     os.path.expandvars("%APPDATA%"), "DisplayCAL", "dl", "Argyll_V2.3.1", "bin", "dispread.exe"
@@ -47,7 +49,7 @@ def measure():
     ti1 = 'CTI1\nDESCRIPTOR "M"\nORIGINATOR "CP"\nCOLOR_REP "RGB"\n'
     ti1 += "NUMBER_OF_FIELDS 4\nBEGIN_DATA_FORMAT\nSAMPLE_ID RGB_R RGB_G RGB_B\nEND_DATA_FORMAT\n"
     ti1 += f"NUMBER_OF_SETS {len(PATCHES)}\nBEGIN_DATA\n"
-    for i, (n, r, g, b) in enumerate(PATCHES, 1):
+    for i, (_n, r, g, b) in enumerate(PATCHES, 1):
         ti1 += f"{i} {r*100:.2f} {g*100:.2f} {b*100:.2f}\n"
     ti1 += "END_DATA\n"
     with tempfile.TemporaryDirectory() as td:
@@ -120,6 +122,7 @@ measured_white = np.array([wx/wy, 1.0, (1-wx-wy)/wy])
 # Simple per-channel gain: ratio of target to measured white XYZ
 # converted through sRGB matrix
 from calibrate_pro.core.color_math import XYZ_TO_SRGB
+
 target_rgb = XYZ_TO_SRGB @ target_white
 measured_rgb = XYZ_TO_SRGB @ measured_white
 
@@ -158,7 +161,7 @@ cal_de = compute_de(cal)
 print()
 print(f"{'Patch':20s}  {'Before':>6s}  {'After':>6s}  {'Change':>7s}  Status")
 print("=" * 65)
-for i, (n,r,g,b) in enumerate(PATCHES):
+for i, (n,_r,_g,_b) in enumerate(PATCHES):
     bd, ad = uncal_de[i], cal_de[i]
     ch = ad - bd
     st = "PASS" if ad < 2.0 else "WARN" if ad < 3.0 else "FAIL"

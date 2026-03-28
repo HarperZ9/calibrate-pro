@@ -12,12 +12,10 @@ Features:
 
 import ctypes
 from ctypes import wintypes
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import struct
-import numpy as np
-from enum import IntEnum
 from dataclasses import dataclass
+from enum import IntEnum
+
+import numpy as np
 
 
 class CTLResult(IntEnum):
@@ -39,7 +37,7 @@ class IntelDisplay:
     display_handle: int
     name: str
     is_primary: bool
-    resolution: Tuple[int, int]
+    resolution: tuple[int, int]
     refresh_rate: float
     is_hdr: bool
     is_arc: bool  # Intel Arc discrete GPU
@@ -64,7 +62,7 @@ class IntelAPI:
         self._initialized = False
         self._ctl = None
         self._api_handle = None
-        self._displays: List[IntelDisplay] = []
+        self._displays: list[IntelDisplay] = []
 
         self._initialize()
 
@@ -208,7 +206,7 @@ class IntelAPI:
         return self._initialized and len(self._displays) > 0
 
     @property
-    def displays(self) -> List[IntelDisplay]:
+    def displays(self) -> list[IntelDisplay]:
         """Get list of Intel displays."""
         return self._displays
 
@@ -325,7 +323,7 @@ class IntelAPI:
 
         return False
 
-    def get_gpu_info(self) -> Dict:
+    def get_gpu_info(self) -> dict:
         """Get GPU information."""
         if not self._initialized:
             return {"available": False}

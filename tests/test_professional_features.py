@@ -1,7 +1,6 @@
 """Tests for professional calibration features."""
 
 import numpy as np
-import pytest
 
 
 class TestCalibrationTargets:
@@ -72,7 +71,7 @@ class TestPatchSets:
         assert len(comp) >= 100
 
     def test_patch_values_in_range(self):
-        from calibrate_pro.verification.patch_sets import list_patch_sets, get_patch_set
+        from calibrate_pro.verification.patch_sets import get_patch_set, list_patch_sets
         for name, _ in list_patch_sets():
             for patch in get_patch_set(name):
                 assert 0 <= patch.r <= 1, f"{name}/{patch.name}: r={patch.r}"
@@ -82,8 +81,10 @@ class TestPatchSets:
 
 class TestCLFFormat:
     def test_clf_export(self):
+        import os
+        import tempfile
+
         from calibrate_pro.core.lut_engine import LUT3D
-        import tempfile, os
         lut = LUT3D.create_identity(5)
         path = os.path.join(tempfile.gettempdir(), "test_export.clf")
         lut.save_clf(path)
@@ -122,7 +123,7 @@ class TestCCSSImport:
 
 class TestWarmupMonitor:
     def test_basic_flow(self):
-        from calibrate_pro.hardware.warmup_monitor import WarmupMonitor, get_recommended_warmup
+        from calibrate_pro.hardware.warmup_monitor import WarmupMonitor
         readings = [100.0, 102.0, 101.5, 101.2, 101.1, 101.05]
         idx = [0]
 

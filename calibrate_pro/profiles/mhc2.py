@@ -15,12 +15,12 @@ This tag is essential for proper HDR display calibration on Windows.
 Reference: Microsoft Color Management documentation
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, List, Union
-from pathlib import Path
 import struct
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
 
+import numpy as np
 
 # =============================================================================
 # MHC2 Constants
@@ -74,14 +74,14 @@ class MHC2ColorMatrix:
     @classmethod
     def from_primaries(
         cls,
-        src_red: Tuple[float, float],
-        src_green: Tuple[float, float],
-        src_blue: Tuple[float, float],
-        src_white: Tuple[float, float],
-        dst_red: Tuple[float, float],
-        dst_green: Tuple[float, float],
-        dst_blue: Tuple[float, float],
-        dst_white: Tuple[float, float]
+        src_red: tuple[float, float],
+        src_green: tuple[float, float],
+        src_blue: tuple[float, float],
+        src_white: tuple[float, float],
+        dst_red: tuple[float, float],
+        dst_green: tuple[float, float],
+        dst_blue: tuple[float, float],
+        dst_white: tuple[float, float]
     ) -> 'MHC2ColorMatrix':
         """
         Create gamut mapping matrix from chromaticity coordinates.
@@ -100,10 +100,10 @@ class MHC2ColorMatrix:
             return np.array([x/y, 1.0, (1-x-y)/y])
 
         def primaries_to_matrix(
-            red: Tuple[float, float],
-            green: Tuple[float, float],
-            blue: Tuple[float, float],
-            white: Tuple[float, float]
+            red: tuple[float, float],
+            green: tuple[float, float],
+            blue: tuple[float, float],
+            white: tuple[float, float]
         ) -> np.ndarray:
             """Build RGB to XYZ matrix from primaries."""
             # Primary XYZ
@@ -323,9 +323,9 @@ class MHC2Tag:
     color_matrix: MHC2ColorMatrix = field(default_factory=MHC2ColorMatrix.identity)
 
     # Tone curves (R, G, B)
-    red_curve: Optional[MHC2ToneCurve] = None
-    green_curve: Optional[MHC2ToneCurve] = None
-    blue_curve: Optional[MHC2ToneCurve] = None
+    red_curve: MHC2ToneCurve | None = None
+    green_curve: MHC2ToneCurve | None = None
+    blue_curve: MHC2ToneCurve | None = None
 
     # Gamut mapping mode
     # 0 = None, 1 = Clip, 2 = Compress
@@ -509,7 +509,7 @@ class MHC2Tag:
 # Profile Integration
 # =============================================================================
 
-def extract_mhc2_from_profile(profile_path: Union[str, Path]) -> Optional[MHC2Tag]:
+def extract_mhc2_from_profile(profile_path: str | Path) -> MHC2Tag | None:
     """
     Extract MHC2 tag from ICC profile.
 
@@ -569,7 +569,7 @@ def create_hdr_profile_with_mhc2(
     Returns:
         ICC profile bytes
     """
-    from calibrate_pro.profiles.icc_v4 import ICCProfile, ParametricCurve
+    from calibrate_pro.profiles.icc_v4 import ICCProfile
 
     # Create base profile
     if color_gamut.upper() == "P3":
@@ -622,7 +622,7 @@ class WindowsHDRSettings:
     color_gamut: str = "sRGB"  # sRGB, P3, BT2020
 
     # Active profile
-    active_profile_path: Optional[str] = None
+    active_profile_path: str | None = None
 
     def to_mhc2(self) -> MHC2Tag:
         """Create MHC2 tag from settings."""
@@ -702,10 +702,10 @@ def _xy_to_XYZ(x: float, y: float) -> np.ndarray:
 
 
 def _build_rgb_to_xyz_matrix(
-    red_xy: Tuple[float, float],
-    green_xy: Tuple[float, float],
-    blue_xy: Tuple[float, float],
-    white_xy: Tuple[float, float],
+    red_xy: tuple[float, float],
+    green_xy: tuple[float, float],
+    blue_xy: tuple[float, float],
+    white_xy: tuple[float, float],
 ) -> np.ndarray:
     """
     Build a 3x3 RGB-to-XYZ matrix from chromaticity coordinates.
@@ -745,13 +745,13 @@ def _float_to_s15fixed16(val: float) -> int:
 
 
 def generate_mhc2_profile(
-    panel_primaries: Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float]],
-    panel_white: Tuple[float, float],
-    target_white: Tuple[float, float] = (0.3127, 0.3290),
+    panel_primaries: tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
+    panel_white: tuple[float, float],
+    target_white: tuple[float, float] = (0.3127, 0.3290),
     peak_luminance: float = 1000.0,
     min_luminance: float = 0.0001,
     description: str = "Calibrate Pro HDR",
-    output_path: Optional[Union[str, Path]] = None,
+    output_path: str | Path | None = None,
 ) -> bytes:
     """
     Generate a complete ICC v4 profile containing the MHC2 tag for

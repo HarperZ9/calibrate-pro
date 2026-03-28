@@ -39,132 +39,153 @@ Usage:
 # =============================================================================
 
 from calibrate_pro.verification.colorchecker import (
-    # Main classes
-    ColorCheckerVerifier,
-    ColorCheckerResult,
-    PatchMeasurement,
-    CategoryAnalysis,
-    # Enums
-    VerificationGrade,
-    ColorCheckerType,
+    COLORCHECKER_CATEGORIES,
     # Reference data
     COLORCHECKER_CLASSIC_D50,
-    COLORCHECKER_CLASSIC_ORDER,
     COLORCHECKER_CLASSIC_NAMES,
-    COLORCHECKER_CATEGORIES,
+    COLORCHECKER_CLASSIC_ORDER,
+    CategoryAnalysis,
+    ColorCheckerResult,
+    ColorCheckerType,
+    # Main classes
+    ColorCheckerVerifier,
+    PatchMeasurement,
+    # Enums
+    VerificationGrade,
+    calculate_delta_components,
     # Functions
     delta_e_1976,
-    delta_e_2000 as cc_delta_e_2000,
-    calculate_delta_components,
     grade_from_delta_e,
-    grade_to_string as cc_grade_to_string,
     lab_to_lch,
-    xyz_to_lab as cc_xyz_to_lab,
+)
+from calibrate_pro.verification.colorchecker import (
     # Test utilities
     create_test_measurements as create_cc_test_measurements,
+)
+from calibrate_pro.verification.colorchecker import (
+    delta_e_2000 as cc_delta_e_2000,
+)
+from calibrate_pro.verification.colorchecker import (
+    grade_to_string as cc_grade_to_string,
+)
+from calibrate_pro.verification.colorchecker import (
     print_verification_summary as print_cc_summary,
 )
-
-# =============================================================================
-# Grayscale Verification
-# =============================================================================
-
-from calibrate_pro.verification.grayscale import (
-    # Main classes
-    GrayscaleVerifier,
-    GrayscaleResult,
-    GrayscalePatch,
-    GrayscaleRegionAnalysis,
-    # Enums
-    GrayscaleGrade,
-    GammaType,
-    # EOTF functions
-    gamma_power_law,
-    gamma_srgb,
-    gamma_bt1886,
-    gamma_l_star,
-    calculate_gamma_at_level,
-    # CCT functions
-    xy_to_cct,
-    cct_to_uv,
-    xyz_to_xy,
-    xyz_to_uv,
-    delta_uv,
-    # Grade functions
-    grade_from_grayscale,
-    grade_to_string as gs_grade_to_string,
-    # Conversion
-    xyz_to_lab as gs_xyz_to_lab,
-    delta_e_2000 as gs_delta_e_2000,
-    # Test utilities
-    generate_grayscale_levels,
-    create_test_measurements as create_gs_test_measurements,
-    print_grayscale_summary as print_gs_summary,
+from calibrate_pro.verification.colorchecker import (
+    xyz_to_lab as cc_xyz_to_lab,
 )
 
 # =============================================================================
 # Gamut Volume Analysis
 # =============================================================================
-
 from calibrate_pro.verification.gamut_volume import (
-    # Main classes
-    GamutAnalyzer,
-    GamutAnalysisResult,
-    GamutCoverage,
-    GamutBoundary,
-    GamutPrimary,
-    OutOfGamutAnalysis,
-    # Enums
-    GamutGrade,
-    ColorSpace,
     # Reference data
     COLORSPACE_PRIMARIES,
-    # Conversion functions
-    xy_to_uv,
-    uv_to_xy,
-    xy_to_xyz,
-    xyz_to_lab as gv_xyz_to_lab,
-    rgb_to_xyz,
-    # Geometry functions
-    calculate_triangle_area,
-    calculate_gamut_area_xy,
+    ColorSpace,
+    GamutAnalysisResult,
+    # Main classes
+    GamutAnalyzer,
+    GamutBoundary,
+    GamutCoverage,
+    # Enums
+    GamutGrade,
+    GamutPrimary,
+    OutOfGamutAnalysis,
     calculate_gamut_area_uv,
-    point_in_triangle,
-    calculate_triangle_intersection_area,
+    calculate_gamut_area_xy,
     calculate_gamut_coverage,
     calculate_gamut_exceeds,
-    # Volume functions
-    generate_gamut_samples,
     calculate_gamut_volume_lab,
     calculate_gamut_volume_ratio,
-    # Grade functions
-    grade_from_coverage,
-    grade_to_string as gv_grade_to_string,
+    # Geometry functions
+    calculate_triangle_area,
+    calculate_triangle_intersection_area,
     # Test utilities
     create_test_primaries,
+    # Volume functions
+    generate_gamut_samples,
+    # Grade functions
+    grade_from_coverage,
+    point_in_triangle,
     print_gamut_summary,
+    rgb_to_xyz,
+    uv_to_xy,
+    # Conversion functions
+    xy_to_uv,
+    xy_to_xyz,
+)
+from calibrate_pro.verification.gamut_volume import (
+    grade_to_string as gv_grade_to_string,
+)
+from calibrate_pro.verification.gamut_volume import (
+    xyz_to_lab as gv_xyz_to_lab,
+)
+
+# =============================================================================
+# Grayscale Verification
+# =============================================================================
+from calibrate_pro.verification.grayscale import (
+    GammaType,
+    # Enums
+    GrayscaleGrade,
+    GrayscalePatch,
+    GrayscaleRegionAnalysis,
+    GrayscaleResult,
+    # Main classes
+    GrayscaleVerifier,
+    calculate_gamma_at_level,
+    cct_to_uv,
+    delta_uv,
+    gamma_bt1886,
+    gamma_l_star,
+    # EOTF functions
+    gamma_power_law,
+    gamma_srgb,
+    # Test utilities
+    generate_grayscale_levels,
+    # Grade functions
+    grade_from_grayscale,
+    # CCT functions
+    xy_to_cct,
+    xyz_to_uv,
+    xyz_to_xy,
+)
+from calibrate_pro.verification.grayscale import (
+    create_test_measurements as create_gs_test_measurements,
+)
+from calibrate_pro.verification.grayscale import (
+    delta_e_2000 as gs_delta_e_2000,
+)
+from calibrate_pro.verification.grayscale import (
+    grade_to_string as gs_grade_to_string,
+)
+from calibrate_pro.verification.grayscale import (
+    print_grayscale_summary as print_gs_summary,
+)
+from calibrate_pro.verification.grayscale import (
+    # Conversion
+    xyz_to_lab as gs_xyz_to_lab,
 )
 
 # =============================================================================
 # Report Generation
 # =============================================================================
-
 from calibrate_pro.verification.reports import (
-    # Main classes
-    ReportGenerator,
-    VerificationSummary,
-    ReportMetadata,
+    # Color definitions
+    REPORT_COLORS,
+    # ReportLab availability flag
+    REPORTLAB_AVAILABLE,
     ReportConfig,
     # Enums
     ReportFormat,
+    # Main classes
+    ReportGenerator,
+    ReportMetadata,
     ReportType,
-    # Color definitions
-    REPORT_COLORS,
+    VerificationSummary,
+    create_verification_summary,
     # Utility functions
     generate_recommendations,
-    create_verification_summary,
-    # ReportLab availability flag
-    REPORTLAB_AVAILABLE,
 )
 
 # =============================================================================

@@ -8,19 +8,26 @@ errors. This is the "measure -> correct -> measure -> refine" feedback loop.
 Also verifies whether the DWM LUT is actually being applied by checking
 if the correction changes the measured output.
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
-from scipy.interpolate import interp1d
+
+import hid
+import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB,
-    BRADFORD_MATRIX, BRADFORD_INVERSE
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
-from calibrate_pro.core.lut_engine import LUT3D
 
 OLED_MATRIX = np.array([
     [0.03836831, -0.02175997, 0.01696057],
@@ -190,8 +197,8 @@ if __name__ == "__main__":
 
     # Check DWM LUT state
     print("\nStep 2: Checking DWM LUT state...")
+
     from calibrate_pro.lut_system.dwm_lut import DwmLutController, get_dwm_lut_directory
-    import pathlib
 
     lut_dir = get_dwm_lut_directory()
     lut_file = lut_dir / "0_0.cube"
@@ -235,8 +242,8 @@ if __name__ == "__main__":
         s = sum(xyz_red)
         rx, ry = xyz_red[0]/s, xyz_red[1]/s
         print(f"    Red chromaticity: ({rx:.4f}, {ry:.4f})")
-        print(f"    If LUT active:  should be closer to sRGB red (0.6400, 0.3300)")
-        print(f"    If LUT inactive: should be near QD-OLED red (0.6835, 0.3060)")
+        print("    If LUT active:  should be closer to sRGB red (0.6400, 0.3300)")
+        print("    If LUT inactive: should be near QD-OLED red (0.6835, 0.3060)")
         # Simple heuristic: if x > 0.66, LUT is probably not active
         if rx > 0.66:
             print("    -> LUT appears INACTIVE (raw QD-OLED)")
@@ -311,7 +318,7 @@ if __name__ == "__main__":
         # Compute average residual correction (simple approach)
         ratios = np.array([r["ratio"] for r in residuals])
         avg_ratio = np.median(ratios, axis=0)  # Use median to resist outliers
-        print(f"\n  Median residual ratio (target/measured):")
+        print("\n  Median residual ratio (target/measured):")
         print(f"    X: {avg_ratio[0]:.4f}")
         print(f"    Y: {avg_ratio[1]:.4f}")
         print(f"    Z: {avg_ratio[2]:.4f}")

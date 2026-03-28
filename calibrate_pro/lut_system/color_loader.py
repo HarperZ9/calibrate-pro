@@ -13,17 +13,17 @@ Features:
 """
 
 import ctypes
-from ctypes import wintypes
-import threading
-import time
 import json
 import os
-import sys
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Callable
-from enum import Enum
 import struct
+import threading
+import time
+from collections.abc import Callable
+from ctypes import wintypes
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
 import numpy as np
 
 # Windows API
@@ -46,9 +46,9 @@ class DisplayCalibration:
     display_id: int
     device_name: str
     friendly_name: str
-    icc_profile: Optional[str] = None
-    lut_file: Optional[str] = None
-    gamma_ramp: Optional[np.ndarray] = None  # [256, 3] array
+    icc_profile: str | None = None
+    lut_file: str | None = None
+    gamma_ramp: np.ndarray | None = None  # [256, 3] array
     enabled: bool = True
     last_applied: float = 0.0
 
@@ -80,13 +80,13 @@ class ColorLoader:
     periodically re-applying gamma ramps and monitoring for changes.
     """
 
-    def __init__(self, config: Optional[LoaderConfig] = None):
+    def __init__(self, config: LoaderConfig | None = None):
         self.config = config or LoaderConfig()
-        self.calibrations: Dict[int, DisplayCalibration] = {}
+        self.calibrations: dict[int, DisplayCalibration] = {}
         self.status = LoaderStatus.STOPPED
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._callbacks: List[Callable] = []
+        self._callbacks: list[Callable] = []
         self._lock = threading.Lock()
 
         # Set default config path
@@ -100,7 +100,7 @@ class ColorLoader:
         if self.config.persist_across_restart:
             self._load_config()
 
-    def enumerate_displays(self) -> List[Dict]:
+    def enumerate_displays(self) -> list[dict]:
         """Enumerate all active displays."""
         displays = []
 
@@ -335,7 +335,7 @@ class ColorLoader:
             self.apply_all()
             self._notify_callbacks('resumed')
 
-    def apply_all(self) -> Dict[int, bool]:
+    def apply_all(self) -> dict[int, bool]:
         """Apply all calibrations immediately."""
         results = {}
         with self._lock:
@@ -356,7 +356,7 @@ class ColorLoader:
 
         return self._apply_gamma_ramp_raw(display_id, linear)
 
-    def reset_all(self) -> Dict[int, bool]:
+    def reset_all(self) -> dict[int, bool]:
         """Reset all displays to linear gamma."""
         results = {}
         display_ids = list(self.calibrations.keys())
@@ -373,7 +373,7 @@ class ColorLoader:
         """Add a status change callback."""
         self._callbacks.append(callback)
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get current loader status."""
         return {
             'status': self.status.value,
@@ -470,7 +470,7 @@ class ColorLoader:
 
         return gamma_ramp
 
-    def _extract_vcgt(self, icc_path: Path) -> Optional[np.ndarray]:
+    def _extract_vcgt(self, icc_path: Path) -> np.ndarray | None:
         """Extract VCGT tag from ICC profile."""
         try:
             data = icc_path.read_bytes()
@@ -492,7 +492,7 @@ class ColorLoader:
         except Exception:
             return None
 
-    def _parse_vcgt(self, vcgt_data: bytes) -> Optional[np.ndarray]:
+    def _parse_vcgt(self, vcgt_data: bytes) -> np.ndarray | None:
         """Parse VCGT tag data."""
         try:
             # VCGT type signature
@@ -550,7 +550,7 @@ class ColorLoader:
         except Exception:
             return None
 
-    def _extract_trc(self, icc_path: Path) -> Optional[np.ndarray]:
+    def _extract_trc(self, icc_path: Path) -> np.ndarray | None:
         """Extract TRC curves from ICC profile."""
         try:
             data = icc_path.read_bytes()
@@ -584,7 +584,7 @@ class ColorLoader:
         except Exception:
             return None
 
-    def _parse_trc(self, trc_data: bytes) -> Optional[np.ndarray]:
+    def _parse_trc(self, trc_data: bytes) -> np.ndarray | None:
         """Parse TRC (Tone Response Curve) tag."""
         try:
             type_sig = trc_data[0:4]
@@ -615,7 +615,7 @@ class ColorLoader:
 
             elif type_sig == b'para':
                 # Parametric curve
-                func_type = struct.unpack('>H', trc_data[8:10])[0]
+                struct.unpack('>H', trc_data[8:10])[0]
                 gamma = struct.unpack('>I', trc_data[12:16])[0] / 65536.0
 
                 # Simple gamma for now
@@ -686,7 +686,7 @@ class ColorLoader:
 
 
 # Singleton instance
-_loader_instance: Optional[ColorLoader] = None
+_loader_instance: ColorLoader | None = None
 
 
 def get_color_loader() -> ColorLoader:
@@ -699,8 +699,8 @@ def get_color_loader() -> ColorLoader:
 
 def apply_calibration(
     display_id: int = 0,
-    lut_path: Optional[str] = None,
-    icc_path: Optional[str] = None,
+    lut_path: str | None = None,
+    icc_path: str | None = None,
     start_service: bool = True
 ) -> bool:
     """

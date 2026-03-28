@@ -13,14 +13,11 @@ Public API
 ``run_tray_app()`` -- call from the CLI ``tray`` command.
 """
 
+import logging
 import os
-import sys
-import glob
 import threading
 import webbrowser
-import logging
 from pathlib import Path
-from typing import Optional
 
 from calibrate_pro import __version__
 
@@ -45,7 +42,7 @@ def _get_output_dir() -> Path:
     return _get_config_dir()
 
 
-def _find_latest_report() -> Optional[Path]:
+def _find_latest_report() -> Path | None:
     """Find the most-recently modified ``*_report.html`` file."""
     search_dirs = [
         _get_output_dir(),
@@ -77,7 +74,7 @@ def _is_calibrated() -> bool:
         return False
     try:
         import json
-        with open(config_file, "r") as fh:
+        with open(config_file) as fh:
             data = json.load(fh)
         displays = data.get("displays", {})
         return len(displays) > 0
@@ -151,7 +148,6 @@ def _create_icon_image(calibrated: bool, stale: bool = False):
 def _run_pystray():
     """Run the tray app using the *pystray* library."""
     import pystray  # type: ignore
-    from PIL import Image  # type: ignore  # noqa: F811
 
     calibrated = _is_calibrated()
     stale = _needs_recalibration() if calibrated else False
@@ -176,7 +172,8 @@ def _run_pystray():
         def _work():
             try:
                 from calibrate_pro.panels.detection import (
-                    enumerate_displays, reset_gamma_ramp,
+                    enumerate_displays,
+                    reset_gamma_ramp,
                 )
                 for display in enumerate_displays():
                     try:
@@ -212,7 +209,9 @@ def _run_pystray():
     def on_toggle_startup(icon, item):
         try:
             from calibrate_pro.utils.startup_manager import (
-                enable_auto_start, disable_auto_start, is_auto_start_enabled,
+                disable_auto_start,
+                enable_auto_start,
+                is_auto_start_enabled,
             )
             if is_auto_start_enabled():
                 disable_auto_start()

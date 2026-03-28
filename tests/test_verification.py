@@ -1,10 +1,7 @@
 """Tests for calibrate_pro.sensorless.neuralux — NeuralUXEngine.verify_calibration."""
 
-import pytest
 
 from calibrate_pro.sensorless.neuralux import NeuralUXEngine
-from calibrate_pro.panels.database import PanelDatabase
-
 
 # -------------------------------------------------------------------------
 # verify_calibration returns expected keys

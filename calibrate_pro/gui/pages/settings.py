@@ -5,26 +5,33 @@ Application settings: general preferences, calibration defaults,
 file paths, and about information.
 """
 
+import json
 import shutil
 from pathlib import Path
-from typing import Optional
 
-import json
-
+from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy, QCheckBox, QComboBox,
-    QLineEdit, QFileDialog, QFormLayout, QTableWidget,
-    QTableWidgetItem, QHeaderView, QAbstractItemView,
+    QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QSettings
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat
+from calibrate_pro.gui.app import C, Card, Heading
 
-
-# =============================================================================
 # Constants
-# =============================================================================
 
 APP_ORG = "Quanta Universe"
 APP_NAME = "Calibrate Pro"
@@ -47,9 +54,7 @@ PROFILE_CHOICES = ["sRGB", "Native", "Display P3"]
 ACTION_CHOICES = ["Apply", "Disable"]
 
 
-# =============================================================================
 # Helpers
-# =============================================================================
 
 def _detect_argyll_path() -> str:
     """Try to find ArgyllCMS on the system PATH."""
@@ -124,9 +129,7 @@ def _make_browse_row(
     return row, field
 
 
-# =============================================================================
 # Settings Page
-# =============================================================================
 
 class SettingsPage(QWidget):
     """Application settings page."""
@@ -153,9 +156,7 @@ class SettingsPage(QWidget):
         # --- Page heading ---
         layout.addWidget(Heading("Settings"))
 
-        # =================================================================
         # General section
-        # =================================================================
         layout.addWidget(_make_section_heading("General"))
 
         general_card, general_layout = Card.with_layout(spacing=14)
@@ -210,9 +211,7 @@ class SettingsPage(QWidget):
         general_layout.addLayout(form_general)
         layout.addWidget(general_card)
 
-        # =================================================================
         # Calibration section
-        # =================================================================
         layout.addWidget(_make_section_heading("Calibration"))
 
         cal_card, cal_layout = Card.with_layout(spacing=14)
@@ -275,9 +274,7 @@ class SettingsPage(QWidget):
         cal_layout.addLayout(form_cal)
         layout.addWidget(cal_card)
 
-        # =================================================================
         # Per-App Profiles section
-        # =================================================================
         layout.addWidget(_make_section_heading("Per-App Profiles"))
 
         app_card, app_layout = Card.with_layout(spacing=14)
@@ -381,9 +378,7 @@ class SettingsPage(QWidget):
         # Populate rules table from saved settings (or defaults)
         self._load_app_rules()
 
-        # =================================================================
         # Paths section
-        # =================================================================
         layout.addWidget(_make_section_heading("Paths"))
 
         paths_card, paths_layout = Card.with_layout(spacing=14)
@@ -463,9 +458,7 @@ class SettingsPage(QWidget):
         paths_layout.addLayout(form_paths)
         layout.addWidget(paths_card)
 
-        # =================================================================
         # About section
-        # =================================================================
         layout.addWidget(_make_section_heading("About"))
 
         about_card, about_layout = Card.with_layout(spacing=10)
@@ -524,9 +517,7 @@ class SettingsPage(QWidget):
         layout.addStretch()
         scroll.setWidget(content)
 
-    # -----------------------------------------------------------------
     # Per-App Profile rules helpers
-    # -----------------------------------------------------------------
 
     def _load_app_rules(self):
         """Load rules from QSettings (or defaults) into the table."""

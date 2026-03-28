@@ -4,30 +4,16 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-*.spec
-*.exe
 .pytest_cache/
 .DS_Store
 Thumbs.db
 *.log
-
-# Environment
+*.obj
 .env
 .env.*
-
-# Eggs
 .eggs/
-
-# Coverage
 htmlcov/
 .coverage
-
-# Compiled QuantaLang
-*.obj
-
-# Claude
+node_modules/
 .claude/settings.local.json
 CLAUDE.local.md
-
-# Node
-node_modules/

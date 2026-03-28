@@ -8,21 +8,29 @@ Displays calibration verification reports with:
 - PDF/HTML export
 """
 
-from typing import Optional, List, Dict, Any
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-import json
+from typing import Any
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QTabWidget, QTextEdit, QFileDialog,
-    QGroupBox, QGridLayout, QSizePolicy, QMessageBox
-)
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QColor, QPainter, QPixmap
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QFont, QPainter
 from PyQt6.QtPrintSupport import QPrinter
-
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # =============================================================================
 # Theme Colors
@@ -75,7 +83,7 @@ class ColorCheckerResult:
     max_delta_e: float = 0.0
     min_delta_e: float = 0.0
     p95_delta_e: float = 0.0
-    patch_results: List[Dict[str, Any]] = field(default_factory=list)
+    patch_results: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -99,9 +107,9 @@ class CalibrationReport:
     calibration_mode: str = "Sensorless"
 
     # Results
-    grayscale: Optional[GrayscaleResult] = None
-    colorchecker: Optional[ColorCheckerResult] = None
-    gamut: Optional[GamutCoverage] = None
+    grayscale: GrayscaleResult | None = None
+    colorchecker: ColorCheckerResult | None = None
+    gamut: GamutCoverage | None = None
 
     # Profile info
     profile_name: str = ""
@@ -149,7 +157,7 @@ class CalibrationReport:
 class SummaryCard(QFrame):
     """Large summary statistic card."""
 
-    def __init__(self, title: str, parent: Optional[QWidget] = None):
+    def __init__(self, title: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame {{
@@ -191,7 +199,7 @@ class SummaryCard(QFrame):
 class ReportSummaryPanel(QWidget):
     """Summary panel showing key calibration results."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -288,9 +296,9 @@ class ReportViewer(QWidget):
 
     report_exported = pyqtSignal(str)  # Path to exported file
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.report: Optional[CalibrationReport] = None
+        self.report: CalibrationReport | None = None
         self._setup_ui()
 
     def _setup_ui(self):

@@ -11,11 +11,9 @@ These models allow the calibration LUT to account for real-world
 OLED behavior instead of treating the panel as an ideal device.
 """
 
-import math
-import numpy as np
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 
+import numpy as np
 
 # =============================================================================
 # ABL (Auto Brightness Limiter) Models
@@ -102,7 +100,7 @@ ABL_MODELS = {
 }
 
 
-def get_abl_model(panel_type: str, panel_key: str = "") -> Optional[ABLModel]:
+def get_abl_model(panel_type: str, panel_key: str = "") -> ABLModel | None:
     """
     Get the ABL model for a panel type.
 
@@ -228,8 +226,8 @@ class OLEDCharacteristics:
     """Complete OLED panel characteristic profile."""
     technology: str              # "QD-OLED", "WOLED", "WOLED-EVO"
     subpixel_layout: str         # "triangle" (QD-OLED), "WRGB" (WOLED)
-    abl_model: Optional[ABLModel] = None
-    near_black_model: Optional[NearBlackModel] = None
+    abl_model: ABLModel | None = None
+    near_black_model: NearBlackModel | None = None
 
     # Luminance-dependent gamut behavior
     # OLED gamut narrows at high luminance due to efficiency rolloff
@@ -248,7 +246,7 @@ class OLEDCharacteristics:
         return "WOLED" in self.technology
 
 
-def get_oled_characteristics(panel_type: str, panel_key: str = "") -> Optional[OLEDCharacteristics]:
+def get_oled_characteristics(panel_type: str, panel_key: str = "") -> OLEDCharacteristics | None:
     """
     Get OLED characteristics for a panel.
 

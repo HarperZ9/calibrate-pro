@@ -22,9 +22,7 @@ USB HID Protocol Summary:
 
 import struct
 import time
-import math
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 try:
     import hid
@@ -115,7 +113,7 @@ class I1D3Driver:
 
     def __init__(self):
         self._device = None
-        self._info: Optional[I1D3Info] = None
+        self._info: I1D3Info | None = None
         self._cal_matrix = None  # 3x3 calibration matrix
         self._black_offset = None  # 3-element black level offset
         self._integration_time = 0.2  # Default 200ms
@@ -125,7 +123,7 @@ class I1D3Driver:
         return self._device is not None
 
     @staticmethod
-    def find_devices() -> List[dict]:
+    def find_devices() -> list[dict]:
         """Find all connected i1Display3 family devices."""
         if not HID_AVAILABLE:
             return []
@@ -173,7 +171,7 @@ class I1D3Driver:
 
             return True
 
-        except Exception as e:
+        except Exception:
             self._device = None
             return False
 
@@ -186,11 +184,11 @@ class I1D3Driver:
                 pass
             self._device = None
 
-    def get_info(self) -> Optional[I1D3Info]:
+    def get_info(self) -> I1D3Info | None:
         """Get device information."""
         return self._info
 
-    def measure(self, integration_time: float = None) -> Optional[I1D3Measurement]:
+    def measure(self, integration_time: float = None) -> I1D3Measurement | None:
         """
         Take a single measurement.
 
@@ -223,7 +221,7 @@ class I1D3Driver:
     # Internal protocol methods
     # =========================================================================
 
-    def _send_command(self, cmd: int, data: bytes = b"") -> Optional[bytes]:
+    def _send_command(self, cmd: int, data: bytes = b"") -> bytes | None:
         """Send a command and read the response."""
         if not self._device:
             return None
@@ -347,7 +345,7 @@ class I1D3Driver:
 
         self._send_command(CMD_SET_INTTIME, data)
 
-    def _trigger_measurement(self) -> Optional[Tuple[float, float, float]]:
+    def _trigger_measurement(self) -> tuple[float, float, float] | None:
         """
         Trigger a measurement and return raw sensor counts.
 
@@ -387,7 +385,7 @@ class I1D3Driver:
             return None
 
     def _apply_calibration(
-        self, raw: Tuple[float, float, float]
+        self, raw: tuple[float, float, float]
     ) -> I1D3Measurement:
         """Apply calibration matrix to convert raw counts to XYZ."""
         r, g, b = raw
@@ -442,12 +440,12 @@ class I1D3Driver:
 # Convenience functions
 # =============================================================================
 
-def detect_colorimeters() -> List[dict]:
+def detect_colorimeters() -> list[dict]:
     """Find all connected i1Display3 family colorimeters."""
     return I1D3Driver.find_devices()
 
 
-def quick_measure() -> Optional[I1D3Measurement]:
+def quick_measure() -> I1D3Measurement | None:
     """Take a single measurement with default settings."""
     driver = I1D3Driver()
     if not driver.open():

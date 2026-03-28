@@ -9,9 +9,9 @@ Provides comprehensive gamut coverage and volume analysis:
 - Color space intersection/union calculations
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
+
 import numpy as np
 
 # Optional scipy import
@@ -149,10 +149,10 @@ class GamutBoundary:
     boundary_uv: list[tuple[float, float]]
 
     # 3D hull in Lab space
-    hull_lab: Optional[ConvexHull] = None
+    hull_lab: ConvexHull | None = None
 
     # Measured sample points used to construct boundary
-    sample_points_lab: Optional[np.ndarray] = None
+    sample_points_lab: np.ndarray | None = None
 
 
 @dataclass
@@ -385,7 +385,6 @@ def calculate_triangle_intersection_area(t1: list[tuple[float, float]],
 
     Uses Sutherland-Hodgman polygon clipping algorithm.
     """
-    from functools import reduce
 
     def clip_polygon(polygon: list[tuple[float, float]],
                     edge_start: tuple[float, float],
@@ -640,7 +639,7 @@ class GamutAnalyzer:
 
     def analyze(self,
                 measured_primaries: dict[str, tuple[float, float]],
-                measured_samples: Optional[np.ndarray] = None,
+                measured_samples: np.ndarray | None = None,
                 display_name: str = "",
                 profile_name: str = "") -> GamutAnalysisResult:
         """
@@ -705,7 +704,7 @@ class GamutAnalyzer:
     def _analyze_coverage(self,
                          measured_primaries: dict[str, tuple[float, float]],
                          target_space: ColorSpace,
-                         measured_samples: Optional[np.ndarray]) -> GamutCoverage:
+                         measured_samples: np.ndarray | None) -> GamutCoverage:
         """Analyze coverage against single target space."""
         target_primaries = COLORSPACE_PRIMARIES[target_space]
 
@@ -770,7 +769,7 @@ class GamutAnalyzer:
 
     def _create_boundary(self,
                         primaries: dict[str, tuple[float, float]],
-                        samples: Optional[np.ndarray]) -> GamutBoundary:
+                        samples: np.ndarray | None) -> GamutBoundary:
         """Create gamut boundary representation."""
         # 2D boundaries (triangles in xy and u'v')
         boundary_xy = [

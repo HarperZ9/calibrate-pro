@@ -9,25 +9,24 @@ Provides fullscreen test patterns for calibration:
 - Resolution/sharpness patterns
 """
 
-from typing import Optional, List, Tuple, Callable
+import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
-import math
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QApplication, QGraphicsView, QGraphicsScene,
-    QStackedWidget, QToolButton, QSizePolicy
-)
-from PyQt6.QtCore import (
-    Qt, QSize, QRect, QRectF, QTimer, pyqtSignal, QPointF
-)
+from PyQt6.QtCore import QPointF, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
-    QColor, QPainter, QPen, QBrush, QFont, QScreen, QGuiApplication,
-    QLinearGradient, QRadialGradient, QConicalGradient, QPainterPath,
-    QPixmap, QImage, QKeySequence, QShortcut
+    QColor,
+    QGuiApplication,
+    QImage,
+    QKeySequence,
+    QLinearGradient,
+    QPainter,
+    QPen,
+    QScreen,
+    QShortcut,
 )
-
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 # =============================================================================
 # Pattern Types
@@ -59,11 +58,11 @@ class PatternType(Enum):
 class PatternConfig:
     """Configuration for a test pattern."""
     pattern_type: PatternType
-    color: Tuple[int, int, int] = (128, 128, 128)  # For solid color
+    color: tuple[int, int, int] = (128, 128, 128)  # For solid color
     steps: int = 21  # For ramps
     patch_size: int = 100  # For patches
     show_labels: bool = False
-    background: Tuple[int, int, int] = (0, 0, 0)
+    background: tuple[int, int, int] = (0, 0, 0)
 
 
 # =============================================================================
@@ -323,7 +322,7 @@ class PatternRenderer:
         """Render zone plate pattern for focus/resolution check."""
         cx = rect.width() // 2
         cy = rect.height() // 2
-        max_r = min(cx, cy)
+        min(cx, cy)
 
         # Create image for pixel-level control
         image = QImage(rect.width(), rect.height(), QImage.Format.Format_RGB32)
@@ -460,7 +459,7 @@ class PatternRenderer:
 
             # Bottom: dithered pattern (checkerboard of black and white)
             # that should appear as the same gray at correct gamma
-            target_luminance = gray / 255.0
+            gray / 255.0
             # At gamma 2.2, dither pattern of 0 and 1 appears as ~0.5^(1/2.2) = 0.73
             # For i-th step, we need black and a computed white
 
@@ -479,7 +478,7 @@ class PatternRenderer:
 class PatternCanvas(QWidget):
     """Canvas widget that displays test patterns."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.config = PatternConfig(PatternType.SOLID_COLOR)
         self.setMouseTracking(True)
@@ -501,7 +500,7 @@ class PatternWindow(QWidget):
     pattern_changed = pyqtSignal(PatternConfig)
     closed = pyqtSignal()
 
-    def __init__(self, screen: Optional[QScreen] = None, parent: Optional[QWidget] = None):
+    def __init__(self, screen: QScreen | None = None, parent: QWidget | None = None):
         super().__init__(parent)
         self.target_screen = screen
         self._show_controls = True
@@ -656,7 +655,7 @@ class PatternWindow(QWidget):
             self.canvas.set_pattern(self._current_config)
             self.info_label.setText(f"Gray level: {new_val}")
 
-    def show_fullscreen(self, screen: Optional[QScreen] = None):
+    def show_fullscreen(self, screen: QScreen | None = None):
         """Show window fullscreen on specified screen."""
         target = screen or self.target_screen or QGuiApplication.primaryScreen()
 
@@ -685,14 +684,14 @@ class PatternSequencer:
 
     def __init__(self, window: PatternWindow):
         self.window = window
-        self.sequence: List[PatternConfig] = []
+        self.sequence: list[PatternConfig] = []
         self.current_index = 0
         self.timer = QTimer()
         self.timer.timeout.connect(self._next_pattern)
-        self.on_pattern_shown: Optional[Callable[[int, PatternConfig], None]] = None
-        self.on_sequence_complete: Optional[Callable[[], None]] = None
+        self.on_pattern_shown: Callable[[int, PatternConfig], None] | None = None
+        self.on_sequence_complete: Callable[[], None] | None = None
 
-    def set_sequence(self, patterns: List[PatternConfig]):
+    def set_sequence(self, patterns: list[PatternConfig]):
         """Set the pattern sequence."""
         self.sequence = patterns
         self.current_index = 0
@@ -732,7 +731,7 @@ class PatternSequencer:
             self._show_current()
 
     @staticmethod
-    def create_grayscale_sequence(steps: int = 21) -> List[PatternConfig]:
+    def create_grayscale_sequence(steps: int = 21) -> list[PatternConfig]:
         """Create a grayscale measurement sequence."""
         sequence = []
         for i in range(steps):
@@ -745,7 +744,7 @@ class PatternSequencer:
         return sequence
 
     @staticmethod
-    def create_colorchecker_sequence() -> List[PatternConfig]:
+    def create_colorchecker_sequence() -> list[PatternConfig]:
         """Create ColorChecker measurement sequence."""
         sequence = []
         for r, g, b in PatternRenderer.COLORCHECKER:
@@ -757,7 +756,7 @@ class PatternSequencer:
         return sequence
 
     @staticmethod
-    def create_primary_sequence() -> List[PatternConfig]:
+    def create_primary_sequence() -> list[PatternConfig]:
         """Create primary/secondary color sequence."""
         colors = [
             (255, 255, 255),  # White

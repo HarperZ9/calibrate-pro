@@ -22,9 +22,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-import sys
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger("CalibratePro.AmbientLight")
 
@@ -48,7 +46,7 @@ class LightingPreset:
         return (self.lux_low + self.lux_high) / 2.0
 
 
-LIGHTING_PRESETS: Dict[str, LightingPreset] = {
+LIGHTING_PRESETS: dict[str, LightingPreset] = {
     "bright_office": LightingPreset(
         name="bright_office",
         description="Brightly-lit office or daytime window light (500+ lux)",
@@ -109,7 +107,7 @@ class _WindowsSensorBackend:
         "else { 'NO_SENSOR' }"
     )
 
-    def read_lux(self) -> Optional[float]:
+    def read_lux(self) -> float | None:
         """
         Attempt to read the ambient light sensor.
 
@@ -125,7 +123,7 @@ class _WindowsSensorBackend:
         return lux
 
     @staticmethod
-    def _try_powershell(command: str) -> Optional[float]:
+    def _try_powershell(command: str) -> float | None:
         """Run a PowerShell command and parse a numeric lux value."""
         try:
             result = subprocess.run(
@@ -152,7 +150,7 @@ class _WindowsSensorBackend:
 class _USBSensorBackend:
     """Placeholder for external USB light sensors."""
 
-    def read_lux(self) -> Optional[float]:
+    def read_lux(self) -> float | None:
         """
         Read lux from an external USB colorimeter / light sensor.
 
@@ -171,7 +169,7 @@ class _ManualBackend:
     """Manual mode: user picks a lighting preset."""
 
     def __init__(self) -> None:
-        self._preset: Optional[LightingPreset] = None
+        self._preset: LightingPreset | None = None
 
     def set_preset(self, preset_name: str) -> None:
         """
@@ -191,7 +189,7 @@ class _ManualBackend:
         self._preset = LIGHTING_PRESETS[preset_name]
         logger.info("Manual ambient light set to '%s'", preset_name)
 
-    def read_lux(self) -> Optional[float]:
+    def read_lux(self) -> float | None:
         """Return the midpoint lux for the selected preset."""
         if self._preset is None:
             return None
@@ -293,7 +291,7 @@ class AmbientLightService:
             return 120.0  # safe default
 
         # Piecewise-linear mapping
-        breakpoints: List[Tuple[float, float]] = [
+        breakpoints: list[tuple[float, float]] = [
             (0.0, 80.0),
             (50.0, 80.0),
             (200.0, 180.0),
@@ -344,7 +342,7 @@ class AmbientLightService:
         #   50 - 100 lux  -> 5000 - 5500 K
         #   100 - 300 lux -> 5500 - 6500 K
         #   300+ lux       -> 6500 K (daylight)
-        breakpoints: List[Tuple[float, float]] = [
+        breakpoints: list[tuple[float, float]] = [
             (0.0, 5000.0),
             (50.0, 5000.0),
             (100.0, 5500.0),
@@ -366,7 +364,7 @@ class AmbientLightService:
 
         return 6500
 
-    def get_full_recommendation(self, lux: Optional[float] = None) -> Dict:
+    def get_full_recommendation(self, lux: float | None = None) -> dict:
         """
         Get a complete ambient-light recommendation.
 
@@ -406,7 +404,7 @@ class AmbientLightService:
         }
 
     @staticmethod
-    def get_available_presets() -> Dict[str, str]:
+    def get_available_presets() -> dict[str, str]:
         """
         Return available manual presets with descriptions.
 

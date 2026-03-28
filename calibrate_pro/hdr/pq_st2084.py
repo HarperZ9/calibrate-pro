@@ -6,9 +6,9 @@ The PQ curve is designed to match the human visual system's contrast
 sensitivity across a 10,000 nit luminance range.
 """
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Tuple, Optional, Union
+
+import numpy as np
 
 # =============================================================================
 # ST.2084 Constants
@@ -100,10 +100,10 @@ def pq_oetf(luminance: np.ndarray, normalize_input: bool = False) -> np.ndarray:
 class HDR10Metadata:
     """HDR10 static metadata (SMPTE ST.2086)."""
     # Mastering display primaries (CIE 1931 xy)
-    red_primary: Tuple[float, float] = (0.680, 0.320)
-    green_primary: Tuple[float, float] = (0.265, 0.690)
-    blue_primary: Tuple[float, float] = (0.150, 0.060)
-    white_point: Tuple[float, float] = (0.3127, 0.3290)
+    red_primary: tuple[float, float] = (0.680, 0.320)
+    green_primary: tuple[float, float] = (0.265, 0.690)
+    blue_primary: tuple[float, float] = (0.150, 0.060)
+    white_point: tuple[float, float] = (0.3127, 0.3290)
 
     # Luminance range
     max_luminance: float = 1000.0    # cd/m2
@@ -168,7 +168,7 @@ def calculate_pq_eotf_error(
     measured_luminance: np.ndarray,
     signal_levels: np.ndarray,
     reference_white: float = 100.0
-) -> Tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float]:
     """
     Calculate EOTF tracking error for PQ curve.
 
@@ -266,7 +266,7 @@ def generate_pq_verification_patches(
     return np.sort(patches)
 
 
-def pq_code_to_nits(code_value: Union[int, float], bit_depth: int = 10) -> float:
+def pq_code_to_nits(code_value: int | float, bit_depth: int = 10) -> float:
     """
     Convert PQ code value to luminance in nits.
 

@@ -16,8 +16,7 @@ Supported content types:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Content information
@@ -110,7 +109,7 @@ def _normalise_primaries(raw: str) -> str:
     return _PRIMARIES_MAP.get(key, raw)
 
 
-def detect_content_type_from_metadata(metadata: Dict[str, Any]) -> HDRContentInfo:
+def detect_content_type_from_metadata(metadata: dict[str, Any]) -> HDRContentInfo:
     """
     Detect content type from HDR metadata dictionary.
 
@@ -138,7 +137,7 @@ def detect_content_type_from_metadata(metadata: Dict[str, Any]) -> HDRContentInf
         Detected content information.
     """
     # --- build a lower-cased copy for flexible key matching ---
-    md: Dict[str, Any] = {k.lower().replace(" ", "_"): v for k, v in metadata.items()}
+    md: dict[str, Any] = {k.lower().replace(" ", "_"): v for k, v in metadata.items()}
 
     # Transfer function
     raw_tf = (
@@ -235,7 +234,7 @@ def detect_content_type_from_metadata(metadata: Dict[str, Any]) -> HDRContentInf
 
 def get_recommended_lut_for_content(
     content: HDRContentInfo,
-    panel: Optional[Any] = None,
+    panel: Any | None = None,
 ) -> str:
     """
     Recommend which calibration LUT to use for the given content type.

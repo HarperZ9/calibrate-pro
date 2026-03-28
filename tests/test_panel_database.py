@@ -1,14 +1,13 @@
 """Tests for calibrate_pro.panels.database — PanelDatabase and PanelCharacterization."""
 
 import json
+
 import pytest
 
 from calibrate_pro.panels.database import (
-    PanelDatabase,
     PanelCharacterization,
     create_from_edid,
 )
-
 
 # -------------------------------------------------------------------------
 # PG27UCDM existence and metadata
@@ -113,7 +112,7 @@ def test_find_panel_unknown_returns_none(panel_database):
 def test_find_panel_empty_string(panel_database):
     """find_panel with empty string should return None (or a match-anything)."""
     # The GENERIC_SRGB pattern is .* but it's skipped in find_panel
-    panel = panel_database.find_panel("")
+    panel_database.find_panel("")
     # Could be None or could match something; main test is no crash
     # (The implementation skips GENERIC_SRGB, so empty might match a broad pattern)
 

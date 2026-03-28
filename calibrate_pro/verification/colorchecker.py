@@ -9,9 +9,9 @@ Provides comprehensive verification using X-Rite ColorChecker targets:
 - Statistical analysis and grading
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional
+
 import numpy as np
 
 # =============================================================================

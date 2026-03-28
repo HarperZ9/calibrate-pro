@@ -9,15 +9,14 @@ Provides a persistent calibration service that:
 5. Exposes run_service() for background loop and apply_saved_calibrations() for one-shot
 """
 
+import ctypes
+import logging
 import os
+import shutil
 import sys
 import time
-import ctypes
 from ctypes import wintypes
-import logging
-import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -29,9 +28,9 @@ if _package_root not in sys.path:
     sys.path.insert(0, _package_root)
 
 from calibrate_pro.utils.startup_manager import (
-    StartupManager,
     CalibrationConfig,
     DisplayCalibrationState,
+    StartupManager,
 )
 
 # ---------------------------------------------------------------------------
@@ -85,7 +84,7 @@ class GAMMARAMP(ctypes.Structure):
 _DISPLAY_DEVICE_ACTIVE = 0x00000001
 
 
-def _enumerate_active_displays() -> List[Dict]:
+def _enumerate_active_displays() -> list[dict]:
     """
     Return a list of dicts describing every active display adapter.
 
@@ -96,7 +95,7 @@ def _enumerate_active_displays() -> List[Dict]:
         state_flags   - raw StateFlags value
     """
     user32 = ctypes.windll.user32
-    results: List[Dict] = []
+    results: list[dict] = []
     device = DISPLAY_DEVICE()
     device.cb = ctypes.sizeof(device)
     idx = 0
@@ -148,7 +147,7 @@ def _try_apply_dwm_lut(lut_path: str, display_state: DisplayCalibrationState) ->
     # We try to look up the display via EnumDisplaySettings to get its
     # screen coordinates. Fall back to display_id based naming.
     try:
-        from calibrate_pro.lut_system.dwm_lut import get_monitors, get_lut_filename, LUTType
+        from calibrate_pro.lut_system.dwm_lut import LUTType, get_lut_filename, get_monitors
 
         monitors = get_monitors()
         # Match on display_id index or display_name
@@ -313,7 +312,7 @@ def apply_saved_calibrations() -> bool:
         return False
 
     ok_count = 0
-    for key, state in displays.items():
+    for _key, state in displays.items():
         logger.info(
             "Applying calibration for display '%s' (id=%d, hdr=%s)",
             state.display_name,
@@ -361,7 +360,7 @@ def run_service(silent: bool = True) -> None:
     apply_saved_calibrations()
 
     # --- build initial snapshot of connected displays ---
-    previous_ids: Set[str] = set()
+    previous_ids: set[str] = set()
     for d in _enumerate_active_displays():
         previous_ids.add(d["device_name"])
     logger.info("Initial display set: %s", previous_ids)
@@ -402,7 +401,7 @@ def run_service(silent: bool = True) -> None:
 # start-service command handler
 # ---------------------------------------------------------------------------
 
-def start_service_command(args: Optional[List[str]] = None) -> None:
+def start_service_command(args: list[str] | None = None) -> None:
     """
     Entry point for the ``start-service`` CLI command.
 

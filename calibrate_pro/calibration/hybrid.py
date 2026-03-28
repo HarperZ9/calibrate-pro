@@ -17,24 +17,27 @@ the sensorless pass gets you 90% of the way there and measurement
 only needs to correct the remaining 10%.
 """
 
-import numpy as np
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 
 from calibrate_pro.core.color_math import (
-    D50_WHITE, D65_WHITE,
-    xyz_to_lab, lab_to_xyz,
-    bradford_adapt, delta_e_2000,
-    srgb_gamma_expand, srgb_gamma_compress,
-    primaries_to_xyz_matrix,
-    SRGB_TO_XYZ, XYZ_TO_SRGB
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    XYZ_TO_SRGB,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_compress,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
-
 
 # Type alias for a measurement function
 # Takes (r, g, b) in [0,1] sRGB, returns (X, Y, Z) measured tristimulus
-MeasureFn = Callable[[float, float, float], Tuple[float, float, float]]
+MeasureFn = Callable[[float, float, float], tuple[float, float, float]]
 
 
 @dataclass
@@ -44,7 +47,7 @@ class RefinementResult:
     delta_e_before: float  # Average dE before this iteration's correction
     delta_e_after: float   # Average dE after (predicted from residual correction)
     patches_measured: int
-    residual_corrections: Optional[np.ndarray] = None  # 3x3 residual matrix
+    residual_corrections: np.ndarray | None = None  # 3x3 residual matrix
 
 
 @dataclass
@@ -57,18 +60,18 @@ class HybridCalibrationResult:
     sensorless_delta_e: float = 0.0
 
     # Measurement results per iteration
-    iterations: List[RefinementResult] = field(default_factory=list)
+    iterations: list[RefinementResult] = field(default_factory=list)
 
     # Final measured accuracy
     final_measured_delta_e: float = 0.0
     final_measured_delta_e_max: float = 0.0
 
     # Output files
-    lut_path: Optional[str] = None
-    icc_path: Optional[str] = None
+    lut_path: str | None = None
+    icc_path: str | None = None
 
     # Per-patch measured data
-    measured_patches: List[Dict] = field(default_factory=list)
+    measured_patches: list[dict] = field(default_factory=list)
 
 
 # Standard verification patches — subset of ColorChecker for fast measurement
@@ -109,10 +112,10 @@ class HybridCalibrationEngine:
 
     def __init__(
         self,
-        measure_fn: Optional[MeasureFn] = None,
+        measure_fn: MeasureFn | None = None,
         max_iterations: int = 3,
         convergence_threshold: float = 0.5,  # Stop when dE improvement < this
-        progress_fn: Optional[Callable[[str, float], None]] = None
+        progress_fn: Callable[[str, float], None] | None = None
     ):
         self.measure_fn = measure_fn
         self.max_iterations = max_iterations
@@ -143,7 +146,6 @@ class HybridCalibrationEngine:
             HybridCalibrationResult with measured accuracy data
         """
         from calibrate_pro.sensorless.neuralux import SensorlessEngine
-        from calibrate_pro.core.lut_engine import LUT3D
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -287,14 +289,14 @@ class HybridCalibrationEngine:
         return result
 
     def _measure_patches(
-        self, patches: List[Tuple[str, Tuple[float, float, float]]]
-    ) -> Optional[List[Tuple[float, float, float]]]:
+        self, patches: list[tuple[str, tuple[float, float, float]]]
+    ) -> list[tuple[float, float, float]] | None:
         """Measure a list of patches using the colorimeter."""
         if self.measure_fn is None:
             return None
 
         measurements = []
-        for name, (r, g, b) in patches:
+        for _name, (r, g, b) in patches:
             try:
                 xyz = self.measure_fn(r, g, b)
                 measurements.append(xyz)
@@ -305,9 +307,9 @@ class HybridCalibrationEngine:
 
     def _compute_measured_delta_e(
         self,
-        patches: List[Tuple[str, Tuple[float, float, float]]],
-        measured_xyz: List[Tuple[float, float, float]]
-    ) -> List[Dict]:
+        patches: list[tuple[str, tuple[float, float, float]]],
+        measured_xyz: list[tuple[float, float, float]]
+    ) -> list[dict]:
         """Compute Delta E between expected and measured XYZ for each patch."""
         results = []
 
@@ -339,9 +341,9 @@ class HybridCalibrationEngine:
 
     def _compute_residual_correction(
         self,
-        patches: List[Tuple[str, Tuple[float, float, float]]],
-        measured_xyz: List[Tuple[float, float, float]]
-    ) -> Optional[np.ndarray]:
+        patches: list[tuple[str, tuple[float, float, float]]],
+        measured_xyz: list[tuple[float, float, float]]
+    ) -> np.ndarray | None:
         """
         Compute a 3x3 residual correction matrix from measurement error.
 
@@ -351,7 +353,7 @@ class HybridCalibrationEngine:
         expected_list = []
         measured_list = []
 
-        for (name, srgb), xyz_measured in zip(patches, measured_xyz):
+        for (_name, srgb), xyz_measured in zip(patches, measured_xyz):
             rgb_linear = srgb_gamma_expand(np.array(srgb))
             xyz_expected = SRGB_TO_XYZ @ rgb_linear
 

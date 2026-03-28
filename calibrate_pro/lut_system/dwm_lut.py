@@ -24,18 +24,17 @@ LUT File Placement:
 """
 
 import ctypes
-import sys
-from ctypes import wintypes, c_void_p, c_size_t, POINTER, byref
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
-import struct
-import numpy as np
-from enum import Enum
-from dataclasses import dataclass
 import os
 import shutil
 import subprocess
+import sys
 import time
+from ctypes import wintypes
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
+import numpy as np
 
 # Windows API constants
 DISPLAY_DEVICE_ACTIVE = 0x00000001
@@ -98,7 +97,7 @@ class DisplayLUTInfo:
     display_id: int
     display_name: str
     lut_active: bool
-    lut_path: Optional[str]
+    lut_path: str | None
     lut_size: int
     color_space: LUTColorSpace
     lut_type: LUTType
@@ -258,9 +257,9 @@ def generate_identity_lut(size: int = 33) -> np.ndarray:
 def generate_hdr_calibration_lut(
     size: int = 33,
     target_gamma: float = 2.2,
-    target_whitepoint: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    rgb_gains: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    rgb_offsets: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    target_whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    rgb_gains: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
     peak_luminance: float = 1000.0,
     sdr_white: float = 203.0,
 ) -> np.ndarray:
@@ -327,9 +326,9 @@ def generate_hdr_calibration_lut(
 def generate_sdr_calibration_lut(
     size: int = 33,
     target_gamma: float = 2.2,
-    target_whitepoint: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    rgb_gains: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    rgb_offsets: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    target_whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    rgb_gains: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
     source_gamma: float = 2.2,
 ) -> np.ndarray:
     """
@@ -405,7 +404,7 @@ def write_cube_file(path: Path, lut: np.ndarray, title: str = "Calibration LUT")
                     f.write(f"{r:.6f} {g:.6f} {b:.6f}\n")
 
 
-def read_cube_file(path: Path) -> Tuple[np.ndarray, int]:
+def read_cube_file(path: Path) -> tuple[np.ndarray, int]:
     """
     Read 3D LUT from .cube file format.
 
@@ -418,7 +417,7 @@ def read_cube_file(path: Path) -> Tuple[np.ndarray, int]:
     size = None
     data = []
 
-    with open(path, 'r') as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#'):
@@ -502,7 +501,7 @@ class DISPLAY_DEVICE(ctypes.Structure):
     ]
 
 
-def get_monitors() -> List[MonitorInfo]:
+def get_monitors() -> list[MonitorInfo]:
     """
     Get list of connected monitors with position information.
 
@@ -568,7 +567,7 @@ def _check_hdr_status(device_name: str) -> bool:
             pass
 
         return False
-    except Exception:
+    except OSError:
         return False
 
 
@@ -612,7 +611,7 @@ class DwmLutController:
     to apply system-wide color correction for both SDR and HDR content.
     """
 
-    def __init__(self, dwm_lut_path: Optional[Path] = None):
+    def __init__(self, dwm_lut_path: Path | None = None):
         """
         Initialize DWM LUT controller.
 
@@ -621,8 +620,8 @@ class DwmLutController:
         """
         self._dwm_lut_path = dwm_lut_path
         self._lut_directory = get_dwm_lut_directory()
-        self._active_luts: Dict[str, DisplayLUTInfo] = {}
-        self._monitors: List[MonitorInfo] = []
+        self._active_luts: dict[str, DisplayLUTInfo] = {}
+        self._monitors: list[MonitorInfo] = []
 
         # Find dwm_lut installation
         self._find_dwm_lut()
@@ -694,31 +693,31 @@ class DwmLutController:
         return self._dwm_lut_path is not None and (self._dwm_lut_path / "DwmLutGUI.exe").exists()
 
     @property
-    def dwm_lut_exe(self) -> Optional[Path]:
+    def dwm_lut_exe(self) -> Path | None:
         """Get path to DwmLutGUI.exe."""
         if self._dwm_lut_path:
             return self._dwm_lut_path / "DwmLutGUI.exe"
         return None
 
-    def refresh_monitors(self) -> List[MonitorInfo]:
+    def refresh_monitors(self) -> list[MonitorInfo]:
         """Refresh the list of connected monitors."""
         self._monitors = get_monitors()
         return self._monitors
 
-    def get_monitors(self) -> List[MonitorInfo]:
+    def get_monitors(self) -> list[MonitorInfo]:
         """Get list of connected monitors."""
         if not self._monitors:
             self.refresh_monitors()
         return self._monitors
 
-    def get_monitor_by_index(self, index: int) -> Optional[MonitorInfo]:
+    def get_monitor_by_index(self, index: int) -> MonitorInfo | None:
         """Get monitor by index."""
         monitors = self.get_monitors()
         if 0 <= index < len(monitors):
             return monitors[index]
         return None
 
-    def get_monitor_by_position(self, left: int, top: int) -> Optional[MonitorInfo]:
+    def get_monitor_by_position(self, left: int, top: int) -> MonitorInfo | None:
         """Get monitor by screen position."""
         for monitor in self.get_monitors():
             if monitor.left == left and monitor.top == top:
@@ -727,7 +726,7 @@ class DwmLutController:
 
     def load_lut(
         self,
-        monitor: Union[int, MonitorInfo],
+        monitor: int | MonitorInfo,
         lut_data: np.ndarray,
         lut_type: LUTType = LUTType.SDR,
         title: str = "Calibration LUT"
@@ -767,10 +766,10 @@ class DwmLutController:
         # Write LUT file
         try:
             write_cube_file(lut_path, lut_data, title)
-        except PermissionError:
-            raise DwmLutError(f"Permission denied writing to {lut_path}. Run as administrator.")
-        except Exception as e:
-            raise DwmLutError(f"Failed to write LUT file: {e}")
+        except PermissionError as e:
+            raise DwmLutError(f"Permission denied writing to {lut_path}. Run as administrator.") from e
+        except OSError as e:
+            raise DwmLutError(f"Failed to write LUT file: {e}") from e
 
         # Track active LUT
         key = f"{monitor_info.left}_{monitor_info.top}_{lut_type.value}"
@@ -791,8 +790,8 @@ class DwmLutController:
 
     def load_lut_file(
         self,
-        monitor: Union[int, MonitorInfo],
-        source_path: Union[str, Path],
+        monitor: int | MonitorInfo,
+        source_path: str | Path,
         lut_type: LUTType = LUTType.SDR
     ) -> bool:
         """
@@ -825,10 +824,10 @@ class DwmLutController:
         # Copy LUT file
         try:
             shutil.copy2(source_path, dest_path)
-        except PermissionError:
-            raise DwmLutError(f"Permission denied writing to {dest_path}. Run as administrator.")
-        except Exception as e:
-            raise DwmLutError(f"Failed to copy LUT file: {e}")
+        except PermissionError as e:
+            raise DwmLutError(f"Permission denied writing to {dest_path}. Run as administrator.") from e
+        except OSError as e:
+            raise DwmLutError(f"Failed to copy LUT file: {e}") from e
 
         # Read LUT to get size
         lut_data, size = read_cube_file(source_path)
@@ -852,7 +851,7 @@ class DwmLutController:
 
     def unload_lut(
         self,
-        monitor: Union[int, MonitorInfo],
+        monitor: int | MonitorInfo,
         lut_type: LUTType = LUTType.SDR
     ) -> bool:
         """
@@ -881,10 +880,10 @@ class DwmLutController:
         try:
             if lut_path.exists():
                 lut_path.unlink()
-        except PermissionError:
-            raise DwmLutError(f"Permission denied removing {lut_path}. Run as administrator.")
-        except Exception as e:
-            raise DwmLutError(f"Failed to remove LUT file: {e}")
+        except PermissionError as e:
+            raise DwmLutError(f"Permission denied removing {lut_path}. Run as administrator.") from e
+        except OSError as e:
+            raise DwmLutError(f"Failed to remove LUT file: {e}") from e
 
         # Update tracking
         key = f"{monitor_info.left}_{monitor_info.top}_{lut_type.value}"
@@ -903,15 +902,15 @@ class DwmLutController:
                 for lut_file in self._lut_directory.glob("*.cube"):
                     try:
                         lut_file.unlink()
-                    except Exception:
+                    except OSError:
                         success = False
-        except Exception:
+        except OSError:
             success = False
 
         self._active_luts.clear()
         return success
 
-    def get_active_luts(self) -> Dict[str, DisplayLUTInfo]:
+    def get_active_luts(self) -> dict[str, DisplayLUTInfo]:
         """Get information about active LUTs."""
         return self._active_luts.copy()
 
@@ -948,7 +947,7 @@ class DwmLutController:
                     if self._is_dwm_lut_running():
                         logger.info("DwmLutGUI started with elevation")
                         return True
-            except Exception as e:
+            except OSError as e:
                 logger.debug("Elevated launch failed: %s", e)
 
             # Fallback: try without elevation (works if already admin)
@@ -961,14 +960,14 @@ class DwmLutController:
                 time.sleep(1)
                 if self._is_dwm_lut_running():
                     return True
-            except Exception as e:
+            except (subprocess.SubprocessError, OSError) as e:
                 logger.debug("Non-elevated launch failed: %s", e)
 
             logger.warning("Could not start DwmLutGUI. LUT file placed but not active.")
             return False
 
-        except Exception as e:
-            raise DwmLutError(f"Failed to start DwmLutGUI: {e}")
+        except OSError as e:
+            raise DwmLutError(f"Failed to start DwmLutGUI: {e}") from e
 
     def stop_dwm_lut_gui(self) -> bool:
         """Stop DwmLutGUI.exe."""
@@ -979,7 +978,7 @@ class DwmLutController:
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             return True
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             return False
 
     def _is_dwm_lut_running(self) -> bool:
@@ -992,15 +991,15 @@ class DwmLutController:
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             return "DwmLutGUI.exe" in result.stdout
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             return False
 
     def apply_hdr_calibration(
         self,
-        monitor: Union[int, MonitorInfo],
-        rgb_gains: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-        rgb_offsets: Tuple[float, float, float] = (0.0, 0.0, 0.0),
-        whitepoint: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        monitor: int | MonitorInfo,
+        rgb_gains: tuple[float, float, float] = (1.0, 1.0, 1.0),
+        rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
+        whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
         peak_luminance: float = 1000.0,
         lut_size: int = 33
     ) -> bool:
@@ -1034,10 +1033,10 @@ class DwmLutController:
 
     def apply_sdr_calibration(
         self,
-        monitor: Union[int, MonitorInfo],
-        rgb_gains: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-        rgb_offsets: Tuple[float, float, float] = (0.0, 0.0, 0.0),
-        whitepoint: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+        monitor: int | MonitorInfo,
+        rgb_gains: tuple[float, float, float] = (1.0, 1.0, 1.0),
+        rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
+        whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
         target_gamma: float = 2.2,
         lut_size: int = 33
     ) -> bool:
@@ -1074,7 +1073,7 @@ class DwmLutController:
 # Convenience Functions
 # =============================================================================
 
-def apply_lut(lut_path: Union[str, Path], monitor_index: int = 0, lut_type: str = "sdr") -> bool:
+def apply_lut(lut_path: str | Path, monitor_index: int = 0, lut_type: str = "sdr") -> bool:
     """
     Quick function to apply a LUT file to a monitor.
 
@@ -1113,7 +1112,7 @@ def reset_all_luts() -> bool:
     return controller.reset_all()
 
 
-def get_lut_status() -> Dict:
+def get_lut_status() -> dict:
     """
     Get the current status of the DWM LUT system.
 
@@ -1140,7 +1139,7 @@ def get_lut_status() -> Dict:
     }
 
 
-def list_monitors() -> List[Dict]:
+def list_monitors() -> list[dict]:
     """List all connected monitors with position information."""
     monitors = get_monitors()
     return [

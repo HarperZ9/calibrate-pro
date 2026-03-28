@@ -5,24 +5,25 @@ Provides visual display selection with monitor preview,
 EDID information, and calibration status indicators.
 """
 
-from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QGuiApplication, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QPushButton, QGridLayout, QScrollArea, QSizePolicy,
-    QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-    QGraphicsTextItem, QToolTip, QMenu
+    QFrame,
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsTextItem,
+    QGraphicsView,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import (
-    Qt, QRectF, QPointF, QSize, pyqtSignal, QTimer
-)
-from PyQt6.QtGui import (
-    QColor, QPainter, QPen, QBrush, QFont, QCursor,
-    QGuiApplication, QScreen, QPainterPath
-)
-
 
 # =============================================================================
 # Theme Colors
@@ -125,7 +126,7 @@ class DisplayMonitorWidget(QFrame):
     clicked = pyqtSignal(int)  # Emits display ID
     double_clicked = pyqtSignal(int)
 
-    def __init__(self, display_info: DisplayInfo, parent: Optional[QWidget] = None):
+    def __init__(self, display_info: DisplayInfo, parent: QWidget | None = None):
         super().__init__(parent)
         self.display_info = display_info
         self._selected = False
@@ -286,11 +287,11 @@ class DisplayLayoutPreview(QGraphicsView):
 
     display_selected = pyqtSignal(int)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
-        self.displays: List[DisplayInfo] = []
-        self.display_rects: Dict[int, QGraphicsRectItem] = {}
+        self.displays: list[DisplayInfo] = []
+        self.display_rects: dict[int, QGraphicsRectItem] = {}
         self._selected_id = -1
 
     def _setup_ui(self):
@@ -311,7 +312,7 @@ class DisplayLayoutPreview(QGraphicsView):
 
         self.setMinimumHeight(150)
 
-    def set_displays(self, displays: List[DisplayInfo]):
+    def set_displays(self, displays: list[DisplayInfo]):
         """Set the displays to visualize."""
         self.displays = displays
         self._rebuild_scene()
@@ -414,10 +415,10 @@ class DisplaySelector(QWidget):
     display_selected = pyqtSignal(DisplayInfo)
     display_double_clicked = pyqtSignal(DisplayInfo)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.displays: List[DisplayInfo] = []
-        self.display_widgets: Dict[int, DisplayMonitorWidget] = {}
+        self.displays: list[DisplayInfo] = []
+        self.display_widgets: dict[int, DisplayMonitorWidget] = {}
         self._selected_id = -1
         self._setup_ui()
 
@@ -435,11 +436,11 @@ class DisplaySelector(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"""
-            QScrollArea {{
+        scroll.setStyleSheet("""
+            QScrollArea {
                 border: none;
                 background-color: transparent;
-            }}
+            }
         """)
 
         self.cards_container = QWidget()
@@ -549,7 +550,7 @@ class DisplaySelector(QWidget):
                 break
 
     @property
-    def selected_display(self) -> Optional[DisplayInfo]:
+    def selected_display(self) -> DisplayInfo | None:
         """Get currently selected display."""
         for display in self.displays:
             if display.id == self._selected_id:
@@ -569,7 +570,7 @@ class DisplaySelector(QWidget):
 class DisplayInfoPanel(QWidget):
     """Detailed information panel for selected display."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -579,7 +580,7 @@ class DisplayInfoPanel(QWidget):
 
         # Header
         self.name_label = QLabel("No display selected")
-        self.name_label.setStyleSheet(f"font-size: 16px; font-weight: 600;")
+        self.name_label.setStyleSheet("font-size: 16px; font-weight: 600;")
         layout.addWidget(self.name_label)
 
         # Info grid
@@ -610,7 +611,7 @@ class DisplayInfoPanel(QWidget):
         layout.addLayout(self.info_grid)
         layout.addStretch()
 
-    def set_display(self, display: Optional[DisplayInfo]):
+    def set_display(self, display: DisplayInfo | None):
         """Update panel with display information."""
         if display is None:
             self.name_label.setText("No display selected")

@@ -22,11 +22,11 @@ Usage:
     embed_vcgt_in_profile(vcgt, "profile.icc")
 """
 
-import numpy as np
-from typing import Tuple, Optional, List, Dict, Any
+import struct
 from dataclasses import dataclass
 from pathlib import Path
-import struct
+
+import numpy as np
 
 
 @dataclass
@@ -52,7 +52,7 @@ class VCGTTable:
         """Return all channels as (3, size) array."""
         return np.vstack([self.red, self.green, self.blue])
 
-    def to_integers(self, bit_depth: int = 16) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def to_integers(self, bit_depth: int = 16) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Convert to integer values for the specified bit depth."""
         max_val = (1 << bit_depth) - 1
         r = np.clip(self.red * max_val, 0, max_val).astype(np.uint16 if bit_depth <= 16 else np.uint32)
@@ -167,7 +167,7 @@ def lut3d_to_vcgt(
 def gamma_to_vcgt(
     gamma: float = 2.2,
     output_size: int = 256,
-    rgb_gains: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    rgb_gains: tuple[float, float, float] = (1.0, 1.0, 1.0),
     black_level: float = 0.0
 ) -> VCGTTable:
     """
@@ -254,7 +254,7 @@ def export_vcgt_cal(vcgt: VCGTTable, filepath: str):
         f.write("DEVICE_CLASS \"DISPLAY\"\n")
         f.write("KEYWORD \"COLOR_REP\"\n")
         f.write("COLOR_REP \"RGB\"\n\n")
-        f.write(f"NUMBER_OF_FIELDS 4\n")
+        f.write("NUMBER_OF_FIELDS 4\n")
         f.write("BEGIN_DATA_FORMAT\n")
         f.write("RGB_I RGB_R RGB_G RGB_B\n")
         f.write("END_DATA_FORMAT\n\n")
@@ -358,7 +358,7 @@ def import_vcgt_cal(filepath: str) -> VCGTTable:
     blue = []
     in_data = False
 
-    with open(path, 'r') as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
 
@@ -390,7 +390,7 @@ def import_vcgt_csv(filepath: str, has_header: bool = True) -> VCGTTable:
     green = []
     blue = []
 
-    with open(path, 'r') as f:
+    with open(path) as f:
         lines = f.readlines()
 
         start = 1 if has_header else 0
@@ -457,14 +457,16 @@ def apply_vcgt_windows(
             # CreateDCW gives us a DC for a specific display adapter
             hdc = user32.CreateDCW("DISPLAY", device_name, None, None)
             if hdc:
-                release_fn = lambda h: user32.DeleteDC(h)
+                def release_fn(h):
+                    return user32.DeleteDC(h)
 
         if not hdc:
             # Fallback: primary display DC
             hdc = user32.GetDC(None)
             if not hdc:
                 return False
-            release_fn = lambda h: user32.ReleaseDC(None, h)
+            def release_fn(h):
+                return user32.ReleaseDC(None, h)
 
         try:
             # Prepare gamma ramp (256 entries, 16-bit per channel)
@@ -546,7 +548,7 @@ def _resolve_display_device_name(display_index: int) -> str:
     return ""
 
 
-def get_current_vcgt_windows() -> Optional[VCGTTable]:
+def get_current_vcgt_windows() -> VCGTTable | None:
     """Get the current Windows gamma ramp as a VCGT table."""
     try:
         import ctypes
@@ -603,12 +605,12 @@ if __name__ == "__main__":
 
     # Generate gamma 2.2 with white balance adjustment
     adjusted = gamma_to_vcgt(2.2, 256, rgb_gains=(0.98, 1.0, 1.02))
-    print(f"\nGamma 2.2 with WB adjustment:")
-    print(f"  RGB gains applied: R=0.98, G=1.0, B=1.02")
+    print("\nGamma 2.2 with WB adjustment:")
+    print("  RGB gains applied: R=0.98, G=1.0, B=1.02")
 
     # Get current Windows gamma
     current = get_current_vcgt_windows()
     if current:
-        print(f"\nCurrent Windows gamma ramp:")
+        print("\nCurrent Windows gamma ramp:")
         print(f"  Entries: {current.size}")
         print(f"  Mid R={current.red[127]:.4f} G={current.green[127]:.4f} B={current.blue[127]:.4f}")

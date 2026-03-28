@@ -12,14 +12,14 @@ The VCGT tag in ICC profiles stores calibration curves that are
 loaded into the video card's hardware LUT for real-time color correction.
 """
 
-import numpy as np
-from dataclasses import dataclass
-from typing import Optional, Tuple, List, Union
-from pathlib import Path
-import struct
 import ctypes
+import struct
 from ctypes import wintypes
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
+import numpy as np
 
 # =============================================================================
 # VCGT Constants
@@ -279,7 +279,7 @@ class VCGTTable:
             blue=uniform_filter1d(self.blue, window_size, mode='nearest')
         )
 
-    def to_uint16(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def to_uint16(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Convert to 16-bit unsigned integer arrays."""
         return (
             (self.red * 65535).astype(np.uint16),
@@ -409,7 +409,7 @@ class GammaRampController:
         """Check if gamma ramp API is available."""
         return self._is_available
 
-    def _get_dc(self, display_id: int = 0) -> Optional[int]:
+    def _get_dc(self, display_id: int = 0) -> int | None:
         """Get device context for display."""
         if not self._is_available:
             return None
@@ -433,7 +433,7 @@ class GammaRampController:
         if hdc and self._user32:
             self._user32.ReleaseDC(0, hdc)
 
-    def _get_display_name(self, display_id: int) -> Optional[str]:
+    def _get_display_name(self, display_id: int) -> str | None:
         """Get display device name."""
         if not self._user32:
             return None
@@ -457,7 +457,7 @@ class GammaRampController:
 
         return None
 
-    def get_gamma_ramp(self, display_id: int = 0) -> Optional[VCGTTable]:
+    def get_gamma_ramp(self, display_id: int = 0) -> VCGTTable | None:
         """
         Read current gamma ramp from display.
 
@@ -546,7 +546,7 @@ class GammaRampController:
 
     def apply_vcgt_from_profile(
         self,
-        profile_path: Union[str, Path],
+        profile_path: str | Path,
         display_id: int = 0
     ) -> bool:
         """
@@ -571,7 +571,7 @@ class GammaRampController:
 # Profile VCGT Extraction
 # =============================================================================
 
-def extract_vcgt_from_profile(profile_path: Union[str, Path]) -> Optional[VCGTTable]:
+def extract_vcgt_from_profile(profile_path: str | Path) -> VCGTTable | None:
     """
     Extract VCGT table from ICC profile.
 
@@ -612,9 +612,9 @@ def extract_vcgt_from_profile(profile_path: Union[str, Path]) -> Optional[VCGTTa
 
 
 def embed_vcgt_in_profile(
-    profile_path: Union[str, Path],
+    profile_path: str | Path,
     vcgt: VCGTTable,
-    output_path: Optional[Union[str, Path]] = None
+    output_path: str | Path | None = None
 ) -> bool:
     """
     Embed or update VCGT in ICC profile.
@@ -772,7 +772,7 @@ def generate_whitepoint_vcgt(
     Returns:
         VCGTTable for white point shift
     """
-    def kelvin_to_rgb(temp: float) -> Tuple[float, float, float]:
+    def kelvin_to_rgb(temp: float) -> tuple[float, float, float]:
         """Approximate CCT to RGB multipliers."""
         temp = temp / 100.0
 

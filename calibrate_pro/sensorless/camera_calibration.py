@@ -25,14 +25,13 @@ WARNING: This module can modify display hardware settings.
 Always obtain user consent before making changes.
 """
 
-import numpy as np
-from typing import Optional, Tuple, List, Dict, Any, Callable
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from pathlib import Path
 import time
-import threading
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any
 
+import numpy as np
 
 # =============================================================================
 # Data Structures
@@ -62,11 +61,11 @@ class UserConsent:
 @dataclass
 class CameraCapture:
     """Single camera capture of a test pattern."""
-    pattern_rgb: Tuple[int, int, int]  # What was displayed
-    captured_rgb: Tuple[float, float, float]  # What camera saw (normalized)
+    pattern_rgb: tuple[int, int, int]  # What was displayed
+    captured_rgb: tuple[float, float, float]  # What camera saw (normalized)
     timestamp: float
-    exposure: Optional[float] = None
-    region_of_interest: Optional[Tuple[int, int, int, int]] = None  # x, y, w, h
+    exposure: float | None = None
+    region_of_interest: tuple[int, int, int, int] | None = None  # x, y, w, h
 
 
 @dataclass
@@ -84,11 +83,11 @@ class CameraCalibrationResult:
     success: bool = False
     delta_e_before: float = 0.0
     delta_e_after: float = 0.0
-    rgb_correction: Tuple[float, float, float] = (1.0, 1.0, 1.0)
-    gamma_measured: Tuple[float, float, float] = (2.2, 2.2, 2.2)
+    rgb_correction: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    gamma_measured: tuple[float, float, float] = (2.2, 2.2, 2.2)
     iterations: int = 0
     message: str = ""
-    consent: Optional[UserConsent] = None
+    consent: UserConsent | None = None
 
 
 # =============================================================================
@@ -105,7 +104,7 @@ class CameraInterface:
     - ManualCamera: User provides images manually
     """
 
-    def capture(self, delay: float = 0.5) -> Optional[np.ndarray]:
+    def capture(self, delay: float = 0.5) -> np.ndarray | None:
         """
         Capture a frame from the camera.
 
@@ -125,7 +124,7 @@ class CameraInterface:
         """Set white balance (if supported). Use fixed for calibration."""
         pass
 
-    def get_roi_average(self, image: np.ndarray, roi: Tuple[int, int, int, int]) -> Tuple[float, float, float]:
+    def get_roi_average(self, image: np.ndarray, roi: tuple[int, int, int, int]) -> tuple[float, float, float]:
         """
         Get average RGB values in a region of interest.
 
@@ -162,10 +161,10 @@ class WebcamCamera(CameraInterface):
                 # Disable auto-exposure and auto-white-balance for consistency
                 self._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
                 self._cap.set(cv2.CAP_PROP_AUTO_WB, 0)
-            except ImportError:
-                raise RuntimeError("OpenCV (cv2) required for webcam capture. pip install opencv-python")
+            except ImportError as e:
+                raise RuntimeError("OpenCV (cv2) required for webcam capture. pip install opencv-python") from e
 
-    def capture(self, delay: float = 0.5) -> Optional[np.ndarray]:
+    def capture(self, delay: float = 0.5) -> np.ndarray | None:
         self._ensure_open()
 
         time.sleep(delay)
@@ -195,8 +194,8 @@ class SimulatedCamera(CameraInterface):
 
     def __init__(
         self,
-        display_gamma: Tuple[float, float, float] = (2.4, 2.35, 2.45),
-        display_rgb_gain: Tuple[float, float, float] = (0.95, 1.0, 1.05),
+        display_gamma: tuple[float, float, float] = (2.4, 2.35, 2.45),
+        display_rgb_gain: tuple[float, float, float] = (0.95, 1.0, 1.05),
         camera_gamma: float = 2.2,
         noise_level: float = 0.01
     ):
@@ -206,11 +205,11 @@ class SimulatedCamera(CameraInterface):
         self.noise_level = noise_level
         self._current_pattern = None
 
-    def set_pattern(self, rgb: Tuple[int, int, int]):
+    def set_pattern(self, rgb: tuple[int, int, int]):
         """Set what the display is showing."""
         self._current_pattern = rgb
 
-    def capture(self, delay: float = 0.5) -> Optional[np.ndarray]:
+    def capture(self, delay: float = 0.5) -> np.ndarray | None:
         if self._current_pattern is None:
             return None
 
@@ -265,7 +264,7 @@ class PatternDisplay:
         self.display_index = display_index
         self._window = None
 
-    def show_pattern(self, rgb: Tuple[int, int, int], fullscreen: bool = True):
+    def show_pattern(self, rgb: tuple[int, int, int], fullscreen: bool = True):
         """Display a solid color pattern."""
         raise NotImplementedError
 
@@ -298,14 +297,14 @@ class CameraCalibrationEngine:
     def __init__(
         self,
         camera: CameraInterface,
-        display: Optional[PatternDisplay] = None,
-        roi: Tuple[int, int, int, int] = (200, 150, 240, 180)
+        display: PatternDisplay | None = None,
+        roi: tuple[int, int, int, int] = (200, 150, 240, 180)
     ):
         self.camera = camera
         self.display = display
         self.roi = roi  # Region of interest for measurement
-        self._consent: Optional[UserConsent] = None
-        self._progress_callback: Optional[Callable[[str, float], None]] = None
+        self._consent: UserConsent | None = None
+        self._progress_callback: Callable[[str, float], None] | None = None
 
     def set_progress_callback(self, callback: Callable[[str, float], None]):
         """Set callback for progress updates: callback(message, progress_0_to_1)"""
@@ -337,7 +336,7 @@ class CameraCalibrationEngine:
         )
         return consent
 
-    def measure_single_color(self, rgb: Tuple[int, int, int]) -> CameraCapture:
+    def measure_single_color(self, rgb: tuple[int, int, int]) -> CameraCapture:
         """
         Display a color and measure camera response.
 
@@ -367,7 +366,7 @@ class CameraCalibrationEngine:
             region_of_interest=self.roi
         )
 
-    def measure_grayscale_ramp(self, steps: int = 17) -> List[GammaPoint]:
+    def measure_grayscale_ramp(self, steps: int = 17) -> list[GammaPoint]:
         """
         Measure the grayscale response at multiple levels.
 
@@ -393,7 +392,7 @@ class CameraCalibrationEngine:
 
         return points
 
-    def analyze_grayscale(self, points: List[GammaPoint]) -> Dict[str, Any]:
+    def analyze_grayscale(self, points: list[GammaPoint]) -> dict[str, Any]:
         """
         Analyze grayscale measurements to extract display characteristics.
 
@@ -471,7 +470,7 @@ class CameraCalibrationEngine:
             'measured_points': points
         }
 
-    def calculate_rgb_correction(self, analysis: Dict[str, Any]) -> Tuple[float, float, float]:
+    def calculate_rgb_correction(self, analysis: dict[str, Any]) -> tuple[float, float, float]:
         """
         Calculate RGB gain correction factors to achieve neutral gray.
 
@@ -499,7 +498,7 @@ class CameraCalibrationEngine:
 
         return correction
 
-    def calculate_grayscale_delta_e(self, points: List[GammaPoint]) -> float:
+    def calculate_grayscale_delta_e(self, points: list[GammaPoint]) -> float:
         """
         Calculate approximate Delta E for grayscale.
 
@@ -538,7 +537,7 @@ class CameraCalibrationEngine:
         max_iterations: int = 5,
         target_delta_e: float = 1.0,
         apply_to_hardware: bool = False,
-        consent: Optional[UserConsent] = None
+        consent: UserConsent | None = None
     ) -> CameraCalibrationResult:
         """
         Run full camera-based calibration.

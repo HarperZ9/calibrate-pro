@@ -8,15 +8,15 @@ This module handles automatic application of:
 """
 
 import ctypes
-from ctypes import wintypes, Structure, POINTER, byref
 import json
+import logging
 import os
 import sys
 import time
+from ctypes import POINTER, Structure, byref, wintypes
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional, Dict, Any
-from dataclasses import dataclass, asdict
-import logging
+from typing import Any
 
 # Setup logging
 logging.basicConfig(
@@ -81,7 +81,7 @@ class DDCController:
         )
         self.user32.EnumDisplayMonitors(None, None, MONITORENUMPROC(callback), 0)
 
-    def get_vcp(self, monitor_idx: int, vcp_code: int) -> Optional[int]:
+    def get_vcp(self, monitor_idx: int, vcp_code: int) -> int | None:
         """Get VCP value for a monitor."""
         if monitor_idx >= len(self.monitors):
             return None
@@ -105,7 +105,7 @@ class DDCController:
         handle = self.monitors[monitor_idx]['physical'].hPhysicalMonitor
         return bool(self.dxva2.SetVCPFeature(handle, vcp_code, value))
 
-    def apply_calibration(self, monitor_idx: int, settings: Dict[str, Any]) -> bool:
+    def apply_calibration(self, monitor_idx: int, settings: dict[str, Any]) -> bool:
         """Apply calibration settings to a monitor."""
         success = True
 
@@ -163,7 +163,7 @@ class ICCProfileManager:
         self.mscms = ctypes.windll.mscms
         self.profile_dir = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'System32' / 'spool' / 'drivers' / 'color'
 
-    def get_monitor_device_id(self, display_index: int = 0) -> Optional[str]:
+    def get_monitor_device_id(self, display_index: int = 0) -> str | None:
         """Get the device ID for a display's monitor."""
         user32 = ctypes.windll.user32
 
@@ -243,7 +243,7 @@ class MonitorCalibration:
     red_gain: int = 100
     green_gain: int = 100
     blue_gain: int = 100
-    icc_profile: Optional[str] = None
+    icc_profile: str | None = None
     white_point: str = "D65"  # D50, D55, D65, etc.
     ddc_supported: bool = True  # Whether DDC/CI is supported
 
@@ -253,7 +253,7 @@ class CalibrationProfile:
     """Complete calibration profile for all monitors."""
     version: str = "1.0"
     name: str = "Default"
-    monitors: Dict[int, MonitorCalibration] = None
+    monitors: dict[int, MonitorCalibration] = None
 
     def __post_init__(self):
         if self.monitors is None:
@@ -281,7 +281,7 @@ class AutoCalibrationManager:
         """Load calibration profile from file."""
         if self.profile_file.exists():
             try:
-                with open(self.profile_file, 'r') as f:
+                with open(self.profile_file) as f:
                     data = json.load(f)
 
                 monitors = {}
@@ -323,7 +323,7 @@ class AutoCalibrationManager:
         red_gain: int = 100,
         green_gain: int = 100,
         blue_gain: int = 100,
-        icc_profile: Optional[str] = None,
+        icc_profile: str | None = None,
         white_point: str = "D65",
         ddc_supported: bool = True
     ):
@@ -341,7 +341,7 @@ class AutoCalibrationManager:
         )
         self.save_profile()
 
-    def apply_all_calibrations(self) -> Dict[int, bool]:
+    def apply_all_calibrations(self) -> dict[int, bool]:
         """Apply calibration to all configured monitors."""
         results = {}
 
@@ -375,7 +375,7 @@ class AutoCalibrationManager:
                     if icc_success:
                         logger.info(f"ICC profile applied: {calibration.icc_profile}")
                     else:
-                        logger.warning(f"Failed to set ICC profile as default")
+                        logger.warning("Failed to set ICC profile as default")
 
             results[monitor_idx] = ddc_success and icc_success
 
@@ -394,7 +394,7 @@ class AutoCalibrationManager:
 # Windows Startup Registration
 # ============================================================================
 
-def register_startup(script_path: Optional[str] = None) -> bool:
+def register_startup(script_path: str | None = None) -> bool:
     """Register auto-calibration to run at Windows startup."""
     import winreg
 
@@ -444,7 +444,7 @@ def unregister_startup() -> bool:
         )
         try:
             winreg.DeleteValue(key, APP_NAME)
-        except WindowsError:
+        except OSError:
             pass
         winreg.CloseKey(key)
         logger.info("Removed from startup")
@@ -471,7 +471,7 @@ def is_startup_registered() -> bool:
         try:
             winreg.QueryValueEx(key, APP_NAME)
             return True
-        except WindowsError:
+        except OSError:
             return False
         finally:
             winreg.CloseKey(key)
@@ -553,10 +553,10 @@ def main():
         )
 
         print(f"Configured: {description}")
-        print(f"  Color preset: 0x05 (sRGB)")
-        print(f"  RGB gains: 100/100/100")
-        print(f"  White point: D65")
-        print(f"  ICC profile: CalibratePro_Display1.icc")
+        print("  Color preset: 0x05 (sRGB)")
+        print("  RGB gains: 100/100/100")
+        print("  White point: D65")
+        print("  ICC profile: CalibratePro_Display1.icc")
         print()
 
         # Apply immediately

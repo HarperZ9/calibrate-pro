@@ -12,21 +12,18 @@ Workflow:
 """
 
 import json
-import sys
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from calibrate_pro.panels.database import (
-    PanelCharacterization,
-    PanelPrimaries,
     ChromaticityCoord,
     GammaCurve,
     PanelCapabilities,
+    PanelCharacterization,
     PanelDatabase,
+    PanelPrimaries,
 )
-
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -39,9 +36,9 @@ class PanelSubmission:
     manufacturer: str
     model: str
     panel_type: str
-    primaries: Dict       # red/green/blue/white xy
-    gamma: Dict           # red/green/blue values
-    capabilities: Dict
+    primaries: dict       # red/green/blue/white xy
+    gamma: dict           # red/green/blue values
+    capabilities: dict
     measured_by: str      # submitter name
     measurement_date: str
     measurement_device: str  # e.g., "i1Display Pro"
@@ -173,7 +170,7 @@ def import_panel(json_path: Path) -> PanelCharacterization:
     if not json_path.exists():
         raise FileNotFoundError(f"Panel file not found: {json_path}")
 
-    with open(json_path, "r", encoding="utf-8") as fh:
+    with open(json_path, encoding="utf-8") as fh:
         data = json.load(fh)
 
     if not data.get("calibrate_pro_community"):
@@ -228,7 +225,7 @@ def submit_panel_cli():
     panel_type = input("Panel type (QD-OLED / WOLED / IPS / VA): ").strip()
 
     print("\nPrimaries (CIE 1931 xy chromaticity):")
-    def _read_xy(label: str) -> Dict[str, float]:
+    def _read_xy(label: str) -> dict[str, float]:
         raw = input(f"  {label} (x y): ").strip().split()
         return {"x": float(raw[0]), "y": float(raw[1])}
 
@@ -247,7 +244,7 @@ def submit_panel_cli():
     }
 
     print("\nCapabilities:")
-    capabilities: Dict = {}
+    capabilities: dict = {}
     capabilities["max_sdr"] = float(input("  SDR peak (cd/m2): ").strip() or "100")
     capabilities["max_hdr"] = float(input("  HDR peak (cd/m2): ").strip() or "400")
     capabilities["hdr"] = input("  HDR capable? (y/n): ").strip().lower() == "y"
@@ -330,7 +327,7 @@ def cmd_export_panel(args) -> int:
     print(f"\n  Panel: {panel.name}")
     print(f"  Type:  {panel.panel_type}")
     print(f"  File:  {result_path.absolute()}")
-    print(f"\nShare this file with the Calibrate Pro community!")
+    print("\nShare this file with the Calibrate Pro community!")
     print("=" * 60)
 
     return 0
@@ -369,7 +366,7 @@ def cmd_import_panel(args) -> int:
     print(f"  Type:     {panel.panel_type}")
     print(f"  Key:      {panel_key}")
     print(f"  Saved to: {dest}")
-    print(f"\nThe panel is now available in the local database.")
+    print("\nThe panel is now available in the local database.")
     print("=" * 60)
 
     return 0

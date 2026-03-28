@@ -23,12 +23,12 @@ from __future__ import annotations
 
 import logging
 import shutil
-import struct
 from pathlib import Path
-from typing import List, Optional
 
 from calibrate_pro.platform.base import (
     DisplayInfo as PlatformDisplayInfo,
+)
+from calibrate_pro.platform.base import (
     PlatformBackend,
 )
 
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 def _have_quartz() -> bool:
     """Check if Quartz (CoreGraphics) bindings are available."""
     try:
-        import Quartz
+        import Quartz  # noqa: F401
         return True
     except ImportError:
         return False
@@ -55,7 +55,7 @@ class MacOSBackend(PlatformBackend):
     # Display enumeration
     # ------------------------------------------------------------------
 
-    def enumerate_displays(self) -> List[PlatformDisplayInfo]:
+    def enumerate_displays(self) -> list[PlatformDisplayInfo]:
         """Enumerate active displays via CoreGraphics."""
         try:
             import Quartz
@@ -74,7 +74,7 @@ class MacOSBackend(PlatformBackend):
             logger.error("CGGetActiveDisplayList failed: error %d", err)
             return []
 
-        results: List[PlatformDisplayInfo] = []
+        results: list[PlatformDisplayInfo] = []
         main_display = Quartz.CGMainDisplayID()
 
         for i, did in enumerate(display_ids[:count]):
@@ -134,9 +134,9 @@ class MacOSBackend(PlatformBackend):
     def apply_gamma_ramp(
         self,
         display_index: int,
-        red: List[int],
-        green: List[int],
-        blue: List[int],
+        red: list[int],
+        green: list[int],
+        blue: list[int],
     ) -> bool:
         """Apply gamma ramp via CGSetDisplayTransferByTable."""
         try:
@@ -215,7 +215,7 @@ class MacOSBackend(PlatformBackend):
 
         return True
 
-    def get_icc_profile(self, display_index: int) -> Optional[str]:
+    def get_icc_profile(self, display_index: int) -> str | None:
         """Get the active ICC profile path for a display."""
         did = self._get_display_id(display_index)
         if did is None:
@@ -226,7 +226,7 @@ class MacOSBackend(PlatformBackend):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_display_id(self, display_index: int) -> Optional[int]:
+    def _get_display_id(self, display_index: int) -> int | None:
         """Get CGDirectDisplayID for a display index."""
         try:
             import Quartz
@@ -259,7 +259,7 @@ class MacOSBackend(PlatformBackend):
                 3502: "BenQ", 4098: "HP", 4137: "LG",
                 4268: "Dell", 4743: "Lenovo", 5765: "Sony",
                 6476: "ViewSonic", 7789: "ASUS", 8478: "Gigabyte",
-                1189: "EIZO", 4743: "MSI",
+                1189: "EIZO",
             }
             manufacturer = vendor_map.get(vendor_id, "")
 
@@ -268,7 +268,6 @@ class MacOSBackend(PlatformBackend):
                 # CGDisplayIOServicePort is deprecated but still works on macOS < 14
                 service = Quartz.CGDisplayIOServicePort(display_id)
                 if service:
-                    from Foundation import NSDictionary
                     info = Quartz.IODisplayCreateInfoDictionary(
                         service, Quartz.kIODisplayOnlyPreferredName
                     )
@@ -290,7 +289,7 @@ class MacOSBackend(PlatformBackend):
 
         return manufacturer, model, serial
 
-    def _get_colorsync_profile_path(self, display_id: int) -> Optional[str]:
+    def _get_colorsync_profile_path(self, display_id: int) -> str | None:
         """Get the current ColorSync profile path for a display."""
         try:
             import Quartz
@@ -321,12 +320,11 @@ class MacOSBackend(PlatformBackend):
     def _associate_profile_with_display(self, profile_path: Path, display_index: int):
         """Associate an ICC profile with a display via ColorSync."""
         try:
-            import Quartz
+            import Quartz  # noqa: F401 — ensure pyobjc-framework-Quartz is available
             from ColorSync import (
                 ColorSyncDeviceSetCustomProfiles,
-                kColorSyncDisplayDeviceClass,
                 kColorSyncDeviceDefaultProfileID,
-                kColorSyncProfileUserScope,
+                kColorSyncDisplayDeviceClass,
             )
             from Foundation import NSURL, NSDictionary
 
@@ -362,8 +360,8 @@ class MacOSBackend(PlatformBackend):
 
 def enable_macos_startup(silent: bool = True) -> bool:
     """Register Calibrate Pro as a macOS login item via launchd plist."""
-    import sys
     import plistlib
+    import sys
 
     plist_dir = Path.home() / "Library" / "LaunchAgents"
     plist_dir.mkdir(parents=True, exist_ok=True)

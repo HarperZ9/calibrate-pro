@@ -14,10 +14,10 @@ Supports:
 For professional colorists, photographers, and enthusiasts.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List
+from dataclasses import dataclass
 from enum import Enum
+
+import numpy as np
 
 
 class GamutPreset(Enum):
@@ -51,10 +51,10 @@ class ColorPrimaries:
     """
     CIE xy chromaticity coordinates for RGB primaries and white point.
     """
-    red: Tuple[float, float]      # (x, y)
-    green: Tuple[float, float]    # (x, y)
-    blue: Tuple[float, float]     # (x, y)
-    white: Tuple[float, float]    # (x, y)
+    red: tuple[float, float]      # (x, y)
+    green: tuple[float, float]    # (x, y)
+    blue: tuple[float, float]     # (x, y)
+    white: tuple[float, float]    # (x, y)
 
     def to_matrix(self) -> np.ndarray:
         """
@@ -118,7 +118,7 @@ class ColorPrimaries:
 
         return area
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "red": self.red,
@@ -128,7 +128,7 @@ class ColorPrimaries:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "ColorPrimaries":
+    def from_dict(cls, data: dict) -> "ColorPrimaries":
         """Create from dictionary."""
         return cls(
             red=tuple(data["red"]),
@@ -210,7 +210,7 @@ PRIMARIES_PAL_SECAM = ColorPrimaries(
 )
 
 # Lookup table
-GAMUT_PRIMARIES: Dict[str, ColorPrimaries] = {
+GAMUT_PRIMARIES: dict[str, ColorPrimaries] = {
     "sRGB": PRIMARIES_SRGB,
     "Rec.709": PRIMARIES_REC709,
     "DCI-P3": PRIMARIES_DCI_P3,
@@ -226,7 +226,7 @@ GAMUT_PRIMARIES: Dict[str, ColorPrimaries] = {
 
 
 # Reference gamut areas for coverage calculation
-GAMUT_AREAS: Dict[str, float] = {
+GAMUT_AREAS: dict[str, float] = {
     "sRGB": PRIMARIES_SRGB.get_gamut_area(),
     "DCI-P3": PRIMARIES_DCI_P3.get_gamut_area(),
     "BT.2020": PRIMARIES_BT2020.get_gamut_area(),
@@ -302,7 +302,7 @@ class GamutTarget:
         tolerance_delta_xy: Acceptable primary deviation
     """
     preset: GamutPreset = GamutPreset.SRGB
-    primaries: Optional[ColorPrimaries] = None
+    primaries: ColorPrimaries | None = None
 
     # Coverage targets
     target_coverage_srgb: float = 100.0
@@ -366,10 +366,10 @@ class GamutTarget:
 
     def verify_primaries(
         self,
-        measured_red: Tuple[float, float],
-        measured_green: Tuple[float, float],
-        measured_blue: Tuple[float, float]
-    ) -> Dict:
+        measured_red: tuple[float, float],
+        measured_green: tuple[float, float],
+        measured_blue: tuple[float, float]
+    ) -> dict:
         """
         Verify measured primaries against target.
 
@@ -384,7 +384,7 @@ class GamutTarget:
         target = self.get_primaries()
 
         # Calculate chromaticity errors
-        def delta_xy(target: Tuple[float, float], measured: Tuple[float, float]) -> float:
+        def delta_xy(target: tuple[float, float], measured: tuple[float, float]) -> float:
             return np.sqrt((target[0] - measured[0])**2 + (target[1] - measured[1])**2)
 
         red_error = delta_xy(target.red, measured_red)
@@ -423,7 +423,7 @@ class GamutTarget:
     def verify_coverage(
         self,
         display_primaries: ColorPrimaries
-    ) -> Dict:
+    ) -> dict:
         """
         Verify gamut coverage of display.
 
@@ -475,7 +475,7 @@ class GamutTarget:
         else:
             return "Limited Gamut"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "preset": self.preset.value,
@@ -488,7 +488,7 @@ class GamutTarget:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "GamutTarget":
+    def from_dict(cls, data: dict) -> "GamutTarget":
         """Create from dictionary."""
         primaries = None
         if data.get("primaries"):
@@ -566,7 +566,7 @@ GAMUT_ACES_CG = GamutTarget(
 )
 
 
-def get_gamut_presets() -> List[GamutTarget]:
+def get_gamut_presets() -> list[GamutTarget]:
     """Get list of standard gamut presets."""
     return [
         GAMUT_SRGB,
@@ -580,7 +580,7 @@ def get_gamut_presets() -> List[GamutTarget]:
     ]
 
 
-def get_sdr_presets() -> List[GamutTarget]:
+def get_sdr_presets() -> list[GamutTarget]:
     """Get SDR gamut presets."""
     return [
         GAMUT_SRGB,
@@ -588,16 +588,16 @@ def get_sdr_presets() -> List[GamutTarget]:
     ]
 
 
-def get_wide_gamut_presets() -> List[GamutTarget]:
+def get_wide_gamut_presets() -> list[GamutTarget]:
     """Get wide gamut presets."""
     return [p for p in get_gamut_presets() if p.is_wide_gamut()]
 
 
 def create_custom_gamut(
-    red: Tuple[float, float],
-    green: Tuple[float, float],
-    blue: Tuple[float, float],
-    white: Tuple[float, float] = (0.3127, 0.3290),
+    red: tuple[float, float],
+    green: tuple[float, float],
+    blue: tuple[float, float],
+    white: tuple[float, float] = (0.3127, 0.3290),
     name: str = "Custom"
 ) -> GamutTarget:
     """
@@ -627,7 +627,7 @@ def create_custom_gamut(
     )
 
 
-def get_gamut_comparison(gamut1: GamutTarget, gamut2: GamutTarget) -> Dict:
+def get_gamut_comparison(gamut1: GamutTarget, gamut2: GamutTarget) -> dict:
     """
     Compare two gamut targets.
 

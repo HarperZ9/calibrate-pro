@@ -13,19 +13,22 @@ Supported devices:
 
 import struct
 import time
-import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 
-from calibrate_pro.hardware.usb_device import (
-    USBDeviceInfo, USBTransport, HIDTransport,
-    enumerate_all_colorimeters, get_transport,
-    CommunicationError, DeviceNotFoundError
-)
 from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch
+    ColorimeterBase,
+    ColorMeasurement,
+    DeviceInfo,
+    DeviceType,
+)
+from calibrate_pro.hardware.usb_device import (
+    CommunicationError,
+    USBDeviceInfo,
+    USBTransport,
+    enumerate_all_colorimeters,
+    get_transport,
 )
 
 
@@ -73,7 +76,7 @@ class I1CalibrationData:
     calibration_matrix: np.ndarray
     dark_offsets: np.ndarray
     integration_scale: float
-    ambient_matrix: Optional[np.ndarray] = None
+    ambient_matrix: np.ndarray | None = None
     manufacture_date: str = ""
 
 
@@ -97,15 +100,15 @@ class I1DisplayNative(ColorimeterBase):
 
     def __init__(self):
         super().__init__()
-        self._transport: Optional[USBTransport] = None
-        self._usb_info: Optional[USBDeviceInfo] = None
-        self._cal_data: Optional[I1CalibrationData] = None
+        self._transport: USBTransport | None = None
+        self._usb_info: USBDeviceInfo | None = None
+        self._cal_data: I1CalibrationData | None = None
         self._integration_time: float = 0.5  # seconds
         self._averaging: int = 1
         self._refresh_mode: bool = False
         self._refresh_rate: float = 60.0
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect connected i1Display devices."""
         devices = []
 
@@ -333,7 +336,7 @@ class I1DisplayNative(ColorimeterBase):
         except Exception:
             return False
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """Take a spot measurement."""
         if not self.is_connected:
             return None
@@ -407,7 +410,7 @@ class I1DisplayNative(ColorimeterBase):
 
         return xyz
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """Measure ambient light (requires diffuser)."""
         if not self.is_connected:
             return None
@@ -440,7 +443,7 @@ class I1DisplayNative(ColorimeterBase):
 
         return None
 
-    def detect_refresh_rate(self) -> Optional[float]:
+    def detect_refresh_rate(self) -> float | None:
         """Detect display refresh rate."""
         if not self.is_connected:
             return None
@@ -466,7 +469,7 @@ class I1DisplayNative(ColorimeterBase):
             pass
 
 
-def detect_i1display_native() -> Optional[I1DisplayNative]:
+def detect_i1display_native() -> I1DisplayNative | None:
     """Detect and connect to i1Display device."""
     driver = I1DisplayNative()
     devices = driver.detect_devices()

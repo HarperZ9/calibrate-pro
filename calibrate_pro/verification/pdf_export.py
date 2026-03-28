@@ -14,12 +14,8 @@ Usage:
 """
 
 import logging
-import os
-import sys
-import tempfile
 import webbrowser
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +28,9 @@ def _try_qt_webengine_pdf(html_content: str, output_path: str) -> bool:
     Returns True on success, False if WebEngine is unavailable or fails.
     """
     try:
-        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import QEventLoop, QTimer
         from PyQt6.QtWebEngineWidgets import QWebEngineView
-        from PyQt6.QtCore import QUrl, QEventLoop, QTimer
+        from PyQt6.QtWidgets import QApplication
 
         # Ensure a QApplication exists
         app = QApplication.instance()

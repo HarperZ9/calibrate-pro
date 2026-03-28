@@ -15,9 +15,7 @@ Author: Zain Dana / Quanta
 License: MIT
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -35,8 +33,8 @@ class MasteringSpec:
     description: str
 
     # Colorimetry
-    primaries: Dict[str, Tuple[float, float]]
-    white_point: Tuple[float, float]
+    primaries: dict[str, tuple[float, float]]
+    white_point: tuple[float, float]
 
     # Luminance
     peak_luminance: float  # cd/m²
@@ -57,7 +55,7 @@ class MasteringSpec:
     surround_luminance: float = 5.0  # cd/m²
     viewing_distance_heights: float = 3.0  # Picture heights
 
-    def validate(self, measurements: Dict) -> Tuple[ComplianceLevel, List[str]]:
+    def validate(self, measurements: dict) -> tuple[ComplianceLevel, list[str]]:
         """
         Validate measurements against this specification.
 
@@ -441,9 +439,9 @@ class BBCBroadcastProfile(MasteringSpec):
 # =============================================================================
 
 def validate_mastering_compliance(
-    measurements: Dict,
+    measurements: dict,
     standard: str = "netflix"
-) -> Tuple[ComplianceLevel, List[str], MasteringSpec]:
+) -> tuple[ComplianceLevel, list[str], MasteringSpec]:
     """
     Validate calibration measurements against a mastering standard.
 
@@ -489,7 +487,7 @@ def validate_mastering_compliance(
     return level, issues, spec
 
 
-def get_recommended_targets(use_case: str) -> Dict[str, MasteringSpec]:
+def get_recommended_targets(use_case: str) -> dict[str, MasteringSpec]:
     """
     Get recommended calibration targets for a use case.
 
@@ -528,9 +526,9 @@ def get_recommended_targets(use_case: str) -> Dict[str, MasteringSpec]:
 
 
 def generate_compliance_report(
-    measurements: Dict,
-    standards: List[str] = None
-) -> Dict:
+    measurements: dict,
+    standards: list[str] = None
+) -> dict:
     """
     Generate a comprehensive compliance report against multiple standards.
 

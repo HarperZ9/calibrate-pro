@@ -9,9 +9,10 @@ Generates various test patterns for display calibration including:
 - Uniformity test patterns
 """
 
+from collections.abc import Generator
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Generator
+
 import numpy as np
 
 
@@ -44,15 +45,15 @@ class TestPattern:
     """Generated test pattern."""
     pattern_type: PatternType
     data: np.ndarray
-    rgb_value: Optional[tuple[int, int, int]] = None
+    rgb_value: tuple[int, int, int] | None = None
     name: str = ""
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
 
 
 class PatternGenerator:
     """Generates test patterns for display calibration."""
 
-    def __init__(self, config: Optional[PatternConfig] = None):
+    def __init__(self, config: PatternConfig | None = None):
         """
         Initialize pattern generator.
 

@@ -5,21 +5,27 @@ Hardware DDC/CI monitor control: brightness, contrast, RGB gain, RGB offset.
 Communicates directly with the display over the DDC/CI protocol.
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QScrollArea, QSizePolicy, QMessageBox, QSlider,
-    QComboBox, QGroupBox, QFormLayout, QSpinBox,
-)
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSlider,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat, StatusDot
+from calibrate_pro.gui.app import C, Card, Heading, StatusDot
 
-
-# =============================================================================
 # Slider Stylesheet
-# =============================================================================
 
 SLIDER_STYLE = f"""
     QSlider::groove:horizontal {{
@@ -74,9 +80,7 @@ BLUE_SLIDER_STYLE = f"""
 """
 
 
-# =============================================================================
 # Helper: labeled slider row
-# =============================================================================
 
 def _make_slider_row(
     label_text: str,
@@ -115,9 +119,7 @@ def _make_slider_row(
     return row, slider, value_label
 
 
-# =============================================================================
 # DDC Control Page
-# =============================================================================
 
 class DDCControlPage(QWidget):
     """DDC/CI hardware control page."""
@@ -125,8 +127,8 @@ class DDCControlPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._controller = None
-        self._monitors: List[Dict[str, Any]] = []
-        self._current_monitor: Optional[Dict[str, Any]] = None
+        self._monitors: list[dict[str, Any]] = []
+        self._current_monitor: dict[str, Any] | None = None
         self._build()
 
     def _build(self):
@@ -495,14 +497,12 @@ class DDCControlPage(QWidget):
         # --- Initialize controller ---
         self._init_controller()
 
-    # =========================================================================
     # Controller & Monitor Management
-    # =========================================================================
 
     def _init_controller(self):
         """Initialize the DDC/CI controller and detect monitors."""
         try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
+            from calibrate_pro.hardware.ddc_ci import DDCCIController
             self._controller = DDCCIController()
 
             if not self._controller.available:
@@ -541,9 +541,7 @@ class DDCControlPage(QWidget):
             self._current_monitor = self._monitors[index]
             self._read_current()
 
-    # =========================================================================
     # Read / Write VCP
-    # =========================================================================
 
     def _read_current(self):
         """Read all control values from the currently selected monitor."""
@@ -551,7 +549,6 @@ class DDCControlPage(QWidget):
             return
 
         try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
 
             settings = self._controller.get_settings(self._current_monitor)
 

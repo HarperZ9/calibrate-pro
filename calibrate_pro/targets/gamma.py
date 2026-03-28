@@ -13,10 +13,11 @@ Supports:
 For professional colorists, broadcast engineers, and enthusiasts.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, Dict, List, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
+
+import numpy as np
 
 
 class GammaPreset(Enum):
@@ -508,7 +509,7 @@ class GammaTarget:
         else:
             return lambda L: power_oetf(L, 2.2)
 
-    def get_target_curve(self, steps: int = 256) -> Tuple[np.ndarray, np.ndarray]:
+    def get_target_curve(self, steps: int = 256) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate target gamma/EOTF curve.
 
@@ -550,7 +551,7 @@ class GammaTarget:
         # Effective gamma = log(L) / log(signal)
         return np.log(L) / np.log(signal_level)
 
-    def verify(self, measured_curve: List[Tuple[float, float]]) -> Dict:
+    def verify(self, measured_curve: list[tuple[float, float]]) -> dict:
         """
         Verify measured gamma curve against target.
 
@@ -601,7 +602,7 @@ class GammaTarget:
         else:
             return "Uncalibrated"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize to dictionary."""
         return {
             "preset": self.preset.value,
@@ -615,7 +616,7 @@ class GammaTarget:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "GammaTarget":
+    def from_dict(cls, data: dict) -> "GammaTarget":
         """Create from dictionary."""
         return cls(
             preset=GammaPreset(data.get("preset", "Power 2.2")),
@@ -678,7 +679,7 @@ GAMMA_L_STAR = GammaTarget(
 )
 
 
-def get_gamma_presets() -> List[GammaTarget]:
+def get_gamma_presets() -> list[GammaTarget]:
     """Get list of standard gamma presets."""
     return [
         GAMMA_22,
@@ -693,12 +694,12 @@ def get_gamma_presets() -> List[GammaTarget]:
     ]
 
 
-def get_sdr_presets() -> List[GammaTarget]:
+def get_sdr_presets() -> list[GammaTarget]:
     """Get SDR gamma presets."""
     return [p for p in get_gamma_presets() if not p.is_hdr()]
 
 
-def get_hdr_presets() -> List[GammaTarget]:
+def get_hdr_presets() -> list[GammaTarget]:
     """Get HDR EOTF presets."""
     return [p for p in get_gamma_presets() if p.is_hdr()]
 

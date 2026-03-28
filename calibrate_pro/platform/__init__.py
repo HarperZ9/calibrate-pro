@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from calibrate_pro.platform.base import PlatformBackend
 
 
-def get_platform_backend() -> "PlatformBackend":
+def get_platform_backend() -> PlatformBackend:
     """
     Get the appropriate platform backend for the current OS.
 

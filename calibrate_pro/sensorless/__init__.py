@@ -13,13 +13,31 @@ This module provides:
 # =============================================================================
 # Sensorless Calibration Engine
 # =============================================================================
+# =============================================================================
+# Auto-Calibration Engine (Zero-Input Calibration)
+# =============================================================================
+from .auto_calibration import (
+    # Main Classes
+    AutoCalibrationEngine,
+    AutoCalibrationResult,
+    # Enums
+    CalibrationRisk,
+    CalibrationStep,
+    CalibrationTarget,
+    # Data Classes
+    UserConsent,
+    auto_calibrate_all,
+    generate_consent_warning,
+    # Functions
+    one_click_calibrate,
+)
 from .neuralux import (
-    SensorlessEngine,
-    NeuralUXEngine,  # Backwards compatibility alias
-    ColorPatch,
     COLORCHECKER_CLASSIC,
-    get_colorchecker_reference,
+    ColorPatch,
+    NeuralUXEngine,  # Backwards compatibility alias
+    SensorlessEngine,
     calibrate_display,
+    get_colorchecker_reference,
     verify_display,
 )
 
@@ -27,16 +45,13 @@ from .neuralux import (
 # Pattern Generator
 # =============================================================================
 from .pattern_generator import (
-    # Enums
-    PatternType,
-
     # Data Classes
     PatternConfig,
-    TestPattern,
-
     # Main Classes
     PatternGenerator,
-
+    # Enums
+    PatternType,
+    TestPattern,
     # Functions
     create_pattern_generator,
 )
@@ -45,43 +60,18 @@ from .pattern_generator import (
 # Visual Matcher
 # =============================================================================
 from .visual_matcher import (
+    AdjustmentType,
+    CalibrationAdjustment,
+    GrayscaleBalancer,
     # Enums
     MatchingMethod,
-    AdjustmentType,
-
     # Data Classes
     MatchResult,
-    CalibrationAdjustment,
-
     # Main Classes
     VisualMatcher,
-    GrayscaleBalancer,
     WhitepointMatcher,
-
     # Functions
     create_visual_matcher,
-)
-
-# =============================================================================
-# Auto-Calibration Engine (Zero-Input Calibration)
-# =============================================================================
-from .auto_calibration import (
-    # Enums
-    CalibrationRisk,
-    CalibrationStep,
-
-    # Data Classes
-    UserConsent,
-    CalibrationTarget,
-    AutoCalibrationResult,
-
-    # Main Classes
-    AutoCalibrationEngine,
-
-    # Functions
-    one_click_calibrate,
-    auto_calibrate_all,
-    generate_consent_warning,
 )
 
 # =============================================================================

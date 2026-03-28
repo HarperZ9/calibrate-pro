@@ -9,18 +9,17 @@ Requires ArgyllCMS to be installed: https://www.argyllcms.com/
 
 import os
 import re
+import shutil
 import subprocess
 import tempfile
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import shutil
 
 from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, DeviceInfo, DeviceType, ColorMeasurement,
-    CalibrationPatch, CalibrationMode, MeasurementType,
-    generate_grayscale_patches, generate_profiling_patches
+    ColorimeterBase,
+    ColorMeasurement,
+    DeviceInfo,
+    DeviceType,
 )
 
 # =============================================================================
@@ -30,10 +29,10 @@ from calibrate_pro.hardware.colorimeter_base import (
 @dataclass
 class ArgyllConfig:
     """ArgyllCMS installation configuration."""
-    bin_path: Optional[Path] = None      # Path to ArgyllCMS bin directory
-    ccss_path: Optional[Path] = None     # Path to CCSS files
-    ccmx_path: Optional[Path] = None     # Path to CCMX files
-    ref_path: Optional[Path] = None      # Path to reference files
+    bin_path: Path | None = None      # Path to ArgyllCMS bin directory
+    ccss_path: Path | None = None     # Path to CCSS files
+    ccmx_path: Path | None = None     # Path to CCMX files
+    ref_path: Path | None = None      # Path to reference files
 
     def find_argyll(self) -> bool:
         """
@@ -124,7 +123,7 @@ class ArgyllBackend(ColorimeterBase):
     and color measurement.
     """
 
-    def __init__(self, argyll_config: Optional[ArgyllConfig] = None):
+    def __init__(self, argyll_config: ArgyllConfig | None = None):
         super().__init__()
 
         self.config = argyll_config or get_argyll_config()
@@ -135,15 +134,15 @@ class ArgyllBackend(ColorimeterBase):
         self.adaptive_mode: bool = True
 
         # Temp directory for working files
-        self.temp_dir: Optional[Path] = None
+        self.temp_dir: Path | None = None
 
         # Cached device list
-        self._devices: List[DeviceInfo] = []
+        self._devices: list[DeviceInfo] = []
 
     def _run_tool(
         self,
         tool_name: str,
-        args: List[str],
+        args: list[str],
         timeout: int = 60,
         capture_output: bool = True
     ) -> subprocess.CompletedProcess:
@@ -172,12 +171,12 @@ class ArgyllBackend(ColorimeterBase):
                 cwd=str(self.temp_dir) if self.temp_dir else None
             )
             return result
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"{tool_name} timed out after {timeout}s")
-        except FileNotFoundError:
-            raise RuntimeError(f"ArgyllCMS tool not found: {tool_path}")
+        except subprocess.TimeoutExpired as e:
+            raise TimeoutError(f"{tool_name} timed out after {timeout}s") from e
+        except FileNotFoundError as e:
+            raise RuntimeError(f"ArgyllCMS tool not found: {tool_path}") from e
 
-    def _parse_spotread_output(self, output: str) -> Optional[ColorMeasurement]:
+    def _parse_spotread_output(self, output: str) -> ColorMeasurement | None:
         """Parse spotread output to extract XYZ values."""
         # Look for XYZ values in output
         # Format: "Result is XYZ: X.XXXX Y.YYYY Z.ZZZZ"
@@ -208,7 +207,7 @@ class ArgyllBackend(ColorimeterBase):
 
         return None
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect connected colorimeters/spectrophotometers."""
         self._devices = []
 
@@ -222,7 +221,7 @@ class ArgyllBackend(ColorimeterBase):
             device_pattern = r"(\d+)\s*=\s*(.+?)(?:\n|$)"
             matches = re.findall(device_pattern, output)
 
-            for idx, name in matches:
+            for _idx, name in matches:
                 name = name.strip()
 
                 # Determine device type
@@ -328,7 +327,7 @@ class ArgyllBackend(ColorimeterBase):
         # Refresh rate is auto-detected
         return True
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """Take a single spot measurement."""
         if not self.is_connected:
             return None
@@ -361,7 +360,7 @@ class ArgyllBackend(ColorimeterBase):
             print(f"Measurement error: {e}")
             return None
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """Measure ambient light."""
         if not self.is_connected:
             return None
@@ -392,7 +391,7 @@ class ArgyllBackend(ColorimeterBase):
         patch_count: int = 729,
         quality: str = "high",
         output_name: str = "display_profile"
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """
         Generate full display profile using ArgyllCMS workflow.
 
@@ -425,7 +424,7 @@ class ArgyllBackend(ColorimeterBase):
         ti1_path = self.temp_dir / f"{output_name}.ti1"
         targen_args = [
             "-v",
-            f"-d3",  # Display device
+            "-d3",  # Display device
             f"-f{patch_count}",  # Number of patches
             "-e4",  # White + primaries
             "-s100",  # Saturation patches
@@ -492,9 +491,9 @@ class ArgyllBackend(ColorimeterBase):
         display_number: int = 1,
         whitepoint: str = "D65",
         gamma: float = 2.2,
-        luminance: Optional[float] = None,
+        luminance: float | None = None,
         output_name: str = "calibration"
-    ) -> Optional[Tuple[Path, Path]]:
+    ) -> tuple[Path, Path] | None:
         """
         Calibrate display using ArgyllCMS dispcal.
 
@@ -580,8 +579,8 @@ class ArgyllBackend(ColorimeterBase):
     def verify_calibration(
         self,
         display_number: int = 1,
-        profile_path: Optional[Path] = None
-    ) -> Optional[Dict]:
+        profile_path: Path | None = None
+    ) -> dict | None:
         """
         Verify display calibration using dispread.
 
@@ -635,10 +634,10 @@ class ArgyllBackend(ColorimeterBase):
         # Parse TI3 file for Delta E analysis
         return self._parse_ti3_results(ti3_path)
 
-    def _parse_ti3_results(self, ti3_path: Path) -> Optional[Dict]:
+    def _parse_ti3_results(self, ti3_path: Path) -> dict | None:
         """Parse TI3 measurement file for analysis."""
         try:
-            with open(ti3_path, 'r') as f:
+            with open(ti3_path) as f:
                 content = f.read()
 
             # Extract Delta E values if present
@@ -671,13 +670,13 @@ def check_argyll_installation() -> bool:
     return config.bin_path is not None
 
 
-def list_colorimeters() -> List[DeviceInfo]:
+def list_colorimeters() -> list[DeviceInfo]:
     """List all connected colorimeters."""
     backend = ArgyllBackend()
     return backend.detect_devices()
 
 
-def quick_spot_measure() -> Optional[ColorMeasurement]:
+def quick_spot_measure() -> ColorMeasurement | None:
     """Take a quick spot measurement with default settings."""
     backend = ArgyllBackend()
     devices = backend.detect_devices()

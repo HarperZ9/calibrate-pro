@@ -9,11 +9,12 @@ Comprehensive HDR EOTF calibration for:
 - Tone mapping verification
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
+import numpy as np
 
 # =============================================================================
 # EOTF Types and Constants
@@ -63,7 +64,7 @@ def generate_pq_patches(
     include_near_black: bool = True,
     include_extended: bool = True,
     max_luminance: float = 10000.0
-) -> List[EOTFPatch]:
+) -> list[EOTFPatch]:
     """
     Generate PQ EOTF verification patches.
 
@@ -76,7 +77,7 @@ def generate_pq_patches(
     Returns:
         List of EOTFPatch objects
     """
-    from calibrate_pro.hdr.pq_st2084 import pq_eotf, pq_oetf
+    from calibrate_pro.hdr.pq_st2084 import pq_oetf
 
     patches = []
 
@@ -127,7 +128,7 @@ def generate_hlg_patches(
     num_patches: int = 21,
     system_gamma: float = 1.2,
     peak_luminance: float = 1000.0
-) -> List[EOTFPatch]:
+) -> list[EOTFPatch]:
     """
     Generate HLG EOTF verification patches.
 
@@ -171,14 +172,14 @@ class EOTFMeasurement:
     measured_luminance: float
     error_percent: float
     error_nits: float
-    delta_e: Optional[float] = None
+    delta_e: float | None = None
 
 
 @dataclass
 class EOTFAnalysis:
     """Complete EOTF analysis results."""
     eotf_type: EOTFType
-    measurements: List[EOTFMeasurement]
+    measurements: list[EOTFMeasurement]
 
     # Overall metrics
     average_error: float
@@ -195,13 +196,13 @@ class EOTFAnalysis:
 
     # Tracking quality
     gamma_tracking: float  # How well it follows target curve
-    rgb_balance: Optional[float] = None
+    rgb_balance: float | None = None
 
     # Grade
     grade: str = "Unknown"
     pass_fail: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "eotf_type": self.eotf_type.value,
@@ -465,7 +466,7 @@ def generate_eotf_correction_lut(
     # and calculate the correction
 
     if analysis.eotf_type == EOTFType.PQ:
-        from calibrate_pro.hdr.pq_st2084 import pq_eotf, pq_oetf
+        from calibrate_pro.hdr.pq_st2084 import pq_eotf
 
         # Target luminance for each output level
         target_lum = pq_eotf(output_signals)
@@ -496,7 +497,7 @@ def generate_eotf_correction_lut(
 
 def generate_grayscale_correction_matrix(
     rgb_measurements: np.ndarray,
-    target_white: Tuple[float, float] = (0.3127, 0.3290)
+    target_white: tuple[float, float] = (0.3127, 0.3290)
 ) -> np.ndarray:
     """
     Generate RGB correction matrix for grayscale balance.
@@ -534,7 +535,7 @@ class CalibrationTarget:
     eotf_type: EOTFType = EOTFType.PQ
     peak_luminance: float = 1000.0
     black_level: float = 0.005
-    white_point: Tuple[float, float] = (0.3127, 0.3290)  # D65
+    white_point: tuple[float, float] = (0.3127, 0.3290)  # D65
     color_space: str = "BT.2020"
     system_gamma: float = 1.2  # For HLG
 
@@ -545,14 +546,14 @@ class CalibrationResult:
     target: CalibrationTarget
     eotf_analysis: EOTFAnalysis
     correction_lut: np.ndarray
-    rgb_matrix: Optional[np.ndarray] = None
+    rgb_matrix: np.ndarray | None = None
 
     # Verification
     pre_calibration_error: float = 0.0
     post_calibration_error: float = 0.0
     improvement: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "target": {
@@ -577,7 +578,7 @@ class EOTFCalibrator:
     def __init__(
         self,
         target: CalibrationTarget,
-        measure_func: Optional[Callable[[float], float]] = None
+        measure_func: Callable[[float], float] | None = None
     ):
         """
         Initialize calibrator.
@@ -588,10 +589,10 @@ class EOTFCalibrator:
         """
         self.target = target
         self.measure_func = measure_func
-        self._patches: List[EOTFPatch] = []
-        self._measurements: List[Tuple[float, float]] = []
+        self._patches: list[EOTFPatch] = []
+        self._measurements: list[tuple[float, float]] = []
 
-    def generate_patches(self) -> List[EOTFPatch]:
+    def generate_patches(self) -> list[EOTFPatch]:
         """Generate calibration patches for target EOTF."""
         if self.target.eotf_type == EOTFType.PQ:
             self._patches = generate_pq_patches(
@@ -642,7 +643,7 @@ class EOTFCalibrator:
 
     def generate_correction(
         self,
-        analysis: Optional[EOTFAnalysis] = None
+        analysis: EOTFAnalysis | None = None
     ) -> CalibrationResult:
         """Generate calibration correction."""
         if analysis is None:

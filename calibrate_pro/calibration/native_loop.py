@@ -14,16 +14,22 @@ The algorithm combines two complementary corrections:
 This achieves ~44% Delta E improvement on QD-OLED displays (avg dE 6.6 -> 3.7).
 """
 
-import time
-import numpy as np
-from scipy.interpolate import interp1d
-from typing import Dict, List, Tuple, Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
 
+import numpy as np
+from scipy.interpolate import interp1d
+
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, srgb_gamma_compress, SRGB_TO_XYZ, XYZ_TO_SRGB,
-    BRADFORD_MATRIX, BRADFORD_INVERSE
+    BRADFORD_INVERSE,
+    BRADFORD_MATRIX,
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
 from calibrate_pro.core.lut_engine import LUT3D
 
@@ -38,10 +44,10 @@ class DisplayProfile:
     M_display: np.ndarray        # 3x3 measured primaries-to-XYZ matrix (absolute)
     white_Y: float               # Peak white luminance (cd/m2)
     black_xyz: np.ndarray        # Black point XYZ (absolute)
-    white_xy: Tuple[float, float]  # White point chromaticity
-    red_xy: Tuple[float, float]    # Red primary chromaticity
-    green_xy: Tuple[float, float]  # Green primary chromaticity
-    blue_xy: Tuple[float, float]   # Blue primary chromaticity
+    white_xy: tuple[float, float]  # White point chromaticity
+    red_xy: tuple[float, float]    # Red primary chromaticity
+    green_xy: tuple[float, float]  # Green primary chromaticity
+    blue_xy: tuple[float, float]   # Blue primary chromaticity
     gamma_r: float               # Estimated red gamma
     gamma_g: float               # Estimated green gamma
     gamma_b: float               # Estimated blue gamma
@@ -60,7 +66,7 @@ class CalibrationResult:
 class PatchMeasurement:
     """Single patch measurement."""
     name: str
-    srgb: Tuple[float, float, float]
+    srgb: tuple[float, float, float]
     xyz: np.ndarray
     lab: np.ndarray
     de: float
@@ -112,8 +118,8 @@ COLORCHECKER_SRGB = [
 
 
 def compute_ccmx(
-    sensor_primaries: Tuple[Tuple[float,float], ...],
-    true_primaries: Tuple[Tuple[float,float], ...],
+    sensor_primaries: tuple[tuple[float,float], ...],
+    true_primaries: tuple[tuple[float,float], ...],
 ) -> np.ndarray:
     """
     Compute a Colorimeter Correction Matrix (CCMX) from sensor-reported
@@ -167,7 +173,7 @@ QDOLED_CCMX = compute_ccmx(
 )
 
 
-def _chromaticity(xyz: np.ndarray) -> Tuple[float, float]:
+def _chromaticity(xyz: np.ndarray) -> tuple[float, float]:
     """Convert XYZ to xy chromaticity."""
     s = np.sum(xyz)
     if s > 0:
@@ -176,10 +182,10 @@ def _chromaticity(xyz: np.ndarray) -> Tuple[float, float]:
 
 
 def profile_display(
-    measure_fn: Callable[[float, float, float], Optional[np.ndarray]],
+    measure_fn: Callable[[float, float, float], np.ndarray | None],
     display_fn: Callable[[float, float, float], None],
     n_steps: int = 17,
-    progress_fn: Optional[Callable[[str, float], None]] = None,
+    progress_fn: Callable[[str, float], None] | None = None,
 ) -> DisplayProfile:
     """
     Profile a display by measuring per-channel TRC ramps.
@@ -372,7 +378,7 @@ def build_correction_lut(
 def compute_de(
     xyz: np.ndarray,
     white_Y: float,
-    ref_lab: Tuple[float, float, float],
+    ref_lab: tuple[float, float, float],
 ) -> float:
     """Compute CIEDE2000 from measured XYZ and reference Lab."""
     norm = 100.0 / white_Y if white_Y > 0 else 1.0

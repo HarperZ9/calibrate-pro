@@ -12,12 +12,11 @@ Dolby Vision Features:
 - Proprietary tone mapping curves
 """
 
-import numpy as np
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any, Union
 from enum import IntEnum
-import struct
+from typing import Any
 
+import numpy as np
 
 # =============================================================================
 # Dolby Vision Constants
@@ -63,10 +62,10 @@ class DVSignalRange(IntEnum):
 @dataclass
 class DVPrimaries:
     """Dolby Vision color primaries (CIE 1931 xy)."""
-    red: Tuple[float, float] = (0.708, 0.292)    # BT.2020
-    green: Tuple[float, float] = (0.170, 0.797)
-    blue: Tuple[float, float] = (0.131, 0.046)
-    white: Tuple[float, float] = (0.3127, 0.3290)  # D65
+    red: tuple[float, float] = (0.708, 0.292)    # BT.2020
+    green: tuple[float, float] = (0.170, 0.797)
+    blue: tuple[float, float] = (0.131, 0.046)
+    white: tuple[float, float] = (0.3127, 0.3290)  # D65
 
 
 @dataclass
@@ -126,8 +125,8 @@ class DVPolynomialCurve:
     Used for custom tone mapping in Dolby Vision.
     """
     order: int = 0
-    coefficients: List[float] = field(default_factory=list)
-    mmr_coefficients: List[List[float]] = field(default_factory=list)  # Multi-model regression
+    coefficients: list[float] = field(default_factory=list)
+    mmr_coefficients: list[list[float]] = field(default_factory=list)  # Multi-model regression
 
     def evaluate(self, x: np.ndarray) -> np.ndarray:
         """Evaluate polynomial at x."""
@@ -164,8 +163,8 @@ class DVRPU:
 
     # Mapping curves
     num_pivots: int = 9
-    pivot_values: List[float] = field(default_factory=list)
-    polynomial_curves: List[DVPolynomialCurve] = field(default_factory=list)
+    pivot_values: list[float] = field(default_factory=list)
+    polynomial_curves: list[DVPolynomialCurve] = field(default_factory=list)
 
     # Content metadata
     source_min_pq: int = 62
@@ -178,7 +177,7 @@ class DVRPU:
     target_diagonal: int = 42
 
     # Trim passes
-    trim_passes: List[DVTrimPass] = field(default_factory=list)
+    trim_passes: list[DVTrimPass] = field(default_factory=list)
 
     # Color processing
     primaries: DVPrimaries = field(default_factory=DVPrimaries)
@@ -191,7 +190,7 @@ class DVRPU:
     max_pq: int = 4095
     avg_pq: int = 1024
 
-    def get_source_range(self) -> Tuple[float, float]:
+    def get_source_range(self) -> tuple[float, float]:
         """Get source luminance range in cd/m²."""
         from calibrate_pro.hdr.pq_st2084 import pq_eotf
         min_sig = self.source_min_pq / 4095.0
@@ -200,7 +199,7 @@ class DVRPU:
         max_lum = float(pq_eotf(np.array([max_sig]))[0])
         return min_lum, max_lum
 
-    def get_target_range(self) -> Tuple[float, float]:
+    def get_target_range(self) -> tuple[float, float]:
         """Get target luminance range in cd/m²."""
         from calibrate_pro.hdr.pq_st2084 import pq_eotf
         min_sig = self.target_min_pq / 4095.0
@@ -209,7 +208,7 @@ class DVRPU:
         max_lum = float(pq_eotf(np.array([max_sig]))[0])
         return min_lum, max_lum
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         source_min, source_max = self.get_source_range()
         target_min, target_max = self.get_target_range()
@@ -467,7 +466,7 @@ def create_profile8_rpu(
 # RPU Parsing/Serialization (Simplified)
 # =============================================================================
 
-def parse_rpu_header(data: bytes) -> Optional[Dict[str, Any]]:
+def parse_rpu_header(data: bytes) -> dict[str, Any] | None:
     """
     Parse RPU header to extract basic info.
 
@@ -609,7 +608,7 @@ def calibrate_for_dolby_vision(
     )
 
 
-def generate_dv_verification_patches() -> List[Tuple[float, str]]:
+def generate_dv_verification_patches() -> list[tuple[float, str]]:
     """
     Generate patches for Dolby Vision verification.
 

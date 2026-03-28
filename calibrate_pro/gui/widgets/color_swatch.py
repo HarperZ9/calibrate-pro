@@ -7,25 +7,17 @@ Displays color patches with:
 - Delta E indicator
 """
 
-from typing import Optional, Tuple
-from dataclasses import dataclass
 import math
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QGridLayout, QSizePolicy
-)
-from PyQt6.QtCore import Qt, QRectF, pyqtSignal
-from PyQt6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QFont, QLinearGradient
-)
-
+from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
 
 # =============================================================================
 # Color Conversion Utilities
 # =============================================================================
 
-def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
+def rgb_to_xyz(r: int, g: int, b: int) -> tuple[float, float, float]:
     """Convert sRGB to XYZ (D65)."""
     # Normalize to 0-1
     r = r / 255.0
@@ -45,7 +37,7 @@ def rgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
     return (X * 100, Y * 100, Z * 100)
 
 
-def xyz_to_lab(X: float, Y: float, Z: float) -> Tuple[float, float, float]:
+def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:
     """Convert XYZ to CIELAB (D65 white point)."""
     # D65 reference white
     Xn, Yn, Zn = 95.047, 100.000, 108.883
@@ -67,14 +59,14 @@ def xyz_to_lab(X: float, Y: float, Z: float) -> Tuple[float, float, float]:
     return (L, a, b)
 
 
-def rgb_to_lab(r: int, g: int, b: int) -> Tuple[float, float, float]:
+def rgb_to_lab(r: int, g: int, b: int) -> tuple[float, float, float]:
     """Convert RGB to CIELAB."""
     X, Y, Z = rgb_to_xyz(r, g, b)
     return xyz_to_lab(X, Y, Z)
 
 
-def delta_e_2000(lab1: Tuple[float, float, float],
-                 lab2: Tuple[float, float, float]) -> float:
+def delta_e_2000(lab1: tuple[float, float, float],
+                 lab2: tuple[float, float, float]) -> float:
     """Calculate CIEDE2000 color difference."""
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
@@ -173,7 +165,7 @@ class ColorSwatch(QWidget):
 
     clicked = pyqtSignal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(80, 80)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -253,16 +245,16 @@ class ColorSwatch(QWidget):
 class ComparisonSwatch(QWidget):
     """Side-by-side target and measured color comparison."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(120, 100)
 
         self._target_color = QColor(128, 128, 128)
         self._measured_color = QColor(128, 128, 128)
         self._label = ""
-        self._delta_e: Optional[float] = None
+        self._delta_e: float | None = None
 
-    def set_colors(self, target: Tuple[int, int, int], measured: Tuple[int, int, int]):
+    def set_colors(self, target: tuple[int, int, int], measured: tuple[int, int, int]):
         """Set target and measured colors."""
         self._target_color = QColor(*target)
         self._measured_color = QColor(*measured)
@@ -284,7 +276,7 @@ class ComparisonSwatch(QWidget):
         self.update()
 
     @property
-    def delta_e(self) -> Optional[float]:
+    def delta_e(self) -> float | None:
         return self._delta_e
 
     def paintEvent(self, event):
@@ -338,7 +330,7 @@ class ComparisonSwatch(QWidget):
 class ColorInfoPanel(QWidget):
     """Detailed color information display."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
@@ -401,7 +393,7 @@ class ColorGrid(QWidget):
 
     swatch_clicked = pyqtSignal(int)  # Index of clicked swatch
 
-    def __init__(self, cols: int = 6, parent: Optional[QWidget] = None):
+    def __init__(self, cols: int = 6, parent: QWidget | None = None):
         super().__init__(parent)
         self.cols = cols
         self.swatches: list[ColorSwatch] = []
@@ -411,7 +403,7 @@ class ColorGrid(QWidget):
         self._layout.setSpacing(4)
         self._layout.setContentsMargins(0, 0, 0, 0)
 
-    def set_colors(self, colors: list[Tuple[int, int, int]], labels: list[str] = None):
+    def set_colors(self, colors: list[tuple[int, int, int]], labels: list[str] = None):
         """Set all colors in the grid."""
         # Clear existing
         for swatch in self.swatches:
@@ -442,7 +434,7 @@ class ColorGrid(QWidget):
         self.swatches[index].selected = True
         self.swatch_clicked.emit(index)
 
-    def get_color(self, index: int) -> Optional[Tuple[int, int, int]]:
+    def get_color(self, index: int) -> tuple[int, int, int] | None:
         """Get color at index."""
         if 0 <= index < len(self.swatches):
             c = self.swatches[index].color

@@ -9,16 +9,18 @@ The CCMX corrects for the spectral mismatch between the sensor's
 "Organic LED" EEPROM calibration (designed for WOLED) and the actual
 QD-OLED emission spectrum (narrow-band quantum dot emitters).
 """
-import hid, struct, time, sys, os
-import numpy as np
+import os
+import struct
+import sys
+import time
 import tkinter as tk
+
+import hid
+import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000, D50_WHITE, D65_WHITE,
-    srgb_gamma_expand, SRGB_TO_XYZ
-)
+from calibrate_pro.core.color_math import D50_WHITE, D65_WHITE, bradford_adapt, delta_e_2000, xyz_to_lab
 
 OLED_MATRIX = np.array([
     [0.03836831, -0.02175997, 0.01696057],
@@ -214,14 +216,14 @@ if __name__ == "__main__":
     print(f"  Corrected white Y: {corrected_Y:.1f} cd/m2")
 
     # Measure all ColorChecker patches
-    print(f"\n  Measuring 24 patches (raw vs CCMX-corrected)...\n")
+    print("\n  Measuring 24 patches (raw vs CCMX-corrected)...\n")
     print(f"  {'Patch':20s}  {'Raw dE':>7s}  {'CCMX dE':>7s}  {'Change':>7s}  Status")
     print("  " + "=" * 65)
 
     raw_des = []
     ccmx_des = []
 
-    for i, (name, r, g, b) in enumerate(COLORCHECKER):
+    for _i, (name, r, g, b) in enumerate(COLORCHECKER):
         show(r, g, b)
         freq = measure_freq(device, 1.0)
 
@@ -273,5 +275,5 @@ if __name__ == "__main__":
         if avg_ccmx < avg_raw:
             print(f"\n  CCMX IMPROVED accuracy by {pct:.0f}% ({avg_raw - avg_ccmx:.2f} dE)")
         else:
-            print(f"\n  CCMX did not improve (may need EDID refinement)")
+            print("\n  CCMX did not improve (may need EDID refinement)")
     print("=" * 70)

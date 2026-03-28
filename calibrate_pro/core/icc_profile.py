@@ -5,18 +5,20 @@ Creates ICC v4.4 compliant color profiles for display calibration.
 Supports TRC curves, color matrices, and advanced features.
 """
 
-import struct
 import hashlib
+import struct
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Tuple, Union
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+
 from calibrate_pro.core.color_math import (
-    D50_WHITE, D65_WHITE, Illuminant,
-    bradford_adapt, get_adaptation_matrix,
-    primaries_to_xyz_matrix, xyz_to_rgb_matrix
+    D50_WHITE,
+    D65_WHITE,
+    bradford_adapt,
+    get_adaptation_matrix,
+    primaries_to_xyz_matrix,
 )
 
 # =============================================================================
@@ -186,19 +188,19 @@ class ICCProfile:
         self.gamma_blue = 2.2
 
         # Optional LUT curves (overrides gamma if set)
-        self.trc_red: Optional[np.ndarray] = None
-        self.trc_green: Optional[np.ndarray] = None
-        self.trc_blue: Optional[np.ndarray] = None
+        self.trc_red: np.ndarray | None = None
+        self.trc_green: np.ndarray | None = None
+        self.trc_blue: np.ndarray | None = None
 
         # VCGT (Video Card Gamma Table)
-        self.vcgt: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
+        self.vcgt: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
 
     def set_primaries(
         self,
-        red: Tuple[float, float],
-        green: Tuple[float, float],
-        blue: Tuple[float, float],
-        white: Tuple[float, float] = (0.3127, 0.3290)
+        red: tuple[float, float],
+        green: tuple[float, float],
+        blue: tuple[float, float],
+        white: tuple[float, float] = (0.3127, 0.3290)
     ):
         """Set display primary chromaticities."""
         self.red_primary = red
@@ -298,7 +300,7 @@ class ICCProfile:
 
         return tag
 
-    def _build_curv_tag(self, gamma_or_curve: Union[float, np.ndarray]) -> bytes:
+    def _build_curv_tag(self, gamma_or_curve: float | np.ndarray) -> bytes:
         """
         Build TRC curve tag.
 
@@ -373,7 +375,7 @@ class ICCProfile:
 
         return tag
 
-    def _calculate_xyz_primaries(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _calculate_xyz_primaries(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate XYZ values for primaries adapted to D50."""
         # Build RGB to XYZ matrix from primaries
         rgb_to_xyz = primaries_to_xyz_matrix(
@@ -480,7 +482,7 @@ class ICCProfile:
 
         return profile
 
-    def save(self, filepath: Union[str, Path]) -> Path:
+    def save(self, filepath: str | Path) -> Path:
         """
         Save ICC profile to file.
 
@@ -501,13 +503,13 @@ class ICCProfile:
 
 def create_display_profile(
     description: str,
-    red_primary: Tuple[float, float],
-    green_primary: Tuple[float, float],
-    blue_primary: Tuple[float, float],
-    white_point: Tuple[float, float] = (0.3127, 0.3290),
-    gamma: Union[float, Tuple[float, float, float]] = 2.2,
-    trc_curves: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
-    vcgt: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
+    red_primary: tuple[float, float],
+    green_primary: tuple[float, float],
+    blue_primary: tuple[float, float],
+    white_point: tuple[float, float] = (0.3127, 0.3290),
+    gamma: float | tuple[float, float, float] = 2.2,
+    trc_curves: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
+    vcgt: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
     copyright: str = "Copyright Zain Dana Harper 2022-2026 - Calibrate Pro"
 ) -> ICCProfile:
     """

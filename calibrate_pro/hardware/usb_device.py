@@ -5,13 +5,9 @@ Provides low-level USB communication for colorimeters without ArgyllCMS.
 Supports both HID (Human Interface Device) and raw USB protocols.
 """
 
-import struct
-import time
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, List, Optional, Tuple, Union
-import threading
 
 # Try to import USB libraries
 HID_AVAILABLE = False
@@ -58,9 +54,9 @@ class USBDeviceInfo:
     manufacturer: str
     product: str
     serial_number: str
-    path: Optional[bytes] = None  # HID device path
-    bus: Optional[int] = None
-    address: Optional[int] = None
+    path: bytes | None = None  # HID device path
+    bus: int | None = None
+    address: int | None = None
 
     @property
     def vid_pid(self) -> str:
@@ -146,9 +142,9 @@ class HIDTransport(USBTransport):
                     self._device.open(device_info.vendor_id, device_info.product_id)
                 self._device.set_nonblocking(False)
                 return True
-            except Exception as e:
+            except OSError as e:
                 self._device = None
-                raise CommunicationError(f"Failed to open HID device: {e}")
+                raise CommunicationError(f"Failed to open HID device: {e}") from e
 
     def close(self) -> None:
         """Close HID device."""
@@ -156,7 +152,7 @@ class HIDTransport(USBTransport):
             if self._device:
                 try:
                     self._device.close()
-                except Exception:
+                except OSError:
                     pass
                 self._device = None
 
@@ -170,8 +166,8 @@ class HIDTransport(USBTransport):
                 if len(data) < 64:
                     data = data + bytes(64 - len(data))
                 return self._device.write(data)
-            except Exception as e:
-                raise CommunicationError(f"Write failed: {e}")
+            except OSError as e:
+                raise CommunicationError(f"Write failed: {e}") from e
 
     def read(self, size: int, timeout: int = 1000) -> bytes:
         """Read from HID device."""
@@ -181,8 +177,8 @@ class HIDTransport(USBTransport):
             try:
                 data = self._device.read(size, timeout_ms=timeout)
                 return bytes(data) if data else b''
-            except Exception as e:
-                raise CommunicationError(f"Read failed: {e}")
+            except OSError as e:
+                raise CommunicationError(f"Read failed: {e}") from e
 
     @property
     def is_open(self) -> bool:
@@ -235,9 +231,9 @@ class RawUSBTransport(USBTransport):
                 )
 
                 return True
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 self._device = None
-                raise CommunicationError(f"Failed to open USB device: {e}")
+                raise CommunicationError(f"Failed to open USB device: {e}") from e
 
     def close(self) -> None:
         """Close USB device."""
@@ -245,7 +241,7 @@ class RawUSBTransport(USBTransport):
             if self._device:
                 try:
                     usb.util.dispose_resources(self._device)
-                except Exception:
+                except OSError:
                     pass
                 self._device = None
 
@@ -256,8 +252,8 @@ class RawUSBTransport(USBTransport):
                 raise CommunicationError("Device not open")
             try:
                 return self._ep_out.write(data, timeout=timeout)
-            except Exception as e:
-                raise CommunicationError(f"Write failed: {e}")
+            except (OSError, ValueError) as e:
+                raise CommunicationError(f"Write failed: {e}") from e
 
     def read(self, size: int, timeout: int = 1000) -> bytes:
         """Read from USB device."""
@@ -267,15 +263,15 @@ class RawUSBTransport(USBTransport):
             try:
                 data = self._ep_in.read(size, timeout=timeout)
                 return bytes(data)
-            except Exception as e:
-                raise CommunicationError(f"Read failed: {e}")
+            except (OSError, ValueError) as e:
+                raise CommunicationError(f"Read failed: {e}") from e
 
     @property
     def is_open(self) -> bool:
         return self._device is not None
 
 
-def enumerate_hid_devices() -> List[USBDeviceInfo]:
+def enumerate_hid_devices() -> list[USBDeviceInfo]:
     """Enumerate all HID colorimeter devices."""
     devices = []
 
@@ -296,13 +292,13 @@ def enumerate_hid_devices() -> List[USBDeviceInfo]:
                     serial_number=dev.get('serial_number', '') or '',
                     path=dev.get('path')
                 ))
-    except Exception:
+    except OSError:
         pass
 
     return devices
 
 
-def enumerate_usb_devices() -> List[USBDeviceInfo]:
+def enumerate_usb_devices() -> list[USBDeviceInfo]:
     """Enumerate all USB colorimeter devices."""
     devices = []
 
@@ -310,14 +306,14 @@ def enumerate_usb_devices() -> List[USBDeviceInfo]:
         return devices
 
     try:
-        for vid, pid in COLORIMETER_USB_IDS.keys():
+        for vid, pid in COLORIMETER_USB_IDS:
             dev = usb.core.find(idVendor=vid, idProduct=pid)
             if dev:
                 try:
                     manufacturer = usb.util.get_string(dev, dev.iManufacturer) if dev.iManufacturer else ''
                     product = usb.util.get_string(dev, dev.iProduct) if dev.iProduct else ''
                     serial = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else ''
-                except Exception:
+                except (OSError, ValueError):
                     manufacturer = product = serial = ''
 
                 devices.append(USBDeviceInfo(
@@ -329,13 +325,13 @@ def enumerate_usb_devices() -> List[USBDeviceInfo]:
                     bus=dev.bus,
                     address=dev.address
                 ))
-    except Exception:
+    except (OSError, ValueError):
         pass
 
     return devices
 
 
-def enumerate_all_colorimeters() -> List[USBDeviceInfo]:
+def enumerate_all_colorimeters() -> list[USBDeviceInfo]:
     """Enumerate colorimeters using both HID and raw USB."""
     devices = []
     seen = set()
@@ -360,9 +356,7 @@ def enumerate_all_colorimeters() -> List[USBDeviceInfo]:
 def get_transport(device_info: USBDeviceInfo) -> USBTransport:
     """Get appropriate transport for device."""
     # Prefer HID for most colorimeters
-    if HID_AVAILABLE and device_info.path:
-        return HIDTransport()
-    elif HID_AVAILABLE:
+    if HID_AVAILABLE and device_info.path or HID_AVAILABLE:
         return HIDTransport()
     elif USB_AVAILABLE:
         return RawUSBTransport()
@@ -370,7 +364,7 @@ def get_transport(device_info: USBDeviceInfo) -> USBTransport:
         raise USBError("No USB library available. Install 'hidapi' or 'pyusb'.")
 
 
-def check_usb_available() -> Tuple[bool, str]:
+def check_usb_available() -> tuple[bool, str]:
     """Check if USB communication is available."""
     if HID_AVAILABLE:
         return True, "HID library available"

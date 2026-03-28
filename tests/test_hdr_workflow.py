@@ -23,8 +23,6 @@ from calibrate_pro.hdr.workflow import (
     HDRTarget,
     HDRWorkflow,
 )
-from calibrate_pro.core.color_math import pq_eotf
-
 
 # =========================================================================
 # Fixtures
@@ -306,7 +304,7 @@ class TestExportCube:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
-            with open(path, "r") as fh:
+            with open(path) as fh:
                 content = fh.read()
             assert "TITLE" in content
             assert "LUT_3D_SIZE 3" in content
@@ -326,7 +324,7 @@ class TestExportCube:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
-            with open(path, "r") as fh:
+            with open(path) as fh:
                 lines = fh.read().strip().split("\n")
             # Data lines = size^3
             data_lines = [
@@ -348,7 +346,7 @@ class TestExportCube:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
-            with open(path, "r") as fh:
+            with open(path) as fh:
                 for line in fh:
                     line = line.strip()
                     if not line or line.startswith("#") or line.startswith(

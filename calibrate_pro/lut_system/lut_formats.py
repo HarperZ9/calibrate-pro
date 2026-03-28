@@ -13,14 +13,12 @@ Complete support for reading and writing 3D LUT files in various formats:
 All formats are normalized to float RGB values in [0, 1] range.
 """
 
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Optional, Tuple, List, Union, Dict, Any
-from pathlib import Path
-from enum import Enum
-import struct
-import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+
+import numpy as np
 
 
 class LUTType(Enum):
@@ -51,8 +49,8 @@ class LUT1D:
     size: int
     data: np.ndarray  # Shape: (size, 3) for RGB or (size,) for single channel
     title: str = "1D LUT"
-    input_range: Tuple[float, float] = (0.0, 1.0)
-    output_range: Tuple[float, float] = (0.0, 1.0)
+    input_range: tuple[float, float] = (0.0, 1.0)
+    output_range: tuple[float, float] = (0.0, 1.0)
 
     @classmethod
     def create_identity(cls, size: int = 1024) -> "LUT1D":
@@ -104,9 +102,9 @@ class LUT3D:
     size: int
     data: np.ndarray  # Shape: (size, size, size, 3)
     title: str = "3D LUT"
-    domain_min: Tuple[float, float, float] = (0.0, 0.0, 0.0)
-    domain_max: Tuple[float, float, float] = (1.0, 1.0, 1.0)
-    comments: List[str] = field(default_factory=list)
+    domain_min: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    domain_max: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    comments: list[str] = field(default_factory=list)
 
     @classmethod
     def create_identity(cls, size: int = 33) -> "LUT3D":
@@ -192,7 +190,7 @@ class LUTReader:
         return format_map.get(suffix)
 
     @classmethod
-    def read(cls, filepath: Union[str, Path]) -> Union[LUT1D, LUT3D]:
+    def read(cls, filepath: str | Path) -> LUT1D | LUT3D:
         """
         Read LUT from file.
 
@@ -223,7 +221,7 @@ class LUTReader:
         return readers[fmt](filepath)
 
     @staticmethod
-    def _read_cube(filepath: Path) -> Union[LUT1D, LUT3D]:
+    def _read_cube(filepath: Path) -> LUT1D | LUT3D:
         """Read .cube format (Adobe/Resolve)."""
         size_1d = None
         size_3d = None
@@ -233,7 +231,7 @@ class LUTReader:
         values = []
         comments = []
 
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
 
@@ -306,7 +304,7 @@ class LUTReader:
     def _read_3dl(filepath: Path) -> LUT3D:
         """Read .3dl format (Autodesk Lustre/Flame)."""
         lines = []
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
@@ -353,7 +351,7 @@ class LUTReader:
     def _read_mga(filepath: Path) -> LUT3D:
         """Read .mga format (Pandora)."""
         lines = []
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
@@ -363,7 +361,7 @@ class LUTReader:
             raise ValueError("Empty MGA file")
 
         # First line should be "LUT8" or similar header
-        header = lines[0].upper()
+        lines[0].upper()
 
         # Second line is typically the size
         size = int(lines[1])
@@ -385,7 +383,7 @@ class LUTReader:
     @staticmethod
     def _read_cal(filepath: Path) -> LUT1D:
         """Read .cal format (ArgyllCMS calibration curves)."""
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
         # Parse CAL format
@@ -393,8 +391,6 @@ class LUTReader:
         lines = content.strip().split('\n')
 
         title = "ArgyllCMS Calibration"
-        channels = 3
-        size = 256
         data = []
 
         in_data = False
@@ -407,11 +403,8 @@ class LUTReader:
             if line.upper().startswith('DESCRIPTOR'):
                 title = line.split('"')[1] if '"' in line else "CAL LUT"
 
-            elif line.upper().startswith('NUMBER_OF_SETS'):
-                channels = int(line.split()[1])
-
-            elif line.upper().startswith('NUMBER_OF_FIELDS'):
-                size = int(line.split()[1])
+            elif line.upper().startswith('NUMBER_OF_SETS') or line.upper().startswith('NUMBER_OF_FIELDS'):
+                int(line.split()[1])
 
             elif line.upper() == 'BEGIN_DATA':
                 in_data = True
@@ -444,7 +437,7 @@ class LUTReader:
     @staticmethod
     def _read_csp(filepath: Path) -> LUT3D:
         """Read .csp format (Cinespace)."""
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             lines = [line.strip() for line in f if line.strip()]
 
         idx = 0
@@ -459,7 +452,7 @@ class LUTReader:
                 idx += 1
                 continue
             elif line.upper() in ('1D', '3D'):
-                lut_type = line.upper()
+                line.upper()
                 idx += 1
                 continue
             elif line.upper().startswith('BEGIN METADATA'):
@@ -473,7 +466,7 @@ class LUTReader:
             elif line[0].isdigit():
                 # Shaper section (3 shapers for RGB)
                 for _ in range(3):
-                    shaper_size = int(lines[idx])
+                    int(lines[idx])
                     idx += 1
                     # Skip shaper lines
                     while idx < len(lines) and lines[idx] and lines[idx][0] != '\n':
@@ -507,7 +500,7 @@ class LUTReader:
     @staticmethod
     def _read_spi3d(filepath: Path) -> LUT3D:
         """Read .spi3d format (Sony Imageworks)."""
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding='utf-8', errors='ignore') as f:
             lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
         # First line: "SPILUT 1.0"
@@ -598,9 +591,9 @@ class LUTWriter:
     @classmethod
     def write(
         cls,
-        lut: Union[LUT1D, LUT3D],
-        filepath: Union[str, Path],
-        fmt: Optional[LUTFormat] = None
+        lut: LUT1D | LUT3D,
+        filepath: str | Path,
+        fmt: LUTFormat | None = None
     ):
         """
         Write LUT to file.
@@ -641,7 +634,7 @@ class LUTWriter:
     def _write_cube_1d(lut: LUT1D, filepath: Path):
         """Write 1D LUT in .cube format."""
         with open(filepath, 'w') as f:
-            f.write(f'# Calibrate Pro 1D LUT\n')
+            f.write('# Calibrate Pro 1D LUT\n')
             f.write(f'TITLE "{lut.title}"\n')
             f.write(f'LUT_1D_SIZE {lut.size}\n')
             f.write(f'DOMAIN_MIN {lut.input_range[0]:.6f} {lut.input_range[0]:.6f} {lut.input_range[0]:.6f}\n')
@@ -659,7 +652,7 @@ class LUTWriter:
     def _write_cube_3d(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .cube format."""
         with open(filepath, 'w') as f:
-            f.write(f'# Calibrate Pro 3D LUT\n')
+            f.write('# Calibrate Pro 3D LUT\n')
             for comment in lut.comments:
                 f.write(f'# {comment}\n')
             f.write(f'TITLE "{lut.title}"\n')
@@ -822,31 +815,31 @@ class LUTWriter:
 
 # Convenience functions
 
-def load_lut(filepath: Union[str, Path]) -> Union[LUT1D, LUT3D]:
+def load_lut(filepath: str | Path) -> LUT1D | LUT3D:
     """Load a LUT file (auto-detect format)."""
     return LUTReader.read(filepath)
 
 
 def save_lut(
-    lut: Union[LUT1D, LUT3D],
-    filepath: Union[str, Path],
-    fmt: Optional[LUTFormat] = None
+    lut: LUT1D | LUT3D,
+    filepath: str | Path,
+    fmt: LUTFormat | None = None
 ):
     """Save a LUT to file."""
     LUTWriter.write(lut, filepath, fmt)
 
 
 def convert_lut(
-    input_path: Union[str, Path],
-    output_path: Union[str, Path],
-    output_format: Optional[LUTFormat] = None
+    input_path: str | Path,
+    output_path: str | Path,
+    output_format: LUTFormat | None = None
 ):
     """Convert LUT between formats."""
     lut = load_lut(input_path)
     save_lut(lut, output_path, output_format)
 
 
-def create_identity_lut(size: int = 33, type: LUTType = LUTType.LUT_3D) -> Union[LUT1D, LUT3D]:
+def create_identity_lut(size: int = 33, type: LUTType = LUTType.LUT_3D) -> LUT1D | LUT3D:
     """Create an identity LUT."""
     if type == LUTType.LUT_1D:
         return LUT1D.create_identity(size)

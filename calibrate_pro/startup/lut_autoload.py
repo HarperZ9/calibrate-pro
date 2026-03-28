@@ -5,10 +5,9 @@ Automatically loads calibration LUTs on system startup.
 Runs silently in the background to apply per-display color corrections.
 """
 
+import logging
 import os
 import sys
-import time
-import logging
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -149,7 +148,7 @@ def remove_startup():
 
         return True
 
-    except Exception as e:
+    except Exception:
         return False
 
 

@@ -3,19 +3,25 @@ Hybrid measured refinement script.
 Measures uncalibrated display, computes correction from real data,
 applies corrected LUT, re-measures to verify improvement.
 """
-import subprocess
-import tempfile
 import os
+import subprocess
 import sys
+import tempfile
 import time
+
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from calibrate_pro.core.color_math import (
-    xyz_to_lab, bradford_adapt, delta_e_2000,
-    D50_WHITE, D65_WHITE, srgb_gamma_expand, srgb_gamma_compress,
-    SRGB_TO_XYZ, XYZ_TO_SRGB
+    D50_WHITE,
+    D65_WHITE,
+    SRGB_TO_XYZ,
+    XYZ_TO_SRGB,
+    bradford_adapt,
+    delta_e_2000,
+    srgb_gamma_expand,
+    xyz_to_lab,
 )
 from calibrate_pro.core.lut_engine import LUT3D
 
@@ -84,7 +90,7 @@ def measure_display():
     ti1 += 'NUMBER_OF_FIELDS 4\nBEGIN_DATA_FORMAT\n'
     ti1 += 'SAMPLE_ID RGB_R RGB_G RGB_B\nEND_DATA_FORMAT\n'
     ti1 += f'NUMBER_OF_SETS {len(PATCHES)}\nBEGIN_DATA\n'
-    for i, (name, r, g, b) in enumerate(PATCHES, 1):
+    for i, (_name, r, g, b) in enumerate(PATCHES, 1):
         ti1 += f'{i} {r*100:.2f} {g*100:.2f} {b*100:.2f}\n'
     ti1 += 'END_DATA\n'
 
@@ -133,7 +139,7 @@ def measure_display():
 def compute_de(measured):
     """Compute CIEDE2000 for each patch."""
     des = []
-    for (name, r, g, b), (X, Y, Z) in zip(PATCHES, measured):
+    for (name, _r, _g, _b), (X, Y, Z) in zip(PATCHES, measured):
         xyz_m = np.array([X, Y, Z]) / 100.0
         lab_m = xyz_to_lab(bradford_adapt(xyz_m, D65_WHITE, D50_WHITE), D50_WHITE)
         lab_r = np.array(REF_LAB[name])
@@ -145,7 +151,7 @@ def compute_correction_matrix(measured):
     """Least-squares 3x3 correction matrix from measured XYZ."""
     expected = []
     meas = []
-    for (name, r, g, b), (X, Y, Z) in zip(PATCHES, measured):
+    for (_name, r, g, b), (X, Y, Z) in zip(PATCHES, measured):
         rgb_lin = srgb_gamma_expand(np.array([r, g, b]))
         xyz_exp = SRGB_TO_XYZ @ rgb_lin
         expected.append(xyz_exp)
@@ -195,7 +201,7 @@ def print_results(before_de, after_de):
     print()
     print(f'{"Patch":20s}  {"Before":>6s}  {"After":>6s}  {"Change":>7s}  Status')
     print("=" * 65)
-    for i, (name, r, g, b) in enumerate(PATCHES):
+    for i, (name, _r, _g, _b) in enumerate(PATCHES):
         b_de = before_de[i]
         a_de = after_de[i]
         change = a_de - b_de

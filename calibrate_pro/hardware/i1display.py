@@ -5,17 +5,16 @@ Specialized driver for X-Rite i1Display colorimeters.
 Uses ArgyllCMS backend with device-specific optimizations.
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import subprocess
 import re
+import subprocess
 import time
+from pathlib import Path
 
-from calibrate_pro.hardware.colorimeter_base import (
-    ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType,
-    CalibrationMode, CalibrationPatch
-)
 from calibrate_pro.hardware.argyll_backend import ArgyllBackend
+from calibrate_pro.hardware.colorimeter_base import (
+    ColorMeasurement,
+    DeviceInfo,
+)
 
 
 class I1DisplayType:
@@ -72,15 +71,15 @@ class I1DisplayDriver(ArgyllBackend):
     - Custom correction matrices
     """
 
-    def __init__(self, argyll_path: Optional[Path] = None):
+    def __init__(self, argyll_path: Path | None = None):
         super().__init__(argyll_path)
         self.model_type: str = I1DisplayType.UNKNOWN
         self.has_ambient_sensor: bool = False
         self.supports_edr: bool = False
         self.oled_mode: bool = False
-        self._correction_matrix: Optional[List[List[float]]] = None
+        self._correction_matrix: list[list[float]] | None = None
 
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """Detect i1Display devices specifically."""
         all_devices = super().detect_devices()
 
@@ -174,7 +173,7 @@ class I1DisplayDriver(ArgyllBackend):
             return True
         return False
 
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """
         Measure ambient light level.
 
@@ -211,7 +210,7 @@ class I1DisplayDriver(ArgyllBackend):
 
         return None
 
-    def _parse_ambient_output(self, output: str) -> Optional[ColorMeasurement]:
+    def _parse_ambient_output(self, output: str) -> ColorMeasurement | None:
         """Parse ambient measurement output from spotread."""
         # Look for illuminance value
         lux_match = re.search(r'Lux:\s*([\d.]+)', output)
@@ -231,7 +230,7 @@ class I1DisplayDriver(ArgyllBackend):
 
         return None
 
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """
         Take spot measurement with i1Display-specific options.
 
@@ -265,7 +264,7 @@ class I1DisplayDriver(ArgyllBackend):
             measurement_mode=measurement.measurement_mode
         )
 
-    def measure_flicker(self) -> Optional[Dict]:
+    def measure_flicker(self) -> dict | None:
         """
         Measure display flicker characteristics.
 
@@ -294,7 +293,7 @@ class I1DisplayDriver(ArgyllBackend):
 
         return super().calibrate_device()
 
-    def get_device_temperature(self) -> Optional[float]:
+    def get_device_temperature(self) -> float | None:
         """
         Get device sensor temperature.
 
@@ -319,7 +318,7 @@ class I1DisplayDriver(ArgyllBackend):
         return True
 
 
-def detect_i1display() -> Optional[I1DisplayDriver]:
+def detect_i1display() -> I1DisplayDriver | None:
     """
     Convenience function to detect and connect to an i1Display.
 

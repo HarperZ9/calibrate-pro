@@ -47,3 +47,25 @@ include = ["calibrate_pro*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "UP",    # pyupgrade
+    "I",     # isort
+]
+ignore = ["E501", "E701", "E702", "E741", "B905", "SIM102", "SIM105", "SIM108", "SIM112", "SIM117", "E402", "SIM113", "SIM115"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # re-exports are intentional in __init__ files
+
+[tool.ruff.format]
+quote-style = "double"

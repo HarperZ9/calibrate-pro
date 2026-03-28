@@ -16,16 +16,13 @@ Covers:
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-from typing import List, Optional
 from unittest import mock
 
 import numpy as np
 import pytest
 
-from calibrate_pro.platform.base import DisplayInfo, PlatformBackend
 from calibrate_pro.platform import get_platform_backend
-
+from calibrate_pro.platform.base import DisplayInfo, PlatformBackend
 
 # =====================================================================
 # Fixtures
@@ -114,45 +111,41 @@ class TestPlatformSelection:
     """Test that get_platform_backend() returns the correct class."""
 
     def test_windows_selection(self):
-        with mock.patch.object(sys, "platform", "win32"):
-            with mock.patch(
-                "calibrate_pro.platform.windows.WindowsBackend",
-                create=True,
-            ) as mock_cls:
-                mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
-                backend = get_platform_backend()
-                mock_cls.assert_called_once()
+        with mock.patch.object(sys, "platform", "win32"), mock.patch(
+            "calibrate_pro.platform.windows.WindowsBackend",
+            create=True,
+        ) as mock_cls:
+            mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
+            get_platform_backend()
+            mock_cls.assert_called_once()
 
     def test_darwin_selection(self):
-        with mock.patch.object(sys, "platform", "darwin"):
-            with mock.patch(
-                "calibrate_pro.platform.macos.MacOSBackend",
-                create=True,
-            ) as mock_cls:
-                mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
-                backend = get_platform_backend()
-                mock_cls.assert_called_once()
+        with mock.patch.object(sys, "platform", "darwin"), mock.patch(
+            "calibrate_pro.platform.macos.MacOSBackend",
+            create=True,
+        ) as mock_cls:
+            mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
+            get_platform_backend()
+            mock_cls.assert_called_once()
 
     def test_linux_selection(self):
-        with mock.patch.object(sys, "platform", "linux"):
-            with mock.patch(
-                "calibrate_pro.platform.linux.LinuxBackend",
-                create=True,
-            ) as mock_cls:
-                mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
-                backend = get_platform_backend()
-                mock_cls.assert_called_once()
+        with mock.patch.object(sys, "platform", "linux"), mock.patch(
+            "calibrate_pro.platform.linux.LinuxBackend",
+            create=True,
+        ) as mock_cls:
+            mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
+            get_platform_backend()
+            mock_cls.assert_called_once()
 
     def test_linux_variant_selection(self):
         """linux2, linux-armv7l, etc. should all resolve to LinuxBackend."""
-        with mock.patch.object(sys, "platform", "linux-armv7l"):
-            with mock.patch(
-                "calibrate_pro.platform.linux.LinuxBackend",
-                create=True,
-            ) as mock_cls:
-                mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
-                backend = get_platform_backend()
-                mock_cls.assert_called_once()
+        with mock.patch.object(sys, "platform", "linux-armv7l"), mock.patch(
+            "calibrate_pro.platform.linux.LinuxBackend",
+            create=True,
+        ) as mock_cls:
+            mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
+            get_platform_backend()
+            mock_cls.assert_called_once()
 
     def test_unsupported_platform_raises(self):
         with mock.patch.object(sys, "platform", "freebsd13"):
@@ -188,7 +181,7 @@ class TestBaseClassContract:
 
     def test_complete_subclass_instantiates(self):
         class CompleteBackend(PlatformBackend):
-            def enumerate_displays(self) -> List[DisplayInfo]:
+            def enumerate_displays(self) -> list[DisplayInfo]:
                 return []
             def apply_gamma_ramp(self, di, r, g, b) -> bool:
                 return True
@@ -196,7 +189,7 @@ class TestBaseClassContract:
                 return True
             def install_icc_profile(self, pp, di) -> bool:
                 return True
-            def get_icc_profile(self, di) -> Optional[str]:
+            def get_icc_profile(self, di) -> str | None:
                 return None
 
         backend = CompleteBackend()
@@ -315,8 +308,8 @@ class TestMacOSBackend:
 
     def test_startup_helpers_importable(self):
         from calibrate_pro.platform.macos import (
-            enable_macos_startup,
             disable_macos_startup,
+            enable_macos_startup,
             is_macos_startup_enabled,
         )
         assert callable(enable_macos_startup)
@@ -431,7 +424,7 @@ class TestLinuxBackend:
         fake_profile = tmp_path / "test_profile.icc"
         fake_profile.write_bytes(b"\x00" * 128)
 
-        dest_dir = tmp_path / "icc_dest"
+        tmp_path / "icc_dest"
 
         with mock.patch("pathlib.Path.home", return_value=tmp_path):
             with mock.patch.object(backend, "_register_colord_profile"):
@@ -444,8 +437,8 @@ class TestLinuxBackend:
 
     def test_startup_helpers_importable(self):
         from calibrate_pro.platform.linux import (
-            enable_linux_startup,
             disable_linux_startup,
+            enable_linux_startup,
             is_linux_startup_enabled,
         )
         assert callable(enable_linux_startup)

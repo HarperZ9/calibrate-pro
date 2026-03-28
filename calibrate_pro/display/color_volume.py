@@ -14,9 +14,9 @@ lightness levels and computing the enclosed volume.
 """
 
 import math
-import numpy as np
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass
@@ -37,13 +37,13 @@ class ColorVolumeResult:
     relative_to_srgb_pct: float  # Panel volume / sRGB volume * 100
 
     # Per-lightness gamut area (shows how gamut changes with brightness)
-    lightness_levels: List[float]       # L* or Jz values
-    gamut_area_per_level: List[float]   # Area at each lightness
+    lightness_levels: list[float]       # L* or Jz values
+    gamut_area_per_level: list[float]   # Area at each lightness
 
 
 def compute_color_volume(
-    panel_primaries: Tuple[Tuple[float, float], ...],
-    panel_white: Tuple[float, float] = (0.3127, 0.3290),
+    panel_primaries: tuple[tuple[float, float], ...],
+    panel_white: tuple[float, float] = (0.3127, 0.3290),
     lightness_steps: int = 21,
     hue_steps: int = 72,
     panel_type: str = "",
@@ -178,7 +178,7 @@ def compute_color_volume(
         bt2020_areas.append(compute_area_at_lightness(bt2020_xyz_to_rgb, L))
 
     # Integrate (trapezoidal rule) to get volumes
-    dL = lightness_levels[1] - lightness_levels[0]
+    lightness_levels[1] - lightness_levels[0]
     panel_vol = float(np.trapezoid(panel_areas, lightness_levels))
     srgb_vol = float(np.trapezoid(srgb_areas, lightness_levels))
     p3_vol = float(np.trapezoid(p3_areas, lightness_levels))
@@ -220,7 +220,7 @@ def print_color_volume(result: ColorVolumeResult, panel_name: str = ""):
     print(f"    BT.2020 coverage: {result.bt2020_volume_pct:.1f}% (volume)")
 
     # Show per-lightness gamut
-    print(f"\n    Gamut area by lightness:")
+    print("\n    Gamut area by lightness:")
     for i in range(0, len(result.lightness_levels), max(1, len(result.lightness_levels) // 5)):
         L = result.lightness_levels[i]
         area = result.gamut_area_per_level[i]

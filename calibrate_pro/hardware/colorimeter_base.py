@@ -6,11 +6,13 @@ Supports various hardware devices through a unified API.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Callable
 from pathlib import Path
+
 import numpy as np
+
 
 class DeviceType(Enum):
     """Type of measurement device."""
@@ -44,7 +46,7 @@ class DeviceInfo:
     device_type: DeviceType        # Device type
     firmware_version: str = ""     # Firmware version
     driver_version: str = ""       # Driver version
-    capabilities: List[str] = field(default_factory=list)  # Supported features
+    capabilities: list[str] = field(default_factory=list)  # Supported features
 
     def supports_spectral(self) -> bool:
         """Check if device supports spectral measurements."""
@@ -54,7 +56,7 @@ class DeviceInfo:
         """Check if device can measure ambient light."""
         return "ambient" in self.capabilities
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "manufacturer": self.manufacturer,
@@ -87,7 +89,7 @@ class ColorMeasurement:
     delta_uv: float = 0.0
 
     # Optional spectral data (wavelength -> power)
-    spectral_data: Optional[Dict[float, float]] = None
+    spectral_data: dict[float, float] | None = None
 
     # Measurement metadata
     integration_time: float = 0.0  # seconds
@@ -110,11 +112,11 @@ class ColorMeasurement:
         """Get XYZ as numpy array."""
         return np.array([self.X, self.Y, self.Z])
 
-    def get_xy(self) -> Tuple[float, float]:
+    def get_xy(self) -> tuple[float, float]:
         """Get chromaticity coordinates."""
         return (self.x, self.y)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "XYZ": [self.X, self.Y, self.Z],
             "xy": [self.x, self.y],
@@ -137,12 +139,12 @@ class CalibrationPatch:
     name: str = ""
 
     # Measured result (filled after measurement)
-    measurement: Optional[ColorMeasurement] = None
+    measurement: ColorMeasurement | None = None
 
-    def get_rgb(self) -> Tuple[float, float, float]:
+    def get_rgb(self) -> tuple[float, float, float]:
         return (self.r, self.g, self.b)
 
-    def get_rgb_8bit(self) -> Tuple[int, int, int]:
+    def get_rgb_8bit(self) -> tuple[int, int, int]:
         return (
             int(self.r * 255),
             int(self.g * 255),
@@ -158,18 +160,18 @@ class ColorimeterBase(ABC):
     """
 
     def __init__(self):
-        self.device_info: Optional[DeviceInfo] = None
+        self.device_info: DeviceInfo | None = None
         self.is_connected: bool = False
         self.calibration_mode: CalibrationMode = CalibrationMode.FACTORY
-        self.correction_matrix: Optional[np.ndarray] = None
-        self.ccss_file: Optional[Path] = None
+        self.correction_matrix: np.ndarray | None = None
+        self.ccss_file: Path | None = None
 
         # Measurement settings
         self.integration_time: float = 0.0  # 0 = auto
         self.averaging_count: int = 1
 
         # Progress callback
-        self.progress_callback: Optional[Callable[[str, float], None]] = None
+        self.progress_callback: Callable[[str, float], None] | None = None
 
     def set_progress_callback(self, callback: Callable[[str, float], None]):
         """Set callback for progress updates."""
@@ -185,7 +187,7 @@ class ColorimeterBase(ABC):
     # ==========================================================================
 
     @abstractmethod
-    def detect_devices(self) -> List[DeviceInfo]:
+    def detect_devices(self) -> list[DeviceInfo]:
         """
         Detect all connected measurement devices.
 
@@ -228,7 +230,7 @@ class ColorimeterBase(ABC):
         pass
 
     @abstractmethod
-    def measure_spot(self) -> Optional[ColorMeasurement]:
+    def measure_spot(self) -> ColorMeasurement | None:
         """
         Take a single spot measurement.
 
@@ -238,7 +240,7 @@ class ColorimeterBase(ABC):
         pass
 
     @abstractmethod
-    def measure_ambient(self) -> Optional[ColorMeasurement]:
+    def measure_ambient(self) -> ColorMeasurement | None:
         """
         Measure ambient light level.
 
@@ -304,7 +306,7 @@ class ColorimeterBase(ABC):
         # Default implementation - subclasses should override
         return False
 
-    def get_spectral_data(self) -> Optional[Dict[float, float]]:
+    def get_spectral_data(self) -> dict[float, float] | None:
         """
         Get spectral power distribution from last measurement.
 
@@ -319,9 +321,9 @@ class ColorimeterBase(ABC):
 
     def measure_patches(
         self,
-        patches: List[CalibrationPatch],
+        patches: list[CalibrationPatch],
         display_callback: Callable[[CalibrationPatch], None]
-    ) -> List[CalibrationPatch]:
+    ) -> list[CalibrationPatch]:
         """
         Measure a sequence of color patches.
 
@@ -355,7 +357,7 @@ class ColorimeterBase(ABC):
         self,
         steps: int = 21,
         display_callback: Callable[[CalibrationPatch], None] = None
-    ) -> List[CalibrationPatch]:
+    ) -> list[CalibrationPatch]:
         """
         Measure grayscale ramp.
 
@@ -382,7 +384,7 @@ class ColorimeterBase(ABC):
     def measure_primaries(
         self,
         display_callback: Callable[[CalibrationPatch], None] = None
-    ) -> Dict[str, ColorMeasurement]:
+    ) -> dict[str, ColorMeasurement]:
         """
         Measure display primary colors and white point.
 
@@ -416,7 +418,7 @@ class ColorimeterBase(ABC):
 # Patch Set Generators
 # =============================================================================
 
-def generate_grayscale_patches(steps: int = 21) -> List[CalibrationPatch]:
+def generate_grayscale_patches(steps: int = 21) -> list[CalibrationPatch]:
     """Generate grayscale ramp patches."""
     patches = []
     for i in range(steps):
@@ -429,7 +431,7 @@ def generate_grayscale_patches(steps: int = 21) -> List[CalibrationPatch]:
     return patches
 
 
-def generate_primary_patches() -> List[CalibrationPatch]:
+def generate_primary_patches() -> list[CalibrationPatch]:
     """Generate primary color patches (R, G, B, W, K)."""
     return [
         CalibrationPatch(1, 0, 0, 0, "Red"),
@@ -443,7 +445,7 @@ def generate_primary_patches() -> List[CalibrationPatch]:
     ]
 
 
-def generate_verification_patches() -> List[CalibrationPatch]:
+def generate_verification_patches() -> list[CalibrationPatch]:
     """Generate ColorChecker-like verification patches."""
     # Simplified ColorChecker-like set
     return [
@@ -474,7 +476,7 @@ def generate_verification_patches() -> List[CalibrationPatch]:
     ]
 
 
-def generate_profiling_patches(size: int = 729) -> List[CalibrationPatch]:
+def generate_profiling_patches(size: int = 729) -> list[CalibrationPatch]:
     """
     Generate full profiling patch set.
 
@@ -487,7 +489,7 @@ def generate_profiling_patches(size: int = 729) -> List[CalibrationPatch]:
     """
     # Calculate grid size
     grid = int(round(size ** (1/3)))
-    actual_size = grid ** 3
+    grid ** 3
 
     patches = []
     index = 0

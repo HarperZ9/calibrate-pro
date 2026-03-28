@@ -7,13 +7,12 @@ Handles:
 - Auto-loading calibrations on application start
 """
 
+import json
 import os
 import sys
-import json
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
 
 if sys.platform == "win32":
     import winreg
@@ -31,10 +30,10 @@ class DisplayCalibrationState:
     display_id: int
     display_name: str
     model: str
-    lut_path: Optional[str] = None
-    icc_path: Optional[str] = None
+    lut_path: str | None = None
+    icc_path: str | None = None
     hdr_mode: bool = False
-    last_calibrated: Optional[str] = None
+    last_calibrated: str | None = None
     delta_e_avg: float = 0.0
     delta_e_max: float = 0.0
 
@@ -46,7 +45,7 @@ class CalibrationConfig:
     auto_start: bool = False
     auto_apply: bool = True
     refresh_interval: int = 300  # seconds
-    displays: Dict[str, DisplayCalibrationState] = None
+    displays: dict[str, DisplayCalibrationState] = None
 
     def __post_init__(self):
         if self.displays is None:
@@ -75,13 +74,13 @@ class StartupManager:
             return sys.executable
         else:
             # Running as script - use pythonw to avoid console
-            return f'pythonw -m calibrate_pro.app startup-service'
+            return 'pythonw -m calibrate_pro.app startup-service'
 
     def _load_config(self) -> CalibrationConfig:
         """Load configuration from file."""
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file) as f:
                     data = json.load(f)
 
                 # Reconstruct display states
@@ -128,11 +127,11 @@ class StartupManager:
             try:
                 winreg.QueryValueEx(key, APP_NAME)
                 return True
-            except WindowsError:
+            except OSError:
                 return False
             finally:
                 winreg.CloseKey(key)
-        except WindowsError:
+        except OSError:
             return False
 
     def enable_startup(self, silent: bool = True) -> bool:
@@ -148,12 +147,12 @@ class StartupManager:
                 if getattr(sys, 'frozen', False):
                     startup_cmd = f'"{exe_path}" start-service --silent'
                 else:
-                    startup_cmd = f'pythonw -m calibrate_pro.startup.calibration_loader start-service --silent'
+                    startup_cmd = 'pythonw -m calibrate_pro.startup.calibration_loader start-service --silent'
             else:
                 if getattr(sys, 'frozen', False):
                     startup_cmd = f'"{exe_path}" start-service'
                 else:
-                    startup_cmd = f'pythonw -m calibrate_pro.startup.calibration_loader start-service'
+                    startup_cmd = 'pythonw -m calibrate_pro.startup.calibration_loader start-service'
 
             key = winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
@@ -196,7 +195,7 @@ class StartupManager:
             )
             try:
                 winreg.DeleteValue(key, APP_NAME)
-            except WindowsError:
+            except OSError:
                 pass  # Value doesn't exist
             winreg.CloseKey(key)
 
@@ -204,7 +203,7 @@ class StartupManager:
             self.save_config()
 
             return True
-        except WindowsError as e:
+        except OSError as e:
             print(f"Error disabling startup: {e}")
             return False
 
@@ -213,8 +212,8 @@ class StartupManager:
         display_id: int,
         display_name: str,
         model: str,
-        lut_path: Optional[str] = None,
-        icc_path: Optional[str] = None,
+        lut_path: str | None = None,
+        icc_path: str | None = None,
         hdr_mode: bool = False,
         delta_e_avg: float = 0.0,
         delta_e_max: float = 0.0
@@ -235,11 +234,11 @@ class StartupManager:
         self.config.displays[str(display_id)] = state
         self.save_config()
 
-    def get_display_calibration(self, display_id: int) -> Optional[DisplayCalibrationState]:
+    def get_display_calibration(self, display_id: int) -> DisplayCalibrationState | None:
         """Get saved calibration state for a display."""
         return self.config.displays.get(str(display_id))
 
-    def get_all_calibrations(self) -> Dict[str, DisplayCalibrationState]:
+    def get_all_calibrations(self) -> dict[str, DisplayCalibrationState]:
         """Get all saved calibration states."""
         return self.config.displays
 
