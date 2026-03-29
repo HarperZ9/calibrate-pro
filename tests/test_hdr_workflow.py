@@ -28,6 +28,7 @@ from calibrate_pro.hdr.workflow import (
 # Fixtures
 # =========================================================================
 
+
 @pytest.fixture
 def hdr10_target():
     return HDRTarget.hdr10_1000()
@@ -57,6 +58,7 @@ def hlg_wf(hlg_target):
 # HDRTarget presets
 # =========================================================================
 
+
 class TestHDRTarget:
     def test_hdr10_1000_preset(self):
         t = HDRTarget.hdr10_1000()
@@ -78,6 +80,7 @@ class TestHDRTarget:
 # =========================================================================
 # EOTF Patch Generation
 # =========================================================================
+
 
 class TestGenerateEOTFPatches:
     def test_hdr10_patch_shape(self, hdr10_wf):
@@ -138,6 +141,7 @@ class TestGenerateEOTFPatches:
 # EOTF Verification
 # =========================================================================
 
+
 class TestVerifyEOTF:
     def test_perfect_match_zero_error(self, hdr10_wf):
         patches = hdr10_wf.generate_eotf_patches(steps=21)
@@ -167,6 +171,7 @@ class TestVerifyEOTF:
 # Tone Map Generation
 # =========================================================================
 
+
 class TestGenerateToneMap:
     def test_shape(self, hdr10_wf):
         tm = hdr10_wf.generate_tone_map(steps=256)
@@ -190,7 +195,9 @@ class TestGenerateToneMap:
         # The bottom 10% of PQ range should be near-identity
         low = tm[:100]
         np.testing.assert_allclose(
-            low[:, 0], low[:, 1], atol=0.05,
+            low[:, 0],
+            low[:, 1],
+            atol=0.05,
         )
 
     def test_output_compressed_above_target(self, hdr10_wf):
@@ -207,6 +214,7 @@ class TestGenerateToneMap:
 # =========================================================================
 # 3-D LUT Generation
 # =========================================================================
+
 
 class TestGenerateHDRLUT:
     def test_shape(self, hdr10_wf):
@@ -239,6 +247,7 @@ class TestGenerateHDRLUT:
 # =========================================================================
 # HDR Metadata
 # =========================================================================
+
 
 class TestGenerateHDRMetadata:
     def test_hdr10_metadata_fields(self, hdr10_wf):
@@ -282,12 +291,11 @@ class TestGenerateHDRMetadata:
 # .cube Export
 # =========================================================================
 
+
 class TestExportCube:
     def test_creates_file(self, hdr10_wf):
         lut = hdr10_wf.generate_hdr_lut(size=5)
-        with tempfile.NamedTemporaryFile(
-            suffix=".cube", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".cube", delete=False, mode="w") as tmp:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
@@ -298,9 +306,7 @@ class TestExportCube:
 
     def test_header_fields(self, hdr10_wf):
         lut = hdr10_wf.generate_hdr_lut(size=3)
-        with tempfile.NamedTemporaryFile(
-            suffix=".cube", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".cube", delete=False, mode="w") as tmp:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
@@ -318,9 +324,7 @@ class TestExportCube:
     def test_correct_line_count(self, hdr10_wf):
         size = 3
         lut = hdr10_wf.generate_hdr_lut(size=size)
-        with tempfile.NamedTemporaryFile(
-            suffix=".cube", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".cube", delete=False, mode="w") as tmp:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
@@ -328,30 +332,28 @@ class TestExportCube:
                 lines = fh.read().strip().split("\n")
             # Data lines = size^3
             data_lines = [
-                ln for ln in lines
-                if ln and not ln.startswith("#")
+                ln
+                for ln in lines
+                if ln
+                and not ln.startswith("#")
                 and not ln.startswith("TITLE")
                 and not ln.startswith("LUT_3D_SIZE")
                 and not ln.startswith("DOMAIN")
             ]
-            assert len(data_lines) == size ** 3
+            assert len(data_lines) == size**3
         finally:
             os.unlink(path)
 
     def test_data_parseable(self, hdr10_wf):
         lut = hdr10_wf.generate_hdr_lut(size=3)
-        with tempfile.NamedTemporaryFile(
-            suffix=".cube", delete=False, mode="w"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".cube", delete=False, mode="w") as tmp:
             path = tmp.name
         try:
             hdr10_wf.export_cube(path, lut)
             with open(path) as fh:
                 for line in fh:
                     line = line.strip()
-                    if not line or line.startswith("#") or line.startswith(
-                        ("TITLE", "LUT_3D_SIZE", "DOMAIN")
-                    ):
+                    if not line or line.startswith("#") or line.startswith(("TITLE", "LUT_3D_SIZE", "DOMAIN")):
                         continue
                     parts = line.split()
                     assert len(parts) == 3
@@ -369,6 +371,7 @@ class TestExportCube:
 # =========================================================================
 # Full run()
 # =========================================================================
+
 
 class TestRun:
     def test_hdr10_run_returns_result(self, hdr10_wf):

@@ -32,6 +32,7 @@ from calibrate_pro.gui.app import C, Card, Heading
 
 # Worker Thread
 
+
 class CalibrationWorker(QThread):
     """Runs AutoCalibrationEngine.run_calibration() off the main thread.
 
@@ -39,9 +40,9 @@ class CalibrationWorker(QThread):
     then runs the selected calibration mode.
     """
 
-    progress = pyqtSignal(str, float, str)   # message, 0-1, step name
-    finished = pyqtSignal(bool, str)          # success, result message
-    log_line = pyqtSignal(str)                # individual log lines
+    progress = pyqtSignal(str, float, str)  # message, 0-1, step name
+    finished = pyqtSignal(bool, str)  # success, result message
+    log_line = pyqtSignal(str)  # individual log lines
 
     def __init__(
         self,
@@ -86,7 +87,7 @@ class CalibrationWorker(QThread):
                     db = PanelDatabase()
                     panel_key = identify_display(displays[self.display_index])
                     panel = db.get_panel(panel_key) if panel_key else None
-                    if panel and hasattr(panel, 'ddc') and panel.ddc:
+                    if panel and hasattr(panel, "ddc") and panel.ddc:
                         ddc_rec = panel.ddc
                         self.log_line.emit(f"  Panel: {panel.name}")
             except Exception:
@@ -94,7 +95,8 @@ class CalibrationWorker(QThread):
 
             # Apply auto-setup
             changes = ddc.auto_setup_for_calibration(
-                monitor, ddc_recommendations=ddc_rec,
+                monitor,
+                ddc_recommendations=ddc_rec,
                 log_fn=lambda msg: self.log_line.emit(f"  DDC: {msg}"),
             )
 
@@ -104,6 +106,7 @@ class CalibrationWorker(QThread):
                 self.log_line.emit("  DDC: No settings applied (monitor may not support DDC/CI)")
 
             import time
+
             time.sleep(1.0)  # Let monitor settle after DDC changes
 
         except Exception as e:
@@ -205,6 +208,7 @@ class NativeCalibrationWorker(QThread):
         """Signal the main thread to show a patch, then wait for settle time."""
         self.show_patch.emit(r, g, b)
         import time
+
         time.sleep(settle)  # Wait for OLED settle + signal propagation
 
     def run(self):
@@ -216,14 +220,17 @@ class NativeCalibrationWorker(QThread):
             import hid
             import numpy as np
 
-            OLED_MATRIX = np.array([
-                [0.03836831, -0.02175997, 0.01696057],
-                [0.01449629,  0.01611903, 0.00057150],
-                [-0.00004481, 0.00035042, 0.08032401],
-            ])
+            OLED_MATRIX = np.array(
+                [
+                    [0.03836831, -0.02175997, 0.01696057],
+                    [0.01449629, 0.01611903, 0.00057150],
+                    [-0.00004481, 0.00035042, 0.08032401],
+                ]
+            )
 
             # Apply CCMX spectral correction for QD-OLED
             from calibrate_pro.calibration.native_loop import QDOLED_CCMX
+
             SENSOR_MATRIX = QDOLED_CCMX @ OLED_MATRIX
 
             M_MASK = 0xFFFFFFFF
@@ -236,46 +243,67 @@ class NativeCalibrationWorker(QThread):
             device.open(0x0765, 0x5020)
 
             # Unlock (NEC OEM key)
-            k0, k1 = 0xa9119479, 0x5b168761
-            cmd = bytearray(65); cmd[0] = 0; cmd[1] = 0x99
-            device.write(cmd); time.sleep(0.2)
+            k0, k1 = 0xA9119479, 0x5B168761
+            cmd = bytearray(65)
+            cmd[0] = 0
+            cmd[1] = 0x99
+            device.write(cmd)
+            time.sleep(0.2)
             c = bytes(device.read(64, timeout_ms=3000))
             sc = bytearray(8)
-            for i in range(8): sc[i] = c[3] ^ c[35 + i]
-            ci0 = (sc[3]<<24)+(sc[0]<<16)+(sc[4]<<8)+sc[6]
-            ci1 = (sc[1]<<24)+(sc[7]<<16)+(sc[2]<<8)+sc[5]
+            for i in range(8):
+                sc[i] = c[3] ^ c[35 + i]
+            ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
+            ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
             nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
-            co = [(nk0-ci1)&M_MASK, (nk1-ci0)&M_MASK, (ci1*nk0)&M_MASK, (ci0*nk1)&M_MASK]
+            co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
             s = sum(sc)
-            for sh in [0, 8, 16, 24]: s += (nk0>>sh)&0xFF; s += (nk1>>sh)&0xFF
+            for sh in [0, 8, 16, 24]:
+                s += (nk0 >> sh) & 0xFF
+                s += (nk1 >> sh) & 0xFF
             s0, s1 = s & 0xFF, (s >> 8) & 0xFF
             sr = bytearray(16)
-            sr[0]=(((co[0]>>16)&0xFF)+s0)&0xFF; sr[1]=(((co[2]>>8)&0xFF)-s1)&0xFF
-            sr[2]=((co[3]&0xFF)+s1)&0xFF; sr[3]=(((co[1]>>16)&0xFF)+s0)&0xFF
-            sr[4]=(((co[2]>>16)&0xFF)-s1)&0xFF; sr[5]=(((co[3]>>16)&0xFF)-s0)&0xFF
-            sr[6]=(((co[1]>>24)&0xFF)-s0)&0xFF; sr[7]=((co[0]&0xFF)-s1)&0xFF
-            sr[8]=(((co[3]>>8)&0xFF)+s0)&0xFF; sr[9]=(((co[2]>>24)&0xFF)-s1)&0xFF
-            sr[10]=(((co[0]>>8)&0xFF)+s0)&0xFF; sr[11]=(((co[1]>>8)&0xFF)-s1)&0xFF
-            sr[12]=((co[1]&0xFF)+s1)&0xFF; sr[13]=(((co[3]>>24)&0xFF)+s1)&0xFF
-            sr[14]=((co[2]&0xFF)+s0)&0xFF; sr[15]=(((co[0]>>24)&0xFF)-s0)&0xFF
-            rb = bytearray(65); rb[0] = 0; rb[1] = 0x9A
-            for i in range(16): rb[25+i] = c[2] ^ sr[i]
-            device.write(rb); time.sleep(0.3); device.read(64, timeout_ms=3000)
+            sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+            sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+            sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+            sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+            sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+            sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+            sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+            sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+            sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+            sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+            sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+            sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+            sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+            sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+            sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+            sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
+            rb = bytearray(65)
+            rb[0] = 0
+            rb[1] = 0x9A
+            for i in range(16):
+                rb[25 + i] = c[2] ^ sr[i]
+            device.write(rb)
+            time.sleep(0.3)
+            device.read(64, timeout_ms=3000)
 
             self.log_line.emit("Sensor unlocked. CCMX spectral correction applied.")
 
             def measure_xyz_fn(r, g, b):
                 intclks = int(1.0 * 12000000)
-                cmd2 = bytearray(65); cmd2[0] = 0x00; cmd2[1] = 0x01
-                struct.pack_into('<I', cmd2, 2, intclks)
+                cmd2 = bytearray(65)
+                cmd2[0] = 0x00
+                cmd2[1] = 0x01
+                struct.pack_into("<I", cmd2, 2, intclks)
                 device.write(cmd2)
                 resp = device.read(64, timeout_ms=4000)
                 if resp and resp[0] == 0x00 and resp[1] == 0x01:
-                    rv = struct.unpack('<I', bytes(resp[2:6]))[0]
-                    gv = struct.unpack('<I', bytes(resp[6:10]))[0]
-                    bv = struct.unpack('<I', bytes(resp[10:14]))[0]
+                    rv = struct.unpack("<I", bytes(resp[2:6]))[0]
+                    gv = struct.unpack("<I", bytes(resp[6:10]))[0]
+                    bv = struct.unpack("<I", bytes(resp[10:14]))[0]
                     t = intclks / 12000000.0
-                    freq = np.array([0.5*(rv+0.5)/t, 0.5*(gv+0.5)/t, 0.5*(bv+0.5)/t])
+                    freq = np.array([0.5 * (rv + 0.5) / t, 0.5 * (gv + 0.5) / t, 0.5 * (bv + 0.5) / t])
                     if np.max(freq) > 0.3:
                         return SENSOR_MATRIX @ freq
                 return None
@@ -322,6 +350,7 @@ class NativeCalibrationWorker(QThread):
             self.progress.emit("Applying LUT...", 0.90, "Applying")
             try:
                 from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
                 dwm = DwmLutController()
                 if dwm.is_available:
                     dwm.load_lut_file(0, lut_path)
@@ -337,8 +366,7 @@ class NativeCalibrationWorker(QThread):
             self.show_patch.emit(-1.0, -1.0, -1.0)  # Signal to close patch window
 
             self.progress.emit("Complete!", 1.0, "Complete")
-            self.finished.emit(True,
-                f"Native calibration complete.\nLUT saved to {lut_path}")
+            self.finished.emit(True, f"Native calibration complete.\nLUT saved to {lut_path}")
 
         except Exception as exc:
             self.show_patch.emit(-1.0, -1.0, -1.0)  # Close patch window on error
@@ -362,6 +390,7 @@ class HardwareFirstWorker(QThread):
     def _display_and_wait(self, r, g, b, settle=1.2):
         self.show_patch.emit(r, g, b)
         import time
+
         time.sleep(settle)
 
     def run(self):
@@ -372,13 +401,16 @@ class HardwareFirstWorker(QThread):
             import hid
             import numpy as np
 
-            OLED_MATRIX = np.array([
-                [0.03836831, -0.02175997, 0.01696057],
-                [0.01449629,  0.01611903, 0.00057150],
-                [-0.00004481, 0.00035042, 0.08032401],
-            ])
+            OLED_MATRIX = np.array(
+                [
+                    [0.03836831, -0.02175997, 0.01696057],
+                    [0.01449629, 0.01611903, 0.00057150],
+                    [-0.00004481, 0.00035042, 0.08032401],
+                ]
+            )
 
             from calibrate_pro.calibration.native_loop import QDOLED_CCMX
+
             SENSOR = QDOLED_CCMX @ OLED_MATRIX
 
             M_MASK = 0xFFFFFFFF
@@ -389,45 +421,66 @@ class HardwareFirstWorker(QThread):
             device.open(0x0765, 0x5020)
 
             # Unlock
-            k0, k1 = 0xa9119479, 0x5b168761
-            cmd = bytearray(65); cmd[0] = 0; cmd[1] = 0x99
-            device.write(cmd); time.sleep(0.2)
+            k0, k1 = 0xA9119479, 0x5B168761
+            cmd = bytearray(65)
+            cmd[0] = 0
+            cmd[1] = 0x99
+            device.write(cmd)
+            time.sleep(0.2)
             c = bytes(device.read(64, timeout_ms=3000))
             sc = bytearray(8)
-            for i in range(8): sc[i] = c[3] ^ c[35+i]
-            ci0=(sc[3]<<24)+(sc[0]<<16)+(sc[4]<<8)+sc[6]
-            ci1=(sc[1]<<24)+(sc[7]<<16)+(sc[2]<<8)+sc[5]
-            nk0,nk1=(-k0)&M_MASK,(-k1)&M_MASK
-            co=[(nk0-ci1)&M_MASK,(nk1-ci0)&M_MASK,(ci1*nk0)&M_MASK,(ci0*nk1)&M_MASK]
-            s=sum(sc)
-            for sh in [0,8,16,24]: s+=(nk0>>sh)&0xFF; s+=(nk1>>sh)&0xFF
-            s0,s1=s&0xFF,(s>>8)&0xFF
-            sr=bytearray(16)
-            sr[0]=(((co[0]>>16)&0xFF)+s0)&0xFF;sr[1]=(((co[2]>>8)&0xFF)-s1)&0xFF
-            sr[2]=((co[3]&0xFF)+s1)&0xFF;sr[3]=(((co[1]>>16)&0xFF)+s0)&0xFF
-            sr[4]=(((co[2]>>16)&0xFF)-s1)&0xFF;sr[5]=(((co[3]>>16)&0xFF)-s0)&0xFF
-            sr[6]=(((co[1]>>24)&0xFF)-s0)&0xFF;sr[7]=((co[0]&0xFF)-s1)&0xFF
-            sr[8]=(((co[3]>>8)&0xFF)+s0)&0xFF;sr[9]=(((co[2]>>24)&0xFF)-s1)&0xFF
-            sr[10]=(((co[0]>>8)&0xFF)+s0)&0xFF;sr[11]=(((co[1]>>8)&0xFF)-s1)&0xFF
-            sr[12]=((co[1]&0xFF)+s1)&0xFF;sr[13]=(((co[3]>>24)&0xFF)+s1)&0xFF
-            sr[14]=((co[2]&0xFF)+s0)&0xFF;sr[15]=(((co[0]>>24)&0xFF)-s0)&0xFF
-            rb=bytearray(65);rb[0]=0;rb[1]=0x9A
-            for i in range(16): rb[25+i]=c[2]^sr[i]
-            device.write(rb);time.sleep(0.3);device.read(64,timeout_ms=3000)
+            for i in range(8):
+                sc[i] = c[3] ^ c[35 + i]
+            ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
+            ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
+            nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
+            co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
+            s = sum(sc)
+            for sh in [0, 8, 16, 24]:
+                s += (nk0 >> sh) & 0xFF
+                s += (nk1 >> sh) & 0xFF
+            s0, s1 = s & 0xFF, (s >> 8) & 0xFF
+            sr = bytearray(16)
+            sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+            sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+            sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+            sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+            sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+            sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+            sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+            sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+            sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+            sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+            sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+            sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+            sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+            sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+            sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+            sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
+            rb = bytearray(65)
+            rb[0] = 0
+            rb[1] = 0x9A
+            for i in range(16):
+                rb[25 + i] = c[2] ^ sr[i]
+            device.write(rb)
+            time.sleep(0.3)
+            device.read(64, timeout_ms=3000)
             self.log_line.emit("Sensor unlocked.")
 
             def measure():
                 intclks = int(1.0 * 12000000)
-                cmd2 = bytearray(65); cmd2[0] = 0x00; cmd2[1] = 0x01
-                struct.pack_into('<I', cmd2, 2, intclks)
+                cmd2 = bytearray(65)
+                cmd2[0] = 0x00
+                cmd2[1] = 0x01
+                struct.pack_into("<I", cmd2, 2, intclks)
                 device.write(cmd2)
                 resp = device.read(64, timeout_ms=4000)
                 if resp and resp[0] == 0x00 and resp[1] == 0x01:
-                    rv = struct.unpack('<I', bytes(resp[2:6]))[0]
-                    gv = struct.unpack('<I', bytes(resp[6:10]))[0]
-                    bv = struct.unpack('<I', bytes(resp[10:14]))[0]
+                    rv = struct.unpack("<I", bytes(resp[2:6]))[0]
+                    gv = struct.unpack("<I", bytes(resp[6:10]))[0]
+                    bv = struct.unpack("<I", bytes(resp[10:14]))[0]
                     t = intclks / 12000000.0
-                    freq = np.array([0.5*(rv+0.5)/t, 0.5*(gv+0.5)/t, 0.5*(bv+0.5)/t])
+                    freq = np.array([0.5 * (rv + 0.5) / t, 0.5 * (gv + 0.5) / t, 0.5 * (bv + 0.5) / t])
                     if np.max(freq) > 0.3:
                         return SENSOR @ freq
                 return None
@@ -462,6 +515,7 @@ class HardwareFirstWorker(QThread):
 
 # Mode Card
 
+
 class ModeCard(Card):
     """Selectable mode card with icon area, title, and subtitle."""
 
@@ -489,27 +543,20 @@ class ModeCard(Card):
         # Icon placeholder
         icon_label = QLabel(icon_text)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet(
-            f"font-size: 24px; color: {C.ACCENT_TX if enabled else C.TEXT3};"
-        )
+        icon_label.setStyleSheet(f"font-size: 24px; color: {C.ACCENT_TX if enabled else C.TEXT3};")
         layout.addWidget(icon_label)
 
         # Title
         title_label = QLabel(title)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; "
-            f"color: {C.TEXT if enabled else C.TEXT3};"
-        )
+        title_label.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {C.TEXT if enabled else C.TEXT3};")
         layout.addWidget(title_label)
 
         # Subtitle
         sub_label = QLabel(subtitle)
         sub_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub_label.setWordWrap(True)
-        sub_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT2 if enabled else C.TEXT3};"
-        )
+        sub_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT2 if enabled else C.TEXT3};")
         layout.addWidget(sub_label)
 
         self._apply_style()
@@ -560,6 +607,7 @@ class ModeCard(Card):
 
 
 # Calibrate Page
+
 
 class CalibratePage(QWidget):
     """Full calibration workflow page."""
@@ -629,9 +677,11 @@ class CalibratePage(QWidget):
         hw_icon = QLabel("\u2699")
         hw_icon.setStyleSheet(f"font-size: 18px; color: {C.GREEN};")
         hw_lay.addWidget(hw_icon)
-        hw_text = QLabel("Hardware calibration runs first in every mode. "
-                         "DDC/CI adjusts brightness, contrast, and RGB gains "
-                         "before software profiling begins.")
+        hw_text = QLabel(
+            "Hardware calibration runs first in every mode. "
+            "DDC/CI adjusts brightness, contrast, and RGB gains "
+            "before software profiling begins."
+        )
         hw_text.setWordWrap(True)
         hw_text.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
         hw_lay.addWidget(hw_text, stretch=1)
@@ -643,15 +693,21 @@ class CalibratePage(QWidget):
         mode_row.setSpacing(12)
 
         self._mode_sensorless = ModeCard(
-            "Sensorless", "Panel database, instant", "\u2588\u2588",
+            "Sensorless",
+            "Panel database, instant",
+            "\u2588\u2588",
             enabled=True,
         )
         self._mode_measured = ModeCard(
-            "Measured", "Colorimeter profiling", "\u25c9",
+            "Measured",
+            "Colorimeter profiling",
+            "\u25c9",
             enabled=False,
         )
         self._mode_hybrid = ModeCard(
-            "Hybrid", "Database + refinement", "\u2588\u25c9",
+            "Hybrid",
+            "Database + refinement",
+            "\u2588\u25c9",
             enabled=False,
         )
         self._mode_cards = [self._mode_sensorless, self._mode_measured, self._mode_hybrid]
@@ -796,9 +852,7 @@ class CalibratePage(QWidget):
             btn = QPushButton(label)
             btn.setStyleSheet(preset_btn_style)
             btn.setFixedHeight(28)
-            btn.clicked.connect(
-                lambda checked, g=gamut, w=wp, gm=gamma, h=hdr: self._apply_preset(g, w, gm, h)
-            )
+            btn.clicked.connect(lambda checked, g=gamut, w=wp, gm=gamma, h=hdr: self._apply_preset(g, w, gm, h))
             preset_row.addWidget(btn)
 
         preset_row.addStretch()
@@ -899,6 +953,7 @@ class CalibratePage(QWidget):
         try:
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
             from calibrate_pro.panels.detection import enumerate_displays, get_display_name
+
             self._displays = enumerate_displays()
             for i, d in enumerate(self._displays):
                 name = get_display_name(d)
@@ -912,6 +967,7 @@ class CalibratePage(QWidget):
         # Sensor detection
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             devices = I1D3Driver.find_devices()
             self._sensor_detected = bool(devices)
         except Exception:
@@ -920,15 +976,13 @@ class CalibratePage(QWidget):
         # Enable/disable measured modes
         self._mode_measured._enabled = self._sensor_detected
         self._mode_measured.setCursor(
-            Qt.CursorShape.PointingHandCursor if self._sensor_detected
-            else Qt.CursorShape.ForbiddenCursor
+            Qt.CursorShape.PointingHandCursor if self._sensor_detected else Qt.CursorShape.ForbiddenCursor
         )
         self._mode_measured._apply_style()
 
         self._mode_hybrid._enabled = self._sensor_detected
         self._mode_hybrid.setCursor(
-            Qt.CursorShape.PointingHandCursor if self._sensor_detected
-            else Qt.CursorShape.ForbiddenCursor
+            Qt.CursorShape.PointingHandCursor if self._sensor_detected else Qt.CursorShape.ForbiddenCursor
         )
         self._mode_hybrid._apply_style()
 
@@ -1028,20 +1082,19 @@ class CalibratePage(QWidget):
         """Display a fullscreen color patch for measurement (main thread)."""
         # Negative values = close the patch window
         if r < 0:
-            if hasattr(self, '_patch_window') and self._patch_window:
+            if hasattr(self, "_patch_window") and self._patch_window:
                 self._patch_window.close()
                 self._patch_window = None
             return
 
         # Create the patch window on first call
-        if not hasattr(self, '_patch_window') or self._patch_window is None:
+        if not hasattr(self, "_patch_window") or self._patch_window is None:
             from PyQt6.QtCore import Qt as QtConst
             from PyQt6.QtWidgets import QWidget
 
             self._patch_window = QWidget()
             self._patch_window.setWindowFlags(
-                QtConst.WindowType.FramelessWindowHint |
-                QtConst.WindowType.WindowStaysOnTopHint
+                QtConst.WindowType.FramelessWindowHint | QtConst.WindowType.WindowStaysOnTopHint
             )
             self._patch_window.setCursor(QtConst.CursorShape.BlankCursor)
 
@@ -1067,9 +1120,7 @@ class CalibratePage(QWidget):
         ri = max(0, min(255, int(r * 255 + 0.5)))
         gi = max(0, min(255, int(g * 255 + 0.5)))
         bi = max(0, min(255, int(b * 255 + 0.5)))
-        self._patch_window.setStyleSheet(
-            f"background-color: #{ri:02x}{gi:02x}{bi:02x};"
-        )
+        self._patch_window.setStyleSheet(f"background-color: #{ri:02x}{gi:02x}{bi:02x};")
         self._patch_window.update()
 
     def _on_progress(self, message: str, value: float, step_name: str):
@@ -1088,17 +1139,13 @@ class CalibratePage(QWidget):
         if success:
             self._btn_calibrate.setText("Calibrate Display")
             self._step_label.setText("Complete")
-            self._step_label.setStyleSheet(
-                f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};"
-            )
+            self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
             self._progress_bar.setValue(1000)
             self.calibration_completed.emit()
         else:
             self._btn_calibrate.setText("Calibrate Display")
             self._step_label.setText("Failed")
-            self._step_label.setStyleSheet(
-                f"font-size: 13px; font-weight: 500; color: {C.RED};"
-            )
+            self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.RED};")
             self._show_error(message)
 
         self._on_log(message)

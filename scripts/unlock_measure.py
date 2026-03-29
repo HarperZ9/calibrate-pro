@@ -1,4 +1,5 @@
 """Unlock i1Display3 and take a measurement."""
+
 import struct
 import sys
 import time
@@ -12,18 +13,19 @@ print(f"Device: {device.get_product_string()}")
 M = 0xFFFFFFFF
 
 KEY_TABLE = [
-    (0xe9622e9f, 0x8d63e133, "retail i1Display3"),
-    (0xa9119479, 0x5b168761, "NEC SpectraSensor"),
-    (0xcaa62b2c, 0x30815b61, "OEM generic"),
-    (0xe01e6e0a, 0x257462de, "ColorMunki Display"),
-    (0x160eb6ae, 0x14440e70, "Quato Silver Haze"),
-    (0x291e41d7, 0x51937bdd, "HP DreamColor"),
-    (0x1abfae03, 0xf25ac8e8, "Wacom DC"),
-    (0x828c43e9, 0xcbb8a8ed, "Toshiba TPA-1"),
-    (0xe8d1a980, 0xd146f7ad, "Barco"),
-    (0x171ae295, 0x2e5c7664, "PhotoCrysta"),
-    (0x64d8c546, 0x4b24b4a7, "ViewSonic CS-XRi1"),
+    (0xE9622E9F, 0x8D63E133, "retail i1Display3"),
+    (0xA9119479, 0x5B168761, "NEC SpectraSensor"),
+    (0xCAA62B2C, 0x30815B61, "OEM generic"),
+    (0xE01E6E0A, 0x257462DE, "ColorMunki Display"),
+    (0x160EB6AE, 0x14440E70, "Quato Silver Haze"),
+    (0x291E41D7, 0x51937BDD, "HP DreamColor"),
+    (0x1ABFAE03, 0xF25AC8E8, "Wacom DC"),
+    (0x828C43E9, 0xCBB8A8ED, "Toshiba TPA-1"),
+    (0xE8D1A980, 0xD146F7AD, "Barco"),
+    (0x171AE295, 0x2E5C7664, "PhotoCrysta"),
+    (0x64D8C546, 0x4B24B4A7, "ViewSonic CS-XRi1"),
 ]
+
 
 def unlock_attempt(k0, k1, name):
     # Request challenge
@@ -56,14 +58,22 @@ def unlock_attempt(k0, k1, name):
     s0, s1 = s & 0xFF, (s >> 8) & 0xFF
 
     sr = bytearray(16)
-    sr[0]  = (((co[0]>>16)&0xFF)+s0)&0xFF; sr[1]  = (((co[2]>>8)&0xFF)-s1)&0xFF
-    sr[2]  = ((co[3]&0xFF)+s1)&0xFF;       sr[3]  = (((co[1]>>16)&0xFF)+s0)&0xFF
-    sr[4]  = (((co[2]>>16)&0xFF)-s1)&0xFF; sr[5]  = (((co[3]>>16)&0xFF)-s0)&0xFF
-    sr[6]  = (((co[1]>>24)&0xFF)-s0)&0xFF; sr[7]  = ((co[0]&0xFF)-s1)&0xFF
-    sr[8]  = (((co[3]>>8)&0xFF)+s0)&0xFF;  sr[9]  = (((co[2]>>24)&0xFF)-s1)&0xFF
-    sr[10] = (((co[0]>>8)&0xFF)+s0)&0xFF;  sr[11] = (((co[1]>>8)&0xFF)-s1)&0xFF
-    sr[12] = ((co[1]&0xFF)+s1)&0xFF;       sr[13] = (((co[3]>>24)&0xFF)+s1)&0xFF
-    sr[14] = ((co[2]&0xFF)+s0)&0xFF;       sr[15] = (((co[0]>>24)&0xFF)-s0)&0xFF
+    sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+    sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+    sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+    sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+    sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+    sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+    sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+    sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+    sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+    sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+    sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+    sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+    sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+    sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+    sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+    sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
 
     resp_buf = bytearray(65)
     resp_buf[0] = 0x00
@@ -83,6 +93,7 @@ def unlock_attempt(k0, k1, name):
         else:
             print(" (rejected)")
     return False
+
 
 print("\nTrying all unlock keys...")
 unlocked = False

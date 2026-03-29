@@ -26,9 +26,10 @@ from calibrate_pro.core.color_math import (
 # HDR Standards & Targets
 # =========================================================================
 
+
 class HDRStandard(Enum):
-    HDR10 = "hdr10"      # PQ/ST.2084, Rec.2020, 10-bit
-    HLG = "hlg"          # HLG/BT.2100, Rec.2020
+    HDR10 = "hdr10"  # PQ/ST.2084, Rec.2020, 10-bit
+    HLG = "hlg"  # HLG/BT.2100, Rec.2020
     DOLBY_VISION = "dv"  # Future
 
 
@@ -45,12 +46,13 @@ _BT2020_LUM = np.array([0.2627, 0.6780, 0.0593])
 @dataclass
 class HDRTarget:
     """HDR calibration target specification."""
+
     standard: HDRStandard
-    peak_luminance: float = 1000.0   # cd/m2 (nits)
-    min_luminance: float = 0.005     # cd/m2
-    max_cll: float = 1000.0          # Maximum Content Light Level
-    max_fall: float = 400.0          # Max Frame Average Light Level
-    gamut: str = "bt2020"            # Target color gamut
+    peak_luminance: float = 1000.0  # cd/m2 (nits)
+    min_luminance: float = 0.005  # cd/m2
+    max_cll: float = 1000.0  # Maximum Content Light Level
+    max_fall: float = 400.0  # Max Frame Average Light Level
+    gamut: str = "bt2020"  # Target color gamut
 
     @classmethod
     def hdr10_1000(cls) -> "HDRTarget":
@@ -77,20 +79,23 @@ class HDRTarget:
 # Result Container
 # =========================================================================
 
+
 @dataclass
 class HDRCalibrationResult:
     """Results from an HDR calibration pass."""
+
     target: HDRTarget
-    eotf_error: float                   # Average EOTF deviation (%)
-    peak_measured: float                # Measured peak luminance
-    gamut_coverage_bt2020: float        # % of BT.2020 covered
-    tone_map_curve: np.ndarray          # Applied EETF curve
+    eotf_error: float  # Average EOTF deviation (%)
+    peak_measured: float  # Measured peak luminance
+    gamut_coverage_bt2020: float  # % of BT.2020 covered
+    tone_map_curve: np.ndarray  # Applied EETF curve
     lut_data: np.ndarray | None = None  # 3D LUT if generated
 
 
 # =========================================================================
 # HDR Workflow
 # =========================================================================
+
 
 class HDRWorkflow:
     """
@@ -156,10 +161,7 @@ class HDRWorkflow:
         expected = np.asarray(expected, dtype=np.float64)
 
         if measured.shape != expected.shape:
-            raise ValueError(
-                f"Shape mismatch: measured {measured.shape} "
-                f"vs expected {expected.shape}"
-            )
+            raise ValueError(f"Shape mismatch: measured {measured.shape} vs expected {expected.shape}")
 
         # Avoid division by zero for the black-level patch
         safe_expected = np.where(expected > 0, expected, 1.0)
@@ -275,29 +277,18 @@ class HDRWorkflow:
             lut: (size, size, size, 3) LUT data in [0, 1].
         """
         if lut.ndim != 4 or lut.shape[-1] != 3:
-            raise ValueError(
-                "LUT must be shape (size, size, size, 3), "
-                f"got {lut.shape}"
-            )
+            raise ValueError(f"LUT must be shape (size, size, size, 3), got {lut.shape}")
 
         size = lut.shape[0]
         meta = self.generate_hdr_metadata()
 
         lines: list[str] = []
-        lines.append(f"TITLE \"Calibrate Pro HDR {self.target.standard.value}\"")
+        lines.append(f'TITLE "Calibrate Pro HDR {self.target.standard.value}"')
         lines.append(f"# HDR Standard: {meta['standard']}")
-        lines.append(
-            f"# Peak luminance: {meta['luminance']['max_nits']} nits"
-        )
-        lines.append(
-            f"# Min luminance: {meta['luminance']['min_nits']} nits"
-        )
-        lines.append(
-            f"# MaxCLL: {meta['content_light_level']['max_cll']} nits"
-        )
-        lines.append(
-            f"# MaxFALL: {meta['content_light_level']['max_fall']} nits"
-        )
+        lines.append(f"# Peak luminance: {meta['luminance']['max_nits']} nits")
+        lines.append(f"# Min luminance: {meta['luminance']['min_nits']} nits")
+        lines.append(f"# MaxCLL: {meta['content_light_level']['max_cll']} nits")
+        lines.append(f"# MaxFALL: {meta['content_light_level']['max_fall']} nits")
         lines.append(f"LUT_3D_SIZE {size}")
         lines.append("DOMAIN_MIN 0.0 0.0 0.0")
         lines.append("DOMAIN_MAX 1.0 1.0 1.0")

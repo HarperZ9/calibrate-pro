@@ -49,11 +49,11 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 # PQ (ST.2084) constants
-_PQ_M1 = 2610.0 / 16384.0     # 0.1593017578125
+_PQ_M1 = 2610.0 / 16384.0  # 0.1593017578125
 _PQ_M2 = 2523.0 / 4096.0 * 128.0  # 78.84375
-_PQ_C1 = 3424.0 / 4096.0      # 0.8359375
-_PQ_C2 = 2413.0 / 4096.0 * 32.0   # 18.8515625
-_PQ_C3 = 2392.0 / 4096.0 * 32.0   # 18.6875
+_PQ_C1 = 3424.0 / 4096.0  # 0.8359375
+_PQ_C2 = 2413.0 / 4096.0 * 32.0  # 18.8515625
+_PQ_C3 = 2392.0 / 4096.0 * 32.0  # 18.6875
 
 # Reference white for sRGB / Rec.709
 _SRGB_WHITE_NITS = 80.0
@@ -65,6 +65,7 @@ _PQ_PEAK_NITS = 10000.0
 # ---------------------------------------------------------------------------
 # Low-level transfer functions
 # ---------------------------------------------------------------------------
+
 
 def _srgb_eotf(v: np.ndarray) -> np.ndarray:
     """sRGB EOTF: gamma-encoded [0,1] -> linear-light [0,1]."""
@@ -110,7 +111,7 @@ def _pq_oetf(nits: np.ndarray, peak_nits: float = _PQ_PEAK_NITS) -> np.ndarray:
     """
     nits = np.clip(nits, 0.0, peak_nits)
     y = nits / peak_nits  # normalise to [0, 1]
-    yp = y ** _PQ_M1
+    yp = y**_PQ_M1
     num = _PQ_C1 + _PQ_C2 * yp
     den = 1.0 + _PQ_C3 * yp
     return (num / den) ** _PQ_M2
@@ -119,6 +120,7 @@ def _pq_oetf(nits: np.ndarray, peak_nits: float = _PQ_PEAK_NITS) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Pipeline conversion helpers
 # ---------------------------------------------------------------------------
+
 
 def sdr_to_scrgb(
     srgb: np.ndarray,
@@ -266,6 +268,7 @@ def compute_hdr_headroom_stops(
 # ---------------------------------------------------------------------------
 # ScRGBPipelineModel - end-to-end pipeline modelling
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ScRGBPipelineModel:

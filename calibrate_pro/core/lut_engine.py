@@ -32,12 +32,14 @@ from calibrate_pro.core.color_math import (
 
 class LUTFormat(Enum):
     """Supported 3D LUT file formats."""
-    CUBE = "cube"      # DaVinci Resolve / Adobe standard
-    DL3 = "3dl"        # Autodesk Lustre / Flame
-    MGA = "mga"        # Pandora
-    CSP = "csp"        # Rising Sun Research Cinespace
-    ICC = "icc"        # Embedded in ICC profile
-    CLF = "clf"        # SMPTE ST 2136-1 Common LUT Format (ACES)
+
+    CUBE = "cube"  # DaVinci Resolve / Adobe standard
+    DL3 = "3dl"  # Autodesk Lustre / Flame
+    MGA = "mga"  # Pandora
+    CSP = "csp"  # Rising Sun Research Cinespace
+    ICC = "icc"  # Embedded in ICC profile
+    CLF = "clf"  # SMPTE ST 2136-1 Common LUT Format (ACES)
+
 
 @dataclass
 class LUT3D:
@@ -46,6 +48,7 @@ class LUT3D:
 
     Stores RGB-to-RGB color transformation as a 3D grid.
     """
+
     size: int  # Grid size (e.g., 17, 33, 65)
     data: np.ndarray  # Shape: (size, size, size, 3)
     title: str = "Calibrate Pro 3D LUT"
@@ -57,7 +60,7 @@ class LUT3D:
         """Create an identity (no-op) 3D LUT."""
         # Create coordinate grids
         coords = np.linspace(0, 1, size)
-        r, g, b = np.meshgrid(coords, coords, coords, indexing='ij')
+        r, g, b = np.meshgrid(coords, coords, coords, indexing="ij")
 
         # Stack into (size, size, size, 3) array
         data = np.stack([r, g, b], axis=-1)
@@ -96,7 +99,7 @@ class LUT3D:
                 self.data[:, :, :, c],
                 coords.T,
                 order=1,  # Trilinear interpolation
-                mode='nearest'
+                mode="nearest",
             )
 
         # Reshape to original
@@ -131,8 +134,8 @@ class LUT3D:
 
     def _save_cube(self, filepath: Path):
         """Save in .cube format (Resolve/Adobe)."""
-        with open(filepath, 'w') as f:
-            f.write(f"TITLE \"{self.title}\"\n")
+        with open(filepath, "w") as f:
+            f.write(f'TITLE "{self.title}"\n')
             f.write(f"LUT_3D_SIZE {self.size}\n")
             f.write(f"DOMAIN_MIN {self.domain_min[0]:.6f} {self.domain_min[1]:.6f} {self.domain_min[2]:.6f}\n")
             f.write(f"DOMAIN_MAX {self.domain_max[0]:.6f} {self.domain_max[1]:.6f} {self.domain_max[2]:.6f}\n")
@@ -150,7 +153,7 @@ class LUT3D:
         # 3dl uses integer values (0-4095 for 12-bit)
         max_val = 4095
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             # Header: input shaper values
             for i in range(self.size):
                 val = int(i / (self.size - 1) * max_val)
@@ -169,7 +172,7 @@ class LUT3D:
 
     def _save_mga(self, filepath: Path):
         """Save in .mga format (Pandora)."""
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write("LUT8\n")
             f.write(f"{self.size}\n")
 
@@ -181,13 +184,13 @@ class LUT3D:
 
     def _save_csp(self, filepath: Path):
         """Save in .csp format (Cinespace)."""
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write("CSPLUTV100\n")
             f.write("3D\n\n")
 
             # Input ranges
             f.write("BEGIN METADATA\n")
-            f.write(f"TITLE \"{self.title}\"\n")
+            f.write(f'TITLE "{self.title}"\n')
             f.write("END METADATA\n\n")
 
             # Shaper (identity)
@@ -252,15 +255,13 @@ class LUT3D:
             for g in range(self.size):
                 for b in range(self.size):
                     val = self.data[r, g, b]
-                    lines.append(
-                        f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}"
-                    )
+                    lines.append(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}")
         array_elem.text = "\n" + "\n".join(lines) + "\n"
 
         # Write XML with declaration
         tree = ElementTree(root)
-        with open(filepath, 'wb') as f:
-            tree.write(f, encoding='UTF-8', xml_declaration=True)
+        with open(filepath, "wb") as f:
+            tree.write(f, encoding="UTF-8", xml_declaration=True)
 
     def save_reshade_png(self, filepath: str | Path):
         """
@@ -313,29 +314,22 @@ class LUT3D:
         # Write minimal PNG using struct + zlib
         def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
             c = chunk_type + data
-            return (
-                struct.pack('>I', len(data))
-                + c
-                + struct.pack('>I', zlib.crc32(c) & 0xFFFFFFFF)
-            )
+            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
 
-        sig = b'\x89PNG\r\n\x1a\n'
-        ihdr = png_chunk(
-            b'IHDR',
-            struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
-        )
+        sig = b"\x89PNG\r\n\x1a\n"
+        ihdr = png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
 
         # Build raw scanlines with filter byte (0 = None) per row
         raw = bytearray()
         for y in range(height):
             raw.append(0)  # filter type: None
             row_start = y * width * 3
-            raw.extend(rgb_data[row_start:row_start + width * 3])
+            raw.extend(rgb_data[row_start : row_start + width * 3])
 
-        idat = png_chunk(b'IDAT', zlib.compress(bytes(raw)))
-        iend = png_chunk(b'IEND', b'')
+        idat = png_chunk(b"IDAT", zlib.compress(bytes(raw)))
+        iend = png_chunk(b"IEND", b"")
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             f.write(sig + ihdr + idat + iend)
 
     def save_specialk_png(self, filepath: str | Path):
@@ -372,12 +366,12 @@ class LUT3D:
         input_range = 0  # 0 = full range
         max_val = (1 << bit_depth) - 1  # 65535 for 16-bit
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             # Header
-            f.write(b'3DLT')
-            f.write(struct.pack('<I', size))
-            f.write(struct.pack('<I', bit_depth))
-            f.write(struct.pack('<I', input_range))
+            f.write(b"3DLT")
+            f.write(struct.pack("<I", size))
+            f.write(struct.pack("<I", bit_depth))
+            f.write(struct.pack("<I", input_range))
 
             # LUT data: B outermost, G middle, R innermost
             for b in range(size):
@@ -387,7 +381,7 @@ class LUT3D:
                         r_int = int(np.clip(val[0], 0.0, 1.0) * max_val + 0.5)
                         g_int = int(np.clip(val[1], 0.0, 1.0) * max_val + 0.5)
                         b_int = int(np.clip(val[2], 0.0, 1.0) * max_val + 0.5)
-                        f.write(struct.pack('<HHH', r_int, g_int, b_int))
+                        f.write(struct.pack("<HHH", r_int, g_int, b_int))
 
     def save_mpv_config(
         self,
@@ -432,7 +426,7 @@ class LUT3D:
 
         if output_path is not None:
             output_path = Path(output_path)
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 f.write(config_text)
 
         return config_text
@@ -454,7 +448,7 @@ class LUT3D:
         """
         filepath = Path(filepath)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             # OBS setup instructions as comments
             f.write("# ============================================================\n")
             f.write("# OBS Studio LUT - Generated by Calibrate Pro\n")
@@ -477,7 +471,7 @@ class LUT3D:
             f.write("\n")
 
             # Standard .cube payload
-            f.write(f"TITLE \"{self.title} (OBS)\"\n")
+            f.write(f'TITLE "{self.title} (OBS)"\n')
             f.write(f"LUT_3D_SIZE {self.size}\n")
             f.write(f"DOMAIN_MIN {self.domain_min[0]:.6f} {self.domain_min[1]:.6f} {self.domain_min[2]:.6f}\n")
             f.write(f"DOMAIN_MAX {self.domain_max[0]:.6f} {self.domain_max[1]:.6f} {self.domain_max[2]:.6f}\n")
@@ -502,27 +496,27 @@ class LUT3D:
         with open(filepath) as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
-                if line.startswith('TITLE'):
+                if line.startswith("TITLE"):
                     title = line.split('"')[1] if '"' in line else line.split()[1]
-                elif line.startswith('LUT_3D_SIZE'):
+                elif line.startswith("LUT_3D_SIZE"):
                     size = int(line.split()[1])
-                elif line.startswith('DOMAIN_MIN'):
+                elif line.startswith("DOMAIN_MIN"):
                     parts = line.split()[1:]
                     domain_min = tuple(float(p) for p in parts)
-                elif line.startswith('DOMAIN_MAX'):
+                elif line.startswith("DOMAIN_MAX"):
                     parts = line.split()[1:]
                     domain_max = tuple(float(p) for p in parts)
-                elif line[0].isdigit() or line[0] == '-':
+                elif line[0].isdigit() or line[0] == "-":
                     parts = line.split()
                     if len(parts) >= 3:
                         values.append([float(p) for p in parts[:3]])
 
         if size is None:
             # Infer size from data count
-            size = int(round(len(values) ** (1/3)))
+            size = int(round(len(values) ** (1 / 3)))
 
         # .cube format: R varies fastest (innermost), B varies slowest (outermost)
         # After reshape: data[b, g, r] contains value for input (r, g, b)
@@ -531,8 +525,7 @@ class LUT3D:
         data = np.array(values).reshape(size, size, size, 3)
         data = np.transpose(data, (2, 1, 0, 3))  # Swap B (axis 0) with R (axis 2)
 
-        return cls(size=size, data=data, title=title,
-                   domain_min=domain_min, domain_max=domain_max)
+        return cls(size=size, data=data, title=title, domain_min=domain_min, domain_max=domain_max)
 
     @classmethod
     def load(cls, filepath: str | Path) -> "LUT3D":
@@ -555,15 +548,15 @@ class LUT3D:
         filepath = Path(filepath)
         ext = filepath.suffix.lower()
 
-        if ext == '.cube':
+        if ext == ".cube":
             return cls.load_cube(filepath)
-        elif ext == '.3dl':
+        elif ext == ".3dl":
             return cls._load_3dl(filepath)
-        elif ext == '.mga':
+        elif ext == ".mga":
             return cls._load_mga(filepath)
-        elif ext == '.csp':
+        elif ext == ".csp":
             return cls._load_csp(filepath)
-        elif ext in ('.clf', '.ctf'):
+        elif ext in (".clf", ".ctf"):
             return cls._load_clf(filepath)
         else:
             # Try cube format as default
@@ -576,7 +569,7 @@ class LUT3D:
     def _load_3dl(cls, filepath: Path) -> "LUT3D":
         """Load LUT from .3dl file."""
         with open(filepath) as f:
-            lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+            lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
 
         # First line is input shaper, skip it
         # Rest is LUT data
@@ -587,7 +580,7 @@ class LUT3D:
                 # 3dl uses 12-bit integers (0-4095)
                 values.append([int(p) / 4095.0 for p in parts[:3]])
 
-        size = int(round(len(values) ** (1/3)))
+        size = int(round(len(values) ** (1 / 3)))
         # 3dl order is BGR, need to reorder
         data = np.array(values).reshape(size, size, size, 3)
         # Transpose from BGR to RGB order
@@ -621,7 +614,7 @@ class LUT3D:
         with open(filepath) as f:
             content = f.read()
 
-        lines = [l.strip() for l in content.split('\n') if l.strip()]
+        lines = [l.strip() for l in content.split("\n") if l.strip()]
 
         # Find LUT size line (three numbers)
         size = None
@@ -647,7 +640,7 @@ class LUT3D:
                 except ValueError:
                     continue
 
-        data = np.array(values[:size**3]).reshape(size, size, size, 3)
+        data = np.array(values[: size**3]).reshape(size, size, size, 3)
         data = np.transpose(data, (2, 1, 0, 3))
 
         return cls(size=size, data=data, title=filepath.stem)
@@ -690,10 +683,8 @@ class LUT3D:
             if len(parts) >= 3:
                 values.append([float(p) for p in parts[:3]])
 
-        if len(values) != size ** 3:
-            raise ValueError(
-                f"CLF Array has {len(values)} entries, expected {size**3}"
-            )
+        if len(values) != size**3:
+            raise ValueError(f"CLF Array has {len(values)} entries, expected {size**3}")
 
         # CLF ordering matches .cube: R outermost, G middle, B innermost
         # data[r, g, b] = values[r * size*size + g * size + b]
@@ -723,7 +714,7 @@ class LUTGenerator:
         matrix: np.ndarray,
         input_gamma: float = 2.2,
         output_gamma: float = 2.2,
-        title: str = "Matrix Correction LUT"
+        title: str = "Matrix Correction LUT",
     ) -> LUT3D:
         """
         Create LUT from 3x3 color correction matrix.
@@ -760,7 +751,7 @@ class LUTGenerator:
         dest_primaries: tuple[tuple[float, float], ...],
         source_white: tuple[float, float] = (0.3127, 0.3290),
         dest_white: tuple[float, float] = (0.3127, 0.3290),
-        title: str = "Gamut Mapping LUT"
+        title: str = "Gamut Mapping LUT",
     ) -> LUT3D:
         """
         Create LUT for gamut mapping between color spaces.
@@ -776,11 +767,9 @@ class LUTGenerator:
 
         # Build transformation matrices
         src_to_xyz = primaries_to_xyz_matrix(
-            source_primaries[0], source_primaries[1],
-            source_primaries[2], source_white)
-        dst_to_xyz = primaries_to_xyz_matrix(
-            dest_primaries[0], dest_primaries[1],
-            dest_primaries[2], dest_white)
+            source_primaries[0], source_primaries[1], source_primaries[2], source_white
+        )
+        dst_to_xyz = primaries_to_xyz_matrix(dest_primaries[0], dest_primaries[1], dest_primaries[2], dest_white)
         xyz_to_dst = np.linalg.inv(dst_to_xyz)
 
         lut = LUT3D.create_identity(self.size)
@@ -807,9 +796,7 @@ class LUTGenerator:
         return lut
 
     def create_from_function(
-        self,
-        transform_func: Callable[[np.ndarray], np.ndarray],
-        title: str = "Custom Transform LUT"
+        self, transform_func: Callable[[np.ndarray], np.ndarray], title: str = "Custom Transform LUT"
     ) -> LUT3D:
         """
         Create LUT from arbitrary transformation function.
@@ -842,7 +829,7 @@ class LUTGenerator:
         gamma_blue: float = 2.2,
         color_matrix: np.ndarray | None = None,
         title: str = "Display Calibration LUT",
-        target_gamma: float = 2.2
+        target_gamma: float = 2.2,
     ) -> LUT3D:
         """
         Create comprehensive calibration LUT for display.
@@ -871,18 +858,18 @@ class LUTGenerator:
             target_primaries = (
                 (0.6400, 0.3300),  # Red
                 (0.3000, 0.6000),  # Green
-                (0.1500, 0.0600)   # Blue
+                (0.1500, 0.0600),  # Blue
             )
 
         # Build color correction matrix from primaries if not provided
         if color_matrix is None:
             # Calculate matrix to convert from target to panel primaries
             target_to_xyz = primaries_to_xyz_matrix(
-                target_primaries[0], target_primaries[1],
-                target_primaries[2], target_white)
+                target_primaries[0], target_primaries[1], target_primaries[2], target_white
+            )
             panel_to_xyz = primaries_to_xyz_matrix(
-                panel_primaries[0], panel_primaries[1],
-                panel_primaries[2], panel_white)
+                panel_primaries[0], panel_primaries[1], panel_primaries[2], panel_white
+            )
             xyz_to_panel = np.linalg.inv(panel_to_xyz)
 
             # This matrix converts target linear RGB to what the panel needs
@@ -929,11 +916,13 @@ class LUTGenerator:
                     # Step 4: Apply inverse of panel gamma to encode for panel
                     # output = linear^(1/panel_gamma)
                     # Use safe power that preserves zeros
-                    rgb_output = np.array([
-                        np.power(rgb_panel_linear[0], 1.0 / gamma_red) if rgb_panel_linear[0] > EPS else 0.0,
-                        np.power(rgb_panel_linear[1], 1.0 / gamma_green) if rgb_panel_linear[1] > EPS else 0.0,
-                        np.power(rgb_panel_linear[2], 1.0 / gamma_blue) if rgb_panel_linear[2] > EPS else 0.0
-                    ])
+                    rgb_output = np.array(
+                        [
+                            np.power(rgb_panel_linear[0], 1.0 / gamma_red) if rgb_panel_linear[0] > EPS else 0.0,
+                            np.power(rgb_panel_linear[1], 1.0 / gamma_green) if rgb_panel_linear[1] > EPS else 0.0,
+                            np.power(rgb_panel_linear[2], 1.0 / gamma_blue) if rgb_panel_linear[2] > EPS else 0.0,
+                        ]
+                    )
 
                     # Clamp final output
                     lut.data[r_idx, g_idx, b_idx] = np.clip(rgb_output, 0, 1)
@@ -941,11 +930,7 @@ class LUTGenerator:
         lut.title = title
         return lut
 
-    def optimize_lut(
-        self,
-        lut: LUT3D,
-        smoothing: float = 0.1
-    ) -> LUT3D:
+    def optimize_lut(self, lut: LUT3D, smoothing: float = 0.1) -> LUT3D:
         """
         Apply perceptual smoothing to LUT.
 
@@ -958,17 +943,12 @@ class LUTGenerator:
         """
         from scipy.ndimage import gaussian_filter
 
-        smoothed = LUT3D(
-            size=lut.size,
-            data=lut.data.copy(),
-            title=lut.title + " (smoothed)"
-        )
+        smoothed = LUT3D(size=lut.size, data=lut.data.copy(), title=lut.title + " (smoothed)")
 
         # Apply Gaussian smoothing per channel
         sigma = smoothing * (lut.size / 17)
         for c in range(3):
-            smoothed.data[:, :, :, c] = gaussian_filter(
-                lut.data[:, :, :, c], sigma=sigma, mode='nearest')
+            smoothed.data[:, :, :, c] = gaussian_filter(lut.data[:, :, :, c], sigma=sigma, mode="nearest")
 
         return smoothed
 
@@ -1000,7 +980,6 @@ class LUTGenerator:
         result.title = f"{lut1.title} + {lut2.title}"
         return result
 
-
     def create_native_gamut_lut(
         self,
         panel_primaries: tuple[tuple[float, float], ...],
@@ -1014,7 +993,7 @@ class LUTGenerator:
         oled_compensation: bool = False,
         panel_type: str = "",
         panel_key: str = "",
-        target_apl: float = 0.25
+        target_apl: float = 0.25,
     ) -> LUT3D:
         """
         Create a calibration LUT that corrects accuracy WITHIN the panel's
@@ -1043,25 +1022,21 @@ class LUTGenerator:
         """
         from calibrate_pro.core.color_math import primaries_to_xyz_matrix
 
-        panel_to_xyz = primaries_to_xyz_matrix(
-            panel_primaries[0], panel_primaries[1],
-            panel_primaries[2], panel_white)
+        panel_to_xyz = primaries_to_xyz_matrix(panel_primaries[0], panel_primaries[1], panel_primaries[2], panel_white)
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
 
         # White point adaptation matrix (if panel white != target white)
         panel_wp_x, panel_wp_y = panel_white
         target_wp_x, target_wp_y = target_white
-        need_wp_adapt = (abs(panel_wp_x - target_wp_x) > 0.001 or
-                         abs(panel_wp_y - target_wp_y) > 0.001)
+        need_wp_adapt = abs(panel_wp_x - target_wp_x) > 0.001 or abs(panel_wp_y - target_wp_y) > 0.001
 
         if need_wp_adapt:
             from calibrate_pro.core.color_math import get_adaptation_matrix
-            panel_ill = Illuminant("panel", panel_wp_x / panel_wp_y,
-                                   1.0, (1 - panel_wp_x - panel_wp_y) / panel_wp_y,
-                                   0)
-            target_ill = Illuminant("target", target_wp_x / target_wp_y,
-                                    1.0, (1 - target_wp_x - target_wp_y) / target_wp_y,
-                                    0)
+
+            panel_ill = Illuminant("panel", panel_wp_x / panel_wp_y, 1.0, (1 - panel_wp_x - panel_wp_y) / panel_wp_y, 0)
+            target_ill = Illuminant(
+                "target", target_wp_x / target_wp_y, 1.0, (1 - target_wp_x - target_wp_y) / target_wp_y, 0
+            )
             adapt_matrix = get_adaptation_matrix(panel_ill, target_ill)
             # Combined: panel RGB -> XYZ -> adapt -> XYZ -> panel RGB
             wp_correction = xyz_to_panel @ adapt_matrix @ panel_to_xyz
@@ -1076,7 +1051,7 @@ class LUTGenerator:
 
         # Vectorized: build all grid points
         N = self.size
-        r_grid, g_grid, b_grid = np.meshgrid(coords, coords, coords, indexing='ij')
+        r_grid, g_grid, b_grid = np.meshgrid(coords, coords, coords, indexing="ij")
         all_rgb = np.stack([r_grid.ravel(), g_grid.ravel(), b_grid.ravel()], axis=1)
         all_rgb.shape[0]
 
@@ -1095,6 +1070,7 @@ class LUTGenerator:
                 from calibrate_pro.display.oled import (
                     get_oled_characteristics,
                 )
+
                 oled = get_oled_characteristics(panel_type, panel_key)
                 if oled:
                     # ABL compensation: boost signal to counteract brightness reduction
@@ -1108,11 +1084,7 @@ class LUTGenerator:
                     if oled.near_black_model:
                         nb = oled.near_black_model
                         max_vals = np.max(rgb_corrected, axis=1)
-                        near_black_mask = (
-                            (max_vals < nb.threshold) &
-                            (max_vals > nb.black_cutoff) &
-                            ~is_black
-                        )
+                        near_black_mask = (max_vals < nb.threshold) & (max_vals > nb.black_cutoff) & ~is_black
                         if np.any(near_black_mask):
                             t = max_vals[near_black_mask] / nb.threshold
                             lift = 1.0 - nb.gamma_lift * (1.0 - t)
@@ -1123,11 +1095,7 @@ class LUTGenerator:
         # Step 4: Apply per-channel gamma correction
         # Encode for panel: output^panel_gamma should produce the corrected linear
         # So output = corrected_linear^(1/panel_gamma)
-        rgb_output = np.where(
-            rgb_corrected > EPS,
-            np.power(np.clip(rgb_corrected, 0.0, 1.0), inv_gammas),
-            0.0
-        )
+        rgb_output = np.where(rgb_corrected > EPS, np.power(np.clip(rgb_corrected, 0.0, 1.0), inv_gammas), 0.0)
         rgb_output = np.clip(rgb_output, 0.0, 1.0)
 
         # Black stays black
@@ -1147,7 +1115,7 @@ class LUTGenerator:
         target_primaries: tuple[tuple[float, float], ...] = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         target_gamma: float = 2.2,
-        title: str = "Oklab Perceptual Calibration LUT"
+        title: str = "Oklab Perceptual Calibration LUT",
     ) -> LUT3D:
         """
         Create a calibration LUT using Oklab perceptual gamut mapping.
@@ -1181,19 +1149,13 @@ class LUTGenerator:
         )
 
         if target_primaries is None:
-            target_primaries = (
-                (0.6400, 0.3300),
-                (0.3000, 0.6000),
-                (0.1500, 0.0600)
-            )
+            target_primaries = ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600))
 
         # Build conversion matrices
-        panel_to_xyz = primaries_to_xyz_matrix(
-            panel_primaries[0], panel_primaries[1],
-            panel_primaries[2], panel_white)
+        panel_to_xyz = primaries_to_xyz_matrix(panel_primaries[0], panel_primaries[1], panel_primaries[2], panel_white)
         target_to_xyz = primaries_to_xyz_matrix(
-            target_primaries[0], target_primaries[1],
-            target_primaries[2], target_white)
+            target_primaries[0], target_primaries[1], target_primaries[2], target_white
+        )
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
 
         # Combined matrix: target linear RGB -> panel linear RGB
@@ -1205,7 +1167,7 @@ class LUTGenerator:
 
         # --- Vectorized: build all grid points as flat (N, 3) array ---
         N = self.size
-        r_grid, g_grid, b_grid = np.meshgrid(coords, coords, coords, indexing='ij')
+        r_grid, g_grid, b_grid = np.meshgrid(coords, coords, coords, indexing="ij")
         # shape (N*N*N, 3)
         all_rgb = np.stack([r_grid.ravel(), g_grid.ravel(), b_grid.ravel()], axis=1)
         total = all_rgb.shape[0]
@@ -1221,10 +1183,7 @@ class LUTGenerator:
         panel_linear_all = (target_to_panel @ rgb_linear_all.T).T  # (N^3, 3)
 
         # 4. Determine which points are out of gamut
-        oog_mask = (
-            np.any(panel_linear_all < -0.001, axis=1) |
-            np.any(panel_linear_all > 1.001, axis=1)
-        )
+        oog_mask = np.any(panel_linear_all < -0.001, axis=1) | np.any(panel_linear_all > 1.001, axis=1)
         # Black points are never out of gamut (they're handled separately)
         oog_mask[is_black] = False
 
@@ -1253,7 +1212,7 @@ class LUTGenerator:
             # Convert target linear RGB to Oklab (sRGB matrices as proxy)
             oklab = linear_srgb_to_oklab(np.clip(rgb_linear, 0, 1))
             L, a_ok, b_ok = oklab[0], oklab[1], oklab[2]
-            C = np.sqrt(a_ok ** 2 + b_ok ** 2)
+            C = np.sqrt(a_ok**2 + b_ok**2)
 
             if C > EPS:
                 h = np.arctan2(b_ok, a_ok)
@@ -1281,11 +1240,7 @@ class LUTGenerator:
                 panel_linear = panel_linear_all[idx]
 
             panel_linear = np.clip(panel_linear, 0.0, 1.0)
-            rgb_output = np.where(
-                panel_linear > EPS,
-                np.power(panel_linear, inv_gammas),
-                0.0
-            )
+            rgb_output = np.where(panel_linear > EPS, np.power(panel_linear, inv_gammas), 0.0)
             result_all[idx] = np.clip(rgb_output, 0.0, 1.0)
 
         # Reshape flat result back into LUT grid (size, size, size, 3)
@@ -1405,10 +1360,7 @@ class LUTGenerator:
 
         # 4. Identify out-of-gamut points.
         is_black = np.all(all_pq < EPS, axis=1)
-        oog_mask = (
-            np.any(panel_linear_all < -0.001, axis=1)
-            | np.any(panel_linear_all > 1.001, axis=1)
-        )
+        oog_mask = np.any(panel_linear_all < -0.001, axis=1) | np.any(panel_linear_all > 1.001, axis=1)
         oog_mask[is_black] = False
         in_gamut_mask = ~is_black & ~oog_mask
 
@@ -1418,9 +1370,7 @@ class LUTGenerator:
 
         # ---- fast vectorised in-gamut path ----
         ig_panel = np.clip(panel_linear_all[in_gamut_mask], 0.0, 1.0)
-        ig_output_linear = np.where(
-            ig_panel > EPS, np.power(ig_panel, inv_gammas), 0.0
-        )
+        ig_output_linear = np.where(ig_panel > EPS, np.power(ig_panel, inv_gammas), 0.0)
         # Scale so that reference-white maps correctly, then convert
         # back to absolute nits and PQ-encode.
         ig_nits = np.clip(ig_output_linear, 0.0, 1.0) * peak_luminance
@@ -1454,10 +1404,7 @@ class LUTGenerator:
                     test_panel = xyz_to_panel @ test_xyz
                     # Normalise to panel peak
                     test_panel_norm = test_panel / peak_luminance
-                    if (
-                        np.all(test_panel_norm >= -0.001)
-                        and np.all(test_panel_norm <= 1.001)
-                    ):
+                    if np.all(test_panel_norm >= -0.001) and np.all(test_panel_norm <= 1.001):
                         lo = mid
                     else:
                         hi = mid
@@ -1471,9 +1418,7 @@ class LUTGenerator:
                 panel_lin = panel_linear_all[idx]
 
             panel_lin = np.clip(panel_lin, 0.0, 1.0)
-            encoded = np.where(
-                panel_lin > EPS, np.power(panel_lin, inv_gammas), 0.0
-            )
+            encoded = np.where(panel_lin > EPS, np.power(panel_lin, inv_gammas), 0.0)
             out_nits = np.clip(encoded, 0.0, 1.0) * peak_luminance
             result_all[idx] = pq_oetf(out_nits)
 
@@ -1507,39 +1452,17 @@ def srgb_to_display_p3_lut(size: int = 33) -> LUT3D:
     """Create LUT for sRGB to Display P3 conversion."""
     generator = LUTGenerator(size)
 
-    srgb_primaries = (
-        (0.6400, 0.3300),
-        (0.3000, 0.6000),
-        (0.1500, 0.0600)
-    )
-    p3_primaries = (
-        (0.6800, 0.3200),
-        (0.2650, 0.6900),
-        (0.1500, 0.0600)
-    )
+    srgb_primaries = ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600))
+    p3_primaries = ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600))
 
-    return generator.create_from_primaries(
-        srgb_primaries, p3_primaries,
-        title="sRGB to Display P3"
-    )
+    return generator.create_from_primaries(srgb_primaries, p3_primaries, title="sRGB to Display P3")
 
 
 def display_p3_to_srgb_lut(size: int = 33) -> LUT3D:
     """Create LUT for Display P3 to sRGB conversion."""
     generator = LUTGenerator(size)
 
-    srgb_primaries = (
-        (0.6400, 0.3300),
-        (0.3000, 0.6000),
-        (0.1500, 0.0600)
-    )
-    p3_primaries = (
-        (0.6800, 0.3200),
-        (0.2650, 0.6900),
-        (0.1500, 0.0600)
-    )
+    srgb_primaries = ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600))
+    p3_primaries = ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600))
 
-    return generator.create_from_primaries(
-        p3_primaries, srgb_primaries,
-        title="Display P3 to sRGB"
-    )
+    return generator.create_from_primaries(p3_primaries, srgb_primaries, title="Display P3 to sRGB")

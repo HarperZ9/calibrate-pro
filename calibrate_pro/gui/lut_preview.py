@@ -47,14 +47,16 @@ COLORS = {
 # 3D LUT Data Structure
 # =============================================================================
 
+
 @dataclass
 class LUT3D:
     """3D Color Lookup Table."""
+
     size: int  # Cube size (e.g., 17, 33, 65)
     data: np.ndarray  # Shape: (size, size, size, 3) for RGB
 
     @classmethod
-    def identity(cls, size: int = 33) -> 'LUT3D':
+    def identity(cls, size: int = 33) -> "LUT3D":
         """Create an identity LUT (no color change)."""
         data = np.zeros((size, size, size, 3), dtype=np.float32)
         for r in range(size):
@@ -64,7 +66,7 @@ class LUT3D:
         return cls(size=size, data=data)
 
     @classmethod
-    def from_cube_file(cls, path: str) -> 'LUT3D':
+    def from_cube_file(cls, path: str) -> "LUT3D":
         """Load from .cube file."""
         with open(path) as f:
             lines = f.readlines()
@@ -74,11 +76,11 @@ class LUT3D:
 
         for line in lines:
             line = line.strip()
-            if line.startswith('#') or not line:
+            if line.startswith("#") or not line:
                 continue
-            if line.startswith('LUT_3D_SIZE'):
+            if line.startswith("LUT_3D_SIZE"):
                 size = int(line.split()[1])
-            elif line.startswith('TITLE') or line.startswith('DOMAIN'):
+            elif line.startswith("TITLE") or line.startswith("DOMAIN"):
                 continue
             else:
                 # Data line
@@ -145,17 +147,18 @@ class LUT3D:
         b_diff = np.mean(np.abs(self.data[:, :, :, 2] - identity.data[:, :, :, 2]))
 
         return {
-            'max_deviation': max_diff,
-            'avg_deviation': avg_diff,
-            'r_deviation': r_diff,
-            'g_deviation': g_diff,
-            'b_deviation': b_diff,
+            "max_deviation": max_diff,
+            "avg_deviation": avg_diff,
+            "r_deviation": r_diff,
+            "g_deviation": g_diff,
+            "b_deviation": b_diff,
         }
 
 
 # =============================================================================
 # 3D Cube Preview Widget
 # =============================================================================
+
 
 class LUTCubeView(QWidget):
     """3D rotating cube view of LUT."""
@@ -237,10 +240,10 @@ class LUTCubeView(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Background
-        painter.fillRect(self.rect(), QColor(COLORS['background']))
+        painter.fillRect(self.rect(), QColor(COLORS["background"]))
 
         if self.lut is None:
-            painter.setPen(QColor(COLORS['text_secondary']))
+            painter.setPen(QColor(COLORS["text_secondary"]))
             painter.setFont(QFont("Segoe UI", 12))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No LUT loaded")
             return
@@ -258,12 +261,18 @@ class LUTCubeView(QWidget):
 
     def _draw_wireframe(self, painter: QPainter):
         """Draw cube wireframe."""
-        painter.setPen(QPen(QColor(COLORS['border']), 1))
+        painter.setPen(QPen(QColor(COLORS["border"]), 1))
 
         # Cube vertices (-1 to 1 normalized)
         vertices = [
-            (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-            (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
+            (-1, -1, -1),
+            (1, -1, -1),
+            (1, 1, -1),
+            (-1, 1, -1),
+            (-1, -1, 1),
+            (1, -1, 1),
+            (1, 1, 1),
+            (-1, 1, 1),
         ]
 
         # Project vertices
@@ -271,9 +280,18 @@ class LUTCubeView(QWidget):
 
         # Draw edges
         edges = [
-            (0, 1), (1, 2), (2, 3), (3, 0),  # Front
-            (4, 5), (5, 6), (6, 7), (7, 4),  # Back
-            (0, 4), (1, 5), (2, 6), (3, 7),  # Connecting
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 0),  # Front
+            (4, 5),
+            (5, 6),
+            (6, 7),
+            (7, 4),  # Back
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),  # Connecting
         ]
 
         for i, j in edges:
@@ -317,11 +335,7 @@ class LUTCubeView(QWidget):
             pos = self._project_point(x, y, z)
 
             # Color from LUT output
-            color = QColor(
-                int(out_r * 255),
-                int(out_g * 255),
-                int(out_b * 255)
-            )
+            color = QColor(int(out_r * 255), int(out_g * 255), int(out_b * 255))
 
             # Size based on depth
             size = max(2, int(4 * (1 + depth) / 2))
@@ -336,17 +350,17 @@ class LUTCubeView(QWidget):
 
         # R axis (pointing right)
         r_pos = self._project_point(1.2, 0, 0)
-        painter.setPen(QColor(COLORS['red']))
+        painter.setPen(QColor(COLORS["red"]))
         painter.drawText(r_pos, "R")
 
         # G axis (pointing up)
         g_pos = self._project_point(0, 1.2, 0)
-        painter.setPen(QColor(COLORS['green']))
+        painter.setPen(QColor(COLORS["green"]))
         painter.drawText(g_pos, "G")
 
         # B axis (pointing forward)
         b_pos = self._project_point(0, 0, 1.2)
-        painter.setPen(QColor(COLORS['blue']))
+        painter.setPen(QColor(COLORS["blue"]))
         painter.drawText(b_pos, "B")
 
     def mousePressEvent(self, event):
@@ -378,6 +392,7 @@ class LUTCubeView(QWidget):
 # Slice View Widget
 # =============================================================================
 
+
 class LUTSliceView(QWidget):
     """2D slice view of LUT (R, G, or B plane)."""
 
@@ -390,7 +405,7 @@ class LUTSliceView(QWidget):
         self.lut: LUT3D | None = None
 
         # Slice settings
-        self.slice_axis = 'B'  # R, G, or B
+        self.slice_axis = "B"  # R, G, or B
         self.slice_position = 0.5  # 0.0 to 1.0
 
         # Pre-rendered image
@@ -428,11 +443,11 @@ class LUTSliceView(QWidget):
                 v = 1.0 - y / (size - 1)  # Flip Y
 
                 # Get LUT indices based on slice axis
-                if self.slice_axis == 'R':
+                if self.slice_axis == "R":
                     r_idx = slice_idx
                     g_idx = int(v * (lut_size - 1))
                     b_idx = int(u * (lut_size - 1))
-                elif self.slice_axis == 'G':
+                elif self.slice_axis == "G":
                     r_idx = int(v * (lut_size - 1))
                     g_idx = slice_idx
                     b_idx = int(u * (lut_size - 1))
@@ -442,17 +457,9 @@ class LUTSliceView(QWidget):
                     b_idx = slice_idx
 
                 # Get color from LUT
-                r, g, b = self.lut.data[
-                    min(r_idx, lut_size - 1),
-                    min(g_idx, lut_size - 1),
-                    min(b_idx, lut_size - 1)
-                ]
+                r, g, b = self.lut.data[min(r_idx, lut_size - 1), min(g_idx, lut_size - 1), min(b_idx, lut_size - 1)]
 
-                color = QColor(
-                    int(np.clip(r, 0, 1) * 255),
-                    int(np.clip(g, 0, 1) * 255),
-                    int(np.clip(b, 0, 1) * 255)
-                )
+                color = QColor(int(np.clip(r, 0, 1) * 255), int(np.clip(g, 0, 1) * 255), int(np.clip(b, 0, 1) * 255))
                 image.setPixelColor(x, y, color)
 
         self._slice_image = image
@@ -462,14 +469,15 @@ class LUTSliceView(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         # Background
-        painter.fillRect(self.rect(), QColor(COLORS['background']))
+        painter.fillRect(self.rect(), QColor(COLORS["background"]))
 
         if self._slice_image:
             # Scale image to widget size
             scaled = self._slice_image.scaled(
-                self.width(), self.height(),
+                self.width(),
+                self.height(),
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                Qt.TransformationMode.SmoothTransformation,
             )
 
             # Center the image
@@ -478,10 +486,10 @@ class LUTSliceView(QWidget):
             painter.drawImage(x, y, scaled)
 
             # Draw border
-            painter.setPen(QPen(QColor(COLORS['border']), 1))
+            painter.setPen(QPen(QColor(COLORS["border"]), 1))
             painter.drawRect(x, y, scaled.width() - 1, scaled.height() - 1)
         else:
-            painter.setPen(QColor(COLORS['text_secondary']))
+            painter.setPen(QColor(COLORS["text_secondary"]))
             painter.setFont(QFont("Segoe UI", 10))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "No LUT loaded")
 
@@ -489,15 +497,15 @@ class LUTSliceView(QWidget):
         if self._slice_image:
             painter.setFont(QFont("Segoe UI", 9))
 
-            if self.slice_axis == 'R':
-                h_label, v_label = 'B', 'G'
-            elif self.slice_axis == 'G':
-                h_label, v_label = 'B', 'R'
+            if self.slice_axis == "R":
+                h_label, v_label = "B", "G"
+            elif self.slice_axis == "G":
+                h_label, v_label = "B", "R"
             else:
-                h_label, v_label = 'G', 'R'
+                h_label, v_label = "G", "R"
 
             # Horizontal axis
-            painter.setPen(QColor(COLORS['text_secondary']))
+            painter.setPen(QColor(COLORS["text_secondary"]))
             painter.drawText(self.width() // 2 - 5, self.height() - 5, h_label)
 
             # Vertical axis
@@ -511,6 +519,7 @@ class LUTSliceView(QWidget):
 # =============================================================================
 # Before/After Comparison
 # =============================================================================
+
 
 class BeforeAfterView(QWidget):
     """Side-by-side or split comparison view."""
@@ -566,11 +575,7 @@ class BeforeAfterView(QWidget):
 
                 out_r, out_g, out_b = lut.lookup(r, g, b)
 
-                processed.setPixelColor(x, y, QColor(
-                    int(out_r * 255),
-                    int(out_g * 255),
-                    int(out_b * 255)
-                ))
+                processed.setPixelColor(x, y, QColor(int(out_r * 255), int(out_g * 255), int(out_b * 255)))
 
         self._processed_image = processed
         self.update()
@@ -580,10 +585,10 @@ class BeforeAfterView(QWidget):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         # Background
-        painter.fillRect(self.rect(), QColor(COLORS['background']))
+        painter.fillRect(self.rect(), QColor(COLORS["background"]))
 
         if not self._source_image or not self._processed_image:
-            painter.setPen(QColor(COLORS['text_secondary']))
+            painter.setPen(QColor(COLORS["text_secondary"]))
             painter.setFont(QFont("Segoe UI", 10))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Load image to compare")
             return
@@ -593,14 +598,16 @@ class BeforeAfterView(QWidget):
 
         # Scale images to widget size
         source_scaled = self._source_image.scaled(
-            self.width(), self.height(),
+            self.width(),
+            self.height(),
             Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
         processed_scaled = self._processed_image.scaled(
-            self.width(), self.height(),
+            self.width(),
+            self.height(),
             Qt.AspectRatioMode.IgnoreAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
+            Qt.TransformationMode.SmoothTransformation,
         )
 
         # Draw left side (original)
@@ -642,6 +649,7 @@ class BeforeAfterView(QWidget):
 # Main LUT Preview Widget
 # =============================================================================
 
+
 class LUTPreviewWidget(QWidget):
     """Complete LUT preview with multiple views."""
 
@@ -660,17 +668,17 @@ class LUTPreviewWidget(QWidget):
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 1px solid {COLORS['border']};
-                background-color: {COLORS['background']};
+                border: 1px solid {COLORS["border"]};
+                background-color: {COLORS["background"]};
             }}
             QTabBar::tab {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 padding: 8px 16px;
                 margin-right: 2px;
             }}
             QTabBar::tab:selected {{
-                background-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
                 color: white;
             }}
         """)
@@ -721,8 +729,8 @@ class LUTPreviewWidget(QWidget):
         self.stats_panel = QFrame()
         self.stats_panel.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 padding: 8px;
             }}
         """)

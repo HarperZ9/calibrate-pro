@@ -20,7 +20,7 @@ class IconFactory:
     def create_icon(draw_func, size: int = 24, color: str = None) -> QIcon:
         """Create an icon from a drawing function."""
         if color is None:
-            color = COLORS['text_primary']
+            color = COLORS["text_primary"]
 
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.GlobalColor.transparent)
@@ -39,7 +39,7 @@ class IconFactory:
     def dashboard(painter: QPainter, size: int, color: str):
         """Dashboard/home icon - grid of squares."""
         m = size * 0.2  # margin
-        s = (size - 2*m - 2) / 2  # square size
+        s = (size - 2 * m - 2) / 2  # square size
         painter.setBrush(QBrush(QColor(color)))
         painter.drawRoundedRect(int(m), int(m), int(s), int(s), 2, 2)
         painter.drawRoundedRect(int(m + s + 2), int(m), int(s), int(s), 2, 2)
@@ -85,7 +85,7 @@ class IconFactory:
         # Back document
         painter.drawRoundedRect(int(m + 4), int(m), int(w), int(h), 2, 2)
         # Front document
-        painter.setBrush(QBrush(QColor(COLORS['surface'])))
+        painter.setBrush(QBrush(QColor(COLORS["surface"])))
         painter.drawRoundedRect(int(m), int(m + 4), int(w), int(h), 2, 2)
         # Lines on front doc
         painter.drawLine(int(m + 6), int(m + 14), int(m + w - 6), int(m + 14))
@@ -114,7 +114,7 @@ class IconFactory:
         painter.setBrush(QBrush(QColor(color)))
         painter.drawPath(path)
         # Inner circle (hole)
-        painter.setBrush(QBrush(QColor(COLORS['background'])))
+        painter.setBrush(QBrush(QColor(COLORS["background"])))
         painter.drawEllipse(QPoint(int(c), int(c)), int(inner_r), int(inner_r))
 
     @staticmethod
@@ -137,13 +137,13 @@ class IconFactory:
             t = i / steps
             x = margin + t * graph_size
             # Simulate gamma curve (power function)
-            y = size - margin - (t ** 2.2) * graph_size
+            y = size - margin - (t**2.2) * graph_size
             if i == 0:
                 path.moveTo(x, y)
             else:
                 path.lineTo(x, y)
 
-        painter.setPen(QPen(QColor(COLORS['accent']), 2))
+        painter.setPen(QPen(QColor(COLORS["accent"]), 2))
         painter.drawPath(path)
 
     @staticmethod
@@ -160,8 +160,8 @@ class IconFactory:
 
         # Outer ring gradient
         gradient = QLinearGradient(0, 0, size, size)
-        gradient.setColorAt(0, QColor(COLORS['accent']))
-        gradient.setColorAt(1, QColor(COLORS['success']))
+        gradient.setColorAt(0, QColor(COLORS["accent"]))
+        gradient.setColorAt(1, QColor(COLORS["success"]))
 
         painter.setPen(QPen(QBrush(gradient), size * 0.08))
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -169,7 +169,7 @@ class IconFactory:
 
         # Inner colored segments (RGB)
         inner_r = size * 0.25
-        colors = [COLORS['error'], COLORS['success'], COLORS['accent']]
+        colors = [COLORS["error"], COLORS["success"], COLORS["accent"]]
         for i, color in enumerate(colors):
             angle = i * 2 * math.pi / 3 - math.pi / 2
             x = c + inner_r * 0.4 * math.cos(angle)
@@ -192,7 +192,7 @@ class IconFactory:
 
         # Green circle with check
         c = size / 2
-        painter.setBrush(QBrush(QColor(COLORS['success'])))
+        painter.setBrush(QBrush(QColor(COLORS["success"])))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QPoint(int(c), int(c)), int(size * 0.4), int(size * 0.4))
 
@@ -218,7 +218,7 @@ class IconFactory:
 
         # Gray circle
         c = size / 2
-        painter.setBrush(QBrush(QColor(COLORS['text_disabled'])))
+        painter.setBrush(QBrush(QColor(COLORS["text_disabled"])))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QPoint(int(c), int(c)), int(size * 0.4), int(size * 0.4))
 

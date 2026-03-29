@@ -22,22 +22,25 @@ import numpy as np
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class UniformityGrid:
     """Measured uniformity data across the screen."""
-    rows: int                    # Grid rows (e.g., 5)
-    cols: int                    # Grid columns (e.g., 5)
-    luminance: np.ndarray        # Measured luminance at each point (rows x cols)
-    chrominance_x: np.ndarray    # Measured chromaticity x at each point
-    chrominance_y: np.ndarray    # Measured chromaticity y at each point
-    reference_luminance: float   # Center point luminance (reference)
-    reference_x: float           # Center point chromaticity x
-    reference_y: float           # Center point chromaticity y
+
+    rows: int  # Grid rows (e.g., 5)
+    cols: int  # Grid columns (e.g., 5)
+    luminance: np.ndarray  # Measured luminance at each point (rows x cols)
+    chrominance_x: np.ndarray  # Measured chromaticity x at each point
+    chrominance_y: np.ndarray  # Measured chromaticity y at each point
+    reference_luminance: float  # Center point luminance (reference)
+    reference_x: float  # Center point chromaticity x
+    reference_y: float  # Center point chromaticity y
 
 
 # ---------------------------------------------------------------------------
 # Uniformity compensation engine
 # ---------------------------------------------------------------------------
+
 
 class UniformityCompensation:
     """
@@ -70,9 +73,7 @@ class UniformityCompensation:
     # Public API
     # -----------------------------------------------------------------
 
-    def get_correction_factor(
-        self, screen_x: float, screen_y: float
-    ) -> tuple[float, float, float]:
+    def get_correction_factor(self, screen_x: float, screen_y: float) -> tuple[float, float, float]:
         """
         Get per-channel correction factor for a normalised screen position.
 
@@ -149,8 +150,7 @@ class UniformityCompensation:
         lum_max = float(np.max(grid.luminance))
 
         chrom_dist = np.sqrt(
-            (grid.chrominance_x - grid.reference_x) ** 2
-            + (grid.chrominance_y - grid.reference_y) ** 2
+            (grid.chrominance_x - grid.reference_x) ** 2 + (grid.chrominance_y - grid.reference_y) ** 2
         )
         chrom_spread = float(np.max(chrom_dist))
 
@@ -243,6 +243,7 @@ class UniformityCompensation:
 # Measurement plan
 # ---------------------------------------------------------------------------
 
+
 def create_uniformity_measurement_plan(
     rows: int = 5,
     cols: int = 5,
@@ -280,6 +281,7 @@ def create_uniformity_measurement_plan(
 # Simulated data generator (for --simulated mode)
 # ---------------------------------------------------------------------------
 
+
 def generate_simulated_uniformity(
     rows: int = 5,
     cols: int = 5,
@@ -299,7 +301,7 @@ def generate_simulated_uniformity(
 
     center_r = (rows - 1) / 2.0
     center_c = (cols - 1) / 2.0
-    max_dist = math.sqrt(center_r ** 2 + center_c ** 2)
+    max_dist = math.sqrt(center_r**2 + center_c**2)
 
     ref_x, ref_y = 0.3127, 0.3290  # D65
 
@@ -309,7 +311,7 @@ def generate_simulated_uniformity(
             norm_dist = dist / max_dist if max_dist > 0 else 0.0
 
             # Luminance: smooth fall-off + noise
-            falloff_factor = 1.0 - edge_falloff * (norm_dist ** 1.5)
+            falloff_factor = 1.0 - edge_falloff * (norm_dist**1.5)
             noise = rng.normal(0, 0.008)
             lum = center_luminance * max(0.5, falloff_factor + noise)
 
@@ -325,6 +327,7 @@ def generate_simulated_uniformity(
 # ---------------------------------------------------------------------------
 # CLI command
 # ---------------------------------------------------------------------------
+
 
 def cmd_uniformity(args) -> int:
     """CLI handler for the ``uniformity`` subcommand."""
@@ -365,8 +368,7 @@ def cmd_uniformity(args) -> int:
     print("--- Uniformity Statistics ---")
     print(f"  Max deviation:  {stats['max_deviation_pct']:.1f}%")
     print(f"  Avg deviation:  {stats['avg_deviation_pct']:.1f}%")
-    print(f"  Worst area:     {stats['worst_corner']} "
-          f"(row {stats['worst_row']}, col {stats['worst_col']})")
+    print(f"  Worst area:     {stats['worst_corner']} (row {stats['worst_row']}, col {stats['worst_col']})")
     lmin, lmax = stats["luminance_range"]
     print(f"  Luminance range: {lmin:.1f} - {lmax:.1f} cd/m2")
     print(f"  Chrominance spread: {stats['chrominance_spread']:.5f}")
@@ -399,8 +401,7 @@ def cmd_uniformity(args) -> int:
         grade = "Poor"
 
     print(f"\nUniformity Grade: {grade}")
-    print(f"Max Deviation: {stats['max_deviation_pct']:.1f}%  "
-          f"(worst: {stats['worst_corner']})")
+    print(f"Max Deviation: {stats['max_deviation_pct']:.1f}%  (worst: {stats['worst_corner']})")
     print("=" * 60)
 
     return 0
@@ -409,6 +410,7 @@ def cmd_uniformity(args) -> int:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _label_position(row: int, col: int, rows: int, cols: int) -> str:
     """Return a human-friendly label for a grid position."""

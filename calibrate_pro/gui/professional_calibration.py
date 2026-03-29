@@ -39,11 +39,8 @@ def run_as_admin():
         return True
     try:
         script = os.path.abspath(sys.argv[0])
-        params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable,
-            f'"{script}" {params}', None, 1
-        )
+        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
         if result > 32:
             sys.exit(0)
         return False
@@ -110,13 +107,13 @@ from calibrate_pro.lut_system.dwm_lut import (
 # Custom Slider Widgets
 # =============================================================================
 
+
 class LabeledSlider(QWidget):
     """Slider with label and value display."""
 
     valueChanged = pyqtSignal(int)
 
-    def __init__(self, label: str, min_val: int, max_val: int,
-                 default: int, suffix: str = "", parent=None):
+    def __init__(self, label: str, min_val: int, max_val: int, default: int, suffix: str = "", parent=None):
         super().__init__(parent)
         self.suffix = suffix
 
@@ -154,8 +151,7 @@ class FloatSlider(QWidget):
 
     valueChanged = pyqtSignal(float)
 
-    def __init__(self, label: str, min_val: float, max_val: float,
-                 default: float, decimals: int = 3, parent=None):
+    def __init__(self, label: str, min_val: float, max_val: float, default: float, decimals: int = 3, parent=None):
         super().__init__(parent)
         self.min_val = min_val
         self.max_val = max_val
@@ -203,6 +199,7 @@ class FloatSlider(QWidget):
 # Color Swatch Widget
 # =============================================================================
 
+
 class ColorSwatch(QWidget):
     """Display a color swatch."""
 
@@ -221,12 +218,13 @@ class ColorSwatch(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setBrush(QBrush(self.color))
         painter.setPen(QPen(QColor(60, 60, 60), 2))
-        painter.drawRoundedRect(2, 2, self.width()-4, self.height()-4, 5, 5)
+        painter.drawRoundedRect(2, 2, self.width() - 4, self.height() - 4, 5, 5)
 
 
 # =============================================================================
 # Main Calibration Window
 # =============================================================================
+
 
 class ProfessionalCalibrationWindow(QMainWindow):
     """Main Professional Calibration Window."""
@@ -245,15 +243,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
 
         # Calibration state
         self.calibration_data = {
-            'brightness': 50,
-            'contrast': 80,
-            'rgb_gains': [100, 100, 100],
-            'rgb_offsets': [50, 50, 50],
-            'gamma': 22,
-            'lut_gains': [1.0, 1.0, 1.0],
-            'lut_offsets': [0.0, 0.0, 0.0],
-            'lut_gamma': 2.2,
-            'peak_luminance': 1000,
+            "brightness": 50,
+            "contrast": 80,
+            "rgb_gains": [100, 100, 100],
+            "rgb_offsets": [50, 50, 50],
+            "gamma": 22,
+            "lut_gains": [1.0, 1.0, 1.0],
+            "lut_offsets": [0.0, 0.0, 0.0],
+            "lut_gamma": 2.2,
+            "peak_luminance": 1000,
         }
 
         self.setWindowTitle("Calibrate Pro - Professional Display Calibration")
@@ -302,8 +300,9 @@ class ProfessionalCalibrationWindow(QMainWindow):
         status_layout = QFormLayout(status_group)
 
         self.status_admin = QLabel("Yes ✓" if is_admin() else "No ✗")
-        self.status_admin.setStyleSheet("color: green; font-weight: bold;" if is_admin()
-                                         else "color: red; font-weight: bold;")
+        self.status_admin.setStyleSheet(
+            "color: green; font-weight: bold;" if is_admin() else "color: red; font-weight: bold;"
+        )
         status_layout.addRow("Administrator:", self.status_admin)
 
         self.status_dwm = QLabel("Checking...")
@@ -430,11 +429,11 @@ class ProfessionalCalibrationWindow(QMainWindow):
         lum_layout = QVBoxLayout(lum_group)
 
         self.hw_brightness = LabeledSlider("Brightness:", 0, 100, 50)
-        self.hw_brightness.valueChanged.connect(lambda v: self._on_hw_change('brightness', v))
+        self.hw_brightness.valueChanged.connect(lambda v: self._on_hw_change("brightness", v))
         lum_layout.addWidget(self.hw_brightness)
 
         self.hw_contrast = LabeledSlider("Contrast:", 0, 100, 80)
-        self.hw_contrast.valueChanged.connect(lambda v: self._on_hw_change('contrast', v))
+        self.hw_contrast.valueChanged.connect(lambda v: self._on_hw_change("contrast", v))
         lum_layout.addWidget(self.hw_contrast)
 
         scroll_layout.addWidget(lum_group)
@@ -443,21 +442,23 @@ class ProfessionalCalibrationWindow(QMainWindow):
         gain_group = QGroupBox("RGB Gains (White Point Adjustment)")
         gain_layout = QVBoxLayout(gain_group)
 
-        gain_info = QLabel("Adjust RGB gains to correct white point color temperature.\n"
-                          "Higher values = more of that color in highlights.")
+        gain_info = QLabel(
+            "Adjust RGB gains to correct white point color temperature.\n"
+            "Higher values = more of that color in highlights."
+        )
         gain_info.setStyleSheet("color: #888; font-size: 11px;")
         gain_layout.addWidget(gain_info)
 
         self.hw_red_gain = LabeledSlider("Red Gain:", 0, 100, 100)
-        self.hw_red_gain.valueChanged.connect(lambda v: self._on_hw_change('red_gain', v))
+        self.hw_red_gain.valueChanged.connect(lambda v: self._on_hw_change("red_gain", v))
         gain_layout.addWidget(self.hw_red_gain)
 
         self.hw_green_gain = LabeledSlider("Green Gain:", 0, 100, 100)
-        self.hw_green_gain.valueChanged.connect(lambda v: self._on_hw_change('green_gain', v))
+        self.hw_green_gain.valueChanged.connect(lambda v: self._on_hw_change("green_gain", v))
         gain_layout.addWidget(self.hw_green_gain)
 
         self.hw_blue_gain = LabeledSlider("Blue Gain:", 0, 100, 100)
-        self.hw_blue_gain.valueChanged.connect(lambda v: self._on_hw_change('blue_gain', v))
+        self.hw_blue_gain.valueChanged.connect(lambda v: self._on_hw_change("blue_gain", v))
         gain_layout.addWidget(self.hw_blue_gain)
 
         scroll_layout.addWidget(gain_group)
@@ -466,21 +467,22 @@ class ProfessionalCalibrationWindow(QMainWindow):
         offset_group = QGroupBox("RGB Offsets (Black Point Adjustment)")
         offset_layout = QVBoxLayout(offset_group)
 
-        offset_info = QLabel("Adjust RGB offsets to correct black point and shadow tint.\n"
-                            "Higher values = more of that color in shadows.")
+        offset_info = QLabel(
+            "Adjust RGB offsets to correct black point and shadow tint.\nHigher values = more of that color in shadows."
+        )
         offset_info.setStyleSheet("color: #888; font-size: 11px;")
         offset_layout.addWidget(offset_info)
 
         self.hw_red_offset = LabeledSlider("Red Offset:", 0, 100, 50)
-        self.hw_red_offset.valueChanged.connect(lambda v: self._on_hw_change('red_offset', v))
+        self.hw_red_offset.valueChanged.connect(lambda v: self._on_hw_change("red_offset", v))
         offset_layout.addWidget(self.hw_red_offset)
 
         self.hw_green_offset = LabeledSlider("Green Offset:", 0, 100, 50)
-        self.hw_green_offset.valueChanged.connect(lambda v: self._on_hw_change('green_offset', v))
+        self.hw_green_offset.valueChanged.connect(lambda v: self._on_hw_change("green_offset", v))
         offset_layout.addWidget(self.hw_green_offset)
 
         self.hw_blue_offset = LabeledSlider("Blue Offset:", 0, 100, 50)
-        self.hw_blue_offset.valueChanged.connect(lambda v: self._on_hw_change('blue_offset', v))
+        self.hw_blue_offset.valueChanged.connect(lambda v: self._on_hw_change("blue_offset", v))
         offset_layout.addWidget(self.hw_blue_offset)
 
         scroll_layout.addWidget(offset_group)
@@ -489,14 +491,14 @@ class ProfessionalCalibrationWindow(QMainWindow):
         gamma_group = QGroupBox("Gamma")
         gamma_layout = QVBoxLayout(gamma_group)
 
-        gamma_info = QLabel("Select display gamma curve. Common values:\n"
-                           "• 22 = 2.2 (sRGB standard)\n"
-                           "• 24 = 2.4 (BT.1886 broadcast)")
+        gamma_info = QLabel(
+            "Select display gamma curve. Common values:\n• 22 = 2.2 (sRGB standard)\n• 24 = 2.4 (BT.1886 broadcast)"
+        )
         gamma_info.setStyleSheet("color: #888; font-size: 11px;")
         gamma_layout.addWidget(gamma_info)
 
         self.hw_gamma = LabeledSlider("Gamma:", 18, 28, 22)
-        self.hw_gamma.valueChanged.connect(lambda v: self._on_hw_change('gamma', v))
+        self.hw_gamma.valueChanged.connect(lambda v: self._on_hw_change("gamma", v))
         gamma_layout.addWidget(self.hw_gamma)
 
         scroll_layout.addWidget(gamma_group)
@@ -509,7 +511,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
         btn_layout = QHBoxLayout()
 
         self.hw_live_check = QCheckBox("Live Update")
-        self.hw_live_check.toggled.connect(lambda c: setattr(self, 'live_ddc', c))
+        self.hw_live_check.toggled.connect(lambda c: setattr(self, "live_ddc", c))
         btn_layout.addWidget(self.hw_live_check)
 
         apply_btn = QPushButton("Apply Hardware Settings")
@@ -534,8 +536,10 @@ class ProfessionalCalibrationWindow(QMainWindow):
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
 
-        info = QLabel("SDR 3D LUT provides software-level color correction.\n"
-                     "Applied via DWM for system-wide effect on all applications.")
+        info = QLabel(
+            "SDR 3D LUT provides software-level color correction.\n"
+            "Applied via DWM for system-wide effect on all applications."
+        )
         info.setStyleSheet("color: #888;")
         scroll_layout.addWidget(info)
 
@@ -621,8 +625,9 @@ class ProfessionalCalibrationWindow(QMainWindow):
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
 
-        info = QLabel("HDR 3D LUT for HDR10/PQ content calibration.\n"
-                     "Uses ST.2084 PQ EOTF for accurate HDR color correction.")
+        info = QLabel(
+            "HDR 3D LUT for HDR10/PQ content calibration.\nUses ST.2084 PQ EOTF for accurate HDR color correction."
+        )
         info.setStyleSheet("color: #888;")
         scroll_layout.addWidget(info)
 
@@ -793,8 +798,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
             ddc_str = " [DDC/CI]" if ddc_mon else ""
 
             self.monitor_combo.addItem(
-                f"{lut_mon.friendly_name}{primary_str}{hdr_str}{ddc_str}",
-                {'lut': lut_mon, 'ddc': ddc_mon, 'index': i}
+                f"{lut_mon.friendly_name}{primary_str}{hdr_str}{ddc_str}", {"lut": lut_mon, "ddc": ddc_mon, "index": i}
             )
 
         self._log(f"Found {len(lut_monitors)} monitor(s)")
@@ -804,21 +808,23 @@ class ProfessionalCalibrationWindow(QMainWindow):
         if index >= 0:
             data = self.monitor_combo.itemData(index)
             if data:
-                self.current_lut_monitor = data.get('lut')
-                self.current_ddc_monitor = data.get('ddc')
+                self.current_lut_monitor = data.get("lut")
+                self.current_ddc_monitor = data.get("ddc")
                 self._update_capabilities()
                 self._read_current_settings()
 
     def _update_capabilities(self):
         """Update capability display for selected monitor."""
         if self.current_ddc_monitor:
-            caps = self.current_ddc_monitor.get('capabilities')
+            caps = self.current_ddc_monitor.get("capabilities")
             if caps:
                 self.cap_brightness.setText("✓" if 0x10 in caps.supported_vcp_codes else "✗")
                 self.cap_contrast.setText("✓" if 0x12 in caps.supported_vcp_codes else "✗")
                 self.cap_rgb_gain.setText("✓" if caps.has_rgb_gain else "✗")
                 self.cap_rgb_offset.setText("✓" if caps.has_rgb_black_level else "✗")
-                self.cap_gamma.setText("✓" if 0xF2 in caps.supported_vcp_codes or 0x72 in caps.supported_vcp_codes else "✗")
+                self.cap_gamma.setText(
+                    "✓" if 0xF2 in caps.supported_vcp_codes or 0x72 in caps.supported_vcp_codes else "✗"
+                )
                 return
 
         self.cap_brightness.setText("--")
@@ -864,7 +870,9 @@ class ProfessionalCalibrationWindow(QMainWindow):
             self.cur_brightness.setText(str(settings.brightness))
             self.cur_contrast.setText(str(settings.contrast))
             self.cur_rgb.setText(f"R:{settings.red_gain} G:{settings.green_gain} B:{settings.blue_gain}")
-            self.cur_offset.setText(f"R:{settings.red_black_level} G:{settings.green_black_level} B:{settings.blue_black_level}")
+            self.cur_offset.setText(
+                f"R:{settings.red_black_level} G:{settings.green_black_level} B:{settings.blue_black_level}"
+            )
 
             # Update sliders
             self.hw_brightness.setValue(settings.brightness)
@@ -905,15 +913,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
             return
 
         code_map = {
-            'brightness': VCPCode.BRIGHTNESS,
-            'contrast': VCPCode.CONTRAST,
-            'red_gain': VCPCode.RED_GAIN,
-            'green_gain': VCPCode.GREEN_GAIN,
-            'blue_gain': VCPCode.BLUE_GAIN,
-            'red_offset': VCPCode.RED_BLACK_LEVEL,
-            'green_offset': VCPCode.GREEN_BLACK_LEVEL,
-            'blue_offset': VCPCode.BLUE_BLACK_LEVEL,
-            'gamma': 0xF2,  # Manufacturer-specific gamma
+            "brightness": VCPCode.BRIGHTNESS,
+            "contrast": VCPCode.CONTRAST,
+            "red_gain": VCPCode.RED_GAIN,
+            "green_gain": VCPCode.GREEN_GAIN,
+            "blue_gain": VCPCode.BLUE_GAIN,
+            "red_offset": VCPCode.RED_BLACK_LEVEL,
+            "green_offset": VCPCode.GREEN_BLACK_LEVEL,
+            "blue_offset": VCPCode.BLUE_BLACK_LEVEL,
+            "gamma": 0xF2,  # Manufacturer-specific gamma
         }
 
         if setting in code_map:
@@ -930,17 +938,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
 
         try:
             # Brightness and Contrast
-            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.BRIGHTNESS,
-                                        self.hw_brightness.value())
-            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.CONTRAST,
-                                        self.hw_contrast.value())
+            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.BRIGHTNESS, self.hw_brightness.value())
+            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.CONTRAST, self.hw_contrast.value())
 
             # RGB Gains
             self.ddc_controller.set_rgb_gain(
                 self.current_ddc_monitor,
                 self.hw_red_gain.value(),
                 self.hw_green_gain.value(),
-                self.hw_blue_gain.value()
+                self.hw_blue_gain.value(),
             )
 
             # RGB Offsets
@@ -948,7 +954,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
                 self.current_ddc_monitor,
                 self.hw_red_offset.value(),
                 self.hw_green_offset.value(),
-                self.hw_blue_offset.value()
+                self.hw_blue_offset.value(),
             )
 
             # Gamma (try both common codes)
@@ -1001,22 +1007,11 @@ class ProfessionalCalibrationWindow(QMainWindow):
             lut = generate_sdr_calibration_lut(
                 size=size,
                 target_gamma=self.sdr_gamma.value(),
-                rgb_gains=(
-                    self.sdr_r_gain.value(),
-                    self.sdr_g_gain.value(),
-                    self.sdr_b_gain.value()
-                ),
-                rgb_offsets=(
-                    self.sdr_r_offset.value(),
-                    self.sdr_g_offset.value(),
-                    self.sdr_b_offset.value()
-                )
+                rgb_gains=(self.sdr_r_gain.value(), self.sdr_g_gain.value(), self.sdr_b_gain.value()),
+                rgb_offsets=(self.sdr_r_offset.value(), self.sdr_g_offset.value(), self.sdr_b_offset.value()),
             )
 
-            success = self.lut_controller.load_lut(
-                self.current_lut_monitor, lut, LUTType.SDR,
-                "SDR Calibration LUT"
-            )
+            success = self.lut_controller.load_lut(self.current_lut_monitor, lut, LUTType.SDR, "SDR Calibration LUT")
 
             if success:
                 self._log(f"Applied SDR LUT ({size}³)")
@@ -1037,22 +1032,13 @@ class ProfessionalCalibrationWindow(QMainWindow):
 
             lut = generate_hdr_calibration_lut(
                 size=size,
-                rgb_gains=(
-                    self.hdr_r_gain.value(),
-                    self.hdr_g_gain.value(),
-                    self.hdr_b_gain.value()
-                ),
-                rgb_offsets=(
-                    self.hdr_r_offset.value(),
-                    self.hdr_g_offset.value(),
-                    self.hdr_b_offset.value()
-                ),
-                peak_luminance=float(self.hdr_peak.value())
+                rgb_gains=(self.hdr_r_gain.value(), self.hdr_g_gain.value(), self.hdr_b_gain.value()),
+                rgb_offsets=(self.hdr_r_offset.value(), self.hdr_g_offset.value(), self.hdr_b_offset.value()),
+                peak_luminance=float(self.hdr_peak.value()),
             )
 
             success = self.lut_controller.load_lut(
-                self.current_lut_monitor, lut, LUTType.HDR,
-                f"HDR Calibration LUT - Peak {self.hdr_peak.value()} nits"
+                self.current_lut_monitor, lut, LUTType.HDR, f"HDR Calibration LUT - Peak {self.hdr_peak.value()} nits"
             )
 
             if success:
@@ -1082,24 +1068,44 @@ class ProfessionalCalibrationWindow(QMainWindow):
         """Apply a calibration preset."""
         presets = {
             "D65 sRGB (Gamma 2.2)": {
-                'hw': {'brightness': 50, 'contrast': 80, 'rgb_gains': (100, 100, 100),
-                       'rgb_offsets': (50, 50, 50), 'gamma': 22},
-                'sdr': {'gamma': 2.2, 'gains': (1.0, 1.0, 1.0), 'offsets': (0.0, 0.0, 0.0)}
+                "hw": {
+                    "brightness": 50,
+                    "contrast": 80,
+                    "rgb_gains": (100, 100, 100),
+                    "rgb_offsets": (50, 50, 50),
+                    "gamma": 22,
+                },
+                "sdr": {"gamma": 2.2, "gains": (1.0, 1.0, 1.0), "offsets": (0.0, 0.0, 0.0)},
             },
             "D65 BT.1886 (Gamma 2.4)": {
-                'hw': {'brightness': 50, 'contrast': 80, 'rgb_gains': (100, 100, 100),
-                       'rgb_offsets': (50, 50, 50), 'gamma': 24},
-                'sdr': {'gamma': 2.4, 'gains': (1.0, 1.0, 1.0), 'offsets': (0.0, 0.0, 0.0)}
+                "hw": {
+                    "brightness": 50,
+                    "contrast": 80,
+                    "rgb_gains": (100, 100, 100),
+                    "rgb_offsets": (50, 50, 50),
+                    "gamma": 24,
+                },
+                "sdr": {"gamma": 2.4, "gains": (1.0, 1.0, 1.0), "offsets": (0.0, 0.0, 0.0)},
             },
             "D65 Linear": {
-                'hw': {'brightness': 50, 'contrast': 80, 'rgb_gains': (100, 100, 100),
-                       'rgb_offsets': (50, 50, 50), 'gamma': 10},
-                'sdr': {'gamma': 1.0, 'gains': (1.0, 1.0, 1.0), 'offsets': (0.0, 0.0, 0.0)}
+                "hw": {
+                    "brightness": 50,
+                    "contrast": 80,
+                    "rgb_gains": (100, 100, 100),
+                    "rgb_offsets": (50, 50, 50),
+                    "gamma": 10,
+                },
+                "sdr": {"gamma": 1.0, "gains": (1.0, 1.0, 1.0), "offsets": (0.0, 0.0, 0.0)},
             },
             "Native (Identity)": {
-                'hw': {'brightness': 50, 'contrast': 80, 'rgb_gains': (100, 100, 100),
-                       'rgb_offsets': (50, 50, 50), 'gamma': 22},
-                'sdr': {'gamma': 2.2, 'gains': (1.0, 1.0, 1.0), 'offsets': (0.0, 0.0, 0.0)}
+                "hw": {
+                    "brightness": 50,
+                    "contrast": 80,
+                    "rgb_gains": (100, 100, 100),
+                    "rgb_offsets": (50, 50, 50),
+                    "gamma": 22,
+                },
+                "sdr": {"gamma": 2.2, "gains": (1.0, 1.0, 1.0), "offsets": (0.0, 0.0, 0.0)},
             },
         }
 
@@ -1107,27 +1113,27 @@ class ProfessionalCalibrationWindow(QMainWindow):
             preset = presets[name]
 
             # Apply hardware settings
-            hw = preset.get('hw', {})
-            self.hw_brightness.setValue(hw.get('brightness', 50))
-            self.hw_contrast.setValue(hw.get('contrast', 80))
-            gains = hw.get('rgb_gains', (100, 100, 100))
+            hw = preset.get("hw", {})
+            self.hw_brightness.setValue(hw.get("brightness", 50))
+            self.hw_contrast.setValue(hw.get("contrast", 80))
+            gains = hw.get("rgb_gains", (100, 100, 100))
             self.hw_red_gain.setValue(gains[0])
             self.hw_green_gain.setValue(gains[1])
             self.hw_blue_gain.setValue(gains[2])
-            offsets = hw.get('rgb_offsets', (50, 50, 50))
+            offsets = hw.get("rgb_offsets", (50, 50, 50))
             self.hw_red_offset.setValue(offsets[0])
             self.hw_green_offset.setValue(offsets[1])
             self.hw_blue_offset.setValue(offsets[2])
-            self.hw_gamma.setValue(hw.get('gamma', 22))
+            self.hw_gamma.setValue(hw.get("gamma", 22))
 
             # Apply SDR LUT settings
-            sdr = preset.get('sdr', {})
-            self.sdr_gamma.setValue(sdr.get('gamma', 2.2))
-            sdr_gains = sdr.get('gains', (1.0, 1.0, 1.0))
+            sdr = preset.get("sdr", {})
+            self.sdr_gamma.setValue(sdr.get("gamma", 2.2))
+            sdr_gains = sdr.get("gains", (1.0, 1.0, 1.0))
             self.sdr_r_gain.setValue(sdr_gains[0])
             self.sdr_g_gain.setValue(sdr_gains[1])
             self.sdr_b_gain.setValue(sdr_gains[2])
-            sdr_offsets = sdr.get('offsets', (0.0, 0.0, 0.0))
+            sdr_offsets = sdr.get("offsets", (0.0, 0.0, 0.0))
             self.sdr_r_offset.setValue(sdr_offsets[0])
             self.sdr_g_offset.setValue(sdr_offsets[1])
             self.sdr_b_offset.setValue(sdr_offsets[2])
@@ -1140,22 +1146,24 @@ class ProfessionalCalibrationWindow(QMainWindow):
     def _save_preset(self):
         """Save current settings as a named preset."""
         from PyQt6.QtWidgets import QInputDialog
+
         name, ok = QInputDialog.getText(self, "Save Preset", "Preset name:")
         if not ok or not name.strip():
             return
         name = name.strip()
         settings = {
-            'brightness': self.hw_brightness.value(),
-            'contrast': self.hw_contrast.value(),
-            'red_gain': self.hw_red_gain.value(),
-            'green_gain': self.hw_green_gain.value(),
-            'blue_gain': self.hw_blue_gain.value(),
-            'red_offset': self.hw_red_offset.value(),
-            'green_offset': self.hw_green_offset.value(),
-            'blue_offset': self.hw_blue_offset.value(),
-            'gamma': self.hw_gamma.value(),
+            "brightness": self.hw_brightness.value(),
+            "contrast": self.hw_contrast.value(),
+            "red_gain": self.hw_red_gain.value(),
+            "green_gain": self.hw_green_gain.value(),
+            "blue_gain": self.hw_blue_gain.value(),
+            "red_offset": self.hw_red_offset.value(),
+            "green_offset": self.hw_green_offset.value(),
+            "blue_offset": self.hw_blue_offset.value(),
+            "gamma": self.hw_gamma.value(),
         }
         from PyQt6.QtCore import QSettings
+
         qs = QSettings("CalibratePro", "Presets")
         qs.setValue(f"presets/{name}", settings)
         self._log(f"Saved preset: {name}")
@@ -1164,6 +1172,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
         """Load a previously saved preset."""
         from PyQt6.QtCore import QSettings
         from PyQt6.QtWidgets import QInputDialog
+
         qs = QSettings("CalibratePro", "Presets")
         qs.beginGroup("presets")
         names = qs.childKeys()
@@ -1178,23 +1187,24 @@ class ProfessionalCalibrationWindow(QMainWindow):
         if not isinstance(settings, dict):
             self._log(f"Preset '{name}' is corrupted")
             return
-        self.hw_brightness.setValue(settings.get('brightness', 50))
-        self.hw_contrast.setValue(settings.get('contrast', 50))
-        self.hw_red_gain.setValue(settings.get('red_gain', 50))
-        self.hw_green_gain.setValue(settings.get('green_gain', 50))
-        self.hw_blue_gain.setValue(settings.get('blue_gain', 50))
-        self.hw_red_offset.setValue(settings.get('red_offset', 50))
-        self.hw_green_offset.setValue(settings.get('green_offset', 50))
-        self.hw_blue_offset.setValue(settings.get('blue_offset', 50))
-        self.hw_gamma.setValue(settings.get('gamma', 22))
+        self.hw_brightness.setValue(settings.get("brightness", 50))
+        self.hw_contrast.setValue(settings.get("contrast", 50))
+        self.hw_red_gain.setValue(settings.get("red_gain", 50))
+        self.hw_green_gain.setValue(settings.get("green_gain", 50))
+        self.hw_blue_gain.setValue(settings.get("blue_gain", 50))
+        self.hw_red_offset.setValue(settings.get("red_offset", 50))
+        self.hw_green_offset.setValue(settings.get("green_offset", 50))
+        self.hw_blue_offset.setValue(settings.get("blue_offset", 50))
+        self.hw_gamma.setValue(settings.get("gamma", 22))
         self._log(f"Loaded preset: {name}")
 
     def _factory_reset(self):
         """Reset monitor to factory defaults."""
         reply = QMessageBox.question(
-            self, "Factory Reset",
+            self,
+            "Factory Reset",
             "This will reset the monitor to factory defaults.\nContinue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes and self.current_ddc_monitor:

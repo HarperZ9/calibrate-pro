@@ -22,6 +22,7 @@ import numpy as np
 @dataclass
 class ColorVolumeResult:
     """Results from 3D color volume analysis."""
+
     # Absolute volumes (arbitrary units, relative comparison only)
     panel_volume: float
     srgb_volume: float
@@ -29,16 +30,16 @@ class ColorVolumeResult:
     bt2020_volume: float
 
     # Coverage percentages
-    srgb_volume_pct: float    # Panel volume that covers sRGB
-    p3_volume_pct: float      # Panel volume that covers DCI-P3
+    srgb_volume_pct: float  # Panel volume that covers sRGB
+    p3_volume_pct: float  # Panel volume that covers DCI-P3
     bt2020_volume_pct: float  # Panel volume that covers BT.2020
 
     # Relative to sRGB
     relative_to_srgb_pct: float  # Panel volume / sRGB volume * 100
 
     # Per-lightness gamut area (shows how gamut changes with brightness)
-    lightness_levels: list[float]       # L* or Jz values
-    gamut_area_per_level: list[float]   # Area at each lightness
+    lightness_levels: list[float]  # L* or Jz values
+    gamut_area_per_level: list[float]  # Area at each lightness
 
 
 def compute_color_volume(
@@ -47,7 +48,7 @@ def compute_color_volume(
     lightness_steps: int = 21,
     hue_steps: int = 72,
     panel_type: str = "",
-    peak_luminance: float = 1000.0
+    peak_luminance: float = 1000.0,
 ) -> ColorVolumeResult:
     """
     Compute 3D color volume for a panel.
@@ -101,7 +102,7 @@ def compute_color_volume(
         sin_h = math.sin(h_rad)
 
         delta = 6.0 / 29.0
-        delta_cu = delta ** 3
+        delta_cu = delta**3
 
         lo, hi = 0.0, 180.0
         for _ in range(25):
@@ -114,9 +115,9 @@ def compute_color_volume(
             fx = a / 500.0 + fy
             fz = fy - b / 200.0
 
-            xr = fx ** 3 if fx ** 3 > delta_cu else (fx - 4.0 / 29.0) * 3 * delta ** 2
-            yr = fy ** 3 if fy ** 3 > delta_cu else (fy - 4.0 / 29.0) * 3 * delta ** 2
-            zr = fz ** 3 if fz ** 3 > delta_cu else (fz - 4.0 / 29.0) * 3 * delta ** 2
+            xr = fx**3 if fx**3 > delta_cu else (fx - 4.0 / 29.0) * 3 * delta**2
+            yr = fy**3 if fy**3 > delta_cu else (fy - 4.0 / 29.0) * 3 * delta**2
+            zr = fz**3 if fz**3 > delta_cu else (fz - 4.0 / 29.0) * 3 * delta**2
 
             xyz = np.array([xr * ref_xyz[0], yr * ref_xyz[1], zr * ref_xyz[2]])
             rgb = xyz_to_rgb @ xyz
@@ -195,7 +196,9 @@ def compute_color_volume(
         bt2020_coverage += min(pa, ba)
     srgb_coverage_vol = float(np.trapezoid([min(pa, sa) for pa, sa in zip(panel_areas, srgb_areas)], lightness_levels))
     p3_coverage_vol = float(np.trapezoid([min(pa, p3a) for pa, p3a in zip(panel_areas, p3_areas)], lightness_levels))
-    bt2020_coverage_vol = float(np.trapezoid([min(pa, ba) for pa, ba in zip(panel_areas, bt2020_areas)], lightness_levels))
+    bt2020_coverage_vol = float(
+        np.trapezoid([min(pa, ba) for pa, ba in zip(panel_areas, bt2020_areas)], lightness_levels)
+    )
 
     return ColorVolumeResult(
         panel_volume=panel_vol,
@@ -207,7 +210,7 @@ def compute_color_volume(
         bt2020_volume_pct=min(100.0, bt2020_coverage_vol / bt2020_vol * 100) if bt2020_vol > 0 else 0,
         relative_to_srgb_pct=panel_vol / srgb_vol * 100 if srgb_vol > 0 else 0,
         lightness_levels=list(lightness_levels),
-        gamut_area_per_level=panel_areas
+        gamut_area_per_level=panel_areas,
     )
 
 

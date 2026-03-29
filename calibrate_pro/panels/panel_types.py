@@ -14,30 +14,37 @@ from dataclasses import asdict, dataclass, field
 @dataclass
 class ChromaticityCoord:
     """CIE 1931 xy chromaticity coordinate."""
+
     x: float
     y: float
 
     def as_tuple(self) -> tuple[float, float]:
         return (self.x, self.y)
 
+
 @dataclass
 class PanelPrimaries:
     """Native panel primary colors and white point."""
+
     red: ChromaticityCoord
     green: ChromaticityCoord
     blue: ChromaticityCoord
     white: ChromaticityCoord
 
+
 @dataclass
 class GammaCurve:
     """Per-channel gamma characteristics."""
+
     gamma: float = 2.2  # Native gamma
     offset: float = 0.0  # Black level offset
     linear_portion: float = 0.0  # Linear segment below this value
 
+
 @dataclass
 class PanelCapabilities:
     """Panel hardware capabilities."""
+
     max_luminance_sdr: float = 100.0  # SDR peak brightness (cd/m2)
     max_luminance_hdr: float = 400.0  # HDR peak brightness (cd/m2)
     min_luminance: float = 0.0001  # Minimum black level (cd/m2)
@@ -49,6 +56,7 @@ class PanelCapabilities:
     local_dimming: bool = False
     local_dimming_zones: int = 0
 
+
 @dataclass
 class DDCRecommendations:
     """DDC/CI hardware calibration recommendations for a specific panel.
@@ -56,6 +64,7 @@ class DDCRecommendations:
     Contains recommended OSD settings and VCP code values to configure
     the monitor into a state suitable for DDC/CI-based calibration.
     """
+
     picture_mode: str | None = None  # Recommended OSD picture mode name (e.g., "Custom 1", "User", "sRGB")
     picture_mode_vcp: int | None = None  # VCP 0xDB value for the picture mode
     color_preset: str | None = None  # Recommended color preset (e.g., "User 1", "Custom", "Warm")
@@ -70,9 +79,11 @@ class DDCRecommendations:
     gamma_vcp_value: int | None = None  # VCP 0xF2 value for gamma
     notes: str = ""  # Calibration notes for this monitor
 
+
 @dataclass
 class PanelCharacterization:
     """Complete panel characterization for calibration."""
+
     manufacturer: str
     model_pattern: str  # Regex pattern to match EDID model
     panel_type: str  # WOLED, QD-OLED, IPS, VA, etc.
@@ -95,7 +106,7 @@ class PanelCharacterization:
         # Fallback: use the first alternative in model_pattern if it looks like a name
         first = self.model_pattern.split("|")[0]
         # Strip regex characters
-        clean = re.sub(r'[\\.*+?^$\[\](){}]', '', first)
+        clean = re.sub(r"[\\.*+?^$\[\](){}]", "", first)
         return f"{self.manufacturer} {clean}"
 
     def to_dict(self) -> dict:
@@ -108,7 +119,7 @@ class PanelCharacterization:
                 "red": {"x": self.native_primaries.red.x, "y": self.native_primaries.red.y},
                 "green": {"x": self.native_primaries.green.x, "y": self.native_primaries.green.y},
                 "blue": {"x": self.native_primaries.blue.x, "y": self.native_primaries.blue.y},
-                "white": {"x": self.native_primaries.white.x, "y": self.native_primaries.white.y}
+                "white": {"x": self.native_primaries.white.x, "y": self.native_primaries.white.y},
             },
             "gamma_red": asdict(self.gamma_red),
             "gamma_green": asdict(self.gamma_green),
@@ -117,7 +128,7 @@ class PanelCharacterization:
             "color_correction_matrix": self.color_correction_matrix,
             "ddc": asdict(self.ddc) if self.ddc else None,
             "notes": self.notes,
-            "display_name": self.display_name
+            "display_name": self.display_name,
         }
 
     @classmethod
@@ -127,7 +138,7 @@ class PanelCharacterization:
             red=ChromaticityCoord(**data["native_primaries"]["red"]),
             green=ChromaticityCoord(**data["native_primaries"]["green"]),
             blue=ChromaticityCoord(**data["native_primaries"]["blue"]),
-            white=ChromaticityCoord(**data["native_primaries"]["white"])
+            white=ChromaticityCoord(**data["native_primaries"]["white"]),
         )
 
         ddc_data = data.get("ddc")
@@ -152,5 +163,5 @@ class PanelCharacterization:
             color_correction_matrix=data.get("color_correction_matrix"),
             ddc=ddc,
             notes=data.get("notes", ""),
-            display_name=data.get("display_name", "")
+            display_name=data.get("display_name", ""),
         )

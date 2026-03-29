@@ -18,6 +18,7 @@ import numpy as np
 # Optional scipy import
 try:
     from scipy.interpolate import RectBivariateSpline, RegularGridInterpolator
+
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -28,8 +29,10 @@ except ImportError:
 # Enums
 # =============================================================================
 
+
 class UniformityGrid(Enum):
     """Uniformity measurement grid sizes."""
+
     GRID_3X3 = (3, 3)
     GRID_5X5 = (5, 5)
     GRID_7X7 = (7, 7)
@@ -39,47 +42,52 @@ class UniformityGrid(Enum):
 
 class UniformityGrade(Enum):
     """Uniformity quality grade."""
-    REFERENCE = auto()      # <2% deviation
-    EXCELLENT = auto()      # <5% deviation
-    GOOD = auto()           # <10% deviation
-    ACCEPTABLE = auto()     # <15% deviation
-    POOR = auto()           # >=15% deviation
+
+    REFERENCE = auto()  # <2% deviation
+    EXCELLENT = auto()  # <5% deviation
+    GOOD = auto()  # <10% deviation
+    ACCEPTABLE = auto()  # <15% deviation
+    POOR = auto()  # >=15% deviation
 
 
 class CompensationMode(Enum):
     """Uniformity compensation mode."""
-    LUMINANCE_ONLY = auto()     # Only correct luminance
-    COLOR_ONLY = auto()         # Only correct color (xy chromaticity)
-    FULL = auto()               # Correct both luminance and color
+
+    LUMINANCE_ONLY = auto()  # Only correct luminance
+    COLOR_ONLY = auto()  # Only correct color (xy chromaticity)
+    FULL = auto()  # Correct both luminance and color
 
 
 # =============================================================================
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class UniformityMeasurement:
     """Single uniformity measurement point."""
-    grid_x: int             # Grid column (0-indexed)
-    grid_y: int             # Grid row (0-indexed)
-    screen_x: float         # Normalized screen X (0-1)
-    screen_y: float         # Normalized screen Y (0-1)
+
+    grid_x: int  # Grid column (0-indexed)
+    grid_y: int  # Grid row (0-indexed)
+    screen_x: float  # Normalized screen X (0-1)
+    screen_y: float  # Normalized screen Y (0-1)
 
     # Measured values
-    luminance: float        # cd/m² (nits)
-    chromaticity_x: float   # CIE xy x
-    chromaticity_y: float   # CIE xy y
+    luminance: float  # cd/m² (nits)
+    chromaticity_x: float  # CIE xy x
+    chromaticity_y: float  # CIE xy y
     xyz: tuple[float, float, float] = (0, 0, 0)
 
     # Deviation from center/reference
-    luminance_deviation: float = 0.0    # Percentage deviation
-    delta_uv: float = 0.0               # Chromaticity deviation
+    luminance_deviation: float = 0.0  # Percentage deviation
+    delta_uv: float = 0.0  # Chromaticity deviation
 
 
 @dataclass
 class UniformityRegion:
     """Analysis for a screen region."""
-    region_name: str        # e.g., "top-left", "center", "bottom-right"
+
+    region_name: str  # e.g., "top-left", "center", "bottom-right"
     grid_positions: list[tuple[int, int]]
 
     luminance_mean: float
@@ -98,6 +106,7 @@ class UniformityRegion:
 @dataclass
 class UniformityResult:
     """Complete uniformity measurement result."""
+
     grid_size: UniformityGrid
     measurements: list[UniformityMeasurement]
     measurement_grid: np.ndarray  # 2D array of measurements
@@ -111,7 +120,7 @@ class UniformityResult:
     luminance_mean: float
     luminance_min: float
     luminance_max: float
-    luminance_uniformity: float     # Percentage (100 = perfect)
+    luminance_uniformity: float  # Percentage (100 = perfect)
 
     chromaticity_uniformity: float  # Based on max delta_uv
     delta_uv_mean: float
@@ -126,7 +135,7 @@ class UniformityResult:
     region_analysis: dict[str, UniformityRegion] = field(default_factory=dict)
 
     # Edge fall-off analysis
-    left_falloff: float = 0.0       # Percentage drop at left edge
+    left_falloff: float = 0.0  # Percentage drop at left edge
     right_falloff: float = 0.0
     top_falloff: float = 0.0
     bottom_falloff: float = 0.0
@@ -139,8 +148,9 @@ class UniformityResult:
 @dataclass
 class UniformityCorrectionLUT:
     """Per-region uniformity correction LUT."""
+
     grid_size: UniformityGrid
-    correction_grid: np.ndarray     # 2D array of correction factors
+    correction_grid: np.ndarray  # 2D array of correction factors
 
     # Luminance correction (multiplicative)
     luminance_corrections: np.ndarray
@@ -161,6 +171,7 @@ class UniformityCorrectionLUT:
 # =============================================================================
 # Grade Functions
 # =============================================================================
+
 
 def grade_from_uniformity(deviation: float) -> UniformityGrade:
     """Determine grade from uniformity deviation percentage."""
@@ -191,6 +202,7 @@ def grade_to_string(grade: UniformityGrade) -> str:
 # Utility Functions
 # =============================================================================
 
+
 def xy_to_uv(x: float, y: float) -> tuple[float, float]:
     """Convert CIE xy to CIE u'v'."""
     denom = -2 * x + 12 * y + 3
@@ -205,13 +217,12 @@ def delta_uv(x1: float, y1: float, x2: float, y2: float) -> float:
     """Calculate Δu'v' between two chromaticities."""
     u1, v1 = xy_to_uv(x1, y1)
     u2, v2 = xy_to_uv(x2, y2)
-    return np.sqrt((u2 - u1)**2 + (v2 - v1)**2)
+    return np.sqrt((u2 - u1) ** 2 + (v2 - v1) ** 2)
 
 
-def generate_grid_positions(grid_size: UniformityGrid,
-                           screen_width: int = 1920,
-                           screen_height: int = 1080,
-                           margin: float = 0.05) -> list[tuple[int, int, float, float]]:
+def generate_grid_positions(
+    grid_size: UniformityGrid, screen_width: int = 1920, screen_height: int = 1080, margin: float = 0.05
+) -> list[tuple[int, int, float, float]]:
     """
     Generate measurement positions for uniformity grid.
 
@@ -283,6 +294,7 @@ def get_region_name(col: int, row: int, cols: int, rows: int) -> str:
 # Uniformity Analyzer Class
 # =============================================================================
 
+
 class UniformityAnalyzer:
     """
     Display uniformity analysis engine.
@@ -291,11 +303,7 @@ class UniformityAnalyzer:
     the display surface using configurable grid patterns.
     """
 
-    REGION_NAMES = [
-        "top-left", "top", "top-right",
-        "left", "center", "right",
-        "bottom-left", "bottom", "bottom-right"
-    ]
+    REGION_NAMES = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
 
     def __init__(self, grid_size: UniformityGrid = UniformityGrid.GRID_5X5):
         """
@@ -307,9 +315,7 @@ class UniformityAnalyzer:
         self.grid_size = grid_size
         self.cols, self.rows = grid_size.value
 
-    def analyze(self,
-                measurements: list[UniformityMeasurement],
-                display_name: str = "") -> UniformityResult:
+    def analyze(self, measurements: list[UniformityMeasurement], display_name: str = "") -> UniformityResult:
         """
         Analyze uniformity measurements.
 
@@ -370,22 +376,12 @@ class UniformityAnalyzer:
         center_grade = center_region.grade if center_region else UniformityGrade.GOOD
 
         corner_regions = ["top-left", "top-right", "bottom-left", "bottom-right"]
-        corner_deviations = [
-            region_analysis[r].luminance_deviation
-            for r in corner_regions if r in region_analysis
-        ]
-        corner_grade = grade_from_uniformity(
-            max(abs(d) for d in corner_deviations) if corner_deviations else 0
-        )
+        corner_deviations = [region_analysis[r].luminance_deviation for r in corner_regions if r in region_analysis]
+        corner_grade = grade_from_uniformity(max(abs(d) for d in corner_deviations) if corner_deviations else 0)
 
         edge_regions = ["top", "bottom", "left", "right"]
-        edge_deviations = [
-            region_analysis[r].luminance_deviation
-            for r in edge_regions if r in region_analysis
-        ]
-        edge_grade = grade_from_uniformity(
-            max(abs(d) for d in edge_deviations) if edge_deviations else 0
-        )
+        edge_deviations = [region_analysis[r].luminance_deviation for r in edge_regions if r in region_analysis]
+        edge_grade = grade_from_uniformity(max(abs(d) for d in edge_deviations) if edge_deviations else 0)
 
         # Overall grade (based on worst uniformity)
         max_deviation = max(abs(m.luminance_deviation) for m in measurements)
@@ -422,15 +418,11 @@ class UniformityAnalyzer:
             display_name=display_name,
         )
 
-    def _analyze_regions(self,
-                        measurements: list[UniformityMeasurement],
-                        ref_lum: float,
-                        ref_x: float,
-                        ref_y: float) -> dict[str, UniformityRegion]:
+    def _analyze_regions(
+        self, measurements: list[UniformityMeasurement], ref_lum: float, ref_x: float, ref_y: float
+    ) -> dict[str, UniformityRegion]:
         """Analyze measurements by screen region."""
-        regions: dict[str, list[UniformityMeasurement]] = {
-            name: [] for name in self.REGION_NAMES
-        }
+        regions: dict[str, list[UniformityMeasurement]] = {name: [] for name in self.REGION_NAMES}
 
         # Assign measurements to regions
         for m in measurements:
@@ -532,6 +524,7 @@ class UniformityAnalyzer:
 # Uniformity Compensation Class
 # =============================================================================
 
+
 class UniformityCompensator:
     """
     Generates uniformity correction LUTs.
@@ -549,9 +542,9 @@ class UniformityCompensator:
         """
         self.mode = mode
 
-    def generate_correction_lut(self,
-                                result: UniformityResult,
-                                target_luminance: float | None = None) -> UniformityCorrectionLUT:
+    def generate_correction_lut(
+        self, result: UniformityResult, target_luminance: float | None = None
+    ) -> UniformityCorrectionLUT:
         """
         Generate uniformity correction LUT from measurements.
 
@@ -607,11 +600,9 @@ class UniformityCompensator:
             mode=self.mode,
         )
 
-    def apply_correction(self,
-                        lut: UniformityCorrectionLUT,
-                        rgb: tuple[float, float, float],
-                        screen_x: float,
-                        screen_y: float) -> tuple[float, float, float]:
+    def apply_correction(
+        self, lut: UniformityCorrectionLUT, rgb: tuple[float, float, float], screen_x: float, screen_y: float
+    ) -> tuple[float, float, float]:
         """
         Apply uniformity correction to RGB value.
 
@@ -648,11 +639,13 @@ class UniformityCompensator:
 
         return (r, g, b)
 
-    def generate_3d_lut_with_uniformity(self,
-                                        lut: UniformityCorrectionLUT,
-                                        base_lut: np.ndarray | None = None,
-                                        lut_size: int = 17,
-                                        screen_regions: int = 9) -> dict[str, np.ndarray]:
+    def generate_3d_lut_with_uniformity(
+        self,
+        lut: UniformityCorrectionLUT,
+        base_lut: np.ndarray | None = None,
+        lut_size: int = 17,
+        screen_regions: int = 9,
+    ) -> dict[str, np.ndarray]:
         """
         Generate per-region 3D LUTs with uniformity correction.
 
@@ -712,11 +705,7 @@ class UniformityCompensator:
         for r in range(size):
             for g in range(size):
                 for b in range(size):
-                    lut[r, g, b] = [
-                        r / (size - 1),
-                        g / (size - 1),
-                        b / (size - 1)
-                    ]
+                    lut[r, g, b] = [r / (size - 1), g / (size - 1), b / (size - 1)]
 
         return lut
 
@@ -725,9 +714,10 @@ class UniformityCompensator:
 # Utility Functions
 # =============================================================================
 
-def create_test_measurements(grid_size: UniformityGrid = UniformityGrid.GRID_5X5,
-                             center_luminance: float = 100.0,
-                             edge_falloff: float = 0.15) -> list[UniformityMeasurement]:
+
+def create_test_measurements(
+    grid_size: UniformityGrid = UniformityGrid.GRID_5X5, center_luminance: float = 100.0, edge_falloff: float = 0.15
+) -> list[UniformityMeasurement]:
     """Create simulated uniformity measurements for testing."""
     np.random.seed(42)
     measurements = []
@@ -740,7 +730,7 @@ def create_test_measurements(grid_size: UniformityGrid = UniformityGrid.GRID_5X5
 
     for col, row, x_norm, y_norm in positions:
         # Distance from center
-        dist = np.sqrt((x_norm - 0.5)**2 + (y_norm - 0.5)**2)
+        dist = np.sqrt((x_norm - 0.5) ** 2 + (y_norm - 0.5) ** 2)
 
         # Luminance falls off towards edges
         lum = center_luminance * (1 - edge_falloff * dist * 2)
@@ -750,16 +740,18 @@ def create_test_measurements(grid_size: UniformityGrid = UniformityGrid.GRID_5X5
         x = center_x + np.random.normal(0, 0.002) + dist * 0.005
         y = center_y + np.random.normal(0, 0.002) - dist * 0.003
 
-        measurements.append(UniformityMeasurement(
-            grid_x=col,
-            grid_y=row,
-            screen_x=x_norm,
-            screen_y=y_norm,
-            luminance=max(0, lum),
-            chromaticity_x=x,
-            chromaticity_y=y,
-            xyz=(0, lum, 0),  # Simplified
-        ))
+        measurements.append(
+            UniformityMeasurement(
+                grid_x=col,
+                grid_y=row,
+                screen_x=x_norm,
+                screen_y=y_norm,
+                luminance=max(0, lum),
+                chromaticity_x=x,
+                chromaticity_y=y,
+                xyz=(0, lum, 0),  # Simplified
+            )
+        )
 
     return measurements
 
@@ -807,11 +799,7 @@ def print_uniformity_summary(result: UniformityResult) -> None:
 if __name__ == "__main__":
     # Test uniformity analysis
     analyzer = UniformityAnalyzer(UniformityGrid.GRID_5X5)
-    test_measurements = create_test_measurements(
-        UniformityGrid.GRID_5X5,
-        center_luminance=100.0,
-        edge_falloff=0.12
-    )
+    test_measurements = create_test_measurements(UniformityGrid.GRID_5X5, center_luminance=100.0, edge_falloff=0.12)
 
     result = analyzer.analyze(test_measurements, "Test Display")
     print_uniformity_summary(result)
@@ -823,5 +811,7 @@ if __name__ == "__main__":
     print("\nCorrection LUT generated:")
     print(f"  Grid size: {correction_lut.grid_size.value}")
     print(f"  Mode: {correction_lut.mode.name}")
-    print(f"  Luminance range: {correction_lut.luminance_corrections.min():.3f} - "
-          f"{correction_lut.luminance_corrections.max():.3f}")
+    print(
+        f"  Luminance range: {correction_lut.luminance_corrections.min():.3f} - "
+        f"{correction_lut.luminance_corrections.max():.3f}"
+    )

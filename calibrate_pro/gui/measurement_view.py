@@ -48,9 +48,11 @@ COLORS = {
 # Measurement Data
 # =============================================================================
 
+
 @dataclass
 class Measurement:
     """A single calibration measurement."""
+
     index: int
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -75,6 +77,7 @@ class Measurement:
 # Live Color Patch Display
 # =============================================================================
 
+
 class ColorPatchDisplay(QFrame):
     """Large color patch showing current target and measured colors."""
 
@@ -83,8 +86,8 @@ class ColorPatchDisplay(QFrame):
         self.setMinimumSize(200, 200)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
             }}
         """)
@@ -136,6 +139,7 @@ class ColorPatchDisplay(QFrame):
 # Delta E Display
 # =============================================================================
 
+
 class DeltaEDisplay(QFrame):
     """Large Delta E value display with color coding."""
 
@@ -144,8 +148,8 @@ class DeltaEDisplay(QFrame):
         self.setMinimumSize(150, 100)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
             }}
         """)
@@ -178,19 +182,19 @@ class DeltaEDisplay(QFrame):
 
         # Color code
         if delta_e < 1.0:
-            color = COLORS['success']
+            color = COLORS["success"]
             quality = "Imperceptible"
         elif delta_e < 2.0:
             color = "#8bc34a"
             quality = "Excellent"
         elif delta_e < 3.0:
-            color = COLORS['warning']
+            color = COLORS["warning"]
             quality = "Good"
         elif delta_e < 5.0:
             color = "#ff5722"
             quality = "Acceptable"
         else:
-            color = COLORS['error']
+            color = COLORS["error"]
             quality = "Poor"
 
         self.value_label.setText(f"{delta_e:.3f}")
@@ -203,6 +207,7 @@ class DeltaEDisplay(QFrame):
 # Values Panel
 # =============================================================================
 
+
 class ValuesPanel(QFrame):
     """Display panel for color values (XYZ, Lab, xy)."""
 
@@ -210,8 +215,8 @@ class ValuesPanel(QFrame):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 12px;
             }}
@@ -275,6 +280,7 @@ class ValuesPanel(QFrame):
 # Measurement History Table
 # =============================================================================
 
+
 class MeasurementHistoryTable(QWidget):
     """Table showing measurement history."""
 
@@ -296,20 +302,20 @@ class MeasurementHistoryTable(QWidget):
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
-                gridline-color: {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
+                gridline-color: {COLORS["border"]};
             }}
             QTableWidget::item {{
                 padding: 4px;
             }}
             QTableWidget::item:selected {{
-                background-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
             }}
             QHeaderView::section {{
-                background-color: {COLORS['surface_alt']};
+                background-color: {COLORS["surface_alt"]};
                 border: none;
-                border-bottom: 1px solid {COLORS['border']};
+                border-bottom: 1px solid {COLORS["border"]};
                 padding: 8px;
             }}
         """)
@@ -345,11 +351,11 @@ class MeasurementHistoryTable(QWidget):
         de_item = QTableWidgetItem(f"{de:.3f}")
 
         if de < 1.0:
-            de_item.setForeground(QBrush(QColor(COLORS['success'])))
+            de_item.setForeground(QBrush(QColor(COLORS["success"])))
         elif de < 3.0:
-            de_item.setForeground(QBrush(QColor(COLORS['warning'])))
+            de_item.setForeground(QBrush(QColor(COLORS["warning"])))
         else:
-            de_item.setForeground(QBrush(QColor(COLORS['error'])))
+            de_item.setForeground(QBrush(QColor(COLORS["error"])))
 
         self.table.setItem(row, 4, de_item)
 
@@ -370,6 +376,7 @@ class MeasurementHistoryTable(QWidget):
 # =============================================================================
 # Main Measurement View
 # =============================================================================
+
 
 class MeasurementView(QWidget):
     """Complete measurement view for calibration."""
@@ -401,8 +408,8 @@ class MeasurementView(QWidget):
         progress_frame = QFrame()
         progress_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 12px;
             }}
@@ -416,13 +423,13 @@ class MeasurementView(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {COLORS['background']};
+                background-color: {COLORS["background"]};
                 border: none;
                 border-radius: 4px;
                 height: 8px;
             }}
             QProgressBar::chunk {{
-                background-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
                 border-radius: 4px;
             }}
         """)
@@ -460,8 +467,8 @@ class MeasurementView(QWidget):
         stats_frame = QFrame()
         stats_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 12px;
             }}
@@ -493,15 +500,13 @@ class MeasurementView(QWidget):
         self.progress_bar.setValue(0)
         self._update_progress_label(total_patches)
 
-    def set_target(self, rgb: tuple[int, int, int], xyz: tuple[float, float, float],
-                   lab: tuple[float, float, float]):
+    def set_target(self, rgb: tuple[int, int, int], xyz: tuple[float, float, float], lab: tuple[float, float, float]):
         """Set current target values."""
         self.color_patch.set_target(*rgb)
         self.target_values.set_xyz(*xyz)
         self.target_values.set_lab(*lab)
 
-    def set_measured(self, xyz: tuple[float, float, float], lab: tuple[float, float, float],
-                     delta_e: float):
+    def set_measured(self, xyz: tuple[float, float, float], lab: tuple[float, float, float], delta_e: float):
         """Set measured values and Delta E."""
         # Convert XYZ to RGB for display (simplified)
         r = int(min(255, max(0, xyz[0] * 2.55)))

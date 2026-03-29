@@ -37,52 +37,43 @@ from .color_models import CAM16, CAM16ViewingConditions, pq_oetf
 
 # ACES AP0 primaries (ACES 2065-1)
 ACES_AP0_PRIMARIES = {
-    'red': (0.7347, 0.2653),
-    'green': (0.0000, 1.0000),
-    'blue': (0.0001, -0.0770),
-    'white': (0.32168, 0.33767)  # ACES white point (D60-ish)
+    "red": (0.7347, 0.2653),
+    "green": (0.0000, 1.0000),
+    "blue": (0.0001, -0.0770),
+    "white": (0.32168, 0.33767),  # ACES white point (D60-ish)
 }
 
 # ACES AP1 primaries (ACEScg, ACEScct)
 ACES_AP1_PRIMARIES = {
-    'red': (0.713, 0.293),
-    'green': (0.165, 0.830),
-    'blue': (0.128, 0.044),
-    'white': (0.32168, 0.33767)
+    "red": (0.713, 0.293),
+    "green": (0.165, 0.830),
+    "blue": (0.128, 0.044),
+    "white": (0.32168, 0.33767),
 }
 
 # Standard output primaries
 SRGB_PRIMARIES = {
-    'red': (0.64, 0.33),
-    'green': (0.30, 0.60),
-    'blue': (0.15, 0.06),
-    'white': (0.3127, 0.3290)  # D65
+    "red": (0.64, 0.33),
+    "green": (0.30, 0.60),
+    "blue": (0.15, 0.06),
+    "white": (0.3127, 0.3290),  # D65
 }
 
-P3_D65_PRIMARIES = {
-    'red': (0.680, 0.320),
-    'green': (0.265, 0.690),
-    'blue': (0.150, 0.060),
-    'white': (0.3127, 0.3290)
-}
+P3_D65_PRIMARIES = {"red": (0.680, 0.320), "green": (0.265, 0.690), "blue": (0.150, 0.060), "white": (0.3127, 0.3290)}
 
-BT2020_PRIMARIES = {
-    'red': (0.708, 0.292),
-    'green': (0.170, 0.797),
-    'blue': (0.131, 0.046),
-    'white': (0.3127, 0.3290)
-}
+BT2020_PRIMARIES = {"red": (0.708, 0.292), "green": (0.170, 0.797), "blue": (0.131, 0.046), "white": (0.3127, 0.3290)}
 
 
 def primaries_to_matrix(primaries: dict) -> np.ndarray:
     """Convert primaries dictionary to RGB->XYZ matrix."""
-    def xy_to_XYZ(x, y):
-        return np.array([x/y, 1.0, (1-x-y)/y]) if y != 0 else np.array([0, 0, 0])
 
-    R = xy_to_XYZ(*primaries['red'])
-    G = xy_to_XYZ(*primaries['green'])
-    B = xy_to_XYZ(*primaries['blue'])
-    W = xy_to_XYZ(*primaries['white'])
+    def xy_to_XYZ(x, y):
+        return np.array([x / y, 1.0, (1 - x - y) / y]) if y != 0 else np.array([0, 0, 0])
+
+    R = xy_to_XYZ(*primaries["red"])
+    G = xy_to_XYZ(*primaries["green"])
+    B = xy_to_XYZ(*primaries["blue"])
+    W = xy_to_XYZ(*primaries["white"])
 
     M = np.column_stack([R, G, B])
     S = np.linalg.solve(M, W)
@@ -115,8 +106,10 @@ AP1_TO_AP0 = np.linalg.inv(AP0_TO_AP1)
 # ACES 2.0 Output Transforms
 # =============================================================================
 
+
 class OutputDevice(Enum):
     """Standard output device configurations."""
+
     SDR_100_NITS = "sdr_100"
     SDR_CINEMA = "sdr_48"
     HDR_1000_NITS = "hdr_1000"
@@ -128,77 +121,79 @@ class OutputDevice(Enum):
 @dataclass
 class OutputConfig:
     """Configuration for ACES 2.0 output transform."""
+
     peak_luminance: float  # Peak white in cd/m²
     min_luminance: float  # Black level in cd/m²
     limiting_primaries: dict  # Output gamut primaries
     encoding_primaries: dict  # Display encoding primaries
-    surround: str = 'dim'  # Viewing surround ('dark', 'dim', 'average')
-    eotf: str = 'srgb'  # 'srgb', 'bt1886', 'pq', 'hlg'
+    surround: str = "dim"  # Viewing surround ('dark', 'dim', 'average')
+    eotf: str = "srgb"  # 'srgb', 'bt1886', 'pq', 'hlg'
 
     @classmethod
-    def sdr_100_srgb(cls) -> 'OutputConfig':
+    def sdr_100_srgb(cls) -> "OutputConfig":
         """Standard SDR sRGB monitor (100 nits)."""
         return cls(
             peak_luminance=100.0,
             min_luminance=0.0001,
             limiting_primaries=SRGB_PRIMARIES,
             encoding_primaries=SRGB_PRIMARIES,
-            surround='dim',
-            eotf='srgb'
+            surround="dim",
+            eotf="srgb",
         )
 
     @classmethod
-    def sdr_100_p3(cls) -> 'OutputConfig':
+    def sdr_100_p3(cls) -> "OutputConfig":
         """SDR P3-D65 monitor (100 nits)."""
         return cls(
             peak_luminance=100.0,
             min_luminance=0.0001,
             limiting_primaries=P3_D65_PRIMARIES,
             encoding_primaries=P3_D65_PRIMARIES,
-            surround='dim',
-            eotf='srgb'
+            surround="dim",
+            eotf="srgb",
         )
 
     @classmethod
-    def hdr_1000_p3(cls) -> 'OutputConfig':
+    def hdr_1000_p3(cls) -> "OutputConfig":
         """HDR P3-D65 monitor (1000 nits)."""
         return cls(
             peak_luminance=1000.0,
             min_luminance=0.0001,
             limiting_primaries=P3_D65_PRIMARIES,
             encoding_primaries=P3_D65_PRIMARIES,
-            surround='dim',
-            eotf='pq'
+            surround="dim",
+            eotf="pq",
         )
 
     @classmethod
-    def hdr_1000_bt2020(cls) -> 'OutputConfig':
+    def hdr_1000_bt2020(cls) -> "OutputConfig":
         """HDR BT.2020 (1000 nits)."""
         return cls(
             peak_luminance=1000.0,
             min_luminance=0.0001,
             limiting_primaries=BT2020_PRIMARIES,
             encoding_primaries=BT2020_PRIMARIES,
-            surround='dim',
-            eotf='pq'
+            surround="dim",
+            eotf="pq",
         )
 
     @classmethod
-    def hdr_4000_p3(cls) -> 'OutputConfig':
+    def hdr_4000_p3(cls) -> "OutputConfig":
         """HDR P3-D65 mastering monitor (4000 nits)."""
         return cls(
             peak_luminance=4000.0,
             min_luminance=0.0001,
             limiting_primaries=P3_D65_PRIMARIES,
             encoding_primaries=P3_D65_PRIMARIES,
-            surround='dark',
-            eotf='pq'
+            surround="dark",
+            eotf="pq",
         )
 
 
 # =============================================================================
 # ACES 2.0 Tonescale
 # =============================================================================
+
 
 class ACES2Tonescale:
     """
@@ -216,12 +211,12 @@ class ACES2Tonescale:
 
     # Tonescale parameters (ACES 2.0 defaults)
     PARAMS = {
-        'contrast': 1.5,
-        'pivot': 0.18,  # Middle gray
-        'toe_power': 2.0,
-        'shoulder_power': 1.5,
-        'toe_gain': 0.0,
-        'shoulder_gain': 0.9
+        "contrast": 1.5,
+        "pivot": 0.18,  # Middle gray
+        "toe_power": 2.0,
+        "shoulder_power": 1.5,
+        "toe_gain": 0.0,
+        "shoulder_gain": 0.9,
     }
 
     def __init__(self, peak_luminance: float = 100.0, min_luminance: float = 0.0001):
@@ -244,8 +239,8 @@ class ACES2Tonescale:
     def _compute_curve_params(self):
         """Compute adaptive tonescale parameters based on output."""
         # Base parameters
-        self.contrast = self.PARAMS['contrast']
-        self.pivot = self.PARAMS['pivot']
+        self.contrast = self.PARAMS["contrast"]
+        self.pivot = self.PARAMS["pivot"]
 
         # Adapt toe and shoulder based on dynamic range
         if self.peak >= 1000:  # HDR
@@ -303,8 +298,7 @@ class ACES2Tonescale:
             x = J[shoulder_mask] / self.shoulder_start
             compressed = 1.0 - np.power(1.0 - self.highlight_gain, np.power(x, self.shoulder_power))
             # Scale to output range
-            result[shoulder_mask] = self.shoulder_start + \
-                                     (self.peak - self.shoulder_start) * compressed / self.peak
+            result[shoulder_mask] = self.shoulder_start + (self.peak - self.shoulder_start) * compressed / self.peak
 
         # Normalize to [0, 1] range for output
         result = result / self.peak
@@ -334,7 +328,12 @@ class ACES2Tonescale:
             result[toe_mask] = self.toe_start * np.power(t, 1.0 / self.toe_power)
 
         # Inverse linear
-        linear_end = self.shoulder_start / self.pivot * np.power(self.shoulder_start / self.pivot, 1.0 / self.contrast) * self.pivot
+        linear_end = (
+            self.shoulder_start
+            / self.pivot
+            * np.power(self.shoulder_start / self.pivot, 1.0 / self.contrast)
+            * self.pivot
+        )
         linear_mask = (J_out >= toe_end) & (J_out < linear_end)
         if np.any(linear_mask):
             result[linear_mask] = self.pivot * np.power(J_out[linear_mask] / self.pivot, self.contrast)
@@ -353,6 +352,7 @@ class ACES2Tonescale:
 # =============================================================================
 # ACES 2.0 Gamut Mapper
 # =============================================================================
+
 
 class ACES2GamutMapper:
     """
@@ -384,7 +384,7 @@ class ACES2GamutMapper:
         vc = CAM16ViewingConditions(
             L_A=peak_luminance * 0.2,  # 20% of peak for adaptation
             Y_b=20.0,
-            surround='dim'
+            surround="dim",
         )
         self.cam16 = CAM16(vc)
 
@@ -413,8 +413,8 @@ class ACES2GamutMapper:
                 rgb = np.array(edge)
                 xyz = output_matrix @ rgb
                 result = self.cam16.xyz_to_cam16(xyz)
-                if abs(result['h'] - h) < 5 or abs(result['h'] - h - 360) < 5:
-                    max_M = max(max_M, result['M'])
+                if abs(result["h"] - h) < 5 or abs(result["h"] - h - 360) < 5:
+                    max_M = max(max_M, result["M"])
             self.boundary_M[i] = max(max_M, 1.0)  # Minimum boundary
 
     def _get_gamut_edges(self) -> list[tuple[float, float, float]]:
@@ -425,15 +425,15 @@ class ACES2GamutMapper:
             # Red to yellow
             edges.append((1, t, 0))
             # Yellow to green
-            edges.append((1-t, 1, 0))
+            edges.append((1 - t, 1, 0))
             # Green to cyan
             edges.append((0, 1, t))
             # Cyan to blue
-            edges.append((0, 1-t, 1))
+            edges.append((0, 1 - t, 1))
             # Blue to magenta
             edges.append((t, 0, 1))
             # Magenta to red
-            edges.append((1, 0, 1-t))
+            edges.append((1, 0, 1 - t))
         return edges
 
     def _get_boundary_at_hue(self, h: float) -> float:
@@ -517,6 +517,7 @@ class ACES2GamutMapper:
 # ACES 2.0 Main Pipeline
 # =============================================================================
 
+
 class ACES2:
     """
     Academy Color Encoding System 2.0 - Complete Rendering Pipeline.
@@ -539,7 +540,7 @@ class ACES2:
         output = aces.render(aces_rgb, OutputConfig.hdr_1000_p3())
     """
 
-    def __init__(self, working_space: str = 'ap1'):
+    def __init__(self, working_space: str = "ap1"):
         """
         Initialize ACES 2.0 pipeline.
 
@@ -548,7 +549,7 @@ class ACES2:
         """
         self.working_space = working_space
 
-        if working_space == 'ap0':
+        if working_space == "ap0":
             self.to_xyz = AP0_TO_XYZ
             self.from_xyz = XYZ_TO_AP0
         else:
@@ -575,8 +576,7 @@ class ACES2:
 
         # Initialize pipeline components
         tonescale = ACES2Tonescale(output_config.peak_luminance, output_config.min_luminance)
-        gamut_mapper = ACES2GamutMapper(output_config.limiting_primaries,
-                                         output_config.peak_luminance)
+        gamut_mapper = ACES2GamutMapper(output_config.limiting_primaries, output_config.peak_luminance)
 
         results = []
         for i in range(len(rgb)):
@@ -588,9 +588,9 @@ class ACES2:
             return results[0]
         return results
 
-    def _render_single(self, rgb: np.ndarray, config: OutputConfig,
-                       tonescale: ACES2Tonescale,
-                       gamut_mapper: ACES2GamutMapper) -> np.ndarray:
+    def _render_single(
+        self, rgb: np.ndarray, config: OutputConfig, tonescale: ACES2Tonescale, gamut_mapper: ACES2GamutMapper
+    ) -> np.ndarray:
         """Render single ACES RGB pixel."""
         # Step 1: Convert to XYZ
         xyz = self.to_xyz @ rgb
@@ -600,9 +600,9 @@ class ACES2:
 
         # Step 2: Convert to CAM16 JMh
         cam_result = gamut_mapper.cam16.xyz_to_cam16(xyz)
-        J = cam_result['J']
-        M = cam_result['M']
-        h = cam_result['h']
+        J = cam_result["J"]
+        M = cam_result["M"]
+        h = cam_result["h"]
 
         # Step 3: Apply tonescale (J only)
         J_tonemapped = tonescale.apply(np.array([J]))[0] * 100.0
@@ -640,15 +640,15 @@ class ACES2:
         """
         rgb = np.asarray(rgb, dtype=np.float64)
 
-        if eotf == 'srgb':
+        if eotf == "srgb":
             return self._srgb_oetf(rgb)
-        elif eotf == 'bt1886':
+        elif eotf == "bt1886":
             return self._bt1886_oetf(rgb, gamma=2.4)
-        elif eotf == 'pq':
+        elif eotf == "pq":
             # Scale to absolute luminance then apply PQ
             rgb_abs = rgb * peak_luminance
             return pq_oetf(rgb_abs)
-        elif eotf == 'hlg':
+        elif eotf == "hlg":
             return self._hlg_oetf(rgb)
         else:
             return rgb  # Linear passthrough
@@ -658,7 +658,7 @@ class ACES2:
         result = np.zeros_like(rgb)
         mask = rgb <= 0.0031308
         result[mask] = 12.92 * rgb[mask]
-        result[~mask] = 1.055 * np.power(rgb[~mask], 1.0/2.4) - 0.055
+        result[~mask] = 1.055 * np.power(rgb[~mask], 1.0 / 2.4) - 0.055
         return np.clip(result, 0, 1)
 
     def _bt1886_oetf(self, rgb: np.ndarray, gamma: float = 2.4) -> np.ndarray:
@@ -672,7 +672,7 @@ class ACES2:
         c = 0.55991073
 
         result = np.zeros_like(rgb)
-        mask = rgb <= 1/12
+        mask = rgb <= 1 / 12
         result[mask] = np.sqrt(3 * rgb[mask])
         result[~mask] = a * np.log(12 * rgb[~mask] - b) + c
 
@@ -682,6 +682,7 @@ class ACES2:
 # =============================================================================
 # ACES 2.0 Look Modification Transform (LMT)
 # =============================================================================
+
 
 class ACES2LookTransform:
     """
@@ -730,17 +731,17 @@ class ACES2LookTransform:
 
         return np.maximum(rgb, 0)
 
-    def set_exposure(self, stops: float) -> 'ACES2LookTransform':
+    def set_exposure(self, stops: float) -> "ACES2LookTransform":
         """Set exposure adjustment in stops."""
         self.exposure = stops
         return self
 
-    def set_saturation(self, multiplier: float) -> 'ACES2LookTransform':
+    def set_saturation(self, multiplier: float) -> "ACES2LookTransform":
         """Set saturation multiplier (1.0 = neutral)."""
         self.saturation = multiplier
         return self
 
-    def set_contrast(self, multiplier: float, pivot: float = 0.18) -> 'ACES2LookTransform':
+    def set_contrast(self, multiplier: float, pivot: float = 0.18) -> "ACES2LookTransform":
         """Set contrast multiplier around pivot point."""
         self.contrast = multiplier
         self.pivot = pivot
@@ -751,8 +752,8 @@ class ACES2LookTransform:
 # OCIO 2.4 Compatibility
 # =============================================================================
 
-def generate_ocio_config(output_configs: list[OutputConfig],
-                          config_name: str = "ACES 2.0") -> str:
+
+def generate_ocio_config(output_configs: list[OutputConfig], config_name: str = "ACES 2.0") -> str:
     """
     Generate OpenColorIO 2.4 configuration for ACES 2.0.
 
@@ -829,7 +830,8 @@ colorspaces:
 # Convenience Functions
 # =============================================================================
 
-def aces_to_srgb(rgb: np.ndarray, input_space: str = 'ap1') -> np.ndarray:
+
+def aces_to_srgb(rgb: np.ndarray, input_space: str = "ap1") -> np.ndarray:
     """
     Quick conversion from ACES to sRGB display.
 
@@ -843,11 +845,12 @@ def aces_to_srgb(rgb: np.ndarray, input_space: str = 'ap1') -> np.ndarray:
     aces = ACES2(working_space=input_space)
     config = OutputConfig.sdr_100_srgb()
     linear = aces.render(rgb, config)
-    return aces.apply_eotf(linear, 'srgb')
+    return aces.apply_eotf(linear, "srgb")
 
 
-def aces_to_hdr(rgb: np.ndarray, peak_luminance: float = 1000.0,
-                gamut: str = 'p3', input_space: str = 'ap1') -> np.ndarray:
+def aces_to_hdr(
+    rgb: np.ndarray, peak_luminance: float = 1000.0, gamut: str = "p3", input_space: str = "ap1"
+) -> np.ndarray:
     """
     Quick conversion from ACES to HDR display.
 
@@ -862,7 +865,7 @@ def aces_to_hdr(rgb: np.ndarray, peak_luminance: float = 1000.0,
     """
     aces = ACES2(working_space=input_space)
 
-    if gamut == 'p3':
+    if gamut == "p3":
         config = OutputConfig.hdr_1000_p3()
     else:
         config = OutputConfig.hdr_1000_bt2020()
@@ -870,4 +873,4 @@ def aces_to_hdr(rgb: np.ndarray, peak_luminance: float = 1000.0,
     config.peak_luminance = peak_luminance
 
     linear = aces.render(rgb, config)
-    return aces.apply_eotf(linear, 'pq', peak_luminance)
+    return aces.apply_eotf(linear, "pq", peak_luminance)

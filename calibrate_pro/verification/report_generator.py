@@ -135,6 +135,7 @@ COLORCHECKER_SRGB = {
 # CCT Calculation
 # =============================================================================
 
+
 def _xy_to_cct(x: float, y: float) -> float:
     """
     Approximate correlated color temperature from CIE xy chromaticity.
@@ -144,13 +145,14 @@ def _xy_to_cct(x: float, y: float) -> float:
     if y == 0:
         return 0.0
     n = (x - 0.3320) / (0.1858 - y)
-    cct = 449.0 * n ** 3 + 3525.0 * n ** 2 + 6823.3 * n + 5520.33
+    cct = 449.0 * n**3 + 3525.0 * n**2 + 6823.3 * n + 5520.33
     return max(0.0, cct)
 
 
 # =============================================================================
 # Lab to sRGB approximation (for predicted colors in report)
 # =============================================================================
+
 
 def _lab_to_approx_srgb(lab: tuple[float, float, float]) -> tuple[float, float, float]:
     """
@@ -173,18 +175,18 @@ def _lab_to_approx_srgb(lab: tuple[float, float, float]) -> tuple[float, float, 
     yr = 1.0000
     zr = 0.8251
 
-    if fx ** 3 > epsilon:
-        x_val = fx ** 3
+    if fx**3 > epsilon:
+        x_val = fx**3
     else:
         x_val = (116.0 * fx - 16.0) / kappa
 
     if kappa * epsilon < L:
-        y_val = fy ** 3
+        y_val = fy**3
     else:
         y_val = L / kappa
 
-    if fz ** 3 > epsilon:
-        z_val = fz ** 3
+    if fz**3 > epsilon:
+        z_val = fz**3
     else:
         z_val = (116.0 * fz - 16.0) / kappa
 
@@ -418,6 +420,7 @@ table.patch-table tr:hover {
 # SVG Diagram Generators
 # =============================================================================
 
+
 def _generate_cie_diagram_svg(
     panel_red: tuple[float, float],
     panel_green: tuple[float, float],
@@ -509,10 +512,7 @@ def _generate_cie_diagram_svg(
         locus_points.append(f"{sx:.1f},{sy:.1f}")
     # Close the locus with the purple line
     locus_path = " ".join(locus_points)
-    lines.append(
-        f'<polygon points="{locus_path}" '
-        f'fill="rgba(40,50,70,0.5)" stroke="#4b5563" stroke-width="1.5"/>'
-    )
+    lines.append(f'<polygon points="{locus_path}" fill="rgba(40,50,70,0.5)" stroke="#4b5563" stroke-width="1.5"/>')
 
     # sRGB gamut triangle (red)
     sr = xy_to_svg(*SRGB_RED)
@@ -520,7 +520,7 @@ def _generate_cie_diagram_svg(
     sb = xy_to_svg(*SRGB_BLUE)
     lines.append(
         f'<polygon points="{sr[0]:.1f},{sr[1]:.1f} '
-        f'{sg[0]:.1f},{sg[1]:.1f} '
+        f"{sg[0]:.1f},{sg[1]:.1f} "
         f'{sb[0]:.1f},{sb[1]:.1f}" '
         f'fill="none" stroke="#ef4444" stroke-width="2" '
         f'stroke-dasharray="6,3" opacity="0.9"/>'
@@ -532,7 +532,7 @@ def _generate_cie_diagram_svg(
     pb = xy_to_svg(*panel_blue)
     lines.append(
         f'<polygon points="{pr[0]:.1f},{pr[1]:.1f} '
-        f'{pg[0]:.1f},{pg[1]:.1f} '
+        f"{pg[0]:.1f},{pg[1]:.1f} "
         f'{pb[0]:.1f},{pb[1]:.1f}" '
         f'fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2" '
         f'opacity="0.9"/>'
@@ -540,13 +540,8 @@ def _generate_cie_diagram_svg(
 
     # D65 white point marker
     wp = xy_to_svg(*D65_WHITE)
-    lines.append(
-        f'<circle cx="{wp[0]:.1f}" cy="{wp[1]:.1f}" r="5" '
-        f'fill="none" stroke="#ffffff" stroke-width="2"/>'
-    )
-    lines.append(
-        f'<circle cx="{wp[0]:.1f}" cy="{wp[1]:.1f}" r="2" fill="#ffffff"/>'
-    )
+    lines.append(f'<circle cx="{wp[0]:.1f}" cy="{wp[1]:.1f}" r="5" fill="none" stroke="#ffffff" stroke-width="2"/>')
+    lines.append(f'<circle cx="{wp[0]:.1f}" cy="{wp[1]:.1f}" r="2" fill="#ffffff"/>')
     lines.append(
         f'<text x="{wp[0] + 10:.1f}" y="{wp[1] - 6:.1f}" '
         f'fill="#ffffff" font-size="10" font-family="sans-serif">D65</text>'
@@ -554,16 +549,12 @@ def _generate_cie_diagram_svg(
 
     # Panel white point marker (if different from D65)
     pw = xy_to_svg(*panel_white)
-    dist = math.sqrt((panel_white[0] - D65_WHITE[0]) ** 2
-                     + (panel_white[1] - D65_WHITE[1]) ** 2)
+    dist = math.sqrt((panel_white[0] - D65_WHITE[0]) ** 2 + (panel_white[1] - D65_WHITE[1]) ** 2)
     if dist > 0.003:
         lines.append(
-            f'<circle cx="{pw[0]:.1f}" cy="{pw[1]:.1f}" r="4" '
-            f'fill="none" stroke="#00d2ff" stroke-width="1.5"/>'
+            f'<circle cx="{pw[0]:.1f}" cy="{pw[1]:.1f}" r="4" fill="none" stroke="#00d2ff" stroke-width="1.5"/>'
         )
-        lines.append(
-            f'<circle cx="{pw[0]:.1f}" cy="{pw[1]:.1f}" r="1.5" fill="#00d2ff"/>'
-        )
+        lines.append(f'<circle cx="{pw[0]:.1f}" cy="{pw[1]:.1f}" r="1.5" fill="#00d2ff"/>')
 
     # Legend
     legend_y = margin + 8
@@ -587,10 +578,7 @@ def _generate_cie_diagram_svg(
         f'fill="#3b82f6" font-size="10" font-family="sans-serif">Panel</text>'
     )
     legend_y += 18
-    lines.append(
-        f'<circle cx="{svg_w - margin - 90}" cy="{legend_y}" r="3" '
-        f'fill="#ffffff"/>'
-    )
+    lines.append(f'<circle cx="{svg_w - margin - 90}" cy="{legend_y}" r="3" fill="#ffffff"/>')
     lines.append(
         f'<text x="{svg_w - margin - 76}" y="{legend_y + 4}" '
         f'fill="#ffffff" font-size="10" font-family="sans-serif">D65</text>'
@@ -601,11 +589,11 @@ def _generate_cie_diagram_svg(
         f'<text x="{svg_w / 2}" y="{margin - 14}" '
         f'text-anchor="middle" fill="#9ca3af" font-size="12" '
         f'font-family="sans-serif" font-weight="500">'
-        f'CIE 1931 Chromaticity Diagram</text>'
+        f"CIE 1931 Chromaticity Diagram</text>"
     )
 
-    lines.append('</svg>')
-    return '\n'.join(lines)
+    lines.append("</svg>")
+    return "\n".join(lines)
 
 
 def _generate_gamma_curves_svg(
@@ -696,14 +684,11 @@ def _generate_gamma_curves_svg(
         points = []
         for i in range(num_points + 1):
             t = i / num_points
-            out = t ** gamma
+            out = t**gamma
             sx, sy = val_to_svg(t, out)
             points.append(f"{sx:.1f},{sy:.1f}")
         path_data = "M" + " L".join(points)
-        return (
-            f'<path d="{path_data}" fill="none" '
-            f'stroke="{color}" stroke-width="{width}" opacity="0.9"/>'
-        )
+        return f'<path d="{path_data}" fill="none" stroke="{color}" stroke-width="{width}" opacity="0.9"/>'
 
     # Target gamma (gray reference)
     lines.append(make_path(target_gamma, "#6b7280", "1.5"))
@@ -732,7 +717,7 @@ def _generate_gamma_curves_svg(
         lines.append(
             f'<text x="{legend_x + 20}" y="{legend_y + 4}" '
             f'fill="{color}" font-size="9" font-family="sans-serif">'
-            f'{label}</text>'
+            f"{label}</text>"
         )
         legend_y += 14
 
@@ -741,16 +726,17 @@ def _generate_gamma_curves_svg(
         f'<text x="{svg_w / 2}" y="{margin_t - 10}" '
         f'text-anchor="middle" fill="#9ca3af" font-size="12" '
         f'font-family="sans-serif" font-weight="500">'
-        f'Per-Channel Gamma Curves</text>'
+        f"Per-Channel Gamma Curves</text>"
     )
 
-    lines.append('</svg>')
-    return '\n'.join(lines)
+    lines.append("</svg>")
+    return "\n".join(lines)
 
 
 # =============================================================================
 # HTML Section Builders
 # =============================================================================
+
 
 def _build_header(
     display_name: str,
@@ -834,24 +820,19 @@ def _build_summary_section(
             if key in ("status", "original_settings", "error"):
                 continue
             if isinstance(val, (tuple, list)) and len(val) == 2:
-                ddc_items.append(
-                    f"<tr><td>{_html_escape(key)}</td>"
-                    f"<td>{val[0]} &rarr; {val[1]}</td></tr>"
-                )
+                ddc_items.append(f"<tr><td>{_html_escape(key)}</td><td>{val[0]} &rarr; {val[1]}</td></tr>")
         if ddc_items:
             ddc_html = f"""
     <h3>DDC/CI Adjustments</h3>
     <p style="color:#a0a0b8;font-size:13px;">{_html_escape(ddc_status)}</p>
     <table class="ddc-table">
         <tr><th>Setting</th><th>Change</th></tr>
-        {''.join(ddc_items)}
+        {"".join(ddc_items)}
     </table>
 """
         else:
             ddc_html = (
-                f'<h3>DDC/CI Adjustments</h3>'
-                f'<p style="color:#a0a0b8;font-size:13px;">'
-                f'{_html_escape(ddc_status)}</p>'
+                f'<h3>DDC/CI Adjustments</h3><p style="color:#a0a0b8;font-size:13px;">{_html_escape(ddc_status)}</p>'
             )
 
     return f"""
@@ -897,10 +878,7 @@ def _build_summary_section(
 """
 
 
-def _build_gamut_coverage_html(
-    coverage: dict[str, float] | None,
-    color_volume: dict | None = None
-) -> str:
+def _build_gamut_coverage_html(coverage: dict[str, float] | None, color_volume: dict | None = None) -> str:
     """Build gamut coverage and color volume section HTML."""
     if not coverage:
         return ""
@@ -922,19 +900,19 @@ def _build_gamut_coverage_html(
     <h3>Gamut Coverage (2D Area)</h3>
     <div style="display:grid;grid-template-columns:100px 1fr 60px;gap:6px;align-items:center;max-width:500px;">
         <span style="color:#a0a0b8;">sRGB</span>
-        {bar(srgb, '#4cc9f0')}
+        {bar(srgb, "#4cc9f0")}
         <span style="color:#e0e0e8;font-weight:bold;">{srgb:.1f}%</span>
 
         <span style="color:#a0a0b8;">DCI-P3</span>
-        {bar(p3, '#f72585')}
+        {bar(p3, "#f72585")}
         <span style="color:#e0e0e8;font-weight:bold;">{p3:.1f}%</span>
 
         <span style="color:#a0a0b8;">BT.2020</span>
-        {bar(bt2020, '#7209b7')}
+        {bar(bt2020, "#7209b7")}
         <span style="color:#e0e0e8;font-weight:bold;">{bt2020:.1f}%</span>
 
         <span style="color:#a0a0b8;">vs sRGB</span>
-        {bar(min(rel, 200) / 2, '#4361ee')}
+        {bar(min(rel, 200) / 2, "#4361ee")}
         <span style="color:#e0e0e8;font-weight:bold;">{rel:.0f}%</span>
     </div>
 """
@@ -953,19 +931,19 @@ def _build_gamut_coverage_html(
     </p>
     <div style="display:grid;grid-template-columns:100px 1fr 60px;gap:6px;align-items:center;max-width:500px;">
         <span style="color:#a0a0b8;">sRGB</span>
-        {bar(v_srgb, '#4cc9f0')}
+        {bar(v_srgb, "#4cc9f0")}
         <span style="color:#e0e0e8;font-weight:bold;">{v_srgb:.1f}%</span>
 
         <span style="color:#a0a0b8;">DCI-P3</span>
-        {bar(v_p3, '#f72585')}
+        {bar(v_p3, "#f72585")}
         <span style="color:#e0e0e8;font-weight:bold;">{v_p3:.1f}%</span>
 
         <span style="color:#a0a0b8;">BT.2020</span>
-        {bar(v_bt2020, '#7209b7')}
+        {bar(v_bt2020, "#7209b7")}
         <span style="color:#e0e0e8;font-weight:bold;">{v_bt2020:.1f}%</span>
 
         <span style="color:#a0a0b8;">vs sRGB</span>
-        {bar(min(v_rel, 200) / 2, '#4361ee')}
+        {bar(min(v_rel, 200) / 2, "#4361ee")}
         <span style="color:#e0e0e8;font-weight:bold;">{v_rel:.0f}%</span>
     </div>
 """
@@ -984,8 +962,7 @@ def _build_gamut_coverage_html(
                 x = i * bar_w
                 y = svg_h - 10 - h
                 bars_svg += (
-                    f'<rect x="{x + 1}" y="{y}" width="{bar_w - 2}" height="{h}" '
-                    f'fill="#4cc9f0" opacity="0.7" rx="2"/>'
+                    f'<rect x="{x + 1}" y="{y}" width="{bar_w - 2}" height="{h}" fill="#4cc9f0" opacity="0.7" rx="2"/>'
                 )
 
             html += f"""
@@ -1033,15 +1010,9 @@ def _build_patch_table_section(
         ref_hex = _srgb_to_hex(*ref_srgb)
         pred_hex = _srgb_to_hex(*pred_srgb)
 
-        ref_str = (
-            f"{int(round(ref_srgb[0] * 255))}, "
-            f"{int(round(ref_srgb[1] * 255))}, "
-            f"{int(round(ref_srgb[2] * 255))}"
-        )
+        ref_str = f"{int(round(ref_srgb[0] * 255))}, {int(round(ref_srgb[1] * 255))}, {int(round(ref_srgb[2] * 255))}"
         pred_str = (
-            f"{int(round(pred_srgb[0] * 255))}, "
-            f"{int(round(pred_srgb[1] * 255))}, "
-            f"{int(round(pred_srgb[2] * 255))}"
+            f"{int(round(pred_srgb[0] * 255))}, {int(round(pred_srgb[1] * 255))}, {int(round(pred_srgb[2] * 255))}"
         )
 
         # Status
@@ -1084,7 +1055,7 @@ def _build_patch_table_section(
             </tr>
         </thead>
         <tbody>
-            {''.join(rows)}
+            {"".join(rows)}
         </tbody>
     </table>
 </div>
@@ -1144,6 +1115,7 @@ def _build_whitepoint_section(
 # HTML Escaping
 # =============================================================================
 
+
 def _html_escape(text: str) -> str:
     """Escape HTML special characters."""
     return (
@@ -1159,6 +1131,7 @@ def _html_escape(text: str) -> str:
 # =============================================================================
 # Main Report Generator
 # =============================================================================
+
 
 def generate_calibration_report(
     result: Any,
@@ -1220,9 +1193,7 @@ def generate_calibration_report(
     ddc_changes = getattr(result, "ddc_changes_made", {})
 
     manufacturer = panel.manufacturer
-    model_name = panel_matched or (
-        manufacturer + " " + panel.model_pattern.split("|")[0]
-    )
+    model_name = panel_matched or (manufacturer + " " + panel.model_pattern.split("|")[0])
 
     # Verification data
     patches = verification.get("patches", [])
@@ -1237,17 +1208,20 @@ def generate_calibration_report(
 
     # Build HTML sections
     header = _build_header(display_name, panel_info, report_date)
-    cie_section = _build_cie_diagram_section(
-        panel_red, panel_green, panel_blue, panel_white
-    )
+    cie_section = _build_cie_diagram_section(panel_red, panel_green, panel_blue, panel_white)
     gamut_coverage = verification.get("gamut_coverage")
     color_volume = verification.get("color_volume")
     cam16_de_avg = verification.get("cam16_delta_e_avg", 0.0)
 
     summary_section = _build_summary_section(
-        model_name, panel_type, manufacturer,
-        delta_e_avg, delta_e_max, grade,
-        lut_method, ddc_changes,
+        model_name,
+        panel_type,
+        manufacturer,
+        delta_e_avg,
+        delta_e_max,
+        grade,
+        lut_method,
+        ddc_changes,
         gamut_coverage=gamut_coverage,
         cam16_delta_e_avg=cam16_de_avg,
         color_volume=color_volume,

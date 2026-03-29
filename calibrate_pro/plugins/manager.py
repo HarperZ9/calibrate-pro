@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PluginInfo:
     """Metadata describing a discovered plugin."""
+
     name: str
     version: str
     author: str
@@ -238,6 +239,7 @@ class PluginManager:
         """Discover plugins registered via setuptools entry_points."""
         try:
             from importlib.metadata import entry_points
+
             eps = entry_points(group="calibrate_pro.plugins")
 
             for ep in eps:
@@ -339,6 +341,7 @@ class PluginManager:
 # ---------------------------------------------------------------------------
 # CLI helper
 # ---------------------------------------------------------------------------
+
 
 def print_discovered_plugins(plugin_dirs: list[str] | None = None) -> None:
     """

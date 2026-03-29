@@ -20,6 +20,7 @@ import numpy as np
 
 class CTLResult(IntEnum):
     """Intel Control Library result codes."""
+
     SUCCESS = 0
     ERROR_UNKNOWN = -1
     ERROR_NOT_INITIALIZED = -2
@@ -33,6 +34,7 @@ class CTLResult(IntEnum):
 @dataclass
 class IntelDisplay:
     """Intel display information."""
+
     adapter_handle: int
     display_handle: int
     name: str
@@ -45,6 +47,7 @@ class IntelDisplay:
 
 class IntelAPIError(Exception):
     """Intel API error."""
+
     pass
 
 
@@ -98,7 +101,7 @@ class IntelAPI:
         """Initialize the control library API."""
         try:
             # ctlInit - Initialize the control library
-            if hasattr(self._ctl, 'ctlInit'):
+            if hasattr(self._ctl, "ctlInit"):
                 init_args = ctypes.c_void_p()
                 handle = ctypes.c_void_p()
 
@@ -129,33 +132,27 @@ class IntelAPI:
 
         try:
             # ctlEnumerateDevices
-            if hasattr(self._ctl, 'ctlEnumerateDevices'):
+            if hasattr(self._ctl, "ctlEnumerateDevices"):
                 device_count = ctypes.c_uint32()
-                self._ctl.ctlEnumerateDevices(
-                    self._api_handle,
-                    ctypes.byref(device_count),
-                    None
-                )
+                self._ctl.ctlEnumerateDevices(self._api_handle, ctypes.byref(device_count), None)
 
                 # Get device handles
                 devices = (ctypes.c_void_p * device_count.value)()
-                self._ctl.ctlEnumerateDevices(
-                    self._api_handle,
-                    ctypes.byref(device_count),
-                    devices
-                )
+                self._ctl.ctlEnumerateDevices(self._api_handle, ctypes.byref(device_count), devices)
 
                 for i, device in enumerate(devices):
-                    self._displays.append(IntelDisplay(
-                        adapter_handle=int(device),
-                        display_handle=i,
-                        name=f"Intel Display {i}",
-                        is_primary=(i == 0),
-                        resolution=(0, 0),
-                        refresh_rate=60.0,
-                        is_hdr=False,
-                        is_arc=False
-                    ))
+                    self._displays.append(
+                        IntelDisplay(
+                            adapter_handle=int(device),
+                            display_handle=i,
+                            name=f"Intel Display {i}",
+                            is_primary=(i == 0),
+                            resolution=(0, 0),
+                            refresh_rate=60.0,
+                            is_hdr=False,
+                            is_arc=False,
+                        )
+                    )
 
         except Exception:
             self._detect_displays_windows()
@@ -185,16 +182,18 @@ class IntelAPI:
                     # Check if Intel
                     if any(x in device_id_lower for x in ["intel", "8086"]):
                         is_arc = "arc" in device.DeviceString.lower()
-                        self._displays.append(IntelDisplay(
-                            adapter_handle=0,
-                            display_handle=i,
-                            name=device.DeviceString,
-                            is_primary=bool(device.StateFlags & 0x00000004),
-                            resolution=(0, 0),
-                            refresh_rate=60.0,
-                            is_hdr=False,
-                            is_arc=is_arc
-                        ))
+                        self._displays.append(
+                            IntelDisplay(
+                                adapter_handle=0,
+                                display_handle=i,
+                                name=device.DeviceString,
+                                is_primary=bool(device.StateFlags & 0x00000004),
+                                resolution=(0, 0),
+                                refresh_rate=60.0,
+                                is_hdr=False,
+                                is_arc=is_arc,
+                            )
+                        )
                 i += 1
 
         except Exception:
@@ -210,13 +209,7 @@ class IntelAPI:
         """Get list of Intel displays."""
         return self._displays
 
-    def load_gamma_ramp(
-        self,
-        display_index: int,
-        r: np.ndarray,
-        g: np.ndarray,
-        b: np.ndarray
-    ) -> bool:
+    def load_gamma_ramp(self, display_index: int, r: np.ndarray, g: np.ndarray, b: np.ndarray) -> bool:
         """
         Load gamma ramp.
 
@@ -232,7 +225,7 @@ class IntelAPI:
 
         try:
             # Try Intel API first
-            if self._ctl and hasattr(self._ctl, 'ctlSetGammaRamp'):
+            if self._ctl and hasattr(self._ctl, "ctlSetGammaRamp"):
                 # Would use ctlSetGammaRamp or similar
                 pass
 
@@ -242,26 +235,17 @@ class IntelAPI:
         except Exception:
             return False
 
-    def _apply_via_windows(
-        self,
-        display_id: int,
-        r: np.ndarray,
-        g: np.ndarray,
-        b: np.ndarray
-    ) -> bool:
+    def _apply_via_windows(self, display_id: int, r: np.ndarray, g: np.ndarray, b: np.ndarray) -> bool:
         """Apply via Windows gamma ramp."""
         try:
             from calibrate_pro.lut_system.dwm_lut import GammaRampController
+
             controller = GammaRampController()
             return controller.set_gamma_ramp(display_id, r, g, b)
         except Exception:
             return False
 
-    def load_3d_lut(
-        self,
-        display_index: int,
-        lut_data: np.ndarray
-    ) -> bool:
+    def load_3d_lut(self, display_index: int, lut_data: np.ndarray) -> bool:
         """
         Load 3D LUT.
 
@@ -288,17 +272,14 @@ class IntelAPI:
         # Fall back to DWM LUT
         try:
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
             controller = DwmLutController()
             return controller.load_lut(display_index, lut_data)
         except Exception:
             return False
 
     def set_color_enhancement(
-        self,
-        display_index: int,
-        saturation: float = 1.0,
-        contrast: float = 1.0,
-        brightness: float = 0.0
+        self, display_index: int, saturation: float = 1.0, contrast: float = 1.0, brightness: float = 0.0
     ) -> bool:
         """
         Set Intel display color enhancement.
@@ -334,15 +315,9 @@ class IntelAPI:
             "display_count": len(self._displays),
             "has_arc": any(d.is_arc for d in self._displays),
             "displays": [
-                {
-                    "id": d.display_handle,
-                    "name": d.name,
-                    "primary": d.is_primary,
-                    "arc": d.is_arc,
-                    "hdr": d.is_hdr
-                }
+                {"id": d.display_handle, "name": d.name, "primary": d.is_primary, "arc": d.is_arc, "hdr": d.is_hdr}
                 for d in self._displays
-            ]
+            ],
         }
 
     def reset_lut(self, display_index: int) -> bool:
@@ -354,7 +329,7 @@ class IntelAPI:
         """Clean up Intel API resources."""
         if self._initialized and self._ctl:
             try:
-                if hasattr(self._ctl, 'ctlClose') and self._api_handle:
+                if hasattr(self._ctl, "ctlClose") and self._api_handle:
                     self._ctl.ctlClose(self._api_handle)
             except Exception:
                 pass

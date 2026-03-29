@@ -43,6 +43,7 @@ import numpy as np
 # CGATS parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_cgats_keywords(text: str) -> dict[str, str]:
     """
     Extract KEYWORD/value pairs from CGATS header lines.
@@ -66,7 +67,7 @@ def _parse_cgats_keywords(text: str) -> dict[str, str]:
         if m:
             keywords[m.group(1).upper()] = m.group(2)
         else:
-            m = re.match(r'^(\w+)\s+(.+)', line)
+            m = re.match(r"^(\w+)\s+(.+)", line)
             if m:
                 key = m.group(1).upper()
                 val = m.group(2).strip().strip('"')
@@ -120,6 +121,7 @@ def _extract_data_block(text: str) -> tuple[list[str], list[list[str]]]:
 # CCMX loading
 # ---------------------------------------------------------------------------
 
+
 def load_ccmx(path: str | Path) -> np.ndarray:
     """
     Load a CCMX (Colorimeter Correction Matrix) file.
@@ -145,9 +147,7 @@ def load_ccmx(path: str | Path) -> np.ndarray:
     _, rows = _extract_data_block(text)
 
     if len(rows) < 3:
-        raise ValueError(
-            f"CCMX file must contain at least 3 data rows, got {len(rows)}"
-        )
+        raise ValueError(f"CCMX file must contain at least 3 data rows, got {len(rows)}")
 
     matrix_rows: list[list[float]] = []
     for row in rows[:3]:
@@ -160,9 +160,7 @@ def load_ccmx(path: str | Path) -> np.ndarray:
             except ValueError:
                 continue
         if len(floats) < 3:
-            raise ValueError(
-                f"Expected at least 3 numeric values per row, got {len(floats)}: {row}"
-            )
+            raise ValueError(f"Expected at least 3 numeric values per row, got {len(floats)}: {row}")
         # Take the last 3 values (handles optional leading index column)
         matrix_rows.append(floats[-3:])
 
@@ -172,6 +170,7 @@ def load_ccmx(path: str | Path) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # CCSS loading
 # ---------------------------------------------------------------------------
+
 
 def load_ccss(path: str | Path) -> dict:
     """
@@ -213,10 +212,7 @@ def load_ccss(path: str | Path) -> dict:
             spec_indices.append((i, float(m.group(1))))
 
     if not spec_indices:
-        raise ValueError(
-            "No SPEC_* columns found in CCSS file. "
-            f"Fields: {fields}"
-        )
+        raise ValueError(f"No SPEC_* columns found in CCSS file. Fields: {fields}")
 
     # Sort by wavelength
     spec_indices.sort(key=lambda x: x[1])
@@ -252,6 +248,7 @@ def load_ccss(path: str | Path) -> dict:
 # Applying corrections
 # ---------------------------------------------------------------------------
 
+
 def apply_ccmx(xyz: np.ndarray, ccmx: np.ndarray) -> np.ndarray:
     """
     Apply a CCMX correction matrix to XYZ measurements.
@@ -274,7 +271,6 @@ def apply_ccmx(xyz: np.ndarray, ccmx: np.ndarray) -> np.ndarray:
     if ccmx.shape != (3, 3):
         raise ValueError(f"CCMX must be (3, 3), got {ccmx.shape}")
 
-
     if xyz.ndim == 1:
         return ccmx @ xyz
     elif xyz.ndim == 2:
@@ -293,6 +289,7 @@ def apply_ccmx(xyz: np.ndarray, ccmx: np.ndarray) -> np.ndarray:
 # Built-in corrections
 # ---------------------------------------------------------------------------
 
+
 def _get_qdoled_ccmx() -> np.ndarray:
     """
     Return the built-in QD-OLED CCMX from the native calibration loop.
@@ -302,6 +299,7 @@ def _get_qdoled_ccmx() -> np.ndarray:
     primaries.
     """
     from calibrate_pro.calibration.native_loop import QDOLED_CCMX
+
     return QDOLED_CCMX.copy()
 
 
@@ -332,13 +330,15 @@ def list_builtin_corrections() -> list:
     """
     result = []
     for name, info in _BUILTIN_CORRECTIONS.items():
-        result.append({
-            "name": name,
-            "display": info["display"],
-            "technology": info["technology"],
-            "reference": info["reference"],
-            "colorimeter": info["colorimeter"],
-        })
+        result.append(
+            {
+                "name": name,
+                "display": info["display"],
+                "technology": info["technology"],
+                "reference": info["reference"],
+                "colorimeter": info["colorimeter"],
+            }
+        )
     return result
 
 
@@ -357,8 +357,5 @@ def get_builtin_ccmx(name: str) -> np.ndarray:
     """
     if name not in _BUILTIN_CORRECTIONS:
         available = list(_BUILTIN_CORRECTIONS.keys())
-        raise KeyError(
-            f"Unknown built-in correction '{name}'. "
-            f"Available: {available}"
-        )
+        raise KeyError(f"Unknown built-in correction '{name}'. Available: {available}")
     return _BUILTIN_CORRECTIONS[name]["loader"]()

@@ -18,33 +18,38 @@ import numpy as np
 # Enums
 # =============================================================================
 
+
 class GrayscaleGrade(Enum):
     """Grayscale verification quality grade."""
-    REFERENCE = auto()      # Broadcast reference (<1 ΔE, <50K CCT deviation)
-    EXCELLENT = auto()      # Professional (<2 ΔE, <100K CCT deviation)
-    GOOD = auto()           # Content creation (<3 ΔE, <200K CCT deviation)
-    ACCEPTABLE = auto()     # General use (<5 ΔE, <300K CCT deviation)
-    POOR = auto()           # Needs calibration
+
+    REFERENCE = auto()  # Broadcast reference (<1 ΔE, <50K CCT deviation)
+    EXCELLENT = auto()  # Professional (<2 ΔE, <100K CCT deviation)
+    GOOD = auto()  # Content creation (<3 ΔE, <200K CCT deviation)
+    ACCEPTABLE = auto()  # General use (<5 ΔE, <300K CCT deviation)
+    POOR = auto()  # Needs calibration
 
 
 class GammaType(Enum):
     """Target gamma/EOTF type."""
-    POWER_LAW = auto()      # Simple power law (gamma 2.2, 2.4, etc.)
-    SRGB = auto()           # sRGB EOTF (IEC 61966-2-1)
-    BT1886 = auto()         # BT.1886 EOTF (ITU-R BT.1886)
-    L_STAR = auto()         # L* response (CIE L*)
-    HLG = auto()            # Hybrid Log-Gamma (ITU-R BT.2100)
-    PQ = auto()             # Perceptual Quantizer ST.2084
+
+    POWER_LAW = auto()  # Simple power law (gamma 2.2, 2.4, etc.)
+    SRGB = auto()  # sRGB EOTF (IEC 61966-2-1)
+    BT1886 = auto()  # BT.1886 EOTF (ITU-R BT.1886)
+    L_STAR = auto()  # L* response (CIE L*)
+    HLG = auto()  # Hybrid Log-Gamma (ITU-R BT.2100)
+    PQ = auto()  # Perceptual Quantizer ST.2084
 
 
 # =============================================================================
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class GrayscalePatch:
     """Single grayscale patch measurement result."""
-    level: int              # Input level (0-100%)
+
+    level: int  # Input level (0-100%)
     input_rgb: tuple[int, int, int]  # Stimulus RGB (0-255)
 
     # Measured values
@@ -59,20 +64,20 @@ class GrayscalePatch:
 
     # Color accuracy
     delta_e_2000: float
-    delta_l: float          # Lightness error
-    delta_uv: float         # Chromaticity error (Δu'v')
+    delta_l: float  # Lightness error
+    delta_uv: float  # Chromaticity error (Δu'v')
 
     # RGB balance
     rgb_balance_error: float  # Max RGB deviation
-    r_ratio: float          # R channel relative to Y
-    g_ratio: float          # G channel relative to Y
-    b_ratio: float          # B channel relative to Y
+    r_ratio: float  # R channel relative to Y
+    g_ratio: float  # G channel relative to Y
+    b_ratio: float  # B channel relative to Y
 
     # Correlated Color Temperature
     measured_cct: float
     target_cct: float
-    cct_error: float        # Delta CCT (Kelvin)
-    duv: float              # Distance from Planckian locus
+    cct_error: float  # Delta CCT (Kelvin)
+    duv: float  # Distance from Planckian locus
 
     # Gamma tracking
     measured_gamma: float
@@ -88,6 +93,7 @@ class GrayscalePatch:
 @dataclass
 class GrayscaleRegionAnalysis:
     """Analysis for specific grayscale region (shadows, mids, highlights)."""
+
     region_name: str
     level_range: tuple[int, int]
     patch_count: int
@@ -112,6 +118,7 @@ class GrayscaleRegionAnalysis:
 @dataclass
 class GrayscaleResult:
     """Complete grayscale verification result."""
+
     patch_measurements: list[GrayscalePatch]
     region_analysis: dict[str, GrayscaleRegionAnalysis]
 
@@ -120,7 +127,7 @@ class GrayscaleResult:
     target_gamma_type: GammaType
     target_gamma_value: float  # 2.2, 2.4, etc. (for power law)
     target_luminance: float  # Peak white in cd/m²
-    target_black: float     # Black level in cd/m²
+    target_black: float  # Black level in cd/m²
 
     # Overall statistics
     delta_e_mean: float
@@ -169,6 +176,7 @@ class GrayscaleResult:
 # EOTF Functions
 # =============================================================================
 
+
 def gamma_power_law(x: np.ndarray, gamma: float = 2.2) -> np.ndarray:
     """Simple power law gamma: Y = X^gamma"""
     return np.power(np.clip(x, 0, 1), gamma)
@@ -177,15 +185,10 @@ def gamma_power_law(x: np.ndarray, gamma: float = 2.2) -> np.ndarray:
 def gamma_srgb(x: np.ndarray) -> np.ndarray:
     """sRGB EOTF (IEC 61966-2-1)."""
     x = np.clip(x, 0, 1)
-    return np.where(
-        x <= 0.04045,
-        x / 12.92,
-        np.power((x + 0.055) / 1.055, 2.4)
-    )
+    return np.where(x <= 0.04045, x / 12.92, np.power((x + 0.055) / 1.055, 2.4))
 
 
-def gamma_bt1886(x: np.ndarray, gamma: float = 2.4,
-                  Lw: float = 100.0, Lb: float = 0.0) -> np.ndarray:
+def gamma_bt1886(x: np.ndarray, gamma: float = 2.4, Lw: float = 100.0, Lb: float = 0.0) -> np.ndarray:
     """
     BT.1886 EOTF (ITU-R BT.1886).
 
@@ -199,8 +202,8 @@ def gamma_bt1886(x: np.ndarray, gamma: float = 2.4,
         Linear light output
     """
     x = np.clip(x, 0, 1)
-    a = np.power(Lw ** (1/gamma) - Lb ** (1/gamma), gamma)
-    b = Lb ** (1/gamma) / (Lw ** (1/gamma) - Lb ** (1/gamma))
+    a = np.power(Lw ** (1 / gamma) - Lb ** (1 / gamma), gamma)
+    b = Lb ** (1 / gamma) / (Lw ** (1 / gamma) - Lb ** (1 / gamma))
     return a * np.power(np.maximum(x + b, 0), gamma)
 
 
@@ -208,11 +211,7 @@ def gamma_l_star(x: np.ndarray) -> np.ndarray:
     """L* perceptual response (CIE L*)."""
     x = np.clip(x, 0, 1)
     delta = 6 / 29
-    return np.where(
-        x > delta**3,
-        np.power(x, 1/3),
-        x / (3 * delta**2) + 4/29
-    )
+    return np.where(x > delta**3, np.power(x, 1 / 3), x / (3 * delta**2) + 4 / 29)
 
 
 def calculate_gamma_at_level(input_level: float, output_level: float) -> float:
@@ -236,6 +235,7 @@ def calculate_gamma_at_level(input_level: float, output_level: float) -> float:
 # =============================================================================
 # Color Temperature Functions
 # =============================================================================
+
 
 def xy_to_cct(x: float, y: float) -> tuple[float, float]:
     """
@@ -261,7 +261,7 @@ def xy_to_cct(x: float, y: float) -> tuple[float, float]:
     # Planckian locus approximation at CCT
     u_p, v_p = cct_to_uv(CCT)
 
-    duv = np.sqrt((u_prime - u_p)**2 + (v_prime - v_p)**2)
+    duv = np.sqrt((u_prime - u_p) ** 2 + (v_prime - v_p) ** 2)
 
     # Sign of Duv (above or below Planckian)
     if v_prime < v_p:
@@ -289,18 +289,16 @@ def cct_to_uv(cct: float) -> tuple[float, float]:
     T = cct
 
     if T <= 4000:
-        x = (-0.2661239e9 / T**3 - 0.2343589e6 / T**2 +
-             0.8776956e3 / T + 0.179910)
+        x = -0.2661239e9 / T**3 - 0.2343589e6 / T**2 + 0.8776956e3 / T + 0.179910
     else:
-        x = (-3.0258469e9 / T**3 + 2.1070379e6 / T**2 +
-             0.2226347e3 / T + 0.240390)
+        x = -3.0258469e9 / T**3 + 2.1070379e6 / T**2 + 0.2226347e3 / T + 0.240390
 
     if T <= 2222:
-        y = (-1.1063814 * x**3 - 1.34811020 * x**2 + 2.18555832 * x - 0.20219683)
+        y = -1.1063814 * x**3 - 1.34811020 * x**2 + 2.18555832 * x - 0.20219683
     elif T <= 4000:
-        y = (-0.9549476 * x**3 - 1.37418593 * x**2 + 2.09137015 * x - 0.16748867)
+        y = -0.9549476 * x**3 - 1.37418593 * x**2 + 2.09137015 * x - 0.16748867
     else:
-        y = (3.0817580 * x**3 - 5.87338670 * x**2 + 3.75112997 * x - 0.37001483)
+        y = 3.0817580 * x**3 - 5.87338670 * x**2 + 3.75112997 * x - 0.37001483
 
     # Convert xy to u'v'
     u_prime = 4 * x / (-2 * x + 12 * y + 3)
@@ -331,12 +329,13 @@ def xyz_to_uv(xyz: tuple[float, float, float]) -> tuple[float, float]:
 
 def delta_uv(uv1: tuple[float, float], uv2: tuple[float, float]) -> float:
     """Calculate Δu'v' between two chromaticities."""
-    return np.sqrt((uv2[0] - uv1[0])**2 + (uv2[1] - uv1[1])**2)
+    return np.sqrt((uv2[0] - uv1[0]) ** 2 + (uv2[1] - uv1[1]) ** 2)
 
 
 # =============================================================================
 # Grayscale Grade Functions
 # =============================================================================
+
 
 def grade_from_grayscale(delta_e: float, cct_deviation: float) -> GrayscaleGrade:
     """Determine grayscale grade from ΔE and CCT deviation."""
@@ -367,8 +366,8 @@ def grade_to_string(grade: GrayscaleGrade) -> str:
 # Lab Conversion
 # =============================================================================
 
-def xyz_to_lab(xyz: tuple[float, float, float],
-               illuminant: str = "D65") -> tuple[float, float, float]:
+
+def xyz_to_lab(xyz: tuple[float, float, float], illuminant: str = "D65") -> tuple[float, float, float]:
     """Convert XYZ to Lab."""
     white_points = {
         "D50": (96.422, 100.0, 82.521),
@@ -385,7 +384,7 @@ def xyz_to_lab(xyz: tuple[float, float, float],
     def f(t):
         delta = 6 / 29
         if t > delta**3:
-            return t ** (1/3)
+            return t ** (1 / 3)
         else:
             return t / (3 * delta**2) + 4 / 29
 
@@ -396,8 +395,7 @@ def xyz_to_lab(xyz: tuple[float, float, float],
     return (L, a, b)
 
 
-def delta_e_2000(lab1: tuple[float, float, float],
-                 lab2: tuple[float, float, float]) -> float:
+def delta_e_2000(lab1: tuple[float, float, float], lab2: tuple[float, float, float]) -> float:
     """Calculate CIEDE2000 Delta E."""
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
@@ -437,26 +435,29 @@ def delta_e_2000(lab1: tuple[float, float, float],
         h_prime_sum += 360
     h_prime_avg = h_prime_sum / 2
 
-    T = (1 - 0.17 * np.cos(np.radians(h_prime_avg - 30)) +
-         0.24 * np.cos(np.radians(2 * h_prime_avg)) +
-         0.32 * np.cos(np.radians(3 * h_prime_avg + 6)) -
-         0.20 * np.cos(np.radians(4 * h_prime_avg - 63)))
+    T = (
+        1
+        - 0.17 * np.cos(np.radians(h_prime_avg - 30))
+        + 0.24 * np.cos(np.radians(2 * h_prime_avg))
+        + 0.32 * np.cos(np.radians(3 * h_prime_avg + 6))
+        - 0.20 * np.cos(np.radians(4 * h_prime_avg - 63))
+    )
 
-    delta_theta = 30 * np.exp(-((h_prime_avg - 275) / 25)**2)
+    delta_theta = 30 * np.exp(-(((h_prime_avg - 275) / 25) ** 2))
 
     R_C = 2 * np.sqrt(C_prime_avg**7 / (C_prime_avg**7 + 25**7))
 
-    S_L = 1 + (0.015 * (L_prime_avg - 50)**2) / np.sqrt(20 + (L_prime_avg - 50)**2)
+    S_L = 1 + (0.015 * (L_prime_avg - 50) ** 2) / np.sqrt(20 + (L_prime_avg - 50) ** 2)
     S_C = 1 + 0.045 * C_prime_avg
     S_H = 1 + 0.015 * C_prime_avg * T
 
     R_T = -np.sin(np.radians(2 * delta_theta)) * R_C
 
     delta_E = np.sqrt(
-        (delta_L_prime / S_L)**2 +
-        (delta_C_prime / S_C)**2 +
-        (delta_H_prime / S_H)**2 +
-        R_T * (delta_C_prime / S_C) * (delta_H_prime / S_H)
+        (delta_L_prime / S_L) ** 2
+        + (delta_C_prime / S_C) ** 2
+        + (delta_H_prime / S_H) ** 2
+        + R_T * (delta_C_prime / S_C) * (delta_H_prime / S_H)
     )
 
     return delta_E
@@ -465,6 +466,7 @@ def delta_e_2000(lab1: tuple[float, float, float],
 # =============================================================================
 # Grayscale Verification Class
 # =============================================================================
+
 
 class GrayscaleVerifier:
     """
@@ -496,12 +498,14 @@ class GrayscaleVerifier:
         "DCI-P3": (0.314, 0.351),
     }
 
-    def __init__(self,
-                 target_whitepoint: str = "D65",
-                 target_gamma_type: GammaType = GammaType.BT1886,
-                 target_gamma_value: float = 2.4,
-                 target_luminance: float = 100.0,
-                 target_black: float = 0.05):
+    def __init__(
+        self,
+        target_whitepoint: str = "D65",
+        target_gamma_type: GammaType = GammaType.BT1886,
+        target_gamma_value: float = 2.4,
+        target_luminance: float = 100.0,
+        target_black: float = 0.05,
+    ):
         """
         Initialize grayscale verifier.
 
@@ -538,10 +542,7 @@ class GrayscaleVerifier:
             output = gamma_srgb(np.array([normalized]))[0]
         elif self.target_gamma_type == GammaType.BT1886:
             return gamma_bt1886(
-                np.array([normalized]),
-                self.target_gamma_value,
-                self.target_luminance,
-                self.target_black
+                np.array([normalized]), self.target_gamma_value, self.target_luminance, self.target_black
             )[0]
         elif self.target_gamma_type == GammaType.L_STAR:
             output = gamma_l_star(np.array([normalized]))[0]
@@ -551,10 +552,9 @@ class GrayscaleVerifier:
         # Scale to luminance range
         return self.target_black + output * (self.target_luminance - self.target_black)
 
-    def verify(self,
-               measurements: list[tuple[int, tuple[float, float, float]]],
-               display_name: str = "",
-               profile_name: str = "") -> GrayscaleResult:
+    def verify(
+        self, measurements: list[tuple[int, tuple[float, float, float]]], display_name: str = "", profile_name: str = ""
+    ) -> GrayscaleResult:
         """
         Perform grayscale verification.
 
@@ -620,12 +620,17 @@ class GrayscaleVerifier:
 
         # Determine grades
         overall_grade = grade_from_grayscale(delta_e_mean, abs(cct_mean - self._target_cct))
-        shadow_grade = region_analysis.get("shadows",
-            GrayscaleRegionAnalysis("shadows", (0, 20), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR)).grade
-        midtone_grade = region_analysis.get("midtones",
-            GrayscaleRegionAnalysis("midtones", (25, 75), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR)).grade
-        highlight_grade = region_analysis.get("highlights",
-            GrayscaleRegionAnalysis("highlights", (80, 100), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR)).grade
+        shadow_grade = region_analysis.get(
+            "shadows", GrayscaleRegionAnalysis("shadows", (0, 20), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR)
+        ).grade
+        midtone_grade = region_analysis.get(
+            "midtones",
+            GrayscaleRegionAnalysis("midtones", (25, 75), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR),
+        ).grade
+        highlight_grade = region_analysis.get(
+            "highlights",
+            GrayscaleRegionAnalysis("highlights", (80, 100), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, GrayscaleGrade.POOR),
+        ).grade
 
         return GrayscaleResult(
             patch_measurements=patch_measurements,
@@ -657,8 +662,9 @@ class GrayscaleVerifier:
             profile_name=profile_name,
         )
 
-    def _analyze_patch(self, level: int, measured_xyz: tuple[float, float, float],
-                       peak_luminance: float, black_level: float) -> GrayscalePatch:
+    def _analyze_patch(
+        self, level: int, measured_xyz: tuple[float, float, float], peak_luminance: float, black_level: float
+    ) -> GrayscalePatch:
         """Analyze single grayscale patch."""
         # Input RGB (assuming equal R=G=B for grayscale)
         input_value = int(level * 255 / 100)
@@ -741,8 +747,7 @@ class GrayscaleVerifier:
             gamma_error=gamma_error,
         )
 
-    def _analyze_regions(self,
-                        patches: list[GrayscalePatch]) -> dict[str, GrayscaleRegionAnalysis]:
+    def _analyze_regions(self, patches: list[GrayscalePatch]) -> dict[str, GrayscaleRegionAnalysis]:
         """Analyze patches by region (shadows, midtones, highlights)."""
         region_analysis: dict[str, GrayscaleRegionAnalysis] = {}
 
@@ -787,13 +792,15 @@ class GrayscaleVerifier:
 # Utility Functions
 # =============================================================================
 
+
 def generate_grayscale_levels(steps: int = 21) -> list[int]:
     """Generate grayscale levels for verification."""
     return [int(100 * i / (steps - 1)) for i in range(steps)]
 
 
-def create_test_measurements(peak_luminance: float = 100.0,
-                             black_level: float = 0.05) -> list[tuple[int, tuple[float, float, float]]]:
+def create_test_measurements(
+    peak_luminance: float = 100.0, black_level: float = 0.05
+) -> list[tuple[int, tuple[float, float, float]]]:
     """Create simulated grayscale measurements for testing."""
     np.random.seed(42)
     measurements = []
@@ -808,7 +815,7 @@ def create_test_measurements(peak_luminance: float = 100.0,
         Y = gamma_bt1886(np.array([normalized]), 2.4, peak_luminance, black_level)[0]
 
         # Add small random error
-        Y *= (1 + np.random.normal(0, 0.01))
+        Y *= 1 + np.random.normal(0, 0.01)
 
         # Calculate XYZ from Y and white point (with slight chromaticity error)
         x = x_white + np.random.normal(0, 0.002)
@@ -831,8 +838,7 @@ def print_grayscale_summary(result: GrayscaleResult) -> None:
     print(f"Profile: {result.profile_name or 'Unknown'}")
     print(f"Timestamp: {result.timestamp}")
     print()
-    print(f"Target: {result.target_whitepoint}, "
-          f"Gamma {result.target_gamma_type.name} {result.target_gamma_value}")
+    print(f"Target: {result.target_whitepoint}, Gamma {result.target_gamma_type.name} {result.target_gamma_value}")
     print(f"Overall Grade: {grade_to_string(result.overall_grade)}")
     print()
     print("Delta E Statistics (CIEDE2000):")
@@ -854,9 +860,11 @@ def print_grayscale_summary(result: GrayscaleResult) -> None:
     print()
     print("Region Analysis:")
     for region_name, analysis in result.region_analysis.items():
-        print(f"  {region_name.title()}: "
-              f"Mean ΔE = {analysis.delta_e_mean:.2f}, "
-              f"CCT = {analysis.cct_mean:.0f}K ({analysis.grade.name})")
+        print(
+            f"  {region_name.title()}: "
+            f"Mean ΔE = {analysis.delta_e_mean:.2f}, "
+            f"CCT = {analysis.cct_mean:.0f}K ({analysis.grade.name})"
+        )
     print("=" * 60)
 
 
@@ -875,9 +883,5 @@ if __name__ == "__main__":
     )
 
     test_measurements = create_test_measurements()
-    result = verifier.verify(
-        test_measurements,
-        display_name="Test Display",
-        profile_name="Test Profile"
-    )
+    result = verifier.verify(test_measurements, display_name="Test Display", profile_name="Test Profile")
     print_grayscale_summary(result)

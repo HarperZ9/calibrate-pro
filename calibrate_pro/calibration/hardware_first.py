@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HardwareFirstResult:
     """Result of a hardware-first calibration."""
+
     success: bool = False
     message: str = ""
 
@@ -97,6 +98,7 @@ def run_hardware_first_calibration(
 
     try:
         from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
+
         ddc = DDCCIController()
         monitors = ddc.enumerate_monitors()
 
@@ -126,8 +128,11 @@ def run_hardware_first_calibration(
         except Exception:
             result.initial_rgb_gains = (100, 100, 100)
 
-        report(f"Initial: brightness={result.initial_brightness}, "
-               f"RGB=({result.initial_rgb_gains[0]},{result.initial_rgb_gains[1]},{result.initial_rgb_gains[2]})", 0.05)
+        report(
+            f"Initial: brightness={result.initial_brightness}, "
+            f"RGB=({result.initial_rgb_gains[0]},{result.initial_rgb_gains[1]},{result.initial_rgb_gains[2]})",
+            0.05,
+        )
 
         # Auto-setup monitor OSD via DDC/CI
         ddc_rec = None
@@ -144,13 +149,14 @@ def run_hardware_first_calibration(
                 if panel:
                     result.panel_type = panel.panel_type
                     result.display_name = panel.name
-                    ddc_rec = panel.ddc if hasattr(panel, 'ddc') else None
+                    ddc_rec = panel.ddc if hasattr(panel, "ddc") else None
         except Exception as e:
             logger.debug("Panel identification failed: %s", e)
 
         report(f"Auto-configuring {result.display_name} for calibration...", 0.08)
         changes = ddc.auto_setup_for_calibration(
-            monitor, ddc_recommendations=ddc_rec,
+            monitor,
+            ddc_recommendations=ddc_rec,
             log_fn=lambda msg: report(f"  {msg}", 0.10),
         )
         for change in changes:
@@ -182,7 +188,10 @@ def run_hardware_first_calibration(
                     break
 
                 luminance = xyz[1]
-                report(f"  Brightness={current_brightness}: Y={luminance:.1f} cd/m2 (target {target_luminance:.0f})", 0.15 + iteration * 0.02)
+                report(
+                    f"  Brightness={current_brightness}: Y={luminance:.1f} cd/m2 (target {target_luminance:.0f})",
+                    0.15 + iteration * 0.02,
+                )
 
                 if abs(luminance - target_luminance) / max(target_luminance, 1) < 0.05:
                     report(f"  Brightness converged at {current_brightness}", 0.30)
@@ -222,13 +231,16 @@ def run_hardware_first_calibration(
 
                 dx = target_whitepoint[0] - mx
                 dy = target_whitepoint[1] - my
-                error = (dx**2 + dy**2)**0.5
+                error = (dx**2 + dy**2) ** 0.5
 
-                report(f"  Iter {iteration+1}: xy=({mx:.4f},{my:.4f}), error={error:.4f}, "
-                       f"RGB=({current_r},{current_g},{current_b})", 0.30 + iteration * 0.015)
+                report(
+                    f"  Iter {iteration + 1}: xy=({mx:.4f},{my:.4f}), error={error:.4f}, "
+                    f"RGB=({current_r},{current_g},{current_b})",
+                    0.30 + iteration * 0.015,
+                )
 
                 if error < 0.003:
-                    report(f"  White balance converged after {iteration+1} iterations", 0.58)
+                    report(f"  White balance converged after {iteration + 1} iterations", 0.58)
                     result.white_point_achieved = (mx, my)
                     break
 
@@ -267,7 +279,7 @@ def run_hardware_first_calibration(
                 result.luminance_achieved = xyz[1]
                 s = sum(xyz)
                 if s > 0:
-                    result.white_point_achieved = (xyz[0]/s, xyz[1]/s)
+                    result.white_point_achieved = (xyz[0] / s, xyz[1] / s)
 
         # =====================================================================
         # Phase 3: PROFILE — Measure the hardware-calibrated display
@@ -287,8 +299,10 @@ def run_hardware_first_calibration(
                 progress_fn=profile_progress,
             )
 
-            report(f"Profile: WP ({profile.white_xy[0]:.4f}, {profile.white_xy[1]:.4f}), "
-                   f"Y={profile.white_Y:.1f} cd/m2", 0.85)
+            report(
+                f"Profile: WP ({profile.white_xy[0]:.4f}, {profile.white_xy[1]:.4f}), Y={profile.white_Y:.1f} cd/m2",
+                0.85,
+            )
 
             # Build residual correction LUT
             report("Building residual correction LUT...", 0.85)
@@ -303,6 +317,7 @@ def run_hardware_first_calibration(
             # Apply via DWM
             try:
                 from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
                 dwm_ctrl = DwmLutController()
                 if dwm_ctrl.is_available:
                     dwm_ctrl.load_lut_file(display_index, lut_path)

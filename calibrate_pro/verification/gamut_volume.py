@@ -17,6 +17,7 @@ import numpy as np
 # Optional scipy import
 try:
     from scipy.spatial import ConvexHull, Delaunay
+
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -27,25 +28,28 @@ except ImportError:
 # Enums
 # =============================================================================
 
+
 class ColorSpace(Enum):
     """Standard color space definitions."""
-    SRGB = auto()           # IEC 61966-2-1 sRGB
-    DCI_P3 = auto()         # DCI-P3 (D65 white)
-    DISPLAY_P3 = auto()     # Apple Display P3
-    BT2020 = auto()         # ITU-R BT.2020
-    ADOBE_RGB = auto()       # Adobe RGB (1998)
-    PROPHOTO_RGB = auto()   # ProPhoto RGB (ROMM)
-    ACES_AP0 = auto()       # ACES Primaries 0
-    ACES_AP1 = auto()       # ACES Primaries 1 (ACEScg)
+
+    SRGB = auto()  # IEC 61966-2-1 sRGB
+    DCI_P3 = auto()  # DCI-P3 (D65 white)
+    DISPLAY_P3 = auto()  # Apple Display P3
+    BT2020 = auto()  # ITU-R BT.2020
+    ADOBE_RGB = auto()  # Adobe RGB (1998)
+    PROPHOTO_RGB = auto()  # ProPhoto RGB (ROMM)
+    ACES_AP0 = auto()  # ACES Primaries 0
+    ACES_AP1 = auto()  # ACES Primaries 1 (ACEScg)
 
 
 class GamutGrade(Enum):
     """Gamut coverage quality grade."""
-    REFERENCE = auto()      # >99% coverage
-    EXCELLENT = auto()      # >95% coverage
-    GOOD = auto()           # >90% coverage
-    ACCEPTABLE = auto()     # >80% coverage
-    POOR = auto()           # <80% coverage
+
+    REFERENCE = auto()  # >99% coverage
+    EXCELLENT = auto()  # >95% coverage
+    GOOD = auto()  # >90% coverage
+    ACCEPTABLE = auto()  # >80% coverage
+    POOR = auto()  # <80% coverage
 
 
 # =============================================================================
@@ -109,22 +113,25 @@ COLORSPACE_PRIMARIES: dict[ColorSpace, dict[str, tuple[float, float]]] = {
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class GamutPrimary:
     """Measured primary chromaticity."""
-    name: str               # "R", "G", "B", "W"
+
+    name: str  # "R", "G", "B", "W"
     target_xy: tuple[float, float]
     measured_xy: tuple[float, float]
-    delta_xy: float         # Distance in xy
-    delta_uv: float         # Distance in u'v'
+    delta_xy: float  # Distance in xy
+    delta_uv: float  # Distance in u'v'
 
 
 @dataclass
 class GamutCoverage:
     """Coverage results for a single target color space."""
+
     color_space: ColorSpace
     coverage_percent: float  # Percentage of target gamut covered
-    volume_ratio: float     # Measured volume / target volume
+    volume_ratio: float  # Measured volume / target volume
     exceeds_percent: float  # Percentage outside target (can exceed)
 
     # Primary accuracy
@@ -132,9 +139,9 @@ class GamutCoverage:
     primary_accuracy_mean: float  # Mean ΔE of primaries
 
     # Detailed metrics
-    area_xy: float          # 2D area in xy chromaticity
-    area_uv: float          # 2D area in u'v' chromaticity
-    volume_lab: float       # 3D volume in Lab space
+    area_xy: float  # 2D area in xy chromaticity
+    area_uv: float  # 2D area in u'v' chromaticity
+    volume_lab: float  # 3D volume in Lab space
 
     grade: GamutGrade
 
@@ -142,6 +149,7 @@ class GamutCoverage:
 @dataclass
 class GamutBoundary:
     """Gamut boundary representation."""
+
     # 2D boundary in xy chromaticity
     boundary_xy: list[tuple[float, float]]
 
@@ -158,6 +166,7 @@ class GamutBoundary:
 @dataclass
 class OutOfGamutAnalysis:
     """Analysis of out-of-gamut colors."""
+
     target_space: ColorSpace
     total_samples: int
     in_gamut_count: int
@@ -165,9 +174,9 @@ class OutOfGamutAnalysis:
     out_of_gamut_percent: float
 
     # Severity metrics
-    max_distance: float      # Maximum distance outside gamut
-    mean_distance: float     # Mean distance for OOG samples
-    severe_count: int        # Samples with significant OOG
+    max_distance: float  # Maximum distance outside gamut
+    mean_distance: float  # Mean distance for OOG samples
+    severe_count: int  # Samples with significant OOG
 
     # Problem areas (in Lab)
     problem_regions: list[tuple[float, float, float]]
@@ -176,6 +185,7 @@ class OutOfGamutAnalysis:
 @dataclass
 class GamutAnalysisResult:
     """Complete gamut analysis result."""
+
     # Measured display gamut
     measured_boundary: GamutBoundary
     measured_primaries: dict[str, tuple[float, float]]  # R, G, B, W xy
@@ -208,6 +218,7 @@ class GamutAnalysisResult:
 # Color Conversion Functions
 # =============================================================================
 
+
 def xy_to_uv(x: float, y: float) -> tuple[float, float]:
     """Convert CIE 1931 xy to CIE 1976 u'v'."""
     denom = -2 * x + 12 * y + 3
@@ -237,8 +248,9 @@ def xy_to_xyz(x: float, y: float, Y: float = 1.0) -> tuple[float, float, float]:
     return (X, Y, Z)
 
 
-def xyz_to_lab(xyz: tuple[float, float, float],
-               white_xyz: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> tuple[float, float, float]:
+def xyz_to_lab(
+    xyz: tuple[float, float, float], white_xyz: tuple[float, float, float] = (0.95047, 1.0, 1.08883)
+) -> tuple[float, float, float]:
     """Convert XYZ to Lab."""
     X, Y, Z = xyz
     Xn, Yn, Zn = white_xyz
@@ -250,7 +262,7 @@ def xyz_to_lab(xyz: tuple[float, float, float],
     def f(t):
         delta = 6 / 29
         if t > delta**3:
-            return t ** (1/3)
+            return t ** (1 / 3)
         else:
             return t / (3 * delta**2) + 4 / 29
 
@@ -261,8 +273,9 @@ def xyz_to_lab(xyz: tuple[float, float, float],
     return (L, a, b)
 
 
-def rgb_to_xyz(rgb: tuple[float, float, float],
-               color_space: ColorSpace = ColorSpace.SRGB) -> tuple[float, float, float]:
+def rgb_to_xyz(
+    rgb: tuple[float, float, float], color_space: ColorSpace = ColorSpace.SRGB
+) -> tuple[float, float, float]:
     """
     Convert RGB to XYZ.
 
@@ -313,43 +326,29 @@ def _calculate_rgb_to_xyz_matrix(primaries: dict[str, tuple[float, float]]) -> n
     Zw = (1 - xw - yw) / yw
 
     # Create matrix and solve for scaling factors
-    M = np.array([
-        [Xr, Xg, Xb],
-        [Yr, Yg, Yb],
-        [Zr, Zg, Zb]
-    ])
+    M = np.array([[Xr, Xg, Xb], [Yr, Yg, Yb], [Zr, Zg, Zb]])
 
     S = np.linalg.solve(M, [Xw, Yw, Zw])
 
     # Final matrix
-    return np.array([
-        [S[0] * Xr, S[1] * Xg, S[2] * Xb],
-        [S[0] * Yr, S[1] * Yg, S[2] * Yb],
-        [S[0] * Zr, S[1] * Zg, S[2] * Zb]
-    ])
+    return np.array(
+        [[S[0] * Xr, S[1] * Xg, S[2] * Xb], [S[0] * Yr, S[1] * Yg, S[2] * Yb], [S[0] * Zr, S[1] * Zg, S[2] * Zb]]
+    )
 
 
 # =============================================================================
 # Gamut Geometry Functions
 # =============================================================================
 
-def calculate_triangle_area(p1: tuple[float, float],
-                           p2: tuple[float, float],
-                           p3: tuple[float, float]) -> float:
+
+def calculate_triangle_area(p1: tuple[float, float], p2: tuple[float, float], p3: tuple[float, float]) -> float:
     """Calculate area of triangle in 2D using cross product."""
-    return 0.5 * abs(
-        (p2[0] - p1[0]) * (p3[1] - p1[1]) -
-        (p3[0] - p1[0]) * (p2[1] - p1[1])
-    )
+    return 0.5 * abs((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1]))
 
 
 def calculate_gamut_area_xy(primaries: dict[str, tuple[float, float]]) -> float:
     """Calculate gamut area in xy chromaticity (triangle)."""
-    return calculate_triangle_area(
-        primaries["R"],
-        primaries["G"],
-        primaries["B"]
-    )
+    return calculate_triangle_area(primaries["R"], primaries["G"], primaries["B"])
 
 
 def calculate_gamut_area_uv(primaries: dict[str, tuple[float, float]]) -> float:
@@ -360,11 +359,11 @@ def calculate_gamut_area_uv(primaries: dict[str, tuple[float, float]]) -> float:
     return calculate_triangle_area(r_uv, g_uv, b_uv)
 
 
-def point_in_triangle(point: tuple[float, float],
-                     v1: tuple[float, float],
-                     v2: tuple[float, float],
-                     v3: tuple[float, float]) -> bool:
+def point_in_triangle(
+    point: tuple[float, float], v1: tuple[float, float], v2: tuple[float, float], v3: tuple[float, float]
+) -> bool:
     """Check if point is inside triangle using barycentric coordinates."""
+
     def sign(p1, p2, p3):
         return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
 
@@ -378,24 +377,24 @@ def point_in_triangle(point: tuple[float, float],
     return not (has_neg and has_pos)
 
 
-def calculate_triangle_intersection_area(t1: list[tuple[float, float]],
-                                         t2: list[tuple[float, float]]) -> float:
+def calculate_triangle_intersection_area(t1: list[tuple[float, float]], t2: list[tuple[float, float]]) -> float:
     """
     Calculate intersection area of two triangles.
 
     Uses Sutherland-Hodgman polygon clipping algorithm.
     """
 
-    def clip_polygon(polygon: list[tuple[float, float]],
-                    edge_start: tuple[float, float],
-                    edge_end: tuple[float, float]) -> list[tuple[float, float]]:
+    def clip_polygon(
+        polygon: list[tuple[float, float]], edge_start: tuple[float, float], edge_end: tuple[float, float]
+    ) -> list[tuple[float, float]]:
         """Clip polygon against a single edge."""
         if not polygon:
             return []
 
         def inside(p):
-            return (edge_end[0] - edge_start[0]) * (p[1] - edge_start[1]) > \
-                   (edge_end[1] - edge_start[1]) * (p[0] - edge_start[0])
+            return (edge_end[0] - edge_start[0]) * (p[1] - edge_start[1]) > (edge_end[1] - edge_start[1]) * (
+                p[0] - edge_start[0]
+            )
 
         def intersection(p1, p2):
             dc = (edge_start[0] - edge_end[0], edge_start[1] - edge_end[1])
@@ -446,8 +445,7 @@ def calculate_triangle_intersection_area(t1: list[tuple[float, float]],
     return abs(area) / 2.0
 
 
-def calculate_gamut_coverage(measured_primaries: dict[str, tuple[float, float]],
-                             target_space: ColorSpace) -> float:
+def calculate_gamut_coverage(measured_primaries: dict[str, tuple[float, float]], target_space: ColorSpace) -> float:
     """
     Calculate percentage of target gamut covered by measured gamut.
 
@@ -485,8 +483,7 @@ def calculate_gamut_coverage(measured_primaries: dict[str, tuple[float, float]],
     return min(coverage, 100.0)
 
 
-def calculate_gamut_exceeds(measured_primaries: dict[str, tuple[float, float]],
-                            target_space: ColorSpace) -> float:
+def calculate_gamut_exceeds(measured_primaries: dict[str, tuple[float, float]], target_space: ColorSpace) -> float:
     """
     Calculate percentage of measured gamut that exceeds target gamut.
 
@@ -522,8 +519,8 @@ def calculate_gamut_exceeds(measured_primaries: dict[str, tuple[float, float]],
 # 3D Volume Calculation
 # =============================================================================
 
-def generate_gamut_samples(color_space: ColorSpace,
-                          samples_per_axis: int = 17) -> np.ndarray:
+
+def generate_gamut_samples(color_space: ColorSpace, samples_per_axis: int = 17) -> np.ndarray:
     """
     Generate sample points throughout a color space gamut.
 
@@ -561,8 +558,7 @@ def calculate_gamut_volume_lab(samples: np.ndarray) -> float:
         return 0.0
 
 
-def calculate_gamut_volume_ratio(measured_samples: np.ndarray,
-                                 target_space: ColorSpace) -> float:
+def calculate_gamut_volume_ratio(measured_samples: np.ndarray, target_space: ColorSpace) -> float:
     """
     Calculate ratio of measured volume to target color space volume.
 
@@ -583,6 +579,7 @@ def calculate_gamut_volume_ratio(measured_samples: np.ndarray,
 # =============================================================================
 # Grade Functions
 # =============================================================================
+
 
 def grade_from_coverage(coverage: float) -> GamutGrade:
     """Determine grade from coverage percentage."""
@@ -613,6 +610,7 @@ def grade_to_string(grade: GamutGrade) -> str:
 # Gamut Analyzer Class
 # =============================================================================
 
+
 class GamutAnalyzer:
     """
     Gamut analysis engine.
@@ -637,11 +635,13 @@ class GamutAnalyzer:
         }
         self.white_xyz = white_points.get(reference_white, white_points["D65"])
 
-    def analyze(self,
-                measured_primaries: dict[str, tuple[float, float]],
-                measured_samples: np.ndarray | None = None,
-                display_name: str = "",
-                profile_name: str = "") -> GamutAnalysisResult:
+    def analyze(
+        self,
+        measured_primaries: dict[str, tuple[float, float]],
+        measured_samples: np.ndarray | None = None,
+        display_name: str = "",
+        profile_name: str = "",
+    ) -> GamutAnalysisResult:
         """
         Perform comprehensive gamut analysis.
 
@@ -659,8 +659,7 @@ class GamutAnalyzer:
         # Calculate coverage for each standard space
         all_coverage: dict[ColorSpace, GamutCoverage] = {}
 
-        for color_space in [ColorSpace.SRGB, ColorSpace.DISPLAY_P3,
-                           ColorSpace.BT2020, ColorSpace.ADOBE_RGB]:
+        for color_space in [ColorSpace.SRGB, ColorSpace.DISPLAY_P3, ColorSpace.BT2020, ColorSpace.ADOBE_RGB]:
             coverage = self._analyze_coverage(measured_primaries, color_space, measured_samples)
             all_coverage[color_space] = coverage
 
@@ -701,10 +700,12 @@ class GamutAnalyzer:
             profile_name=profile_name,
         )
 
-    def _analyze_coverage(self,
-                         measured_primaries: dict[str, tuple[float, float]],
-                         target_space: ColorSpace,
-                         measured_samples: np.ndarray | None) -> GamutCoverage:
+    def _analyze_coverage(
+        self,
+        measured_primaries: dict[str, tuple[float, float]],
+        target_space: ColorSpace,
+        measured_samples: np.ndarray | None,
+    ) -> GamutCoverage:
         """Analyze coverage against single target space."""
         target_primaries = COLORSPACE_PRIMARIES[target_space]
 
@@ -731,25 +732,21 @@ class GamutAnalyzer:
             target_xy = target_primaries[name]
             measured_xy = measured_primaries.get(name, target_xy)
 
-            delta_xy = np.sqrt(
-                (measured_xy[0] - target_xy[0])**2 +
-                (measured_xy[1] - target_xy[1])**2
-            )
+            delta_xy = np.sqrt((measured_xy[0] - target_xy[0]) ** 2 + (measured_xy[1] - target_xy[1]) ** 2)
 
             target_uv = xy_to_uv(*target_xy)
             measured_uv = xy_to_uv(*measured_xy)
-            delta_uv = np.sqrt(
-                (measured_uv[0] - target_uv[0])**2 +
-                (measured_uv[1] - target_uv[1])**2
-            )
+            delta_uv = np.sqrt((measured_uv[0] - target_uv[0]) ** 2 + (measured_uv[1] - target_uv[1]) ** 2)
 
-            primaries.append(GamutPrimary(
-                name=name,
-                target_xy=target_xy,
-                measured_xy=measured_xy,
-                delta_xy=delta_xy,
-                delta_uv=delta_uv,
-            ))
+            primaries.append(
+                GamutPrimary(
+                    name=name,
+                    target_xy=target_xy,
+                    measured_xy=measured_xy,
+                    delta_xy=delta_xy,
+                    delta_uv=delta_uv,
+                )
+            )
             delta_sum += delta_uv
 
         primary_accuracy_mean = delta_sum / 3
@@ -767,9 +764,7 @@ class GamutAnalyzer:
             grade=grade_from_coverage(coverage_percent),
         )
 
-    def _create_boundary(self,
-                        primaries: dict[str, tuple[float, float]],
-                        samples: np.ndarray | None) -> GamutBoundary:
+    def _create_boundary(self, primaries: dict[str, tuple[float, float]], samples: np.ndarray | None) -> GamutBoundary:
         """Create gamut boundary representation."""
         # 2D boundaries (triangles in xy and u'v')
         boundary_xy = [
@@ -799,9 +794,7 @@ class GamutAnalyzer:
             sample_points_lab=samples,
         )
 
-    def _analyze_out_of_gamut(self,
-                             samples: np.ndarray,
-                             target_space: ColorSpace) -> OutOfGamutAnalysis:
+    def _analyze_out_of_gamut(self, samples: np.ndarray, target_space: ColorSpace) -> OutOfGamutAnalysis:
         """Analyze out-of-gamut samples."""
         # Generate target gamut hull
         target_samples = generate_gamut_samples(target_space, 17)
@@ -837,9 +830,9 @@ class GamutAnalyzer:
         for sample in oog_samples[:100]:  # Limit for performance
             # Simple distance to hull (approximation)
             # Find closest point on hull
-            min_dist = float('inf')
+            min_dist = float("inf")
             for vertex in target_hull.points[target_hull.convex_hull.flatten()]:
-                dist = np.sqrt(np.sum((sample - vertex)**2))
+                dist = np.sqrt(np.sum((sample - vertex) ** 2))
                 min_dist = min(min_dist, dist)
             distances.append(min_dist)
 
@@ -876,7 +869,7 @@ class GamutAnalyzer:
 
         # D65 reference
         u_d65, v_d65 = 0.1978, 0.4683
-        duv = np.sqrt((u - u_d65)**2 + (v - v_d65)**2)
+        duv = np.sqrt((u - u_d65) ** 2 + (v - v_d65) ** 2)
 
         if v < v_d65:
             duv = -duv
@@ -887,6 +880,7 @@ class GamutAnalyzer:
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def create_test_primaries(coverage_srgb: float = 0.95) -> dict[str, tuple[float, float]]:
     """Create simulated display primaries for testing."""
@@ -937,8 +931,12 @@ def print_gamut_summary(result: GamutAnalysisResult) -> None:
     print("Coverage Results:")
     print(f"  sRGB:      {result.srgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.srgb_coverage.grade)}")
     print(f"  Display P3: {result.p3_coverage.coverage_percent:.1f}% - {grade_to_string(result.p3_coverage.grade)}")
-    print(f"  BT.2020:   {result.bt2020_coverage.coverage_percent:.1f}% - {grade_to_string(result.bt2020_coverage.grade)}")
-    print(f"  Adobe RGB: {result.adobe_rgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.adobe_rgb_coverage.grade)}")
+    print(
+        f"  BT.2020:   {result.bt2020_coverage.coverage_percent:.1f}% - {grade_to_string(result.bt2020_coverage.grade)}"
+    )
+    print(
+        f"  Adobe RGB: {result.adobe_rgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.adobe_rgb_coverage.grade)}"
+    )
     print()
     if result.total_volume_lab > 0:
         print(f"Total Volume (Lab³): {result.total_volume_lab:.0f}")
@@ -956,10 +954,5 @@ if __name__ == "__main__":
     test_primaries = create_test_primaries(0.98)
     test_samples = generate_gamut_samples(ColorSpace.SRGB, 9)
 
-    result = analyzer.analyze(
-        test_primaries,
-        test_samples,
-        display_name="Test Display",
-        profile_name="Test Profile"
-    )
+    result = analyzer.analyze(test_primaries, test_samples, display_name="Test Display", profile_name="Test Profile")
     print_gamut_summary(result)

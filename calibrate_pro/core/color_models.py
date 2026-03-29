@@ -27,20 +27,18 @@ import numpy as np
 D65_XYZ = np.array([0.95047, 1.0, 1.08883])
 
 # sRGB to XYZ (D65)
-SRGB_TO_XYZ = np.array([
-    [0.4124564, 0.3575761, 0.1804375],
-    [0.2126729, 0.7151522, 0.0721750],
-    [0.0193339, 0.1191920, 0.9503041]
-], dtype=np.float64)
+SRGB_TO_XYZ = np.array(
+    [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]],
+    dtype=np.float64,
+)
 
 XYZ_TO_SRGB = np.linalg.inv(SRGB_TO_XYZ)
 
 # BT.2020 to XYZ (D65)
-BT2020_TO_XYZ = np.array([
-    [0.6369580, 0.1446169, 0.1688810],
-    [0.2627002, 0.6779981, 0.0593017],
-    [0.0000000, 0.0280727, 1.0609851]
-], dtype=np.float64)
+BT2020_TO_XYZ = np.array(
+    [[0.6369580, 0.1446169, 0.1688810], [0.2627002, 0.6779981, 0.0593017], [0.0000000, 0.0280727, 1.0609851]],
+    dtype=np.float64,
+)
 
 XYZ_TO_BT2020 = np.linalg.inv(BT2020_TO_XYZ)
 
@@ -107,6 +105,7 @@ def pq_oetf(Y: np.ndarray) -> np.ndarray:
 # CAM16 Color Appearance Model
 # =============================================================================
 
+
 @dataclass
 class CAM16ViewingConditions:
     """
@@ -118,24 +117,21 @@ class CAM16ViewingConditions:
         surround: Surround type ('average', 'dim', 'dark')
         discounting: Whether to discount illuminant (False for displays)
     """
+
     L_A: float = 64.0  # Adapting luminance
     Y_b: float = 20.0  # Background luminance
-    surround: str = 'average'  # 'average', 'dim', 'dark'
+    surround: str = "average"  # 'average', 'dim', 'dark'
     discounting: bool = False
 
     def __post_init__(self):
         # Surround parameters (c, Nc, F)
-        surround_params = {
-            'average': (0.69, 1.0, 1.0),
-            'dim': (0.59, 0.95, 0.9),
-            'dark': (0.525, 0.8, 0.8)
-        }
+        surround_params = {"average": (0.69, 1.0, 1.0), "dim": (0.59, 0.95, 0.9), "dark": (0.525, 0.8, 0.8)}
         self.c, self.Nc, self.F = surround_params.get(self.surround, (0.69, 1.0, 1.0))
 
         # Chromatic induction factor
         k = 1.0 / (5.0 * self.L_A + 1.0)
-        k4 = k ** 4
-        self.F_L = 0.2 * k4 * (5.0 * self.L_A) + 0.1 * (1.0 - k4) ** 2 * (5.0 * self.L_A) ** (1.0/3.0)
+        k4 = k**4
+        self.F_L = 0.2 * k4 * (5.0 * self.L_A) + 0.1 * (1.0 - k4) ** 2 * (5.0 * self.L_A) ** (1.0 / 3.0)
 
         # Background induction factor
         self.n = self.Y_b / 100.0
@@ -152,11 +148,10 @@ class CAM16ViewingConditions:
 
 
 # CAM16 transformation matrix (Hunt-Pointer-Estevez with D65 adaptation)
-CAM16_M = np.array([
-    [ 0.401288,  0.650173, -0.051461],
-    [-0.250268,  1.204414,  0.045854],
-    [-0.002079,  0.048952,  0.953127]
-], dtype=np.float64)
+CAM16_M = np.array(
+    [[0.401288, 0.650173, -0.051461], [-0.250268, 1.204414, 0.045854], [-0.002079, 0.048952, 0.953127]],
+    dtype=np.float64,
+)
 
 CAM16_M_INV = np.linalg.inv(CAM16_M)
 
@@ -205,8 +200,7 @@ class CAM16:
         self.RGB_aw = self._nonlinear_adaptation(RGB_wc)
 
         # Achromatic response of white
-        self.A_w = (2.0 * self.RGB_aw[0] + self.RGB_aw[1] +
-                   0.05 * self.RGB_aw[2] - 0.305) * self.vc.N_bb
+        self.A_w = (2.0 * self.RGB_aw[0] + self.RGB_aw[1] + 0.05 * self.RGB_aw[2] - 0.305) * self.vc.N_bb
 
     def _nonlinear_adaptation(self, RGB: np.ndarray) -> np.ndarray:
         """Apply CAM16 nonlinear adaptation."""
@@ -216,8 +210,7 @@ class CAM16:
         sign = np.sign(RGB)
         RGB_abs = np.abs(RGB)
 
-        adapted = sign * 400.0 * (F_L * RGB_abs / 100.0) ** 0.42 / \
-                  (27.13 + (F_L * RGB_abs / 100.0) ** 0.42) + 0.1
+        adapted = sign * 400.0 * (F_L * RGB_abs / 100.0) ** 0.42 / (27.13 + (F_L * RGB_abs / 100.0) ** 0.42) + 0.1
 
         return adapted
 
@@ -231,8 +224,7 @@ class CAM16:
         RGB_a_abs = np.abs(RGB_a_adj)
 
         # Inverse of the nonlinear function
-        RGB = sign * (100.0 / F_L) * \
-              np.power(27.13 * RGB_a_abs / (400.0 - RGB_a_abs), 1.0 / 0.42)
+        RGB = sign * (100.0 / F_L) * np.power(27.13 * RGB_a_abs / (400.0 - RGB_a_abs), 1.0 / 0.42)
 
         return RGB
 
@@ -297,14 +289,20 @@ class CAM16:
         J = 100.0 * np.power(A / self.A_w, self.vc.c * self.vc.z)
 
         # Brightness
-        Q = (4.0 / self.vc.c) * np.sqrt(J / 100.0) * \
-            (self.A_w + 4.0) * np.power(self.vc.F_L, 0.25)
+        Q = (4.0 / self.vc.c) * np.sqrt(J / 100.0) * (self.A_w + 4.0) * np.power(self.vc.F_L, 0.25)
 
         # Chroma
-        t = (50000.0 / 13.0 * self.vc.Nc * self.vc.N_cb * e_t *
-             np.sqrt(a**2 + b**2) / (RGB_a[0] + RGB_a[1] + 21.0 * RGB_a[2] / 20.0))
+        t = (
+            50000.0
+            / 13.0
+            * self.vc.Nc
+            * self.vc.N_cb
+            * e_t
+            * np.sqrt(a**2 + b**2)
+            / (RGB_a[0] + RGB_a[1] + 21.0 * RGB_a[2] / 20.0)
+        )
 
-        C = t ** 0.9 * np.sqrt(J / 100.0) * np.power(1.64 - 0.29 ** self.vc.n, 0.73)
+        C = t**0.9 * np.sqrt(J / 100.0) * np.power(1.64 - 0.29**self.vc.n, 0.73)
 
         # Colorfulness
         M = C * np.power(self.vc.F_L, 0.25)
@@ -312,16 +310,7 @@ class CAM16:
         # Saturation
         s = 100.0 * np.sqrt(M / Q) if Q > 0 else 0.0
 
-        return {
-            'J': J,
-            'C': C,
-            'h': h,
-            'M': M,
-            's': s,
-            'Q': Q,
-            'a': a,
-            'b': b
-        }
+        return {"J": J, "C": C, "h": h, "M": M, "s": s, "Q": Q, "a": a, "b": b}
 
     def cam16_to_xyz(self, J: float, C: float, h: float) -> np.ndarray:
         """
@@ -359,10 +348,7 @@ class CAM16:
             b = 0.0
         else:
             # Calculate t from C and J
-            t = np.power(
-                C / (np.sqrt(J / 100.0) * np.power(1.64 - 0.29 ** self.vc.n, 0.73)),
-                1.0 / 0.9
-            )
+            t = np.power(C / (np.sqrt(J / 100.0) * np.power(1.64 - 0.29**self.vc.n, 0.73)), 1.0 / 0.9)
 
             # p1 for chroma calculation
             p1 = (50000.0 / 13.0) * self.vc.Nc * self.vc.N_cb * e_t / t
@@ -382,11 +368,13 @@ class CAM16:
             b = gamma * sin_h
 
         # RGB_a from a, b, and p2
-        RGB_a = np.array([
-            (460.0 * p2 + 451.0 * a + 288.0 * b) / 1403.0,
-            (460.0 * p2 - 891.0 * a - 261.0 * b) / 1403.0,
-            (460.0 * p2 - 220.0 * a - 6300.0 * b) / 1403.0
-        ])
+        RGB_a = np.array(
+            [
+                (460.0 * p2 + 451.0 * a + 288.0 * b) / 1403.0,
+                (460.0 * p2 - 891.0 * a - 261.0 * b) / 1403.0,
+                (460.0 * p2 - 220.0 * a - 6300.0 * b) / 1403.0,
+            ]
+        )
 
         # Inverse nonlinear adaptation
         RGB_c = self._nonlinear_adaptation_inv(RGB_a)
@@ -422,8 +410,7 @@ class CAM16:
 
         return (J_prime, a_prime, b_prime)
 
-    def delta_E_cam16(self, jmh1: tuple[float, float, float],
-                      jmh2: tuple[float, float, float]) -> float:
+    def delta_E_cam16(self, jmh1: tuple[float, float, float], jmh2: tuple[float, float, float]) -> float:
         """
         Calculate CAM16-UCS color difference.
 
@@ -462,17 +449,14 @@ JZAZBZ_D = -0.56
 JZAZBZ_D0 = 1.6295499532821566e-11
 
 # Jzazbz matrices
-JZAZBZ_M1 = np.array([
-    [0.41478972, 0.579999, 0.0146480],
-    [-0.2015100, 1.120649, 0.0531008],
-    [-0.0166008, 0.264800, 0.6684799]
-], dtype=np.float64)
+JZAZBZ_M1 = np.array(
+    [[0.41478972, 0.579999, 0.0146480], [-0.2015100, 1.120649, 0.0531008], [-0.0166008, 0.264800, 0.6684799]],
+    dtype=np.float64,
+)
 
-JZAZBZ_M2 = np.array([
-    [0.5, 0.5, 0],
-    [3.524000, -4.066708, 0.542708],
-    [0.199076, 1.096799, -1.295875]
-], dtype=np.float64)
+JZAZBZ_M2 = np.array(
+    [[0.5, 0.5, 0], [3.524000, -4.066708, 0.542708], [0.199076, 1.096799, -1.295875]], dtype=np.float64
+)
 
 JZAZBZ_M1_INV = np.linalg.inv(JZAZBZ_M1)
 JZAZBZ_M2_INV = np.linalg.inv(JZAZBZ_M2)
@@ -684,17 +668,9 @@ class Jzazbz:
 # =============================================================================
 
 # ICtCp matrices (BT.2100)
-ICTCP_M1 = np.array([
-    [0.3592, 0.6976, -0.0358],
-    [-0.1922, 1.1004, 0.0754],
-    [0.0070, 0.0749, 0.8434]
-], dtype=np.float64)
+ICTCP_M1 = np.array([[0.3592, 0.6976, -0.0358], [-0.1922, 1.1004, 0.0754], [0.0070, 0.0749, 0.8434]], dtype=np.float64)
 
-ICTCP_M2 = np.array([
-    [2048, 2048, 0],
-    [6610, -13613, 7003],
-    [17933, -17390, -543]
-], dtype=np.float64) / 4096.0
+ICTCP_M2 = np.array([[2048, 2048, 0], [6610, -13613, 7003], [17933, -17390, -543]], dtype=np.float64) / 4096.0
 
 ICTCP_M1_INV = np.linalg.inv(ICTCP_M1)
 ICTCP_M2_INV = np.linalg.inv(ICTCP_M2)
@@ -731,7 +707,7 @@ class ICtCp:
         """
         self.peak_luminance = peak_luminance
 
-    def rgb_to_ictcp(self, rgb: np.ndarray, input_space: str = 'bt2020') -> np.ndarray:
+    def rgb_to_ictcp(self, rgb: np.ndarray, input_space: str = "bt2020") -> np.ndarray:
         """
         Convert linear RGB to ICtCp.
 
@@ -749,7 +725,7 @@ class ICtCp:
             rgb = rgb.reshape(1, 3)
 
         # Convert to BT.2020 if needed
-        if input_space == 'srgb':
+        if input_space == "srgb":
             # sRGB linear -> XYZ -> BT.2020 linear
             xyz = (SRGB_TO_XYZ @ rgb.T).T
             rgb = (XYZ_TO_BT2020 @ xyz.T).T
@@ -780,7 +756,7 @@ class ICtCp:
 
         return ICtCp
 
-    def ictcp_to_rgb(self, ictcp: np.ndarray, output_space: str = 'bt2020') -> np.ndarray:
+    def ictcp_to_rgb(self, ictcp: np.ndarray, output_space: str = "bt2020") -> np.ndarray:
         """
         Convert ICtCp to linear RGB.
 
@@ -804,7 +780,7 @@ class ICtCp:
         results = np.array(results) / self.peak_luminance
 
         # Convert from BT.2020 if needed
-        if output_space == 'srgb':
+        if output_space == "srgb":
             xyz = (BT2020_TO_XYZ @ results.T).T
             results = (XYZ_TO_SRGB @ xyz.T).T
 
@@ -854,8 +830,8 @@ class ICtCp:
 # Convenience Functions
 # =============================================================================
 
-def xyz_to_cam16_jmh(xyz: np.ndarray,
-                     viewing_conditions: CAM16ViewingConditions = None) -> tuple[float, float, float]:
+
+def xyz_to_cam16_jmh(xyz: np.ndarray, viewing_conditions: CAM16ViewingConditions = None) -> tuple[float, float, float]:
     """
     Quick conversion from XYZ to CAM16 JMh (Lightness, Colorfulness, Hue).
 
@@ -868,7 +844,7 @@ def xyz_to_cam16_jmh(xyz: np.ndarray,
     """
     cam16 = CAM16(viewing_conditions)
     result = cam16.xyz_to_cam16(xyz)
-    return (result['J'], result['M'], result['h'])
+    return (result["J"], result["M"], result["h"])
 
 
 def xyz_to_jzazbz(xyz: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarray:
@@ -886,8 +862,7 @@ def xyz_to_jzazbz(xyz: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarra
     return jz.xyz_to_jzazbz(xyz)
 
 
-def rgb_to_ictcp(rgb: np.ndarray, input_space: str = 'bt2020',
-                 peak_luminance: float = 10000.0) -> np.ndarray:
+def rgb_to_ictcp(rgb: np.ndarray, input_space: str = "bt2020", peak_luminance: float = 10000.0) -> np.ndarray:
     """
     Quick conversion from linear RGB to ICtCp.
 
@@ -903,10 +878,13 @@ def rgb_to_ictcp(rgb: np.ndarray, input_space: str = 'bt2020',
     return ictcp.rgb_to_ictcp(rgb, input_space)
 
 
-def delta_e_hdr(color1: np.ndarray, color2: np.ndarray,
-                color_space: str = 'xyz',
-                method: str = 'jzazbz',
-                peak_luminance: float = 10000.0) -> float:
+def delta_e_hdr(
+    color1: np.ndarray,
+    color2: np.ndarray,
+    color_space: str = "xyz",
+    method: str = "jzazbz",
+    peak_luminance: float = 10000.0,
+) -> float:
     """
     Calculate perceptually uniform color difference for HDR content.
 
@@ -922,19 +900,18 @@ def delta_e_hdr(color1: np.ndarray, color2: np.ndarray,
     Returns:
         Perceptually uniform color difference
     """
-    if color_space == 'xyz':
-        if method == 'jzazbz':
+    if color_space == "xyz":
+        if method == "jzazbz":
             jz = Jzazbz(peak_luminance)
             c1 = jz.xyz_to_jzazbz(color1)
             c2 = jz.xyz_to_jzazbz(color2)
             return jz.delta_Ez(c1, c2)
-        elif method == 'cam16':
+        elif method == "cam16":
             cam = CAM16()
             r1 = cam.xyz_to_cam16(color1)
             r2 = cam.xyz_to_cam16(color2)
-            return cam.delta_E_cam16((r1['J'], r1['M'], r1['h']),
-                                      (r2['J'], r2['M'], r2['h']))
-        elif method == 'ictcp':
+            return cam.delta_E_cam16((r1["J"], r1["M"], r1["h"]), (r2["J"], r2["M"], r2["h"]))
+        elif method == "ictcp":
             # Need to go through BT.2020 RGB
             rgb1 = (XYZ_TO_BT2020 @ color1).clip(0, 1)
             rgb2 = (XYZ_TO_BT2020 @ color2).clip(0, 1)
@@ -942,13 +919,13 @@ def delta_e_hdr(color1: np.ndarray, color2: np.ndarray,
             c1 = ictcp.rgb_to_ictcp(rgb1)
             c2 = ictcp.rgb_to_ictcp(rgb2)
             return ictcp.delta_E_ITP(c1, c2)
-    elif color_space == 'jzazbz':
+    elif color_space == "jzazbz":
         jz = Jzazbz(peak_luminance)
         return jz.delta_Ez(color1, color2)
-    elif color_space == 'ictcp':
+    elif color_space == "ictcp":
         ictcp = ICtCp(peak_luminance)
         return ictcp.delta_E_ITP(color1, color2)
-    elif color_space == 'cam16_jmh':
+    elif color_space == "cam16_jmh":
         cam = CAM16()
         return cam.delta_E_cam16(color1, color2)
 

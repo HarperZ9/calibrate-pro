@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
 @dataclass
 class ProfileInfo:
     """Information about an ICC/ICM profile."""
+
     path: Path
     name: str
     size: int
@@ -39,23 +40,24 @@ class ProfileInfo:
 
 class ProfileScanner(QThread):
     """Background thread to scan for profiles."""
+
     finished = pyqtSignal(list)
     progress = pyqtSignal(str)
 
     # System profiles that should not be deleted
     SYSTEM_PROFILES = {
-        'srgb color space profile.icm',
-        'rswop.icm',
-        'wscrgb.icc',
-        'wsrgb.icc',
+        "srgb color space profile.icm",
+        "rswop.icm",
+        "wscrgb.icc",
+        "wsrgb.icc",
     }
 
     def __init__(self):
         super().__init__()
         self.locations = [
-            Path(os.environ.get('WINDIR', 'C:/Windows')) / 'System32' / 'spool' / 'drivers' / 'color',
-            Path(os.environ.get('APPDATA', '')) / 'CalibratePro',
-            Path(os.environ.get('LOCALAPPDATA', '')) / 'CalibratePro',
+            Path(os.environ.get("WINDIR", "C:/Windows")) / "System32" / "spool" / "drivers" / "color",
+            Path(os.environ.get("APPDATA", "")) / "CalibratePro",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "CalibratePro",
         ]
 
     def run(self):
@@ -67,19 +69,21 @@ class ProfileScanner(QThread):
 
             self.progress.emit(f"Scanning {location.name}...")
 
-            for ext in ['*.icc', '*.icm', '*.ICC', '*.ICM']:
+            for ext in ["*.icc", "*.icm", "*.ICC", "*.ICM"]:
                 for f in location.glob(ext):
                     try:
                         stat = f.stat()
                         is_system = f.name.lower() in self.SYSTEM_PROFILES
 
-                        profiles.append(ProfileInfo(
-                            path=f,
-                            name=f.name,
-                            size=stat.st_size,
-                            modified=datetime.fromtimestamp(stat.st_mtime),
-                            is_system=is_system
-                        ))
+                        profiles.append(
+                            ProfileInfo(
+                                path=f,
+                                name=f.name,
+                                size=stat.st_size,
+                                modified=datetime.fromtimestamp(stat.st_mtime),
+                                is_system=is_system,
+                            )
+                        )
                     except Exception:
                         pass
 
@@ -303,11 +307,11 @@ class ProfileManagerWidget(QWidget):
 
         # Confirm
         reply = QMessageBox.question(
-            self, "Confirm Deletion",
-            f"Are you sure you want to delete {len(selected)} profile(s)?\n\n"
-            "This action cannot be undone.",
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete {len(selected)} profile(s)?\n\nThis action cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if reply != QMessageBox.StandardButton.Yes:

@@ -37,17 +37,15 @@ APP_ORG = "Quanta Universe"
 APP_NAME = "Calibrate Pro"
 APP_VERSION = "1.0.0"
 
-DEFAULT_OUTPUT_DIR = str(
-    Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
-)
+DEFAULT_OUTPUT_DIR = str(Path.home() / "Documents" / "Calibrate Pro" / "Calibrations")
 
 DEFAULT_APP_RULES = [
-    {"pattern": "chrome.exe",       "profile": "sRGB",   "action": "apply"},
-    {"pattern": "firefox.exe",      "profile": "sRGB",   "action": "apply"},
-    {"pattern": "msedge.exe",       "profile": "sRGB",   "action": "apply"},
-    {"pattern": "resolve*",         "profile": "Native",  "action": "apply"},
-    {"pattern": "Photoshop*",       "profile": "sRGB",   "action": "apply"},
-    {"pattern": "Lightroom*",       "profile": "sRGB",   "action": "apply"},
+    {"pattern": "chrome.exe", "profile": "sRGB", "action": "apply"},
+    {"pattern": "firefox.exe", "profile": "sRGB", "action": "apply"},
+    {"pattern": "msedge.exe", "profile": "sRGB", "action": "apply"},
+    {"pattern": "resolve*", "profile": "Native", "action": "apply"},
+    {"pattern": "Photoshop*", "profile": "sRGB", "action": "apply"},
+    {"pattern": "Lightroom*", "profile": "sRGB", "action": "apply"},
 ]
 
 PROFILE_CHOICES = ["sRGB", "Native", "Display P3"]
@@ -55,6 +53,7 @@ ACTION_CHOICES = ["Apply", "Disable"]
 
 
 # Helpers
+
 
 def _detect_argyll_path() -> str:
     """Try to find ArgyllCMS on the system PATH."""
@@ -75,10 +74,7 @@ def _detect_argyll_path() -> str:
 def _make_section_heading(text: str) -> QLabel:
     """Create a styled section heading label."""
     label = QLabel(text)
-    label.setStyleSheet(
-        f"font-size: 14px; font-weight: 500; color: {C.ACCENT_TX}; "
-        f"padding-top: 6px;"
-    )
+    label.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.ACCENT_TX}; padding-top: 6px;")
     return label
 
 
@@ -131,6 +127,7 @@ def _make_browse_row(
 
 # Settings Page
 
+
 class SettingsPage(QWidget):
     """Application settings page."""
 
@@ -169,15 +166,10 @@ class SettingsPage(QWidget):
         # Start with Windows
         self._startup_cb = QCheckBox("Start with Windows")
         self._startup_cb.setToolTip(
-            "Launch Calibrate Pro at login to maintain calibration.\n"
-            "Reapplies your LUT and ICC profile automatically."
+            "Launch Calibrate Pro at login to maintain calibration.\nReapplies your LUT and ICC profile automatically."
         )
-        self._startup_cb.setChecked(
-            self._settings.value("general/start_with_windows", False, type=bool)
-        )
-        self._startup_cb.toggled.connect(
-            lambda v: self._settings.setValue("general/start_with_windows", v)
-        )
+        self._startup_cb.setChecked(self._settings.value("general/start_with_windows", False, type=bool))
+        self._startup_cb.toggled.connect(lambda v: self._settings.setValue("general/start_with_windows", v))
         form_general.addRow("", self._startup_cb)
 
         # Minimize to tray
@@ -186,12 +178,8 @@ class SettingsPage(QWidget):
             "Keep Calibrate Pro running in the system tray when closed.\n"
             "The calibration guard continues protecting your settings."
         )
-        self._tray_cb.setChecked(
-            self._settings.value("general/minimize_to_tray", True, type=bool)
-        )
-        self._tray_cb.toggled.connect(
-            lambda v: self._settings.setValue("general/minimize_to_tray", v)
-        )
+        self._tray_cb.setChecked(self._settings.value("general/minimize_to_tray", True, type=bool))
+        self._tray_cb.toggled.connect(lambda v: self._settings.setValue("general/minimize_to_tray", v))
         form_general.addRow("", self._tray_cb)
 
         # Default calibration target
@@ -203,9 +191,7 @@ class SettingsPage(QWidget):
         idx = self._target_combo.findText(saved_target)
         if idx >= 0:
             self._target_combo.setCurrentIndex(idx)
-        self._target_combo.currentTextChanged.connect(
-            lambda t: self._settings.setValue("general/default_target", t)
-        )
+        self._target_combo.currentTextChanged.connect(lambda t: self._settings.setValue("general/default_target", t))
         form_general.addRow(target_label, self._target_combo)
 
         general_layout.addLayout(form_general)
@@ -236,9 +222,7 @@ class SettingsPage(QWidget):
         idx = self._lut_combo.findText(saved_lut)
         if idx >= 0:
             self._lut_combo.setCurrentIndex(idx)
-        self._lut_combo.currentTextChanged.connect(
-            lambda t: self._settings.setValue("calibration/lut_size", t)
-        )
+        self._lut_combo.currentTextChanged.connect(lambda t: self._settings.setValue("calibration/lut_size", t))
         form_cal.addRow(lut_label, self._lut_combo)
 
         # OLED compensation
@@ -248,12 +232,8 @@ class SettingsPage(QWidget):
             "compensation for OLED and QD-OLED panels.\n"
             "Auto-enabled for detected OLED displays."
         )
-        self._oled_cb.setChecked(
-            self._settings.value("calibration/oled_compensation", False, type=bool)
-        )
-        self._oled_cb.toggled.connect(
-            lambda v: self._settings.setValue("calibration/oled_compensation", v)
-        )
+        self._oled_cb.setChecked(self._settings.value("calibration/oled_compensation", False, type=bool))
+        self._oled_cb.toggled.connect(lambda v: self._settings.setValue("calibration/oled_compensation", v))
         form_cal.addRow("", self._oled_cb)
 
         # HDR mode
@@ -263,12 +243,8 @@ class SettingsPage(QWidget):
             "Uses JzAzBz perceptual space and BT.2390 EETF\n"
             "for tone mapping. Requires HDR enabled in Windows."
         )
-        self._hdr_cb.setChecked(
-            self._settings.value("calibration/hdr_mode", False, type=bool)
-        )
-        self._hdr_cb.toggled.connect(
-            lambda v: self._settings.setValue("calibration/hdr_mode", v)
-        )
+        self._hdr_cb.setChecked(self._settings.value("calibration/hdr_mode", False, type=bool))
+        self._hdr_cb.toggled.connect(lambda v: self._settings.setValue("calibration/hdr_mode", v))
         form_cal.addRow("", self._hdr_cb)
 
         cal_layout.addLayout(form_cal)
@@ -286,12 +262,8 @@ class SettingsPage(QWidget):
             "foreground application changes (e.g. sRGB for browsers,\n"
             "Native for games, Display P3 for creative apps)."
         )
-        self._app_switch_cb.setChecked(
-            self._settings.value("app_switcher/enabled", False, type=bool)
-        )
-        self._app_switch_cb.toggled.connect(
-            lambda v: self._settings.setValue("app_switcher/enabled", v)
-        )
+        self._app_switch_cb.setChecked(self._settings.value("app_switcher/enabled", False, type=bool))
+        self._app_switch_cb.toggled.connect(lambda v: self._settings.setValue("app_switcher/enabled", v))
         app_layout.addWidget(self._app_switch_cb)
 
         # --- Rules table ---
@@ -299,23 +271,13 @@ class SettingsPage(QWidget):
         self._rules_table.setColumnCount(3)
         self._rules_table.setHorizontalHeaderLabels(["App Pattern", "Profile", "Action"])
         self._rules_table.horizontalHeader().setStretchLastSection(False)
-        self._rules_table.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
-        self._rules_table.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeMode.Fixed
-        )
-        self._rules_table.horizontalHeader().setSectionResizeMode(
-            2, QHeaderView.ResizeMode.Fixed
-        )
+        self._rules_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self._rules_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self._rules_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self._rules_table.setColumnWidth(1, 120)
         self._rules_table.setColumnWidth(2, 100)
-        self._rules_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
-        self._rules_table.setSelectionMode(
-            QAbstractItemView.SelectionMode.SingleSelection
-        )
+        self._rules_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._rules_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._rules_table.verticalHeader().setVisible(False)
         self._rules_table.setStyleSheet(
             f"QTableWidget {{"
@@ -429,12 +391,11 @@ class SettingsPage(QWidget):
         # Panel profiles directory
         profiles_label = QLabel("Panel profiles directory")
         profiles_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        profiles_default = str(
-            Path(__file__).parent.parent.parent / "calibrate_pro" / "panels" / "profiles"
-        )
+        profiles_default = str(Path(__file__).parent.parent.parent / "calibrate_pro" / "panels" / "profiles")
         # Resolve to absolute path
         try:
             from calibrate_pro.panels.database import PanelDatabase
+
             profiles_default = str(PanelDatabase().profiles_dir.resolve())
         except Exception:
             pass
@@ -449,9 +410,7 @@ class SettingsPage(QWidget):
         profiles_container.setLayout(profiles_row)
         form_paths.addRow(profiles_label, profiles_container)
 
-        profiles_note = QLabel(
-            "Place community .json panel files here to add display support"
-        )
+        profiles_note = QLabel("Place community .json panel files here to add display support")
         profiles_note.setStyleSheet(f"font-size: 10px; color: {C.TEXT3}; font-style: italic;")
         form_paths.addRow("", profiles_note)
 
@@ -464,9 +423,7 @@ class SettingsPage(QWidget):
         about_card, about_layout = Card.with_layout(spacing=10)
 
         version_label = QLabel(f"{APP_NAME}  v{APP_VERSION}")
-        version_label.setStyleSheet(
-            f"font-size: 15px; font-weight: 600; color: {C.TEXT};"
-        )
+        version_label.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {C.TEXT};")
         about_layout.addWidget(version_label)
 
         subtitle = QLabel("Professional display calibration for Windows")
@@ -538,9 +495,7 @@ class SettingsPage(QWidget):
                 rule.get("action", "apply"),
             )
 
-    def _insert_rule_row(
-        self, pattern: str = "*.exe", profile: str = "sRGB", action: str = "apply"
-    ):
+    def _insert_rule_row(self, pattern: str = "*.exe", profile: str = "sRGB", action: str = "apply"):
         """Insert a single rule row into the table."""
         row = self._rules_table.rowCount()
         self._rules_table.insertRow(row)
@@ -585,11 +540,13 @@ class SettingsPage(QWidget):
             if pattern_item is None or profile_widget is None or action_widget is None:
                 continue
 
-            rules.append({
-                "pattern": pattern_item.text(),
-                "profile": profile_widget.currentText(),
-                "action": action_widget.currentText().lower(),
-            })
+            rules.append(
+                {
+                    "pattern": pattern_item.text(),
+                    "profile": profile_widget.currentText(),
+                    "action": action_widget.currentText().lower(),
+                }
+            )
 
         self._settings.setValue("app_switcher/rules", json.dumps(rules))
 

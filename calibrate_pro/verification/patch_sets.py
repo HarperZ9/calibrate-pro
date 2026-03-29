@@ -40,6 +40,7 @@ from dataclasses import dataclass
 # Patch Dataclass
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class CalibrationPatch:
     """A single calibration patch with sRGB values and metadata.
@@ -51,12 +52,13 @@ class CalibrationPatch:
         b:        Blue channel, sRGB 0.0-1.0.
         category: Semantic category for grouping and analysis.
     """
+
     name: str
     r: float  # sRGB 0-1
     g: float  # sRGB 0-1
     b: float  # sRGB 0-1
     category: str  # "grayscale", "primary", "secondary", "saturation",
-                    # "colorchecker", "skin", "pluge", "broadcast"
+    # "colorchecker", "skin", "pluge", "broadcast"
 
     @property
     def rgb(self) -> tuple[float, float, float]:
@@ -73,16 +75,13 @@ class CalibrationPatch:
         )
 
     def __repr__(self) -> str:
-        return (
-            f"CalibrationPatch({self.name!r}, "
-            f"r={self.r:.4f}, g={self.g:.4f}, b={self.b:.4f}, "
-            f"cat={self.category!r})"
-        )
+        return f"CalibrationPatch({self.name!r}, r={self.r:.4f}, g={self.g:.4f}, b={self.b:.4f}, cat={self.category!r})"
 
 
 # =============================================================================
 # Helper: sRGB gamma
 # =============================================================================
+
 
 def _srgb_gamma_compress(linear: float) -> float:
     """IEC 61966-2-1 forward transfer (linear -> sRGB)."""
@@ -181,11 +180,11 @@ NEAR_WHITE_11: list[CalibrationPatch] = [
 # Hue angles (HSV): R=0, Y=60, G=120, C=180, B=240, M=300
 
 _SWEEP_HUES = [
-    ("Red",     0.0),
+    ("Red", 0.0),
     ("Yellow", 60.0),
     ("Green", 120.0),
-    ("Cyan",  180.0),
-    ("Blue",  240.0),
+    ("Cyan", 180.0),
+    ("Blue", 240.0),
     ("Magenta", 300.0),
 ]
 
@@ -205,13 +204,15 @@ def _build_saturation_sweeps() -> list[CalibrationPatch]:
                 cat = "primary"
             else:
                 cat = "secondary"
-            patches.append(CalibrationPatch(
-                name=f"{hue_name} {sat_pct}% Sat",
-                r=round(r, 4),
-                g=round(g, 4),
-                b=round(b, 4),
-                category=cat,
-            ))
+            patches.append(
+                CalibrationPatch(
+                    name=f"{hue_name} {sat_pct}% Sat",
+                    r=round(r, 4),
+                    g=round(g, 4),
+                    b=round(b, 4),
+                    category=cat,
+                )
+            )
     return patches
 
 
@@ -224,27 +225,30 @@ SATURATION_SWEEPS: list[CalibrationPatch] = _build_saturation_sweeps()
 # Standard broadcast verification set.  75% bars are the traditional
 # broadcast standard; 100% bars stress-test peak gamut.
 
+
 def _build_primaries_secondaries() -> list[CalibrationPatch]:
     patches: list[CalibrationPatch] = []
     colors = [
         # (name, category, r100, g100, b100)
-        ("Red",     "primary",   1.0, 0.0, 0.0),
-        ("Green",   "primary",   0.0, 1.0, 0.0),
-        ("Blue",    "primary",   0.0, 0.0, 1.0),
-        ("Cyan",    "secondary", 0.0, 1.0, 1.0),
+        ("Red", "primary", 1.0, 0.0, 0.0),
+        ("Green", "primary", 0.0, 1.0, 0.0),
+        ("Blue", "primary", 0.0, 0.0, 1.0),
+        ("Cyan", "secondary", 0.0, 1.0, 1.0),
         ("Magenta", "secondary", 1.0, 0.0, 1.0),
-        ("Yellow",  "secondary", 1.0, 1.0, 0.0),
+        ("Yellow", "secondary", 1.0, 1.0, 0.0),
     ]
     for level_pct in (75, 100):
         scale = level_pct / 100.0
         for name, cat, r, g, b in colors:
-            patches.append(CalibrationPatch(
-                name=f"{name} {level_pct}%",
-                r=round(r * scale, 4),
-                g=round(g * scale, 4),
-                b=round(b * scale, 4),
-                category=cat,
-            ))
+            patches.append(
+                CalibrationPatch(
+                    name=f"{name} {level_pct}%",
+                    r=round(r * scale, 4),
+                    g=round(g * scale, 4),
+                    b=round(b * scale, 4),
+                    category=cat,
+                )
+            )
     return patches
 
 
@@ -261,50 +265,67 @@ PRIMARIES_SECONDARIES: list[CalibrationPatch] = _build_primaries_secondaries()
 # sRGB values for 75% bars: the active component is 0.75, inactive is 0.0.
 # sRGB values for 100% bars: the active component is 1.0, inactive is 0.0.
 
+
 def _build_smpte_bars() -> list[CalibrationPatch]:
     patches: list[CalibrationPatch] = []
 
     # 75% amplitude bars (standard SMPTE)
     bars_75 = [
-        ("SMPTE 75% White",   0.75, 0.75, 0.75, "grayscale"),
-        ("SMPTE 75% Yellow",  0.75, 0.75, 0.00, "secondary"),
-        ("SMPTE 75% Cyan",    0.00, 0.75, 0.75, "secondary"),
-        ("SMPTE 75% Green",   0.00, 0.75, 0.00, "primary"),
+        ("SMPTE 75% White", 0.75, 0.75, 0.75, "grayscale"),
+        ("SMPTE 75% Yellow", 0.75, 0.75, 0.00, "secondary"),
+        ("SMPTE 75% Cyan", 0.00, 0.75, 0.75, "secondary"),
+        ("SMPTE 75% Green", 0.00, 0.75, 0.00, "primary"),
         ("SMPTE 75% Magenta", 0.75, 0.00, 0.75, "secondary"),
-        ("SMPTE 75% Red",     0.75, 0.00, 0.00, "primary"),
-        ("SMPTE 75% Blue",    0.00, 0.00, 0.75, "primary"),
-        ("SMPTE 75% Black",   0.00, 0.00, 0.00, "grayscale"),
+        ("SMPTE 75% Red", 0.75, 0.00, 0.00, "primary"),
+        ("SMPTE 75% Blue", 0.00, 0.00, 0.75, "primary"),
+        ("SMPTE 75% Black", 0.00, 0.00, 0.00, "grayscale"),
     ]
     for name, r, g, b, cat in bars_75:
         patches.append(CalibrationPatch(name=name, r=r, g=g, b=b, category=cat))
 
     # 100% amplitude bars
     bars_100 = [
-        ("SMPTE 100% White",   1.0, 1.0, 1.0, "grayscale"),
-        ("SMPTE 100% Yellow",  1.0, 1.0, 0.0, "secondary"),
-        ("SMPTE 100% Cyan",    0.0, 1.0, 1.0, "secondary"),
-        ("SMPTE 100% Green",   0.0, 1.0, 0.0, "primary"),
+        ("SMPTE 100% White", 1.0, 1.0, 1.0, "grayscale"),
+        ("SMPTE 100% Yellow", 1.0, 1.0, 0.0, "secondary"),
+        ("SMPTE 100% Cyan", 0.0, 1.0, 1.0, "secondary"),
+        ("SMPTE 100% Green", 0.0, 1.0, 0.0, "primary"),
         ("SMPTE 100% Magenta", 1.0, 0.0, 1.0, "secondary"),
-        ("SMPTE 100% Red",     1.0, 0.0, 0.0, "primary"),
-        ("SMPTE 100% Blue",    0.0, 0.0, 1.0, "primary"),
-        ("SMPTE 100% Black",   0.0, 0.0, 0.0, "grayscale"),
+        ("SMPTE 100% Red", 1.0, 0.0, 0.0, "primary"),
+        ("SMPTE 100% Blue", 0.0, 0.0, 1.0, "primary"),
+        ("SMPTE 100% Black", 0.0, 0.0, 0.0, "grayscale"),
     ]
     for name, r, g, b, cat in bars_100:
         patches.append(CalibrationPatch(name=name, r=r, g=g, b=b, category=cat))
 
     # Sub-black / PLUGE region of SMPTE bars
     # -4% (below black, should be invisible), 0% (black), +4% (just visible)
-    patches.append(CalibrationPatch(
-        name="SMPTE -4% Sub-Black", r=0.0, g=0.0, b=0.0, category="pluge",
-    ))
-    patches.append(CalibrationPatch(
-        name="SMPTE 0% Black", r=0.0, g=0.0, b=0.0, category="pluge",
-    ))
-    patches.append(CalibrationPatch(
-        name="SMPTE +4% Super-Black",
-        r=round(4 / 100.0, 4), g=round(4 / 100.0, 4), b=round(4 / 100.0, 4),
-        category="pluge",
-    ))
+    patches.append(
+        CalibrationPatch(
+            name="SMPTE -4% Sub-Black",
+            r=0.0,
+            g=0.0,
+            b=0.0,
+            category="pluge",
+        )
+    )
+    patches.append(
+        CalibrationPatch(
+            name="SMPTE 0% Black",
+            r=0.0,
+            g=0.0,
+            b=0.0,
+            category="pluge",
+        )
+    )
+    patches.append(
+        CalibrationPatch(
+            name="SMPTE +4% Super-Black",
+            r=round(4 / 100.0, 4),
+            g=round(4 / 100.0, 4),
+            b=round(4 / 100.0, 4),
+            category="pluge",
+        )
+    )
 
     return patches
 
@@ -320,14 +341,14 @@ SMPTE_BARS: list[CalibrationPatch] = _build_smpte_bars()
 # In EBU 75/0 mode, the peak level is 0.75 and the floor is 0.0.
 
 EBU_BARS: list[CalibrationPatch] = [
-    CalibrationPatch("EBU White",   0.75, 0.75, 0.75, "grayscale"),
-    CalibrationPatch("EBU Yellow",  0.75, 0.75, 0.00, "secondary"),
-    CalibrationPatch("EBU Cyan",    0.00, 0.75, 0.75, "secondary"),
-    CalibrationPatch("EBU Green",   0.00, 0.75, 0.00, "primary"),
+    CalibrationPatch("EBU White", 0.75, 0.75, 0.75, "grayscale"),
+    CalibrationPatch("EBU Yellow", 0.75, 0.75, 0.00, "secondary"),
+    CalibrationPatch("EBU Cyan", 0.00, 0.75, 0.75, "secondary"),
+    CalibrationPatch("EBU Green", 0.00, 0.75, 0.00, "primary"),
     CalibrationPatch("EBU Magenta", 0.75, 0.00, 0.75, "secondary"),
-    CalibrationPatch("EBU Red",     0.75, 0.00, 0.00, "primary"),
-    CalibrationPatch("EBU Blue",    0.00, 0.00, 0.75, "primary"),
-    CalibrationPatch("EBU Black",   0.00, 0.00, 0.00, "grayscale"),
+    CalibrationPatch("EBU Red", 0.75, 0.00, 0.00, "primary"),
+    CalibrationPatch("EBU Blue", 0.00, 0.00, 0.75, "primary"),
+    CalibrationPatch("EBU Black", 0.00, 0.00, 0.00, "grayscale"),
 ]
 
 
@@ -339,63 +360,63 @@ EBU_BARS: list[CalibrationPatch] = [
 
 COLORCHECKER_CLASSIC: list[CalibrationPatch] = [
     # Row 1 - Natural colors
-    CalibrationPatch("Dark Skin",    0.453, 0.317, 0.264, "colorchecker"),
-    CalibrationPatch("Light Skin",   0.779, 0.577, 0.505, "colorchecker"),
-    CalibrationPatch("Blue Sky",     0.355, 0.480, 0.611, "colorchecker"),
-    CalibrationPatch("Foliage",      0.352, 0.422, 0.253, "colorchecker"),
-    CalibrationPatch("Blue Flower",  0.508, 0.502, 0.691, "colorchecker"),
+    CalibrationPatch("Dark Skin", 0.453, 0.317, 0.264, "colorchecker"),
+    CalibrationPatch("Light Skin", 0.779, 0.577, 0.505, "colorchecker"),
+    CalibrationPatch("Blue Sky", 0.355, 0.480, 0.611, "colorchecker"),
+    CalibrationPatch("Foliage", 0.352, 0.422, 0.253, "colorchecker"),
+    CalibrationPatch("Blue Flower", 0.508, 0.502, 0.691, "colorchecker"),
     CalibrationPatch("Bluish Green", 0.362, 0.745, 0.675, "colorchecker"),
     # Row 2 - Miscellaneous colors
-    CalibrationPatch("Orange",       0.879, 0.485, 0.183, "colorchecker"),
+    CalibrationPatch("Orange", 0.879, 0.485, 0.183, "colorchecker"),
     CalibrationPatch("Purplish Blue", 0.266, 0.358, 0.667, "colorchecker"),
     CalibrationPatch("Moderate Red", 0.778, 0.321, 0.381, "colorchecker"),
-    CalibrationPatch("Purple",       0.367, 0.227, 0.414, "colorchecker"),
+    CalibrationPatch("Purple", 0.367, 0.227, 0.414, "colorchecker"),
     CalibrationPatch("Yellow Green", 0.623, 0.741, 0.246, "colorchecker"),
     CalibrationPatch("Orange Yellow", 0.904, 0.634, 0.154, "colorchecker"),
     # Row 3 - Primary and secondary colors
-    CalibrationPatch("Blue",         0.139, 0.248, 0.577, "colorchecker"),
-    CalibrationPatch("Green",        0.262, 0.584, 0.291, "colorchecker"),
-    CalibrationPatch("Red",          0.752, 0.197, 0.178, "colorchecker"),
-    CalibrationPatch("Yellow",       0.938, 0.857, 0.159, "colorchecker"),
-    CalibrationPatch("Magenta",      0.752, 0.313, 0.577, "colorchecker"),
-    CalibrationPatch("Cyan",         0.121, 0.544, 0.659, "colorchecker"),
+    CalibrationPatch("Blue", 0.139, 0.248, 0.577, "colorchecker"),
+    CalibrationPatch("Green", 0.262, 0.584, 0.291, "colorchecker"),
+    CalibrationPatch("Red", 0.752, 0.197, 0.178, "colorchecker"),
+    CalibrationPatch("Yellow", 0.938, 0.857, 0.159, "colorchecker"),
+    CalibrationPatch("Magenta", 0.752, 0.313, 0.577, "colorchecker"),
+    CalibrationPatch("Cyan", 0.121, 0.544, 0.659, "colorchecker"),
     # Row 4 - Grayscale
-    CalibrationPatch("White",        0.961, 0.961, 0.961, "colorchecker"),
-    CalibrationPatch("Neutral 8",    0.784, 0.784, 0.784, "colorchecker"),
-    CalibrationPatch("Neutral 6.5",  0.584, 0.584, 0.584, "colorchecker"),
-    CalibrationPatch("Neutral 5",    0.420, 0.420, 0.420, "colorchecker"),
-    CalibrationPatch("Neutral 3.5",  0.258, 0.258, 0.258, "colorchecker"),
-    CalibrationPatch("Black",        0.085, 0.085, 0.085, "colorchecker"),
+    CalibrationPatch("White", 0.961, 0.961, 0.961, "colorchecker"),
+    CalibrationPatch("Neutral 8", 0.784, 0.784, 0.784, "colorchecker"),
+    CalibrationPatch("Neutral 6.5", 0.584, 0.584, 0.584, "colorchecker"),
+    CalibrationPatch("Neutral 5", 0.420, 0.420, 0.420, "colorchecker"),
+    CalibrationPatch("Neutral 3.5", 0.258, 0.258, 0.258, "colorchecker"),
+    CalibrationPatch("Black", 0.085, 0.085, 0.085, "colorchecker"),
 ]
 
 # Reference Lab D50 values for ColorChecker Classic 24-patch.
 # Based on X-Rite published data (2014 revision), D50 illuminant.
 # Also available in calibrate_pro.verification.colorchecker.COLORCHECKER_CLASSIC_D50
 COLORCHECKER_CLASSIC_LAB_D50: dict[str, tuple[float, float, float]] = {
-    "Dark Skin":    (37.986,  13.555,  14.059),
-    "Light Skin":   (65.711,  18.130,  17.810),
-    "Blue Sky":     (49.927,  -4.880, -21.925),
-    "Foliage":      (43.139, -13.095,  21.905),
-    "Blue Flower":  (55.112,   8.844, -25.399),
-    "Bluish Green": (70.719, -33.397,  -0.199),
-    "Orange":       (62.661,  36.067,  57.096),
+    "Dark Skin": (37.986, 13.555, 14.059),
+    "Light Skin": (65.711, 18.130, 17.810),
+    "Blue Sky": (49.927, -4.880, -21.925),
+    "Foliage": (43.139, -13.095, 21.905),
+    "Blue Flower": (55.112, 8.844, -25.399),
+    "Bluish Green": (70.719, -33.397, -0.199),
+    "Orange": (62.661, 36.067, 57.096),
     "Purplish Blue": (40.020, 10.410, -45.964),
-    "Moderate Red": (51.124,  48.239,  16.248),
-    "Purple":       (30.325,  22.976, -21.587),
-    "Yellow Green": (72.532, -23.709,  57.255),
-    "Orange Yellow": (71.941, 19.363,  67.857),
-    "Blue":         (28.778,  14.179, -50.297),
-    "Green":        (55.261, -38.342,  31.370),
-    "Red":          (42.101,  53.378,  28.190),
-    "Yellow":       (81.733,   4.039,  79.819),
-    "Magenta":      (51.935,  49.986, -14.574),
-    "Cyan":         (51.038, -28.631, -28.638),
-    "White":        (96.539,  -0.425,   1.186),
-    "Neutral 8":    (81.257,  -0.638,  -0.335),
-    "Neutral 6.5":  (66.766,  -0.734,  -0.504),
-    "Neutral 5":    (50.867,  -0.153,  -0.270),
-    "Neutral 3.5":  (35.656,  -0.421,  -1.231),
-    "Black":        (20.461,  -0.079,  -0.973),
+    "Moderate Red": (51.124, 48.239, 16.248),
+    "Purple": (30.325, 22.976, -21.587),
+    "Yellow Green": (72.532, -23.709, 57.255),
+    "Orange Yellow": (71.941, 19.363, 67.857),
+    "Blue": (28.778, 14.179, -50.297),
+    "Green": (55.261, -38.342, 31.370),
+    "Red": (42.101, 53.378, 28.190),
+    "Yellow": (81.733, 4.039, 79.819),
+    "Magenta": (51.935, 49.986, -14.574),
+    "Cyan": (51.038, -28.631, -28.638),
+    "White": (96.539, -0.425, 1.186),
+    "Neutral 8": (81.257, -0.638, -0.335),
+    "Neutral 6.5": (66.766, -0.734, -0.504),
+    "Neutral 5": (50.867, -0.153, -0.270),
+    "Neutral 3.5": (35.656, -0.421, -1.231),
+    "Black": (20.461, -0.079, -0.973),
 }
 
 
@@ -411,23 +432,23 @@ COLORCHECKER_CLASSIC_LAB_D50: dict[str, tuple[float, float, float]] = {
 
 SKIN_TONES: list[CalibrationPatch] = [
     # Light Caucasian skin
-    CalibrationPatch("Skin Light 1",         0.890, 0.733, 0.635, "skin"),
-    CalibrationPatch("Skin Light 2",         0.843, 0.694, 0.608, "skin"),
+    CalibrationPatch("Skin Light 1", 0.890, 0.733, 0.635, "skin"),
+    CalibrationPatch("Skin Light 2", 0.843, 0.694, 0.608, "skin"),
     # Medium Caucasian / Mediterranean
-    CalibrationPatch("Skin Medium 1",        0.792, 0.612, 0.502, "skin"),
-    CalibrationPatch("Skin Medium 2",        0.745, 0.569, 0.467, "skin"),
+    CalibrationPatch("Skin Medium 1", 0.792, 0.612, 0.502, "skin"),
+    CalibrationPatch("Skin Medium 2", 0.745, 0.569, 0.467, "skin"),
     # Olive / East Asian
-    CalibrationPatch("Skin Olive 1",         0.710, 0.553, 0.416, "skin"),
-    CalibrationPatch("Skin Olive 2",         0.659, 0.494, 0.369, "skin"),
+    CalibrationPatch("Skin Olive 1", 0.710, 0.553, 0.416, "skin"),
+    CalibrationPatch("Skin Olive 2", 0.659, 0.494, 0.369, "skin"),
     # Medium-dark / South Asian / Latin
-    CalibrationPatch("Skin Medium-Dark 1",   0.580, 0.408, 0.310, "skin"),
-    CalibrationPatch("Skin Medium-Dark 2",   0.502, 0.341, 0.259, "skin"),
+    CalibrationPatch("Skin Medium-Dark 1", 0.580, 0.408, 0.310, "skin"),
+    CalibrationPatch("Skin Medium-Dark 2", 0.502, 0.341, 0.259, "skin"),
     # Dark / African
-    CalibrationPatch("Skin Dark 1",          0.400, 0.275, 0.216, "skin"),
-    CalibrationPatch("Skin Dark 2",          0.318, 0.208, 0.165, "skin"),
+    CalibrationPatch("Skin Dark 1", 0.400, 0.275, 0.216, "skin"),
+    CalibrationPatch("Skin Dark 2", 0.318, 0.208, 0.165, "skin"),
     # ColorChecker reference skin patches
-    CalibrationPatch("CC Dark Skin",         0.453, 0.317, 0.264, "skin"),
-    CalibrationPatch("CC Light Skin",        0.779, 0.577, 0.505, "skin"),
+    CalibrationPatch("CC Dark Skin", 0.453, 0.317, 0.264, "skin"),
+    CalibrationPatch("CC Light Skin", 0.779, 0.577, 0.505, "skin"),
 ]
 
 
@@ -445,15 +466,15 @@ SKIN_TONES: list[CalibrationPatch] = [
 # Additional steps are included for fine adjustment.
 
 PLUGE: list[CalibrationPatch] = [
-    CalibrationPatch("PLUGE 0% Black",       0.0,    0.0,    0.0,    "pluge"),
-    CalibrationPatch("PLUGE 2% Sub-Black",   0.02,   0.02,   0.02,   "pluge"),
-    CalibrationPatch("PLUGE 3.5% Below",     0.035,  0.035,  0.035,  "pluge"),
-    CalibrationPatch("PLUGE 5%",             0.05,   0.05,   0.05,   "pluge"),
-    CalibrationPatch("PLUGE 7.5% Reference", 0.075,  0.075,  0.075,  "pluge"),
-    CalibrationPatch("PLUGE 10%",            0.10,   0.10,   0.10,   "pluge"),
-    CalibrationPatch("PLUGE 11.4% Above",    0.114,  0.114,  0.114,  "pluge"),
-    CalibrationPatch("PLUGE 15%",            0.15,   0.15,   0.15,   "pluge"),
-    CalibrationPatch("PLUGE 20%",            0.20,   0.20,   0.20,   "pluge"),
+    CalibrationPatch("PLUGE 0% Black", 0.0, 0.0, 0.0, "pluge"),
+    CalibrationPatch("PLUGE 2% Sub-Black", 0.02, 0.02, 0.02, "pluge"),
+    CalibrationPatch("PLUGE 3.5% Below", 0.035, 0.035, 0.035, "pluge"),
+    CalibrationPatch("PLUGE 5%", 0.05, 0.05, 0.05, "pluge"),
+    CalibrationPatch("PLUGE 7.5% Reference", 0.075, 0.075, 0.075, "pluge"),
+    CalibrationPatch("PLUGE 10%", 0.10, 0.10, 0.10, "pluge"),
+    CalibrationPatch("PLUGE 11.4% Above", 0.114, 0.114, 0.114, "pluge"),
+    CalibrationPatch("PLUGE 15%", 0.15, 0.15, 0.15, "pluge"),
+    CalibrationPatch("PLUGE 20%", 0.20, 0.20, 0.20, "pluge"),
 ]
 
 
@@ -473,6 +494,7 @@ PLUGE: list[CalibrationPatch] = [
 #
 # Total: ~100 patches (exact count depends on deduplication of shared colors).
 
+
 def _build_comprehensive_100() -> list[CalibrationPatch]:
     seen: set[tuple[float, float, float]] = set()
     patches: list[CalibrationPatch] = []
@@ -488,9 +510,9 @@ def _build_comprehensive_100() -> list[CalibrationPatch]:
         patches.append(p)
 
     # Drift reference - start (always included, even if duplicated later)
-    _add_always(CalibrationPatch("Drift Ref White (Start)",  1.0, 1.0, 1.0, "grayscale"))
-    _add_always(CalibrationPatch("Drift Ref Gray (Start)",   0.5, 0.5, 0.5, "grayscale"))
-    _add_always(CalibrationPatch("Drift Ref Black (Start)",  0.0, 0.0, 0.0, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref White (Start)", 1.0, 1.0, 1.0, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref Gray (Start)", 0.5, 0.5, 0.5, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref Black (Start)", 0.0, 0.0, 0.0, "grayscale"))
 
     # 11-step grayscale (0%, 10%, 20% ... 100%)
     for pct in range(0, 110, 10):
@@ -526,9 +548,9 @@ def _build_comprehensive_100() -> list[CalibrationPatch]:
         _add(p)
 
     # Drift reference - end (always included for drift detection)
-    _add_always(CalibrationPatch("Drift Ref White (End)",  1.0, 1.0, 1.0, "grayscale"))
-    _add_always(CalibrationPatch("Drift Ref Gray (End)",   0.5, 0.5, 0.5, "grayscale"))
-    _add_always(CalibrationPatch("Drift Ref Black (End)",  0.0, 0.0, 0.0, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref White (End)", 1.0, 1.0, 1.0, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref Gray (End)", 0.5, 0.5, 0.5, "grayscale"))
+    _add_always(CalibrationPatch("Drift Ref Black (End)", 0.0, 0.0, 0.0, "grayscale"))
 
     return patches
 
@@ -587,8 +609,7 @@ _PATCH_SET_REGISTRY: dict[str, tuple[list[CalibrationPatch], str]] = {
     ),
     "COMPREHENSIVE_100": (
         COMPREHENSIVE_100,
-        "Combined ~100 patches: grayscale + primaries + sweeps + near-black "
-        "+ ColorChecker + drift references",
+        "Combined ~100 patches: grayscale + primaries + sweeps + near-black + ColorChecker + drift references",
     ),
 }
 
@@ -596,6 +617,7 @@ _PATCH_SET_REGISTRY: dict[str, tuple[list[CalibrationPatch], str]] = {
 # =============================================================================
 # Public API Functions
 # =============================================================================
+
 
 def get_patch_set(name: str) -> list[CalibrationPatch]:
     """Return a named patch set.
@@ -619,9 +641,7 @@ def get_patch_set(name: str) -> list[CalibrationPatch]:
     key = name.upper().strip()
     if key not in _PATCH_SET_REGISTRY:
         available = ", ".join(sorted(_PATCH_SET_REGISTRY.keys()))
-        raise KeyError(
-            f"Unknown patch set {name!r}. Available sets: {available}"
-        )
+        raise KeyError(f"Unknown patch set {name!r}. Available sets: {available}")
     return _PATCH_SET_REGISTRY[key][0]
 
 
@@ -637,9 +657,7 @@ def list_patch_sets() -> list[tuple[str, str]]:
             patches = get_patch_set(name)
             print(f"{name} ({len(patches)} patches): {desc}")
     """
-    return sorted(
-        (name, desc) for name, (_, desc) in _PATCH_SET_REGISTRY.items()
-    )
+    return sorted((name, desc) for name, (_, desc) in _PATCH_SET_REGISTRY.items())
 
 
 def get_colorchecker_lab_reference(patch_name: str) -> tuple[float, float, float]:
@@ -657,10 +675,7 @@ def get_colorchecker_lab_reference(patch_name: str) -> tuple[float, float, float
     """
     if patch_name not in COLORCHECKER_CLASSIC_LAB_D50:
         available = ", ".join(sorted(COLORCHECKER_CLASSIC_LAB_D50.keys()))
-        raise KeyError(
-            f"Unknown ColorChecker patch {patch_name!r}. "
-            f"Available: {available}"
-        )
+        raise KeyError(f"Unknown ColorChecker patch {patch_name!r}. Available: {available}")
     return COLORCHECKER_CLASSIC_LAB_D50[patch_name]
 
 

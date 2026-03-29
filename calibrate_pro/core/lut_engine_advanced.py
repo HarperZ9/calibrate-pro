@@ -36,8 +36,10 @@ from .lut_engine import LUT3D, LUTFormat
 # Advanced LUT Class with Extended Features
 # =============================================================================
 
+
 class LUTInterpolation(Enum):
     """LUT interpolation methods."""
+
     TRILINEAR = "trilinear"
     TETRAHEDRAL = "tetrahedral"
     PRISMATIC = "prismatic"
@@ -54,6 +56,7 @@ class AdvancedLUT3D(LUT3D):
     - HDR metadata embedding
     - Perceptual optimization
     """
+
     interpolation: LUTInterpolation = LUTInterpolation.TETRAHEDRAL
     hdr_metadata: dict = field(default_factory=dict)
     is_hdr: bool = False
@@ -100,35 +103,35 @@ class AdvancedLUT3D(LUT3D):
 
             # Get the 8 corner values
             c000 = self.data[r0, g0, b0]
-            c001 = self.data[r0, g0, min(b0+1, self.size-1)]
-            c010 = self.data[r0, min(g0+1, self.size-1), b0]
-            c011 = self.data[r0, min(g0+1, self.size-1), min(b0+1, self.size-1)]
-            c100 = self.data[min(r0+1, self.size-1), g0, b0]
-            c101 = self.data[min(r0+1, self.size-1), g0, min(b0+1, self.size-1)]
-            c110 = self.data[min(r0+1, self.size-1), min(g0+1, self.size-1), b0]
-            c111 = self.data[min(r0+1, self.size-1), min(g0+1, self.size-1), min(b0+1, self.size-1)]
+            c001 = self.data[r0, g0, min(b0 + 1, self.size - 1)]
+            c010 = self.data[r0, min(g0 + 1, self.size - 1), b0]
+            c011 = self.data[r0, min(g0 + 1, self.size - 1), min(b0 + 1, self.size - 1)]
+            c100 = self.data[min(r0 + 1, self.size - 1), g0, b0]
+            c101 = self.data[min(r0 + 1, self.size - 1), g0, min(b0 + 1, self.size - 1)]
+            c110 = self.data[min(r0 + 1, self.size - 1), min(g0 + 1, self.size - 1), b0]
+            c111 = self.data[min(r0 + 1, self.size - 1), min(g0 + 1, self.size - 1), min(b0 + 1, self.size - 1)]
 
             # Tetrahedral interpolation - determine which tetrahedron
             if fr > fg:
                 if fg > fb:
                     # Tetrahedron 1: R > G > B
-                    result[i] = (1-fr) * c000 + (fr-fg) * c100 + (fg-fb) * c110 + fb * c111
+                    result[i] = (1 - fr) * c000 + (fr - fg) * c100 + (fg - fb) * c110 + fb * c111
                 elif fr > fb:
                     # Tetrahedron 2: R > B > G
-                    result[i] = (1-fr) * c000 + (fr-fb) * c100 + (fb-fg) * c101 + fg * c111
+                    result[i] = (1 - fr) * c000 + (fr - fb) * c100 + (fb - fg) * c101 + fg * c111
                 else:
                     # Tetrahedron 3: B > R > G
-                    result[i] = (1-fb) * c000 + (fb-fr) * c001 + (fr-fg) * c101 + fg * c111
+                    result[i] = (1 - fb) * c000 + (fb - fr) * c001 + (fr - fg) * c101 + fg * c111
             else:
                 if fb > fg:
                     # Tetrahedron 4: B > G > R
-                    result[i] = (1-fb) * c000 + (fb-fg) * c001 + (fg-fr) * c011 + fr * c111
+                    result[i] = (1 - fb) * c000 + (fb - fg) * c001 + (fg - fr) * c011 + fr * c111
                 elif fb > fr:
                     # Tetrahedron 5: G > B > R
-                    result[i] = (1-fg) * c000 + (fg-fb) * c010 + (fb-fr) * c011 + fr * c111
+                    result[i] = (1 - fg) * c000 + (fg - fb) * c010 + (fb - fr) * c011 + fr * c111
                 else:
                     # Tetrahedron 6: G > R > B
-                    result[i] = (1-fg) * c000 + (fg-fr) * c010 + (fr-fb) * c110 + fb * c111
+                    result[i] = (1 - fg) * c000 + (fg - fr) * c010 + (fr - fb) * c110 + fb * c111
 
         # Reshape to original
         if len(original_shape) == 1:
@@ -144,7 +147,7 @@ class AdvancedLUT3D(LUT3D):
         else:
             return super().apply(rgb)
 
-    def to_hdr_pq(self, peak_luminance: float = 10000.0) -> 'AdvancedLUT3D':
+    def to_hdr_pq(self, peak_luminance: float = 10000.0) -> "AdvancedLUT3D":
         """
         Convert SDR LUT to HDR with PQ encoding.
 
@@ -160,7 +163,7 @@ class AdvancedLUT3D(LUT3D):
             title=f"{self.title} (HDR PQ)",
             interpolation=self.interpolation,
             is_hdr=True,
-            peak_luminance=peak_luminance
+            peak_luminance=peak_luminance,
         )
 
         # Apply PQ encoding to output values
@@ -174,9 +177,9 @@ class AdvancedLUT3D(LUT3D):
                     new_lut.data[r, g, b] = pq_oetf(rgb_abs)
 
         new_lut.hdr_metadata = {
-            'transfer_function': 'pq',
-            'peak_luminance': peak_luminance,
-            'min_luminance': self.min_luminance
+            "transfer_function": "pq",
+            "peak_luminance": peak_luminance,
+            "min_luminance": self.min_luminance,
         }
 
         return new_lut
@@ -185,6 +188,7 @@ class AdvancedLUT3D(LUT3D):
 # =============================================================================
 # Advanced LUT Generator
 # =============================================================================
+
 
 class AdvancedLUTGenerator:
     """
@@ -199,11 +203,11 @@ class AdvancedLUTGenerator:
     """
 
     # Recommended sizes for different use cases
-    SIZE_QUICK = 17      # Fast preview
-    SIZE_STANDARD = 33   # Standard quality
-    SIZE_HIGH = 65       # High quality
-    SIZE_ULTRA = 129     # Ultra quality
-    SIZE_MAXIMUM = 256   # Maximum accuracy (50MB)
+    SIZE_QUICK = 17  # Fast preview
+    SIZE_STANDARD = 33  # Standard quality
+    SIZE_HIGH = 65  # High quality
+    SIZE_ULTRA = 129  # Ultra quality
+    SIZE_MAXIMUM = 256  # Maximum accuracy (50MB)
 
     def __init__(self, size: int = 65, num_threads: int = None):
         """
@@ -231,11 +235,11 @@ class AdvancedLUTGenerator:
     def create_calibration_lut_cam16(
         self,
         panel_profile: dict,
-        target_colorspace: str = 'srgb',
-        gamut_mapping: str = 'cam16',
+        target_colorspace: str = "srgb",
+        gamut_mapping: str = "cam16",
         preserve_black: bool = True,
         preserve_white: bool = True,
-        title: str = "CAM16 Calibration LUT"
+        title: str = "CAM16 Calibration LUT",
     ) -> AdvancedLUT3D:
         """
         Create calibration LUT using CAM16-UCS gamut mapping.
@@ -258,13 +262,13 @@ class AdvancedLUTGenerator:
             Calibration LUT
         """
         # Extract panel characteristics
-        panel_primaries = panel_profile['primaries']
-        panel_white = panel_profile['white_point']
+        panel_primaries = panel_profile["primaries"]
+        panel_white = panel_profile["white_point"]
 
-        if isinstance(panel_profile.get('gamma'), tuple):
-            gamma_r, gamma_g, gamma_b = panel_profile['gamma']
+        if isinstance(panel_profile.get("gamma"), tuple):
+            gamma_r, gamma_g, gamma_b = panel_profile["gamma"]
         else:
-            gamma = panel_profile.get('gamma', 2.2)
+            gamma = panel_profile.get("gamma", 2.2)
             gamma_r = gamma_g = gamma_b = gamma
 
         # Target colorspace primaries
@@ -272,12 +276,10 @@ class AdvancedLUTGenerator:
         target_white = (0.3127, 0.3290)  # D65
 
         # Build transformation matrices
-        panel_to_xyz = primaries_to_xyz_matrix(
-            panel_primaries[0], panel_primaries[1],
-            panel_primaries[2], panel_white)
+        panel_to_xyz = primaries_to_xyz_matrix(panel_primaries[0], panel_primaries[1], panel_primaries[2], panel_white)
         target_to_xyz = primaries_to_xyz_matrix(
-            target_primaries[0], target_primaries[1],
-            target_primaries[2], target_white)
+            target_primaries[0], target_primaries[1], target_primaries[2], target_white
+        )
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
         color_matrix = xyz_to_panel @ target_to_xyz
 
@@ -286,23 +288,32 @@ class AdvancedLUTGenerator:
             size=self.size,
             data=np.zeros((self.size, self.size, self.size, 3)),
             title=title,
-            interpolation=LUTInterpolation.TETRAHEDRAL
+            interpolation=LUTInterpolation.TETRAHEDRAL,
         )
 
         # Generate LUT with parallel processing for large sizes
         if self.size >= 65:
-            self._generate_parallel(lut, color_matrix, gamma_r, gamma_g, gamma_b,
-                                   preserve_black, preserve_white, gamut_mapping)
+            self._generate_parallel(
+                lut, color_matrix, gamma_r, gamma_g, gamma_b, preserve_black, preserve_white, gamut_mapping
+            )
         else:
-            self._generate_sequential(lut, color_matrix, gamma_r, gamma_g, gamma_b,
-                                     preserve_black, preserve_white, gamut_mapping)
+            self._generate_sequential(
+                lut, color_matrix, gamma_r, gamma_g, gamma_b, preserve_black, preserve_white, gamut_mapping
+            )
 
         return lut
 
-    def _generate_sequential(self, lut: AdvancedLUT3D, matrix: np.ndarray,
-                            gamma_r: float, gamma_g: float, gamma_b: float,
-                            preserve_black: bool, preserve_white: bool,
-                            gamut_mapping: str):
+    def _generate_sequential(
+        self,
+        lut: AdvancedLUT3D,
+        matrix: np.ndarray,
+        gamma_r: float,
+        gamma_g: float,
+        gamma_b: float,
+        preserve_black: bool,
+        preserve_white: bool,
+        gamut_mapping: str,
+    ):
         """Generate LUT sequentially (for smaller sizes)."""
         EPS = 1e-10
         target_gamma = 2.2
@@ -324,15 +335,21 @@ class AdvancedLUTGenerator:
 
                     # Apply transformation
                     result = self._transform_color(
-                        rgb, matrix, gamma_r, gamma_g, gamma_b,
-                        target_gamma, gamut_mapping, EPS
+                        rgb, matrix, gamma_r, gamma_g, gamma_b, target_gamma, gamut_mapping, EPS
                     )
                     lut.data[r_idx, g_idx, b_idx] = result
 
-    def _generate_parallel(self, lut: AdvancedLUT3D, matrix: np.ndarray,
-                          gamma_r: float, gamma_g: float, gamma_b: float,
-                          preserve_black: bool, preserve_white: bool,
-                          gamut_mapping: str):
+    def _generate_parallel(
+        self,
+        lut: AdvancedLUT3D,
+        matrix: np.ndarray,
+        gamma_r: float,
+        gamma_g: float,
+        gamma_b: float,
+        preserve_black: bool,
+        preserve_white: bool,
+        gamut_mapping: str,
+    ):
         """Generate LUT with parallel processing (for larger sizes)."""
         EPS = 1e-10
         target_gamma = 2.2
@@ -355,8 +372,7 @@ class AdvancedLUTGenerator:
                         continue
 
                     result = self._transform_color(
-                        rgb, matrix, gamma_r, gamma_g, gamma_b,
-                        target_gamma, gamut_mapping, EPS
+                        rgb, matrix, gamma_r, gamma_g, gamma_b, target_gamma, gamut_mapping, EPS
                     )
                     slice_data[g_idx, b_idx] = result
 
@@ -370,10 +386,17 @@ class AdvancedLUTGenerator:
                 r_idx, slice_data = future.result()
                 lut.data[r_idx] = slice_data
 
-    def _transform_color(self, rgb: np.ndarray, matrix: np.ndarray,
-                        gamma_r: float, gamma_g: float, gamma_b: float,
-                        target_gamma: float, gamut_mapping: str,
-                        eps: float) -> np.ndarray:
+    def _transform_color(
+        self,
+        rgb: np.ndarray,
+        matrix: np.ndarray,
+        gamma_r: float,
+        gamma_g: float,
+        gamma_b: float,
+        target_gamma: float,
+        gamut_mapping: str,
+        eps: float,
+    ) -> np.ndarray:
         """Apply color transformation with gamut mapping."""
         # Linearize
         rgb_linear = np.where(rgb > eps, np.power(rgb, target_gamma), 0.0)
@@ -382,20 +405,22 @@ class AdvancedLUTGenerator:
         rgb_panel_linear = matrix @ rgb_linear
 
         # Gamut mapping
-        if gamut_mapping == 'cam16':
+        if gamut_mapping == "cam16":
             rgb_panel_linear = self._gamut_map_cam16(rgb_panel_linear)
-        elif gamut_mapping == 'jzazbz':
+        elif gamut_mapping == "jzazbz":
             rgb_panel_linear = self._gamut_map_jzazbz(rgb_panel_linear)
 
         # Clamp
         rgb_panel_linear = np.clip(rgb_panel_linear, 0.0, 1.0)
 
         # Apply inverse gamma
-        rgb_output = np.array([
-            np.power(rgb_panel_linear[0], 1.0 / gamma_r) if rgb_panel_linear[0] > eps else 0.0,
-            np.power(rgb_panel_linear[1], 1.0 / gamma_g) if rgb_panel_linear[1] > eps else 0.0,
-            np.power(rgb_panel_linear[2], 1.0 / gamma_b) if rgb_panel_linear[2] > eps else 0.0
-        ])
+        rgb_output = np.array(
+            [
+                np.power(rgb_panel_linear[0], 1.0 / gamma_r) if rgb_panel_linear[0] > eps else 0.0,
+                np.power(rgb_panel_linear[1], 1.0 / gamma_g) if rgb_panel_linear[1] > eps else 0.0,
+                np.power(rgb_panel_linear[2], 1.0 / gamma_b) if rgb_panel_linear[2] > eps else 0.0,
+            ]
+        )
 
         return np.clip(rgb_output, 0, 1)
 
@@ -407,11 +432,12 @@ class AdvancedLUTGenerator:
 
         # Convert to XYZ then CAM16
         from .color_math import SRGB_TO_XYZ
+
         xyz = SRGB_TO_XYZ @ np.clip(rgb_linear, 0, 10)  # Allow some headroom
 
         try:
             cam_result = self.cam16.xyz_to_cam16(xyz)
-            J, M, h = cam_result['J'], cam_result['M'], cam_result['h']
+            J, M, h = cam_result["J"], cam_result["M"], cam_result["h"]
 
             # Compress chroma to fit in gamut
             M_reduced = M * 0.9  # Simple compression
@@ -431,6 +457,7 @@ class AdvancedLUTGenerator:
             return rgb_linear
 
         from .color_math import SRGB_TO_XYZ
+
         xyz = SRGB_TO_XYZ @ np.clip(rgb_linear, 0, 10)
 
         try:
@@ -456,18 +483,14 @@ class AdvancedLUTGenerator:
     def _get_colorspace_primaries(self, colorspace: str) -> tuple:
         """Get primaries for named colorspace."""
         primaries = {
-            'srgb': ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
-            'p3': ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600)),
-            'bt2020': ((0.7080, 0.2920), (0.1700, 0.7970), (0.1310, 0.0460)),
-            'adobe_rgb': ((0.6400, 0.3300), (0.2100, 0.7100), (0.1500, 0.0600))
+            "srgb": ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
+            "p3": ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600)),
+            "bt2020": ((0.7080, 0.2920), (0.1700, 0.7970), (0.1310, 0.0460)),
+            "adobe_rgb": ((0.6400, 0.3300), (0.2100, 0.7100), (0.1500, 0.0600)),
         }
-        return primaries.get(colorspace, primaries['srgb'])
+        return primaries.get(colorspace, primaries["srgb"])
 
-    def single_pass_multi_target(
-        self,
-        panel_profile: dict,
-        targets: list[str] = None
-    ) -> dict[str, AdvancedLUT3D]:
+    def single_pass_multi_target(self, panel_profile: dict, targets: list[str] = None) -> dict[str, AdvancedLUT3D]:
         """
         Generate multiple target calibrations from single profile.
 
@@ -481,14 +504,12 @@ class AdvancedLUTGenerator:
             Dictionary of {target_name: LUT}
         """
         if targets is None:
-            targets = ['srgb', 'p3', 'bt2020']
+            targets = ["srgb", "p3", "bt2020"]
         results = {}
 
         for target in targets:
             lut = self.create_calibration_lut_cam16(
-                panel_profile=panel_profile,
-                target_colorspace=target,
-                title=f"Calibration - {target.upper()}"
+                panel_profile=panel_profile, target_colorspace=target, title=f"Calibration - {target.upper()}"
             )
             results[target] = lut
 
@@ -499,9 +520,9 @@ class AdvancedLUTGenerator:
         panel_profile: dict,
         peak_luminance: float = 1000.0,
         min_luminance: float = 0.0001,
-        transfer_function: str = 'pq',
-        target_colorspace: str = 'p3',
-        title: str = "HDR Calibration LUT"
+        transfer_function: str = "pq",
+        target_colorspace: str = "p3",
+        title: str = "HDR Calibration LUT",
     ) -> AdvancedLUT3D:
         """
         Create HDR calibration LUT.
@@ -521,13 +542,11 @@ class AdvancedLUTGenerator:
         """
         # Create base calibration
         base_lut = self.create_calibration_lut_cam16(
-            panel_profile=panel_profile,
-            target_colorspace=target_colorspace,
-            title=title
+            panel_profile=panel_profile, target_colorspace=target_colorspace, title=title
         )
 
         # Convert to HDR
-        if transfer_function == 'pq':
+        if transfer_function == "pq":
             hdr_lut = base_lut.to_hdr_pq(peak_luminance)
         else:
             # HLG conversion
@@ -538,7 +557,7 @@ class AdvancedLUTGenerator:
                 interpolation=base_lut.interpolation,
                 is_hdr=True,
                 peak_luminance=peak_luminance,
-                min_luminance=min_luminance
+                min_luminance=min_luminance,
             )
 
             # Apply HLG OETF
@@ -549,9 +568,9 @@ class AdvancedLUTGenerator:
                         hdr_lut.data[r, g, b] = self._hlg_oetf(rgb)
 
             hdr_lut.hdr_metadata = {
-                'transfer_function': 'hlg',
-                'peak_luminance': peak_luminance,
-                'min_luminance': min_luminance
+                "transfer_function": "hlg",
+                "peak_luminance": peak_luminance,
+                "min_luminance": min_luminance,
             }
 
         return hdr_lut
@@ -563,17 +582,14 @@ class AdvancedLUTGenerator:
         c = 0.55991073
 
         result = np.zeros_like(rgb)
-        mask = rgb <= 1/12
+        mask = rgb <= 1 / 12
         result[mask] = np.sqrt(3 * rgb[mask])
         result[~mask] = a * np.log(12 * rgb[~mask] - b) + c
 
         return np.clip(result, 0, 1)
 
     def optimize_lut_perceptual(
-        self,
-        lut: AdvancedLUT3D,
-        smoothing: float = 0.1,
-        preserve_edges: bool = True
+        self, lut: AdvancedLUT3D, smoothing: float = 0.1, preserve_edges: bool = True
     ) -> AdvancedLUT3D:
         """
         Apply perceptual optimization to LUT.
@@ -591,10 +607,7 @@ class AdvancedLUTGenerator:
         from scipy.ndimage import gaussian_filter
 
         optimized = AdvancedLUT3D(
-            size=lut.size,
-            data=lut.data.copy(),
-            title=f"{lut.title} (optimized)",
-            interpolation=lut.interpolation
+            size=lut.size, data=lut.data.copy(), title=f"{lut.title} (optimized)", interpolation=lut.interpolation
         )
 
         sigma = smoothing * (lut.size / 33.0)
@@ -628,8 +641,7 @@ class AdvancedLUTGenerator:
         else:
             # Simple Gaussian smoothing per channel
             for c in range(3):
-                optimized.data[:, :, :, c] = gaussian_filter(
-                    lut.data[:, :, :, c], sigma=sigma)
+                optimized.data[:, :, :, c] = gaussian_filter(lut.data[:, :, :, c], sigma=sigma)
 
         return optimized
 
@@ -653,14 +665,10 @@ class AdvancedLUTGenerator:
         new_data = np.zeros((new_size, new_size, new_size, 3))
 
         for c in range(3):
-            interp = RegularGridInterpolator(
-                (old_coords, old_coords, old_coords),
-                lut.data[:, :, :, c],
-                method='cubic'
-            )
+            interp = RegularGridInterpolator((old_coords, old_coords, old_coords), lut.data[:, :, :, c], method="cubic")
 
             # Generate new grid
-            r, g, b = np.meshgrid(new_coords, new_coords, new_coords, indexing='ij')
+            r, g, b = np.meshgrid(new_coords, new_coords, new_coords, indexing="ij")
             points = np.stack([r.ravel(), g.ravel(), b.ravel()], axis=-1)
 
             new_data[:, :, :, c] = interp(points).reshape(new_size, new_size, new_size)
@@ -669,13 +677,14 @@ class AdvancedLUTGenerator:
             size=new_size,
             data=np.clip(new_data, 0, 1),
             title=f"{lut.title} ({new_size}³)",
-            interpolation=lut.interpolation
+            interpolation=lut.interpolation,
         )
 
 
 # =============================================================================
 # LUT Manipulation Tools
 # =============================================================================
+
 
 class LUTManipulator:
     """
@@ -699,11 +708,7 @@ class LUTManipulator:
         size = max(lut1.size, lut2.size)
         coords = np.linspace(0, 1, size)
 
-        result = AdvancedLUT3D(
-            size=size,
-            data=np.zeros((size, size, size, 3)),
-            title=f"{lut1.title} + {lut2.title}"
-        )
+        result = AdvancedLUT3D(size=size, data=np.zeros((size, size, size, 3)), title=f"{lut1.title} + {lut2.title}")
 
         for r_idx, r in enumerate(coords):
             for g_idx, g in enumerate(coords):
@@ -731,9 +736,7 @@ class LUTManipulator:
         coords = np.linspace(0, 1, lut.size)
 
         inverse = AdvancedLUT3D(
-            size=lut.size,
-            data=np.zeros((lut.size, lut.size, lut.size, 3)),
-            title=f"{lut.title} (inverse)"
+            size=lut.size, data=np.zeros((lut.size, lut.size, lut.size, 3)), title=f"{lut.title} (inverse)"
         )
 
         # Initialize with identity
@@ -755,8 +758,7 @@ class LUTManipulator:
         return inverse
 
     @staticmethod
-    def blend(lut1: AdvancedLUT3D, lut2: AdvancedLUT3D,
-              factor: float = 0.5) -> AdvancedLUT3D:
+    def blend(lut1: AdvancedLUT3D, lut2: AdvancedLUT3D, factor: float = 0.5) -> AdvancedLUT3D:
         """
         Blend two LUTs together.
 
@@ -774,7 +776,7 @@ class LUTManipulator:
         blended = AdvancedLUT3D(
             size=lut1.size,
             data=lut1.data * (1 - factor) + lut2.data * factor,
-            title=f"Blend({lut1.title}, {lut2.title}, {factor:.2f})"
+            title=f"Blend({lut1.title}, {lut2.title}, {factor:.2f})",
         )
 
         return blended
@@ -784,11 +786,8 @@ class LUTManipulator:
 # Convenience Functions
 # =============================================================================
 
-def create_256_cube_lut(
-    panel_profile: dict,
-    target: str = 'srgb',
-    output_path: Path | None = None
-) -> AdvancedLUT3D:
+
+def create_256_cube_lut(panel_profile: dict, target: str = "srgb", output_path: Path | None = None) -> AdvancedLUT3D:
     """
     Create maximum accuracy 256³ calibration LUT.
 
@@ -804,9 +803,7 @@ def create_256_cube_lut(
     """
     generator = AdvancedLUTGenerator(size=256, num_threads=8)
     lut = generator.create_calibration_lut_cam16(
-        panel_profile=panel_profile,
-        target_colorspace=target,
-        title=f"Ultra Precision {target.upper()} LUT (256³)"
+        panel_profile=panel_profile, target_colorspace=target, title=f"Ultra Precision {target.upper()} LUT (256³)"
     )
 
     if output_path:
@@ -815,10 +812,7 @@ def create_256_cube_lut(
     return lut
 
 
-def create_hdr_lut_suite(
-    panel_profile: dict,
-    peak_luminance: float = 1000.0
-) -> dict[str, AdvancedLUT3D]:
+def create_hdr_lut_suite(panel_profile: dict, peak_luminance: float = 1000.0) -> dict[str, AdvancedLUT3D]:
     """
     Create complete HDR LUT suite for professional mastering.
 
@@ -840,21 +834,15 @@ def create_hdr_lut_suite(
     luts = {}
 
     # SDR LUTs
-    luts['srgb_sdr'] = generator.create_calibration_lut_cam16(
-        panel_profile, 'srgb', title="sRGB SDR"
-    )
-    luts['p3_sdr'] = generator.create_calibration_lut_cam16(
-        panel_profile, 'p3', title="P3-D65 SDR"
-    )
+    luts["srgb_sdr"] = generator.create_calibration_lut_cam16(panel_profile, "srgb", title="sRGB SDR")
+    luts["p3_sdr"] = generator.create_calibration_lut_cam16(panel_profile, "p3", title="P3-D65 SDR")
 
     # HDR LUTs
-    luts['p3_hdr_pq'] = generator.create_hdr_calibration_lut(
-        panel_profile, peak_luminance, transfer_function='pq',
-        target_colorspace='p3', title="P3-D65 HDR PQ"
+    luts["p3_hdr_pq"] = generator.create_hdr_calibration_lut(
+        panel_profile, peak_luminance, transfer_function="pq", target_colorspace="p3", title="P3-D65 HDR PQ"
     )
-    luts['bt2020_hdr_pq'] = generator.create_hdr_calibration_lut(
-        panel_profile, peak_luminance, transfer_function='pq',
-        target_colorspace='bt2020', title="BT.2020 HDR PQ"
+    luts["bt2020_hdr_pq"] = generator.create_hdr_calibration_lut(
+        panel_profile, peak_luminance, transfer_function="pq", target_colorspace="bt2020", title="BT.2020 HDR PQ"
     )
 
     return luts

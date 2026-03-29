@@ -60,11 +60,8 @@ def run_as_admin():
         return True
     try:
         script = os.path.abspath(sys.argv[0])
-        params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable,
-            f'"{script}" {params}', None, 1
-        )
+        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
         if result > 32:
             sys.exit(0)
         return False
@@ -115,6 +112,7 @@ def cmd_detect(args):
     sensor_found = False
     try:
         from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
         devices = I1D3Driver.find_devices()
         if devices:
             sensor_found = True
@@ -130,6 +128,7 @@ def cmd_detect(args):
     if not sensor_found:
         try:
             from calibrate_pro.hardware.argyll_backend import ArgyllBackend, ArgyllConfig
+
             config = ArgyllConfig()
             if config.find_argyll():
                 backend = ArgyllBackend(config)
@@ -151,6 +150,7 @@ def cmd_detect(args):
     # DDC/CI summary
     try:
         from calibrate_pro.hardware.ddc_ci import DDCCIController
+
         ddc = DDCCIController()
         monitors = ddc.enumerate_monitors()
         if monitors:
@@ -158,15 +158,16 @@ def cmd_detect(args):
             for i, m in enumerate(monitors):
                 caps = m.get("capabilities")
                 if caps and caps.supported_vcp_codes:
-                    print(f"  {m.get('name', f'Monitor {i+1}')}: {caps.summary()}")
+                    print(f"  {m.get('name', f'Monitor {i + 1}')}: {caps.summary()}")
                 else:
-                    print(f"  {m.get('name', f'Monitor {i+1}')}: DDC/CI available")
+                    print(f"  {m.get('name', f'Monitor {i + 1}')}: DDC/CI available")
             print("  Run 'calibrate-pro ddc-info' for detailed capabilities")
         else:
             print("\nDDC/CI: no monitors detected")
     except Exception:
         pass
     print()
+
 
 def cmd_calibrate(args):
     """Calibrate a display."""
@@ -195,13 +196,13 @@ def cmd_calibrate(args):
             display = displays[0]
 
     # Determine model name - use override if provided
-    if hasattr(args, 'model') and args.model:
+    if hasattr(args, "model") and args.model:
         model_string = args.model
     else:
         model_string = display.monitor_name or display.model or f"Display{display.get_display_number()}"
 
     print(f"\nCalibrating: {display.monitor_name}")
-    if hasattr(args, 'model') and args.model:
+    if hasattr(args, "model") and args.model:
         print(f"Model Override: {args.model}")
     print(f"Resolution: {display.width}x{display.height} @ {display.refresh_rate}Hz")
 
@@ -212,7 +213,7 @@ def cmd_calibrate(args):
     gamut_target = GAMUT_SRGB
 
     # Check for profile preset (overrides individual settings)
-    if hasattr(args, 'profile') and args.profile:
+    if hasattr(args, "profile") and args.profile:
         profile_map = {
             "sRGB": ("sRGB Web Standard", WHITEPOINT_D65, LUMINANCE_CONSUMER_SDR, GAMMA_SRGB, GAMUT_SRGB),
             "Rec709": ("Rec.709 Broadcast", WHITEPOINT_D65, LUMINANCE_REC709, GAMMA_BT1886, GAMUT_SRGB),
@@ -224,7 +225,7 @@ def cmd_calibrate(args):
             print(f"Profile: {name}")
 
     # Individual target overrides
-    if hasattr(args, 'whitepoint') and args.whitepoint:
+    if hasattr(args, "whitepoint") and args.whitepoint:
         wp_map = {
             "D50": WhitepointPreset.D50,
             "D55": WhitepointPreset.D55,
@@ -235,17 +236,17 @@ def cmd_calibrate(args):
         if args.whitepoint in wp_map:
             whitepoint_target = WhitepointTarget(preset=wp_map[args.whitepoint])
 
-    if hasattr(args, 'cct') and args.cct:
+    if hasattr(args, "cct") and args.cct:
         whitepoint_target = create_custom_whitepoint(cct=args.cct, name=f"{args.cct}K")
 
-    if hasattr(args, 'luminance') and args.luminance:
+    if hasattr(args, "luminance") and args.luminance:
         luminance_target = create_custom_luminance(
             peak=args.luminance,
-            black=args.black_level if hasattr(args, 'black_level') and args.black_level else 0.0,
-            hdr_mode=args.luminance > 400
+            black=args.black_level if hasattr(args, "black_level") and args.black_level else 0.0,
+            hdr_mode=args.luminance > 400,
         )
 
-    if hasattr(args, 'gamma') and args.gamma:
+    if hasattr(args, "gamma") and args.gamma:
         gamma_map = {
             "2.2": GammaPreset.POWER_22,
             "2.4": GammaPreset.POWER_24,
@@ -263,7 +264,7 @@ def cmd_calibrate(args):
             except ValueError:
                 pass
 
-    if hasattr(args, 'gamut') and args.gamut:
+    if hasattr(args, "gamut") and args.gamut:
         gamut_map = {
             "sRGB": GamutPreset.SRGB,
             "DCI-P3": GamutPreset.DCI_P3,
@@ -314,7 +315,7 @@ def cmd_calibrate(args):
         generate_icc=not args.no_icc,
         generate_lut=not args.no_lut,
         lut_size=args.lut_size,
-        hdr_mode=luminance_target.is_hdr()
+        hdr_mode=luminance_target.is_hdr(),
     )
 
     print("\n")
@@ -353,7 +354,9 @@ def cmd_list_targets(args):
 
     print("\n--- White Point Presets ---")
     for wp in get_whitepoint_presets():
-        print(f"  {wp.preset.value:15s} ({wp.get_cct():.0f}K) - {wp.description if hasattr(wp, 'description') and wp.description else ''}")
+        print(
+            f"  {wp.preset.value:15s} ({wp.get_cct():.0f}K) - {wp.description if hasattr(wp, 'description') and wp.description else ''}"
+        )
 
     print("\n--- Luminance Presets ---")
     for lum in get_luminance_presets():
@@ -368,10 +371,15 @@ def cmd_list_targets(args):
     print("\n--- Gamut Presets ---")
     for gam in get_gamut_presets():
         wide = " [Wide Gamut]" if gam.is_wide_gamut() else ""
-        print(f"  {gam.preset.value:15s} - {gam.description if hasattr(gam, 'description') and gam.description else ''}{wide}")
+        print(
+            f"  {gam.preset.value:15s} - {gam.description if hasattr(gam, 'description') and gam.description else ''}{wide}"
+        )
 
-    print("\nUse these with: calibrate --profile <name> or individual --whitepoint, --luminance, --gamma, --gamut flags")
+    print(
+        "\nUse these with: calibrate --profile <name> or individual --whitepoint, --luminance, --gamma, --gamut flags"
+    )
     return 0
+
 
 def cmd_verify(args):
     """Verify calibration accuracy."""
@@ -407,7 +415,7 @@ def cmd_verify(args):
     # -------------------------------------------------------------------------
     # Measured verification (--measured flag)
     # -------------------------------------------------------------------------
-    use_measured = hasattr(args, 'measured') and args.measured
+    use_measured = hasattr(args, "measured") and args.measured
 
     if use_measured:
         from calibrate_pro.verification.measured_verify import (
@@ -437,8 +445,8 @@ def cmd_verify(args):
 
         print("-" * 56)
 
-        for patch in result['patches']:
-            de = patch['delta_e']
+        for patch in result["patches"]:
+            de = patch["delta_e"]
             status = "PASS" if de < 2.0 else "WARN" if de < 3.0 else "FAIL"
             print(f"  {patch['name']:20s}  dE={de:5.2f}  [{status}]")
 
@@ -453,19 +461,22 @@ def cmd_verify(args):
 
         gs_result = mv.verify_grayscale(display_index=display_index, steps=21)
 
-        for step in gs_result['steps']:
-            level_pct = step['level'] * 100
-            de = step['delta_e']
-            gamma = step['measured_gamma']
-            ge = step['gamma_error']
-            print(f"  {level_pct:5.1f}%  Y={step['measured_luminance']:7.2f}  "
-                  f"gamma={gamma:.2f}  dE={de:.2f}  gamma_err={ge:.2f}")
+        for step in gs_result["steps"]:
+            level_pct = step["level"] * 100
+            de = step["delta_e"]
+            gamma = step["measured_gamma"]
+            ge = step["gamma_error"]
+            print(
+                f"  {level_pct:5.1f}%  Y={step['measured_luminance']:7.2f}  "
+                f"gamma={gamma:.2f}  dE={de:.2f}  gamma_err={ge:.2f}"
+            )
 
         print("-" * 56)
-        print(f"\n  Gamma tracking: avg error {gs_result['avg_gamma_error']:.3f}  "
-              f"max error {gs_result['max_gamma_error']:.3f}")
-        print(f"  Color accuracy: avg dE {gs_result['delta_e_avg']:.2f}  "
-              f"max dE {gs_result['delta_e_max']:.2f}")
+        print(
+            f"\n  Gamma tracking: avg error {gs_result['avg_gamma_error']:.3f}  "
+            f"max error {gs_result['max_gamma_error']:.3f}"
+        )
+        print(f"  Color accuracy: avg dE {gs_result['delta_e_avg']:.2f}  max dE {gs_result['delta_e_max']:.2f}")
         print(f"  White luminance: {gs_result['white_luminance']:.1f} cd/m2")
         print(f"  Grade: {gs_result['grade']}")
 
@@ -492,9 +503,9 @@ def cmd_verify(args):
     print("\nColorChecker Verification:")
     print("-" * 56)
 
-    for patch in result['patches']:
-        de = patch['delta_e']
-        cam_de = patch.get('cam16_delta_e', de)
+    for patch in result["patches"]:
+        de = patch["delta_e"]
+        cam_de = patch.get("cam16_delta_e", de)
         status = "PASS" if de < 2.0 else "WARN" if de < 3.0 else "FAIL"
         print(f"  {patch['name']:20s}  dE={de:5.2f}  CAM16={cam_de:5.2f}  [{status}]")
 
@@ -505,36 +516,38 @@ def cmd_verify(args):
     print("\n  Note: These values are predicted from the panel database,")
     print("  not measured. For verified accuracy, use --measured with a colorimeter.")
 
-    coverage = result.get('gamut_coverage', {})
+    coverage = result.get("gamut_coverage", {})
     if coverage:
-        print(f"\n  Gamut (2D area): sRGB {coverage.get('srgb_pct', 0):.0f}%  "
-              f"P3 {coverage.get('dci_p3_pct', 0):.0f}%  "
-              f"BT.2020 {coverage.get('bt2020_pct', 0):.0f}%")
+        print(
+            f"\n  Gamut (2D area): sRGB {coverage.get('srgb_pct', 0):.0f}%  "
+            f"P3 {coverage.get('dci_p3_pct', 0):.0f}%  "
+            f"BT.2020 {coverage.get('bt2020_pct', 0):.0f}%"
+        )
 
     # 3D color volume (captures luminance-dependent gamut changes)
     try:
         from calibrate_pro.display.color_volume import compute_color_volume
+
         primaries = panel.native_primaries
         vol = compute_color_volume(
-            panel_primaries=(
-                primaries.red.as_tuple(),
-                primaries.green.as_tuple(),
-                primaries.blue.as_tuple()
-            ),
+            panel_primaries=(primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple()),
             panel_white=primaries.white.as_tuple(),
             lightness_steps=11,
             hue_steps=36,
             panel_type=panel.panel_type,
-            peak_luminance=panel.capabilities.max_luminance_hdr
+            peak_luminance=panel.capabilities.max_luminance_hdr,
         )
-        print(f"  Volume (3D):    sRGB {vol.srgb_volume_pct:.0f}%  "
-              f"P3 {vol.p3_volume_pct:.0f}%  "
-              f"BT.2020 {vol.bt2020_volume_pct:.0f}%  "
-              f"({vol.relative_to_srgb_pct:.0f}% of sRGB volume)")
+        print(
+            f"  Volume (3D):    sRGB {vol.srgb_volume_pct:.0f}%  "
+            f"P3 {vol.p3_volume_pct:.0f}%  "
+            f"BT.2020 {vol.bt2020_volume_pct:.0f}%  "
+            f"({vol.relative_to_srgb_pct:.0f}% of sRGB volume)"
+        )
     except Exception:
         pass
 
     return 0
+
 
 def cmd_list_panels(args):
     """List supported panel profiles."""
@@ -554,6 +567,7 @@ def cmd_list_panels(args):
 
     print(f"\nTotal: {len(panel_keys)} profiles")
     print("\nUse 'info <panel_key>' for detailed information")
+
 
 def cmd_info(args):
     """Show information about a panel."""
@@ -590,10 +604,11 @@ def cmd_info(args):
     print(f"    Wide Gamut: {'Yes' if info['capabilities']['wide_gamut'] else 'No'}")
     print(f"    VRR: {'Yes' if info['capabilities']['vrr'] else 'No'}")
 
-    if info['notes']:
+    if info["notes"]:
         print(f"\n  Notes: {info['notes']}")
 
     return 0
+
 
 def cmd_enable_startup(args):
     """Enable auto-start at Windows startup."""
@@ -615,6 +630,7 @@ def cmd_enable_startup(args):
         print("\n[ERROR] Failed to enable auto-start.")
         print("Try running as administrator.")
         return 1
+
 
 def cmd_disable_startup(args):
     """Disable auto-start."""
@@ -658,7 +674,7 @@ def cmd_generate_profiles(args):
         print("No displays detected.")
         return 1
 
-    display_index = (args.display - 1) if hasattr(args, 'display') and args.display else 0
+    display_index = (args.display - 1) if hasattr(args, "display") and args.display else 0
     if display_index >= len(displays):
         display_index = 0
 
@@ -673,7 +689,7 @@ def cmd_generate_profiles(args):
     print(f"\nPanel: {panel_name} ({panel.panel_type})")
 
     # Output directory
-    output_dir = Path(args.output) if hasattr(args, 'output') and args.output else Path("profiles")
+    output_dir = Path(args.output) if hasattr(args, "output") and args.output else Path("profiles")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Target profiles to generate
@@ -682,34 +698,30 @@ def cmd_generate_profiles(args):
             "primaries": ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
             "white": (0.3127, 0.3290),
             "gamma": 2.2,
-            "desc": "sRGB / Rec.709 (web, general use)"
+            "desc": "sRGB / Rec.709 (web, general use)",
         },
         "DCI-P3": {
             "primaries": ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600)),
             "white": (0.3127, 0.3290),  # Display P3 uses D65
             "gamma": 2.2,
-            "desc": "Display P3 (Apple, HDR content, wide gamut)"
+            "desc": "Display P3 (Apple, HDR content, wide gamut)",
         },
         "Rec709": {
             "primaries": ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
             "white": (0.3127, 0.3290),
             "gamma": 2.4,  # BT.1886
-            "desc": "Rec.709 / BT.1886 (broadcast video)"
+            "desc": "Rec.709 / BT.1886 (broadcast video)",
         },
         "AdobeRGB": {
             "primaries": ((0.6400, 0.3300), (0.2100, 0.7100), (0.1500, 0.0600)),
             "white": (0.3127, 0.3290),
             "gamma": 2.2,
-            "desc": "Adobe RGB (photography, print)"
+            "desc": "Adobe RGB (photography, print)",
         },
     }
 
     primaries = panel.native_primaries
-    panel_prims = (
-        primaries.red.as_tuple(),
-        primaries.green.as_tuple(),
-        primaries.blue.as_tuple()
-    )
+    panel_prims = (primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple())
     safe_panel = panel_name.replace(" ", "_").replace("/", "_")
 
     generated = []
@@ -721,14 +733,13 @@ def cmd_generate_profiles(args):
 
         # Build correction matrix for this target
         target_to_xyz = primaries_to_xyz_matrix(
-            config["primaries"][0], config["primaries"][1],
-            config["primaries"][2], config["white"]
+            config["primaries"][0], config["primaries"][1], config["primaries"][2], config["white"]
         )
         panel_to_xyz = primaries_to_xyz_matrix(
-            panel_prims[0], panel_prims[1], panel_prims[2],
-            primaries.white.as_tuple()
+            panel_prims[0], panel_prims[1], panel_prims[2], primaries.white.as_tuple()
         )
         import numpy as np
+
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
         color_matrix = xyz_to_panel @ target_to_xyz
 
@@ -742,7 +753,7 @@ def cmd_generate_profiles(args):
             gamma_blue=panel.gamma_blue.gamma,
             color_matrix=color_matrix,
             title=f"{safe_panel} {profile_name}",
-            target_gamma=config["gamma"]
+            target_gamma=config["gamma"],
         )
 
         lut_path = output_dir / f"{safe_panel}_{profile_name}.cube"
@@ -754,7 +765,7 @@ def cmd_generate_profiles(args):
             green_primary=primaries.green.as_tuple(),
             blue_primary=primaries.blue.as_tuple(),
             white_point=primaries.white.as_tuple(),
-            gamma=config["gamma"]
+            gamma=config["gamma"],
         )
         icc_path = output_dir / f"{safe_panel}_{profile_name}.icc"
         icc.save(icc_path)
@@ -786,7 +797,7 @@ def cmd_restore(args):
     print(f"\nCalibrate Pro v{__version__} - Restore Defaults")
     print("=" * 60)
 
-    display_index = args.display - 1 if hasattr(args, 'display') and args.display else None
+    display_index = args.display - 1 if hasattr(args, "display") and args.display else None
     displays = enumerate_displays()
 
     if not displays:
@@ -808,6 +819,7 @@ def cmd_restore(args):
         dwm_removed = False
         try:
             from calibrate_pro.lut_system.dwm_lut import remove_lut as dwm_remove_lut
+
             if dwm_remove_lut(idx):
                 print("    DWM LUT removed")
                 dwm_removed = True
@@ -827,6 +839,7 @@ def cmd_restore(args):
         # 3. Clear saved calibration state
         try:
             from calibrate_pro.utils.startup_manager import StartupManager
+
             manager = StartupManager()
             manager.clear_calibration(idx)
         except Exception:
@@ -835,9 +848,10 @@ def cmd_restore(args):
         restored += 1
 
     # 4. Optionally disable auto-start
-    if hasattr(args, 'disable_startup') and args.disable_startup:
+    if hasattr(args, "disable_startup") and args.disable_startup:
         try:
             from calibrate_pro.utils.startup_manager import StartupManager
+
             manager = StartupManager()
             manager.disable_startup()
             print("\n[OK] Auto-start disabled")
@@ -858,6 +872,7 @@ def cmd_gui(args):
     try:
         if sys.platform == "win32":
             import ctypes
+
             ctypes.windll.kernel32.FreeConsole()
     except Exception:
         pass
@@ -868,7 +883,7 @@ def cmd_gui(args):
         from calibrate_pro.gui.app import CalibrateProWindow
     except ImportError as e:
         print("Error: PyQt6 is required for GUI mode.")
-        print("Install with: pip install \".[gui]\"")
+        print('Install with: pip install ".[gui]"')
         print(f"Details: {e}")
         return 1
 
@@ -893,11 +908,13 @@ def cmd_native_calibrate(args):
     print("=" * 65)
 
     # OLED calibration matrix from EEPROM
-    OLED_MATRIX = np.array([
-        [0.03836831, -0.02175997, 0.01696057],
-        [0.01449629,  0.01611903, 0.00057150],
-        [-0.00004481, 0.00035042, 0.08032401],
-    ])
+    OLED_MATRIX = np.array(
+        [
+            [0.03836831, -0.02175997, 0.01696057],
+            [0.01449629, 0.01611903, 0.00057150],
+            [-0.00004481, 0.00035042, 0.08032401],
+        ]
+    )
 
     M_MASK = 0xFFFFFFFF
 
@@ -912,51 +929,73 @@ def cmd_native_calibrate(args):
         return 1
 
     # Unlock (NEC OEM key)
-    k0, k1 = 0xa9119479, 0x5b168761
-    cmd = bytearray(65); cmd[0] = 0; cmd[1] = 0x99
-    device.write(cmd); time.sleep(0.2)
+    k0, k1 = 0xA9119479, 0x5B168761
+    cmd = bytearray(65)
+    cmd[0] = 0
+    cmd[1] = 0x99
+    device.write(cmd)
+    time.sleep(0.2)
     c = bytes(device.read(64, timeout_ms=3000))
     sc = bytearray(8)
-    for i in range(8): sc[i] = c[3] ^ c[35 + i]
-    ci0 = (sc[3]<<24)+(sc[0]<<16)+(sc[4]<<8)+sc[6]
-    ci1 = (sc[1]<<24)+(sc[7]<<16)+(sc[2]<<8)+sc[5]
+    for i in range(8):
+        sc[i] = c[3] ^ c[35 + i]
+    ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
+    ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
     nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
-    co = [(nk0-ci1)&M_MASK, (nk1-ci0)&M_MASK, (ci1*nk0)&M_MASK, (ci0*nk1)&M_MASK]
+    co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
     s = sum(sc)
-    for sh in [0, 8, 16, 24]: s += (nk0>>sh)&0xFF; s += (nk1>>sh)&0xFF
+    for sh in [0, 8, 16, 24]:
+        s += (nk0 >> sh) & 0xFF
+        s += (nk1 >> sh) & 0xFF
     s0, s1 = s & 0xFF, (s >> 8) & 0xFF
     sr = bytearray(16)
-    sr[0]=(((co[0]>>16)&0xFF)+s0)&0xFF; sr[1]=(((co[2]>>8)&0xFF)-s1)&0xFF
-    sr[2]=((co[3]&0xFF)+s1)&0xFF; sr[3]=(((co[1]>>16)&0xFF)+s0)&0xFF
-    sr[4]=(((co[2]>>16)&0xFF)-s1)&0xFF; sr[5]=(((co[3]>>16)&0xFF)-s0)&0xFF
-    sr[6]=(((co[1]>>24)&0xFF)-s0)&0xFF; sr[7]=((co[0]&0xFF)-s1)&0xFF
-    sr[8]=(((co[3]>>8)&0xFF)+s0)&0xFF; sr[9]=(((co[2]>>24)&0xFF)-s1)&0xFF
-    sr[10]=(((co[0]>>8)&0xFF)+s0)&0xFF; sr[11]=(((co[1]>>8)&0xFF)-s1)&0xFF
-    sr[12]=((co[1]&0xFF)+s1)&0xFF; sr[13]=(((co[3]>>24)&0xFF)+s1)&0xFF
-    sr[14]=((co[2]&0xFF)+s0)&0xFF; sr[15]=(((co[0]>>24)&0xFF)-s0)&0xFF
-    rb = bytearray(65); rb[0] = 0; rb[1] = 0x9A
-    for i in range(16): rb[25+i] = c[2] ^ sr[i]
-    device.write(rb); time.sleep(0.3); device.read(64, timeout_ms=3000)
+    sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+    sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+    sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+    sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+    sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+    sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+    sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+    sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+    sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+    sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+    sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+    sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+    sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+    sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+    sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+    sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
+    rb = bytearray(65)
+    rb[0] = 0
+    rb[1] = 0x9A
+    for i in range(16):
+        rb[25 + i] = c[2] ^ sr[i]
+    device.write(rb)
+    time.sleep(0.3)
+    device.read(64, timeout_ms=3000)
     print("  Sensor unlocked.")
 
     def measure_xyz_native(r, g, b):
         intclks = int(1.0 * 12000000)
-        cmd = bytearray(65); cmd[0] = 0x00; cmd[1] = 0x01
-        struct.pack_into('<I', cmd, 2, intclks)
+        cmd = bytearray(65)
+        cmd[0] = 0x00
+        cmd[1] = 0x01
+        struct.pack_into("<I", cmd, 2, intclks)
         device.write(cmd)
         resp = device.read(64, timeout_ms=4000)
         if resp and resp[0] == 0x00 and resp[1] == 0x01:
-            rv = struct.unpack('<I', bytes(resp[2:6]))[0]
-            gv = struct.unpack('<I', bytes(resp[6:10]))[0]
-            bv = struct.unpack('<I', bytes(resp[10:14]))[0]
+            rv = struct.unpack("<I", bytes(resp[2:6]))[0]
+            gv = struct.unpack("<I", bytes(resp[6:10]))[0]
+            bv = struct.unpack("<I", bytes(resp[10:14]))[0]
             t = intclks / 12000000.0
-            freq = np.array([0.5*(rv+0.5)/t, 0.5*(gv+0.5)/t, 0.5*(bv+0.5)/t])
+            freq = np.array([0.5 * (rv + 0.5) / t, 0.5 * (gv + 0.5) / t, 0.5 * (bv + 0.5) / t])
             if np.max(freq) > 0.3:
                 return OLED_MATRIX @ freq
         return None
 
     # Find display
     from calibrate_pro.panels.detection import enumerate_displays
+
     displays = enumerate_displays()
     dx, dy, dw, dh = 0, 0, 3840, 2160
     for d in displays:
@@ -1007,6 +1046,7 @@ def cmd_native_calibrate(args):
         print("\nApplying LUT via dwm_lut...")
         try:
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
             dwm = DwmLutController()
             if dwm.is_available:
                 dwm.load_lut_file(0, lut_path)
@@ -1090,7 +1130,7 @@ def cmd_ddc_info(args):
                         db = PanelDatabase()
                         panel_key = identify_display(displays[i])
                         panel = db.get_panel(panel_key) if panel_key else None
-                        if panel and hasattr(panel, 'ddc') and panel.ddc:
+                        if panel and hasattr(panel, "ddc") and panel.ddc:
                             ddc_rec = panel.ddc
                             print(f"\n    Calibration Recommendations ({panel.name}):")
                             if ddc_rec.picture_mode:
@@ -1114,7 +1154,7 @@ def cmd_ddc_info(args):
                 for line in diag:
                     print(f"    {line}")
 
-            if hasattr(args, 'scan') and args.scan:
+            if hasattr(args, "scan") and args.scan:
                 print("\n    Full VCP scan (this takes a few seconds)...")
                 found = ddc.scan_all_vcp_codes(monitor)
                 print(f"    Found {len(found)} supported VCP codes:")
@@ -1190,7 +1230,7 @@ def cmd_ddc_calibrate(args):
     database = PanelDatabase()
 
     # Use command-line model override, or auto-identify from EDID/fingerprint
-    if hasattr(args, 'model') and args.model:
+    if hasattr(args, "model") and args.model:
         model_string = args.model
         panel = database.find_panel(model_string)
     else:
@@ -1244,7 +1284,7 @@ def cmd_ddc_calibrate(args):
         (primaries.red.x, primaries.red.y),
         (primaries.green.x, primaries.green.y),
         (primaries.blue.x, primaries.blue.y),
-        (primaries.white.x, primaries.white.y)
+        (primaries.white.x, primaries.white.y),
     )
 
     # D65 reference white in Lab (use D65 as reference illuminant - will be [100, 0, 0])
@@ -1292,7 +1332,7 @@ def cmd_ddc_calibrate(args):
     print("=" * 60)
 
     # Set initial values (start slightly off to show iteration)
-    target_brightness = 50 if not hasattr(args, 'brightness') or not args.brightness else args.brightness
+    target_brightness = 50 if not hasattr(args, "brightness") or not args.brightness else args.brightness
     target_contrast = 80
 
     # Start with non-optimal values to demonstrate iteration
@@ -1352,12 +1392,12 @@ def cmd_ddc_calibrate(args):
     time.sleep(0.2)
 
     # Track best solution and accumulated error for integral control
-    best_de = float('inf')
+    best_de = float("inf")
     best_rgb = (r_gain, g_gain, b_gain)
     accumulated_r = 0.0
     accumulated_g = 0.0
     accumulated_b = 0.0
-    float('inf')
+    float("inf")
     stall_count = 0
 
     while iteration < max_iterations:
@@ -1376,8 +1416,10 @@ def cmd_ddc_calibrate(args):
 
         # Display current state
         status = "*" if delta_e == best_de else " "
-        print(f"  Iter {iteration:2d}: RGB Gain [{r_gain:3d}, {g_gain:3d}, {b_gain:3d}]  "
-              f"xy=({curr_x:.4f}, {curr_y:.4f})  dE={delta_e:.2f} {status}")
+        print(
+            f"  Iter {iteration:2d}: RGB Gain [{r_gain:3d}, {g_gain:3d}, {b_gain:3d}]  "
+            f"xy=({curr_x:.4f}, {curr_y:.4f})  dE={delta_e:.2f} {status}"
+        )
 
         # Check if converged
         if delta_e < tolerance:
@@ -1475,7 +1517,7 @@ def cmd_ddc_calibrate(args):
         print("  (Grayscale/gamma/white point handled by DDC/CI)")
 
         # Create a minimal LUT that only does gamut mapping
-        lut_size = args.lut_size if hasattr(args, 'lut_size') else 33
+        lut_size = args.lut_size if hasattr(args, "lut_size") else 33
 
         # Use sensorless engine for gamut-only LUT
         engine = SensorlessEngine()
@@ -1485,7 +1527,7 @@ def cmd_ddc_calibrate(args):
         lut = engine.generate_gamut_only_lut(lut_size)
 
         # Save LUT
-        output_dir = Path(args.output) if hasattr(args, 'output') and args.output else Path(".")
+        output_dir = Path(args.output) if hasattr(args, "output") and args.output else Path(".")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         lut_filename = f"{model_string.replace(' ', '_')}_gamut_only.cube"
@@ -1601,7 +1643,7 @@ def cmd_refine(args):
         print("No displays detected.")
         return 1
 
-    display_index = (args.display - 1) if hasattr(args, 'display') and args.display else 0
+    display_index = (args.display - 1) if hasattr(args, "display") and args.display else 0
     if display_index >= len(displays):
         display_index = 0
 
@@ -1617,16 +1659,12 @@ def cmd_refine(args):
 
     # Determine measurement mode
     mode = "argyll"
-    if hasattr(args, 'manual') and args.manual:
+    if hasattr(args, "manual") and args.manual:
         mode = "manual"
-    elif hasattr(args, 'simulated') and args.simulated:
+    elif hasattr(args, "simulated") and args.simulated:
         mode = "simulated"
 
-    config = MeasurementConfig(
-        display_index=display_index,
-        mode=mode,
-        argyll_path=getattr(args, 'argyll_path', None)
-    )
+    config = MeasurementConfig(display_index=display_index, mode=mode, argyll_path=getattr(args, "argyll_path", None))
 
     print(f"Measurement: {mode}")
 
@@ -1634,6 +1672,7 @@ def cmd_refine(args):
     if measure_fn is None and mode == "argyll":
         # Determine why initialization failed
         from calibrate_pro.hardware.argyll_backend import ArgyllConfig as _AC
+
         _ac = _AC()
         _found = _ac.find_argyll()
         if _found:
@@ -1647,22 +1686,19 @@ def cmd_refine(args):
         print("    calibrate-pro refine --simulated (testing without hardware)")
         return 1
 
-    output_dir = Path(args.output) if hasattr(args, 'output') and args.output else None
+    output_dir = Path(args.output) if hasattr(args, "output") and args.output else None
     if output_dir is None:
         output_dir = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
 
     def progress(msg, pct):
-        print(f"  [{int(pct*100):3d}%] {msg}")
+        print(f"  [{int(pct * 100):3d}%] {msg}")
 
-    engine = HybridCalibrationEngine(
-        measure_fn=measure_fn,
-        progress_fn=progress
-    )
+    engine = HybridCalibrationEngine(measure_fn=measure_fn, progress_fn=progress)
 
     result = engine.calibrate(panel, output_dir)
 
     # Cleanup
-    if measure_fn and hasattr(measure_fn, 'close'):
+    if measure_fn and hasattr(measure_fn, "close"):
         measure_fn.close()
 
     print(f"\n{'=' * 60}")
@@ -1698,10 +1734,10 @@ def cmd_auto(args):
     print("No instruments required. No input needed.")
     print("Detecting and calibrating all connected displays...\n")
 
-    output_dir = Path(args.output) if hasattr(args, 'output') and args.output else None
-    no_ddc = hasattr(args, 'no_ddc') and args.no_ddc
-    no_persist = hasattr(args, 'no_persist') and args.no_persist
-    use_hdr = hasattr(args, 'hdr') and args.hdr
+    output_dir = Path(args.output) if hasattr(args, "output") and args.output else None
+    no_ddc = hasattr(args, "no_ddc") and args.no_ddc
+    no_persist = hasattr(args, "no_persist") and args.no_persist
+    use_hdr = hasattr(args, "hdr") and args.hdr
 
     if use_hdr:
         print("Mode: HDR (PQ/ST.2084)\n")
@@ -1717,11 +1753,7 @@ def cmd_auto(args):
             sys.stdout.flush()
 
     results = auto_calibrate_all(
-        output_dir=output_dir,
-        callback=progress_callback,
-        use_ddc=not no_ddc,
-        persist=not no_persist,
-        hdr_mode=use_hdr
+        output_dir=output_dir, callback=progress_callback, use_ddc=not no_ddc, persist=not no_persist, hdr_mode=use_hdr
     )
 
     # Clean output
@@ -1740,9 +1772,11 @@ def cmd_auto(args):
             print(f"    Delta E: {result.delta_e_predicted:.2f} (sensorless)  |  Grade: {grade}")
 
             if coverage:
-                print(f"    Gamut: sRGB {coverage.get('srgb_pct', 0):.0f}%  "
-                      f"P3 {coverage.get('dci_p3_pct', 0):.0f}%  "
-                      f"BT.2020 {coverage.get('bt2020_pct', 0):.0f}%")
+                print(
+                    f"    Gamut: sRGB {coverage.get('srgb_pct', 0):.0f}%  "
+                    f"P3 {coverage.get('dci_p3_pct', 0):.0f}%  "
+                    f"BT.2020 {coverage.get('bt2020_pct', 0):.0f}%"
+                )
 
             if result.lut_application_method:
                 methods = {
@@ -1781,9 +1815,10 @@ def cmd_auto(args):
     print("=" * 60)
 
     # Open first report in browser
-    if report_paths and not (hasattr(args, 'no_report') and args.no_report):
+    if report_paths and not (hasattr(args, "no_report") and args.no_report):
         try:
             import webbrowser
+
             webbrowser.open(str(report_paths[0].absolute()))
         except Exception:
             pass
@@ -1795,7 +1830,7 @@ def cmd_status(args):
     """Show calibration status for all displays."""
     from calibrate_pro.services.drift_monitor import print_calibration_status
 
-    max_age = args.max_age if hasattr(args, 'max_age') and args.max_age else 30
+    max_age = args.max_age if hasattr(args, "max_age") and args.max_age else 30
     print_calibration_status(max_age_days=max_age)
     return 0
 
@@ -1805,7 +1840,7 @@ def cmd_plugins(args):
     from calibrate_pro.plugins.manager import print_discovered_plugins
 
     dirs = None
-    if hasattr(args, 'plugin_dir') and args.plugin_dir:
+    if hasattr(args, "plugin_dir") and args.plugin_dir:
         dirs = [args.plugin_dir]
     print_discovered_plugins(plugin_dirs=dirs)
     return 0
@@ -1814,6 +1849,7 @@ def cmd_plugins(args):
 def cmd_tray(args):
     """Launch the system tray application."""
     from calibrate_pro.tray.tray_app import run_tray_app
+
     return run_tray_app()
 
 
@@ -1870,14 +1906,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="Calibrate Pro - Professional Display Calibration Suite",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
 
-    parser.add_argument(
-        "--version", "-V",
-        action="version",
-        version=f"Calibrate Pro v{__version__}"
-    )
+    parser.add_argument("--version", "-V", action="version", version=f"Calibrate Pro v{__version__}")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -1886,101 +1918,60 @@ def main():
 
     # calibrate command
     calibrate_parser = subparsers.add_parser("calibrate", help="Calibrate a display")
+    calibrate_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
+    calibrate_parser.add_argument("--model", type=str, help="Override monitor model name (e.g., PG27UCDM, G85SB)")
     calibrate_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based)"
+        "--output", "-o", type=str, default=".", help="Output directory for calibration files"
     )
     calibrate_parser.add_argument(
-        "--model",
-        type=str,
-        help="Override monitor model name (e.g., PG27UCDM, G85SB)"
+        "--mode", "-m", choices=["sensorless", "colorimeter", "hybrid"], default="sensorless", help="Calibration mode"
     )
-    calibrate_parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default=".",
-        help="Output directory for calibration files"
-    )
-    calibrate_parser.add_argument(
-        "--mode", "-m",
-        choices=["sensorless", "colorimeter", "hybrid"],
-        default="sensorless",
-        help="Calibration mode"
-    )
-    calibrate_parser.add_argument(
-        "--lut-size",
-        type=int,
-        choices=[17, 33, 65],
-        default=33,
-        help="3D LUT grid size"
-    )
-    calibrate_parser.add_argument(
-        "--no-icc",
-        action="store_true",
-        help="Skip ICC profile generation"
-    )
-    calibrate_parser.add_argument(
-        "--no-lut",
-        action="store_true",
-        help="Skip 3D LUT generation"
-    )
+    calibrate_parser.add_argument("--lut-size", type=int, choices=[17, 33, 65], default=33, help="3D LUT grid size")
+    calibrate_parser.add_argument("--no-icc", action="store_true", help="Skip ICC profile generation")
+    calibrate_parser.add_argument("--no-lut", action="store_true", help="Skip 3D LUT generation")
 
     # Target settings - Profile preset
     calibrate_parser.add_argument(
-        "--profile", "-p",
+        "--profile",
+        "-p",
         choices=["sRGB", "Rec709", "DCI-P3", "HDR10"],
-        help="Calibration profile preset (overrides individual targets)"
+        help="Calibration profile preset (overrides individual targets)",
     )
 
     # Target settings - White point
     calibrate_parser.add_argument(
-        "--whitepoint", "-w",
+        "--whitepoint",
+        "-w",
         choices=["D50", "D55", "D65", "D75", "DCI"],
-        help="White point target (D50=5000K, D65=6500K, DCI=6300K)"
+        help="White point target (D50=5000K, D65=6500K, DCI=6300K)",
     )
-    calibrate_parser.add_argument(
-        "--cct",
-        type=int,
-        help="Custom white point CCT in Kelvin (e.g., 6500)"
-    )
+    calibrate_parser.add_argument("--cct", type=int, help="Custom white point CCT in Kelvin (e.g., 6500)")
 
     # Target settings - Luminance
     calibrate_parser.add_argument(
-        "--luminance", "-l",
-        type=float,
-        help="Target peak luminance in cd/m2 (e.g., 120 for SDR, 1000 for HDR)"
+        "--luminance", "-l", type=float, help="Target peak luminance in cd/m2 (e.g., 120 for SDR, 1000 for HDR)"
     )
     calibrate_parser.add_argument(
-        "--black-level",
-        type=float,
-        help="Target black level in cd/m2 (e.g., 0.05 for LCD, 0.0001 for OLED)"
+        "--black-level", type=float, help="Target black level in cd/m2 (e.g., 0.05 for LCD, 0.0001 for OLED)"
     )
 
     # Target settings - Gamma
     calibrate_parser.add_argument(
-        "--gamma", "-g",
-        help="Gamma target: 2.2, 2.4, sRGB, BT1886, PQ, HLG, or custom value"
+        "--gamma", "-g", help="Gamma target: 2.2, 2.4, sRGB, BT1886, PQ, HLG, or custom value"
     )
 
     # Target settings - Gamut
     calibrate_parser.add_argument(
-        "--gamut",
-        choices=["sRGB", "DCI-P3", "Display-P3", "BT2020", "AdobeRGB"],
-        help="Target color gamut"
+        "--gamut", choices=["sRGB", "DCI-P3", "Display-P3", "BT2020", "AdobeRGB"], help="Target color gamut"
     )
 
     # verify command
     verify_parser = subparsers.add_parser("verify", help="Verify calibration accuracy")
-    verify_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based)"
-    )
+    verify_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
     verify_parser.add_argument(
         "--measured",
         action="store_true",
-        help="Use colorimeter-based measured verification (requires ArgyllCMS or manual entry)"
+        help="Use colorimeter-based measured verification (requires ArgyllCMS or manual entry)",
     )
 
     # list-panels command
@@ -1991,11 +1982,7 @@ def main():
 
     # info command
     info_parser = subparsers.add_parser("info", help="Show panel information")
-    info_parser.add_argument(
-        "panel",
-        type=str,
-        help="Panel key (e.g., PG27UCDM)"
-    )
+    info_parser.add_argument("panel", type=str, help="Panel key (e.g., PG27UCDM)")
 
     # enable-startup command
     subparsers.add_parser("enable-startup", help="Enable auto-start at Windows boot")
@@ -2004,75 +1991,34 @@ def main():
     subparsers.add_parser("disable-startup", help="Disable auto-start")
 
     # restore command - undo calibration
-    restore_parser = subparsers.add_parser(
-        "restore",
-        help="Restore display to defaults (undo calibration)"
-    )
+    restore_parser = subparsers.add_parser("restore", help="Restore display to defaults (undo calibration)")
     restore_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based). Omit to restore all displays."
+        "--display", "-d", type=int, help="Display number (1-based). Omit to restore all displays."
     )
-    restore_parser.add_argument(
-        "--disable-startup",
-        action="store_true",
-        help="Also disable auto-start"
-    )
+    restore_parser.add_argument("--disable-startup", action="store_true", help="Also disable auto-start")
 
     # generate-profiles command - multi-profile generation
     profiles_gen_parser = subparsers.add_parser(
-        "generate-profiles",
-        help="Generate sRGB, P3, Rec.709, AdobeRGB profiles in one pass"
+        "generate-profiles", help="Generate sRGB, P3, Rec.709, AdobeRGB profiles in one pass"
     )
+    profiles_gen_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
     profiles_gen_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based)"
-    )
-    profiles_gen_parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default="profiles",
-        help="Output directory for profile files"
+        "--output", "-o", type=str, default="profiles", help="Output directory for profile files"
     )
 
     # match command - multi-display matching
     # hdr-status command
-    subparsers.add_parser(
-        "hdr-status",
-        help="Show HDR mode status for all displays"
-    )
+    subparsers.add_parser("hdr-status", help="Show HDR mode status for all displays")
 
-    subparsers.add_parser(
-        "match",
-        help="Analyze and match multiple displays for consistent appearance"
-    )
+    subparsers.add_parser("match", help="Analyze and match multiple displays for consistent appearance")
 
     # refine command - hybrid calibration with colorimeter
-    refine_parser = subparsers.add_parser(
-        "refine",
-        help="Refine calibration using a colorimeter (ArgyllCMS)"
-    )
-    refine_parser.add_argument(
-        "--display", "-d", type=int,
-        help="Display number (1-based)"
-    )
-    refine_parser.add_argument(
-        "--output", "-o", type=str,
-        help="Output directory"
-    )
-    refine_parser.add_argument(
-        "--manual", action="store_true",
-        help="Manual XYZ entry mode (no ArgyllCMS needed)"
-    )
-    refine_parser.add_argument(
-        "--simulated", action="store_true",
-        help="Simulated measurement mode (for testing)"
-    )
-    refine_parser.add_argument(
-        "--argyll-path", type=str,
-        help="Path to ArgyllCMS bin directory"
-    )
+    refine_parser = subparsers.add_parser("refine", help="Refine calibration using a colorimeter (ArgyllCMS)")
+    refine_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
+    refine_parser.add_argument("--output", "-o", type=str, help="Output directory")
+    refine_parser.add_argument("--manual", action="store_true", help="Manual XYZ entry mode (no ArgyllCMS needed)")
+    refine_parser.add_argument("--simulated", action="store_true", help="Simulated measurement mode (for testing)")
+    refine_parser.add_argument("--argyll-path", type=str, help="Path to ArgyllCMS bin directory")
 
     # gui command - launches professional calibration GUI
     subparsers.add_parser("gui", help="Launch Professional Calibration GUI (runs as admin)")
@@ -2081,34 +2027,17 @@ def main():
     subparsers.add_parser("hdr", help="Launch HDR Calibration GUI (runs as admin)")
 
     # auto command - fully automatic zero-input calibration
-    auto_parser = subparsers.add_parser(
-        "auto",
-        help="Fully automatic calibration (zero input required)"
+    auto_parser = subparsers.add_parser("auto", help="Fully automatic calibration (zero input required)")
+    auto_parser.add_argument(
+        "--output", "-o", type=str, help="Output directory for calibration files (default: ~/Documents/Calibrate Pro)"
     )
     auto_parser.add_argument(
-        "--output", "-o",
-        type=str,
-        help="Output directory for calibration files (default: ~/Documents/Calibrate Pro)"
+        "--no-ddc", action="store_true", help="Skip DDC/CI hardware adjustments (software LUT only)"
     )
+    auto_parser.add_argument("--no-persist", action="store_true", help="Don't register for auto-start or save state")
+    auto_parser.add_argument("--no-report", action="store_true", help="Don't open calibration report in browser")
     auto_parser.add_argument(
-        "--no-ddc",
-        action="store_true",
-        help="Skip DDC/CI hardware adjustments (software LUT only)"
-    )
-    auto_parser.add_argument(
-        "--no-persist",
-        action="store_true",
-        help="Don't register for auto-start or save state"
-    )
-    auto_parser.add_argument(
-        "--no-report",
-        action="store_true",
-        help="Don't open calibration report in browser"
-    )
-    auto_parser.add_argument(
-        "--hdr",
-        action="store_true",
-        help="Generate HDR (PQ/ST.2084) calibration LUT instead of SDR"
+        "--hdr", action="store_true", help="Generate HDR (PQ/ST.2084) calibration LUT instead of SDR"
     )
 
     # tray command - system tray application
@@ -2116,157 +2045,69 @@ def main():
 
     # patterns command - fullscreen test pattern viewer
     patterns_parser = subparsers.add_parser("patterns", help="Display fullscreen test patterns")
-    patterns_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based, default: primary)"
-    )
+    patterns_parser.add_argument("--display", "-d", type=int, help="Display number (1-based, default: primary)")
 
     # uniformity command - screen uniformity analysis
-    uniformity_parser = subparsers.add_parser(
-        "uniformity",
-        help="Measure and analyse screen uniformity"
-    )
+    uniformity_parser = subparsers.add_parser("uniformity", help="Measure and analyse screen uniformity")
+    uniformity_parser.add_argument("--rows", type=int, default=5, help="Grid rows (default: 5)")
+    uniformity_parser.add_argument("--cols", type=int, default=5, help="Grid columns (default: 5)")
+    uniformity_parser.add_argument("--width", type=int, default=3840, help="Display width in pixels (default: 3840)")
+    uniformity_parser.add_argument("--height", type=int, default=2160, help="Display height in pixels (default: 2160)")
     uniformity_parser.add_argument(
-        "--rows", type=int, default=5,
-        help="Grid rows (default: 5)"
-    )
-    uniformity_parser.add_argument(
-        "--cols", type=int, default=5,
-        help="Grid columns (default: 5)"
-    )
-    uniformity_parser.add_argument(
-        "--width", type=int, default=3840,
-        help="Display width in pixels (default: 3840)"
-    )
-    uniformity_parser.add_argument(
-        "--height", type=int, default=2160,
-        help="Display height in pixels (default: 2160)"
-    )
-    uniformity_parser.add_argument(
-        "--simulated", action="store_true",
-        help="Generate simulated uniformity data for testing"
+        "--simulated", action="store_true", help="Generate simulated uniformity data for testing"
     )
 
     # export-panel command - export panel profile as community JSON
     export_panel_parser = subparsers.add_parser(
-        "export-panel",
-        help="Export current display panel profile as shareable JSON"
+        "export-panel", help="Export current display panel profile as shareable JSON"
     )
+    export_panel_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
     export_panel_parser.add_argument(
-        "--display", "-d", type=int,
-        help="Display number (1-based)"
-    )
-    export_panel_parser.add_argument(
-        "--output", "-o", type=str,
-        help="Output file path (default: <panel_name>_community.json)"
+        "--output", "-o", type=str, help="Output file path (default: <panel_name>_community.json)"
     )
 
     # import-panel command - import a community panel JSON
     import_panel_parser = subparsers.add_parser(
-        "import-panel",
-        help="Import a community panel JSON into the local database"
+        "import-panel", help="Import a community panel JSON into the local database"
     )
-    import_panel_parser.add_argument(
-        "file", type=str,
-        help="Path to the community panel JSON file"
-    )
+    import_panel_parser.add_argument("file", type=str, help="Path to the community panel JSON file")
 
     # ddc-calibrate command - DDC/CI-first calibration
     ddc_parser = subparsers.add_parser("ddc-calibrate", help="DDC/CI-first calibration (hardware before LUT)")
-    ddc_parser.add_argument(
-        "--display", "-d",
-        type=int,
-        help="Display number (1-based)"
-    )
-    ddc_parser.add_argument(
-        "--model",
-        type=str,
-        help="Override monitor model name"
-    )
-    ddc_parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default=".",
-        help="Output directory for LUT files"
-    )
-    ddc_parser.add_argument(
-        "--brightness", "-b",
-        type=int,
-        default=50,
-        help="Target brightness (0-100)"
-    )
-    ddc_parser.add_argument(
-        "--lut-size",
-        type=int,
-        choices=[17, 33, 65],
-        default=33,
-        help="3D LUT grid size"
-    )
-    ddc_parser.add_argument(
-        "--no-lut",
-        action="store_true",
-        help="Skip LUT generation (DDC/CI only)"
-    )
+    ddc_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
+    ddc_parser.add_argument("--model", type=str, help="Override monitor model name")
+    ddc_parser.add_argument("--output", "-o", type=str, default=".", help="Output directory for LUT files")
+    ddc_parser.add_argument("--brightness", "-b", type=int, default=50, help="Target brightness (0-100)")
+    ddc_parser.add_argument("--lut-size", type=int, choices=[17, 33, 65], default=33, help="3D LUT grid size")
+    ddc_parser.add_argument("--no-lut", action="store_true", help="Skip LUT generation (DDC/CI only)")
 
     # ddc-info command - show DDC/CI capabilities
-    ddc_info_parser = subparsers.add_parser(
-        "ddc-info",
-        help="Show DDC/CI capabilities for connected monitors"
-    )
+    ddc_info_parser = subparsers.add_parser("ddc-info", help="Show DDC/CI capabilities for connected monitors")
     ddc_info_parser.add_argument(
-        "--scan", action="store_true",
-        help="Brute-force scan all 256 VCP codes (slow but thorough)"
+        "--scan", action="store_true", help="Brute-force scan all 256 VCP codes (slow but thorough)"
     )
 
     # native-calibrate command - native USB colorimeter calibration
     native_parser = subparsers.add_parser(
-        "native-calibrate",
-        help="Calibrate using native i1Display3 driver (no ArgyllCMS)"
+        "native-calibrate", help="Calibrate using native i1Display3 driver (no ArgyllCMS)"
     )
     native_parser.add_argument(
-        "--lut-size", type=int, choices=[17, 33, 65], default=33,
-        help="3D LUT grid size (default: 33)"
+        "--lut-size", type=int, choices=[17, 33, 65], default=33, help="3D LUT grid size (default: 33)"
     )
-    native_parser.add_argument(
-        "--steps", type=int, default=17,
-        help="TRC measurement steps per channel (default: 17)"
-    )
-    native_parser.add_argument(
-        "--apply", action="store_true",
-        help="Apply LUT via dwm_lut after generation"
-    )
-    native_parser.add_argument(
-        "--verify", action="store_true",
-        help="Run ColorChecker verification after calibration"
-    )
-    native_parser.add_argument(
-        "--output", "-o", type=str,
-        help="Output directory for LUT file"
-    )
+    native_parser.add_argument("--steps", type=int, default=17, help="TRC measurement steps per channel (default: 17)")
+    native_parser.add_argument("--apply", action="store_true", help="Apply LUT via dwm_lut after generation")
+    native_parser.add_argument("--verify", action="store_true", help="Run ColorChecker verification after calibration")
+    native_parser.add_argument("--output", "-o", type=str, help="Output directory for LUT file")
 
     # status command - calibration age / drift detection
-    status_parser = subparsers.add_parser(
-        "status",
-        help="Show calibration status and age for all displays"
-    )
+    status_parser = subparsers.add_parser("status", help="Show calibration status and age for all displays")
     status_parser.add_argument(
-        "--max-age",
-        type=int,
-        default=30,
-        help="Days after which a calibration is considered stale (default: 30)"
+        "--max-age", type=int, default=30, help="Days after which a calibration is considered stale (default: 30)"
     )
 
     # plugins command - list discovered plugins
-    plugins_parser = subparsers.add_parser(
-        "plugins",
-        help="List discovered plugins"
-    )
-    plugins_parser.add_argument(
-        "--plugin-dir",
-        type=str,
-        help="Override plugin directory to scan"
-    )
+    plugins_parser = subparsers.add_parser("plugins", help="List discovered plugins")
+    plugins_parser.add_argument("--plugin-dir", type=str, help="Override plugin directory to scan")
 
     args = parser.parse_args()
 
@@ -2318,12 +2159,15 @@ def main():
         return cmd_plugins(args)
     elif args.command == "uniformity":
         from calibrate_pro.display.uniformity import cmd_uniformity
+
         return cmd_uniformity(args)
     elif args.command == "export-panel":
         from calibrate_pro.community.database import cmd_export_panel
+
         return cmd_export_panel(args)
     elif args.command == "import-panel":
         from calibrate_pro.community.database import cmd_import_panel
+
         return cmd_import_panel(args)
     else:
         # No command specified — launch the GUI

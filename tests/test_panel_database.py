@@ -13,6 +13,7 @@ from calibrate_pro.panels.database import (
 # PG27UCDM existence and metadata
 # -------------------------------------------------------------------------
 
+
 def test_pg27ucdm_exists(panel_database):
     """PG27UCDM must exist in the database."""
     panel = panel_database.get_panel("PG27UCDM")
@@ -43,6 +44,7 @@ def test_pg27ucdm_hdr(qd_oled_panel):
 # GENERIC_SRGB fallback
 # -------------------------------------------------------------------------
 
+
 def test_generic_srgb_exists(panel_database):
     """GENERIC_SRGB fallback must exist."""
     panel = panel_database.get_panel("GENERIC_SRGB")
@@ -68,6 +70,7 @@ def test_get_fallback_returns_generic(panel_database):
 # -------------------------------------------------------------------------
 # find_panel with various model strings
 # -------------------------------------------------------------------------
+
 
 def test_find_panel_exact_model(panel_database):
     """find_panel should match PG27UCDM exactly."""
@@ -121,6 +124,7 @@ def test_find_panel_empty_string(panel_database):
 # Database size
 # -------------------------------------------------------------------------
 
+
 def test_database_has_many_panels(panel_database):
     """Database should have more than 30 panels."""
     # list_panels excludes GENERIC_SRGB
@@ -131,6 +135,7 @@ def test_database_has_many_panels(panel_database):
 # -------------------------------------------------------------------------
 # create_from_edid
 # -------------------------------------------------------------------------
+
 
 def test_create_from_edid_valid():
     """create_from_edid should produce a valid PanelCharacterization."""
@@ -172,6 +177,7 @@ def test_create_from_edid_wide_gamut_detection():
 # JSON serialization roundtrip
 # -------------------------------------------------------------------------
 
+
 def test_json_roundtrip(qd_oled_panel):
     """to_dict -> JSON -> from_dict roundtrip should preserve key fields."""
     d = qd_oled_panel.to_dict()
@@ -181,12 +187,8 @@ def test_json_roundtrip(qd_oled_panel):
 
     assert recovered.manufacturer == qd_oled_panel.manufacturer
     assert recovered.panel_type == qd_oled_panel.panel_type
-    assert recovered.native_primaries.red.x == pytest.approx(
-        qd_oled_panel.native_primaries.red.x, abs=1e-6
-    )
-    assert recovered.gamma_red.gamma == pytest.approx(
-        qd_oled_panel.gamma_red.gamma, abs=1e-6
-    )
+    assert recovered.native_primaries.red.x == pytest.approx(qd_oled_panel.native_primaries.red.x, abs=1e-6)
+    assert recovered.gamma_red.gamma == pytest.approx(qd_oled_panel.gamma_red.gamma, abs=1e-6)
     assert recovered.capabilities.max_luminance_hdr == pytest.approx(
         qd_oled_panel.capabilities.max_luminance_hdr, abs=0.1
     )

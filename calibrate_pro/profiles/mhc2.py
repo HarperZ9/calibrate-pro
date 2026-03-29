@@ -27,20 +27,20 @@ import numpy as np
 # =============================================================================
 
 # MHC2 tag signature
-MHC2_TAG_SIGNATURE = b'MHC2'
+MHC2_TAG_SIGNATURE = b"MHC2"
 
 # MHC2 version
 MHC2_VERSION_1 = 1
 MHC2_VERSION_2 = 2
 
 # Default values
-DEFAULT_SDR_WHITE_LEVEL = 80.0      # cd/m² (Windows default)
-DEFAULT_MIN_LUMINANCE = 0.0         # cd/m²
-DEFAULT_MAX_LUMINANCE = 1000.0      # cd/m²
+DEFAULT_SDR_WHITE_LEVEL = 80.0  # cd/m² (Windows default)
+DEFAULT_MIN_LUMINANCE = 0.0  # cd/m²
+DEFAULT_MAX_LUMINANCE = 1000.0  # cd/m²
 
 # SDR white level range
-SDR_WHITE_MIN = 40.0    # Minimum practical SDR white
-SDR_WHITE_MAX = 480.0   # Maximum Windows allows
+SDR_WHITE_MIN = 40.0  # Minimum practical SDR white
+SDR_WHITE_MAX = 480.0  # Maximum Windows allows
 
 # HDR luminance range
 HDR_MIN_LUMINANCE = 0.0001
@@ -51,6 +51,7 @@ HDR_MAX_LUMINANCE = 10000.0
 # MHC2 Data Structures
 # =============================================================================
 
+
 @dataclass
 class MHC2ColorMatrix:
     """
@@ -59,6 +60,7 @@ class MHC2ColorMatrix:
     Transforms from source color space to display color space.
     Typically used for gamut mapping in HDR.
     """
+
     matrix: np.ndarray = field(default_factory=lambda: np.eye(3))
 
     def __post_init__(self):
@@ -67,7 +69,7 @@ class MHC2ColorMatrix:
             raise ValueError("Matrix must be 3x3")
 
     @classmethod
-    def identity(cls) -> 'MHC2ColorMatrix':
+    def identity(cls) -> "MHC2ColorMatrix":
         """Create identity matrix."""
         return cls(np.eye(3))
 
@@ -81,8 +83,8 @@ class MHC2ColorMatrix:
         dst_red: tuple[float, float],
         dst_green: tuple[float, float],
         dst_blue: tuple[float, float],
-        dst_white: tuple[float, float]
-    ) -> 'MHC2ColorMatrix':
+        dst_white: tuple[float, float],
+    ) -> "MHC2ColorMatrix":
         """
         Create gamut mapping matrix from chromaticity coordinates.
 
@@ -93,17 +95,15 @@ class MHC2ColorMatrix:
         Returns:
             MHC2ColorMatrix for gamut conversion
         """
+
         def xy_to_XYZ(x: float, y: float) -> np.ndarray:
             """Convert xy chromaticity to XYZ with Y=1."""
             if y == 0:
                 return np.array([0, 0, 0])
-            return np.array([x/y, 1.0, (1-x-y)/y])
+            return np.array([x / y, 1.0, (1 - x - y) / y])
 
         def primaries_to_matrix(
-            red: tuple[float, float],
-            green: tuple[float, float],
-            blue: tuple[float, float],
-            white: tuple[float, float]
+            red: tuple[float, float], green: tuple[float, float], blue: tuple[float, float], white: tuple[float, float]
         ) -> np.ndarray:
             """Build RGB to XYZ matrix from primaries."""
             # Primary XYZ
@@ -115,11 +115,7 @@ class MHC2ColorMatrix:
             Xw, Yw, Zw = xy_to_XYZ(*white)
 
             # Solve for S (scaling factors)
-            M = np.array([
-                [Xr, Xg, Xb],
-                [Yr, Yg, Yb],
-                [Zr, Zg, Zb]
-            ])
+            M = np.array([[Xr, Xg, Xb], [Yr, Yg, Yb], [Zr, Zg, Zb]])
 
             S = np.linalg.solve(M, np.array([Xw, Yw, Zw]))
 
@@ -138,7 +134,7 @@ class MHC2ColorMatrix:
         return cls(combined)
 
     @classmethod
-    def bt2020_to_p3(cls) -> 'MHC2ColorMatrix':
+    def bt2020_to_p3(cls) -> "MHC2ColorMatrix":
         """Create BT.2020 to Display P3 matrix."""
         return cls.from_primaries(
             src_red=(0.708, 0.292),
@@ -148,11 +144,11 @@ class MHC2ColorMatrix:
             dst_red=(0.680, 0.320),
             dst_green=(0.265, 0.690),
             dst_blue=(0.150, 0.060),
-            dst_white=(0.3127, 0.3290)
+            dst_white=(0.3127, 0.3290),
         )
 
     @classmethod
-    def bt2020_to_srgb(cls) -> 'MHC2ColorMatrix':
+    def bt2020_to_srgb(cls) -> "MHC2ColorMatrix":
         """Create BT.2020 to sRGB matrix."""
         return cls.from_primaries(
             src_red=(0.708, 0.292),
@@ -162,30 +158,30 @@ class MHC2ColorMatrix:
             dst_red=(0.640, 0.330),
             dst_green=(0.300, 0.600),
             dst_blue=(0.150, 0.060),
-            dst_white=(0.3127, 0.3290)
+            dst_white=(0.3127, 0.3290),
         )
 
     def to_bytes(self) -> bytes:
         """Serialize matrix to MHC2 format (s15Fixed16)."""
-        data = b''
+        data = b""
         for row in self.matrix:
             for val in row:
                 # s15Fixed16 format
                 ival = int(round(val * 65536))
                 if ival < 0:
                     ival += 0x100000000
-                data += struct.pack('>I', ival & 0xFFFFFFFF)
+                data += struct.pack(">I", ival & 0xFFFFFFFF)
         return data
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'MHC2ColorMatrix':
+    def from_bytes(cls, data: bytes) -> "MHC2ColorMatrix":
         """Parse matrix from MHC2 format."""
         matrix = np.zeros((3, 3))
         offset = 0
 
         for i in range(3):
             for j in range(3):
-                val = struct.unpack('>I', data[offset:offset+4])[0]
+                val = struct.unpack(">I", data[offset : offset + 4])[0]
                 # Convert from s15Fixed16
                 if val >= 0x80000000:
                     val -= 0x100000000
@@ -202,6 +198,7 @@ class MHC2ToneCurve:
 
     Defines the PQ-based tone curve for HDR to display mapping.
     """
+
     # Curve defined by control points (up to 256)
     points: np.ndarray = field(default_factory=lambda: np.linspace(0, 1, 256))
 
@@ -210,24 +207,20 @@ class MHC2ToneCurve:
         self.points = np.clip(self.points, 0.0, 1.0)
 
     @classmethod
-    def identity(cls) -> 'MHC2ToneCurve':
+    def identity(cls) -> "MHC2ToneCurve":
         """Create identity (linear) curve."""
         return cls(np.linspace(0, 1, 256))
 
     @classmethod
-    def from_gamma(cls, gamma: float, size: int = 256) -> 'MHC2ToneCurve':
+    def from_gamma(cls, gamma: float, size: int = 256) -> "MHC2ToneCurve":
         """Create gamma curve."""
         x = np.linspace(0, 1, size)
         return cls(np.power(x, gamma))
 
     @classmethod
     def from_pq_to_display(
-        cls,
-        display_peak: float = 1000.0,
-        display_black: float = 0.0,
-        sdr_white: float = 80.0,
-        size: int = 256
-    ) -> 'MHC2ToneCurve':
+        cls, display_peak: float = 1000.0, display_black: float = 0.0, sdr_white: float = 80.0, size: int = 256
+    ) -> "MHC2ToneCurve":
         """
         Create tone curve for PQ to display mapping.
 
@@ -279,26 +272,26 @@ class MHC2ToneCurve:
 
     def to_bytes(self) -> bytes:
         """Serialize to MHC2 format (16-bit)."""
-        data = struct.pack('>I', len(self.points))
+        data = struct.pack(">I", len(self.points))
 
         for val in self.points:
-            data += struct.pack('>H', int(val * 65535))
+            data += struct.pack(">H", int(val * 65535))
 
         # Pad to 4-byte boundary
         while len(data) % 4 != 0:
-            data += b'\x00'
+            data += b"\x00"
 
         return data
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'MHC2ToneCurve':
+    def from_bytes(cls, data: bytes) -> "MHC2ToneCurve":
         """Parse from MHC2 format."""
-        count = struct.unpack('>I', data[:4])[0]
+        count = struct.unpack(">I", data[:4])[0]
         points = np.zeros(count)
 
         offset = 4
         for i in range(count):
-            points[i] = struct.unpack('>H', data[offset:offset+2])[0] / 65535.0
+            points[i] = struct.unpack(">H", data[offset : offset + 2])[0] / 65535.0
             offset += 2
 
         return cls(points)
@@ -311,13 +304,14 @@ class MHC2Tag:
 
     Contains all parameters needed for Windows HDR color management.
     """
+
     # Version
     version: int = MHC2_VERSION_2
 
     # Luminance settings
-    min_luminance: float = 0.0       # Display black level (cd/m²)
-    max_luminance: float = 1000.0    # Display peak luminance (cd/m²)
-    sdr_white_level: float = 80.0    # SDR reference white (cd/m²)
+    min_luminance: float = 0.0  # Display black level (cd/m²)
+    max_luminance: float = 1000.0  # Display peak luminance (cd/m²)
+    sdr_white_level: float = 80.0  # SDR reference white (cd/m²)
 
     # Color matrix (3x3)
     color_matrix: MHC2ColorMatrix = field(default_factory=MHC2ColorMatrix.identity)
@@ -351,12 +345,8 @@ class MHC2Tag:
 
     @classmethod
     def for_display(
-        cls,
-        peak_luminance: float,
-        black_level: float = 0.0,
-        sdr_white: float = 80.0,
-        color_gamut: str = "sRGB"
-    ) -> 'MHC2Tag':
+        cls, peak_luminance: float, black_level: float = 0.0, sdr_white: float = 80.0, color_gamut: str = "sRGB"
+    ) -> "MHC2Tag":
         """
         Create MHC2 tag for a specific display.
 
@@ -379,9 +369,7 @@ class MHC2Tag:
 
         # Tone curve for this display
         curve = MHC2ToneCurve.from_pq_to_display(
-            display_peak=peak_luminance,
-            display_black=black_level,
-            sdr_white=sdr_white
+            display_peak=peak_luminance, display_black=black_level, sdr_white=sdr_white
         )
 
         return cls(
@@ -398,15 +386,15 @@ class MHC2Tag:
         """Serialize to ICC tag format."""
         # Tag type signature
         data = MHC2_TAG_SIGNATURE
-        data += b'\x00\x00\x00\x00'  # Reserved
+        data += b"\x00\x00\x00\x00"  # Reserved
 
         # Version
-        data += struct.pack('>I', self.version)
+        data += struct.pack(">I", self.version)
 
         # Luminance values (as s15Fixed16)
         def to_s15f16(val: float) -> bytes:
             ival = int(round(val * 65536)) & 0xFFFFFFFF
-            return struct.pack('>I', ival)
+            return struct.pack(">I", ival)
 
         data += to_s15f16(self.min_luminance)
         data += to_s15f16(self.max_luminance)
@@ -419,10 +407,10 @@ class MHC2Tag:
         if self.use_color_matrix:
             flags |= 0x02
 
-        data += struct.pack('>I', flags)
+        data += struct.pack(">I", flags)
 
         # Gamut mapping mode
-        data += struct.pack('>I', self.gamut_mapping_mode)
+        data += struct.pack(">I", self.gamut_mapping_mode)
 
         # Color matrix
         data += self.color_matrix.to_bytes()
@@ -435,7 +423,7 @@ class MHC2Tag:
         return data
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> Optional['MHC2Tag']:
+    def from_bytes(cls, data: bytes) -> Optional["MHC2Tag"]:
         """Parse from ICC tag format."""
         if len(data) < 64:
             return None
@@ -447,36 +435,36 @@ class MHC2Tag:
         offset = 8  # Skip signature and reserved
 
         # Version
-        version = struct.unpack('>I', data[offset:offset+4])[0]
+        version = struct.unpack(">I", data[offset : offset + 4])[0]
         offset += 4
 
         # Luminance values
         def from_s15f16(d: bytes) -> float:
-            val = struct.unpack('>I', d)[0]
+            val = struct.unpack(">I", d)[0]
             if val >= 0x80000000:
                 val -= 0x100000000
             return val / 65536.0
 
-        min_lum = from_s15f16(data[offset:offset+4])
+        min_lum = from_s15f16(data[offset : offset + 4])
         offset += 4
-        max_lum = from_s15f16(data[offset:offset+4])
+        max_lum = from_s15f16(data[offset : offset + 4])
         offset += 4
-        sdr_white = from_s15f16(data[offset:offset+4])
+        sdr_white = from_s15f16(data[offset : offset + 4])
         offset += 4
 
         # Flags
-        flags = struct.unpack('>I', data[offset:offset+4])[0]
+        flags = struct.unpack(">I", data[offset : offset + 4])[0]
         offset += 4
 
         use_tone = bool(flags & 0x01)
         use_matrix = bool(flags & 0x02)
 
         # Gamut mode
-        gamut_mode = struct.unpack('>I', data[offset:offset+4])[0]
+        gamut_mode = struct.unpack(">I", data[offset : offset + 4])[0]
         offset += 4
 
         # Color matrix (36 bytes)
-        matrix = MHC2ColorMatrix.from_bytes(data[offset:offset+36])
+        matrix = MHC2ColorMatrix.from_bytes(data[offset : offset + 36])
         offset += 36
 
         # Tone curves
@@ -501,13 +489,14 @@ class MHC2Tag:
             blue_curve=blue_curve,
             gamut_mapping_mode=gamut_mode,
             use_tone_curve=use_tone,
-            use_color_matrix=use_matrix
+            use_color_matrix=use_matrix,
         )
 
 
 # =============================================================================
 # Profile Integration
 # =============================================================================
+
 
 def extract_mhc2_from_profile(profile_path: str | Path) -> MHC2Tag | None:
     """
@@ -531,16 +520,16 @@ def extract_mhc2_from_profile(profile_path: str | Path) -> MHC2Tag | None:
             return None
 
         # Parse tag table
-        tag_count = struct.unpack('>I', data[128:132])[0]
+        tag_count = struct.unpack(">I", data[128:132])[0]
 
         for i in range(tag_count):
             offset = 132 + i * 12
-            sig = data[offset:offset+4]
-            tag_offset = struct.unpack('>I', data[offset+4:offset+8])[0]
-            tag_size = struct.unpack('>I', data[offset+8:offset+12])[0]
+            sig = data[offset : offset + 4]
+            tag_offset = struct.unpack(">I", data[offset + 4 : offset + 8])[0]
+            tag_size = struct.unpack(">I", data[offset + 8 : offset + 12])[0]
 
             if sig == MHC2_TAG_SIGNATURE:
-                mhc2_data = data[tag_offset:tag_offset+tag_size]
+                mhc2_data = data[tag_offset : tag_offset + tag_size]
                 return MHC2Tag.from_bytes(mhc2_data)
 
     except Exception:
@@ -550,11 +539,7 @@ def extract_mhc2_from_profile(profile_path: str | Path) -> MHC2Tag | None:
 
 
 def create_hdr_profile_with_mhc2(
-    description: str,
-    peak_luminance: float,
-    black_level: float = 0.0,
-    sdr_white: float = 80.0,
-    color_gamut: str = "P3"
+    description: str, peak_luminance: float, black_level: float = 0.0, sdr_white: float = 80.0, color_gamut: str = "P3"
 ) -> bytes:
     """
     Create HDR ICC profile with MHC2 tag.
@@ -583,10 +568,7 @@ def create_hdr_profile_with_mhc2(
 
     # Create MHC2 tag
     mhc2 = MHC2Tag.for_display(
-        peak_luminance=peak_luminance,
-        black_level=black_level,
-        sdr_white=sdr_white,
-        color_gamut=color_gamut
+        peak_luminance=peak_luminance, black_level=black_level, sdr_white=sdr_white, color_gamut=color_gamut
     )
 
     profile.mhc2_data = mhc2.to_bytes()
@@ -598,6 +580,7 @@ def create_hdr_profile_with_mhc2(
 # Windows HDR Settings
 # =============================================================================
 
+
 @dataclass
 class WindowsHDRSettings:
     """
@@ -605,6 +588,7 @@ class WindowsHDRSettings:
 
     Represents the HDR configuration for a Windows display.
     """
+
     # Display identification
     display_name: str = ""
     display_id: int = 0
@@ -630,14 +614,11 @@ class WindowsHDRSettings:
             peak_luminance=self.peak_luminance,
             black_level=self.min_luminance,
             sdr_white=self.sdr_white_level,
-            color_gamut=self.color_gamut
+            color_gamut=self.color_gamut,
         )
 
 
-def get_recommended_sdr_white(
-    ambient_lux: float,
-    display_peak: float
-) -> float:
+def get_recommended_sdr_white(ambient_lux: float, display_peak: float) -> float:
     """
     Calculate recommended SDR white level.
 
@@ -670,10 +651,7 @@ def get_recommended_sdr_white(
     return min(base, max_sdr, SDR_WHITE_MAX)
 
 
-def calculate_hdr_headroom(
-    sdr_white: float,
-    display_peak: float
-) -> float:
+def calculate_hdr_headroom(sdr_white: float, display_peak: float) -> float:
     """
     Calculate HDR headroom in stops.
 
@@ -693,6 +671,7 @@ def calculate_hdr_headroom(
 # =============================================================================
 # MHC2 ICC Profile Generation (Phase 2.1)
 # =============================================================================
+
 
 def _xy_to_XYZ(x: float, y: float) -> np.ndarray:
     """Convert xy chromaticity to XYZ with Y=1."""
@@ -721,11 +700,13 @@ def _build_rgb_to_xyz_matrix(
     Xb, Yb, Zb = _xy_to_XYZ(*blue_xy)
     Xw, Yw, Zw = _xy_to_XYZ(*white_xy)
 
-    M = np.array([
-        [Xr, Xg, Xb],
-        [Yr, Yg, Yb],
-        [Zr, Zg, Zb],
-    ])
+    M = np.array(
+        [
+            [Xr, Xg, Xb],
+            [Yr, Yg, Yb],
+            [Zr, Zg, Zb],
+        ]
+    )
 
     S = np.linalg.solve(M, np.array([Xw, Yw, Zw]))
 
@@ -789,11 +770,13 @@ def generate_mhc2_profile(
     # -------------------------------------------------------------------------
     # 2. Chromatic adaptation from panel white to target white (Bradford)
     # -------------------------------------------------------------------------
-    BRADFORD = np.array([
-        [ 0.8951000,  0.2664000, -0.1614000],
-        [-0.7502000,  1.7135000,  0.0367000],
-        [ 0.0389000, -0.0685000,  1.0296000],
-    ])
+    BRADFORD = np.array(
+        [
+            [0.8951000, 0.2664000, -0.1614000],
+            [-0.7502000, 1.7135000, 0.0367000],
+            [0.0389000, -0.0685000, 1.0296000],
+        ]
+    )
     BRADFORD_INV = np.linalg.inv(BRADFORD)
 
     src_XYZ = _xy_to_XYZ(*panel_white)
@@ -825,13 +808,13 @@ def generate_mhc2_profile(
     #      48 bytes - 12 s15Fixed16Number values (3x4 matrix, row-major)
     #    Total: 60 bytes
     # -------------------------------------------------------------------------
-    mhc2_tag = MHC2_TAG_SIGNATURE                    # 'MHC2'
-    mhc2_tag += b'\x00\x00\x00\x00'                 # reserved
-    mhc2_tag += struct.pack('>I', 1)                 # matrix type 1 = 3x4
+    mhc2_tag = MHC2_TAG_SIGNATURE  # 'MHC2'
+    mhc2_tag += b"\x00\x00\x00\x00"  # reserved
+    mhc2_tag += struct.pack(">I", 1)  # matrix type 1 = 3x4
 
     for row in range(3):
         for col in range(4):
-            mhc2_tag += struct.pack('>I', _float_to_s15fixed16(mhc2_matrix_3x4[row, col]))
+            mhc2_tag += struct.pack(">I", _float_to_s15fixed16(mhc2_matrix_3x4[row, col]))
 
     # -------------------------------------------------------------------------
     # 5. Build standard ICC tags
@@ -868,38 +851,35 @@ def generate_mhc2_profile(
 
     def build_mluc_tag(text: str) -> bytes:
         """Multi-localized Unicode description tag."""
-        text_bytes = text.encode('utf-16-be')
-        tag = b'mluc'
-        tag += b'\x00\x00\x00\x00'     # reserved
-        tag += struct.pack('>I', 1)     # 1 record
-        tag += struct.pack('>I', 12)    # record size
-        tag += b'enUS'                  # language/country
-        tag += struct.pack('>I', len(text_bytes) + 2)  # string length + BOM
-        tag += struct.pack('>I', 28)    # offset to string
-        tag += b'\xfe\xff'             # UTF-16 BOM
+        text_bytes = text.encode("utf-16-be")
+        tag = b"mluc"
+        tag += b"\x00\x00\x00\x00"  # reserved
+        tag += struct.pack(">I", 1)  # 1 record
+        tag += struct.pack(">I", 12)  # record size
+        tag += b"enUS"  # language/country
+        tag += struct.pack(">I", len(text_bytes) + 2)  # string length + BOM
+        tag += struct.pack(">I", 28)  # offset to string
+        tag += b"\xfe\xff"  # UTF-16 BOM
         tag += text_bytes
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
         return tag
 
     def build_text_tag(text: str) -> bytes:
         """Simple ASCII text tag."""
-        text_bytes = text.encode('ascii', errors='replace') + b'\x00'
-        tag = b'text'
-        tag += b'\x00\x00\x00\x00'
+        text_bytes = text.encode("ascii", errors="replace") + b"\x00"
+        tag = b"text"
+        tag += b"\x00\x00\x00\x00"
         tag += text_bytes
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
         return tag
 
     def build_xyz_tag(x: float, y: float, z: float) -> bytes:
         """XYZ data tag."""
-        tag = b'XYZ '
-        tag += b'\x00\x00\x00\x00'
-        tag += struct.pack('>III',
-                           _float_to_s15fixed16(x),
-                           _float_to_s15fixed16(y),
-                           _float_to_s15fixed16(z))
+        tag = b"XYZ "
+        tag += b"\x00\x00\x00\x00"
+        tag += struct.pack(">III", _float_to_s15fixed16(x), _float_to_s15fixed16(y), _float_to_s15fixed16(z))
         return tag
 
     def build_curv_tag(gamma: float) -> bytes:
@@ -909,38 +889,38 @@ def generate_mhc2_profile(
         matrix operates on linear-light values.
         """
         gamma_fixed = int(round(gamma * 256)) & 0xFFFF
-        tag = b'curv'
-        tag += b'\x00\x00\x00\x00'
-        tag += struct.pack('>I', 1)          # count = 1 (parametric)
-        tag += struct.pack('>H', gamma_fixed)
+        tag = b"curv"
+        tag += b"\x00\x00\x00\x00"
+        tag += struct.pack(">I", 1)  # count = 1 (parametric)
+        tag += struct.pack(">H", gamma_fixed)
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
         return tag
 
     def build_chad_tag(matrix_3x3: np.ndarray) -> bytes:
         """Chromatic adaptation tag (sf32 type, 3x3 matrix)."""
-        tag = b'sf32'
-        tag += b'\x00\x00\x00\x00'
+        tag = b"sf32"
+        tag += b"\x00\x00\x00\x00"
         for row in matrix_3x3:
             for val in row:
                 ival = int(round(val * 65536))
-                tag += struct.pack('>i', ival)
+                tag += struct.pack(">i", ival)
         return tag
 
     # Assemble tag dictionary
     tags = {}
-    tags[b'desc'] = build_mluc_tag(description)
-    tags[b'cprt'] = build_text_tag("Copyright Zain Dana Harper 2022-2026 - Calibrate Pro HDR")
-    tags[b'wtpt'] = build_xyz_tag(D50_X, D50_Y, D50_Z)
-    tags[b'rXYZ'] = build_xyz_tag(*red_xyz_d50)
-    tags[b'gXYZ'] = build_xyz_tag(*green_xyz_d50)
-    tags[b'bXYZ'] = build_xyz_tag(*blue_xyz_d50)
+    tags[b"desc"] = build_mluc_tag(description)
+    tags[b"cprt"] = build_text_tag("Copyright Zain Dana Harper 2022-2026 - Calibrate Pro HDR")
+    tags[b"wtpt"] = build_xyz_tag(D50_X, D50_Y, D50_Z)
+    tags[b"rXYZ"] = build_xyz_tag(*red_xyz_d50)
+    tags[b"gXYZ"] = build_xyz_tag(*green_xyz_d50)
+    tags[b"bXYZ"] = build_xyz_tag(*blue_xyz_d50)
     # Linear TRC for HDR (gamma 1.0) -- the MHC2 matrix works on linear values
-    tags[b'rTRC'] = build_curv_tag(1.0)
-    tags[b'gTRC'] = build_curv_tag(1.0)
-    tags[b'bTRC'] = build_curv_tag(1.0)
-    tags[b'chad'] = build_chad_tag(chad_matrix)
-    tags[b'MHC2'] = mhc2_tag
+    tags[b"rTRC"] = build_curv_tag(1.0)
+    tags[b"gTRC"] = build_curv_tag(1.0)
+    tags[b"bTRC"] = build_curv_tag(1.0)
+    tags[b"chad"] = build_chad_tag(chad_matrix)
+    tags[b"MHC2"] = mhc2_tag
 
     # -------------------------------------------------------------------------
     # 6. Assemble ICC profile
@@ -952,56 +932,56 @@ def generate_mhc2_profile(
     # Calculate offsets
     current_offset = header_size + tag_table_size
     tag_offsets = {}
-    tag_data = b''
+    tag_data = b""
     for sig, data in tags.items():
         tag_offsets[sig] = current_offset
         tag_data += data
         current_offset += len(data)
 
     # Build tag table
-    tag_table = struct.pack('>I', tag_count)
+    tag_table = struct.pack(">I", tag_count)
     for sig, data in tags.items():
         tag_table += sig
-        tag_table += struct.pack('>II', tag_offsets[sig], len(data))
+        tag_table += struct.pack(">II", tag_offsets[sig], len(data))
 
     profile_size = header_size + len(tag_table) + len(tag_data)
 
     # Build header (128 bytes)
     dt = datetime.now()
-    date_bytes = struct.pack('>HHHHHH',
-                             dt.year, dt.month, dt.day,
-                             dt.hour, dt.minute, dt.second)
+    date_bytes = struct.pack(">HHHHHH", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
 
-    header = struct.pack('>I', profile_size)            # 0-3   profile size
-    header += b'lcms'                                    # 4-7   preferred CMM
-    header += struct.pack('>I', 0x04400000)             # 8-11  version 4.4
-    header += b'mntr'                                    # 12-15 display class
-    header += b'RGB '                                    # 16-19 color space
-    header += b'XYZ '                                    # 20-23 PCS
-    header += date_bytes                                 # 24-35 date/time
-    header += b'acsp'                                    # 36-39 ICC magic
-    header += b'MSFT'                                    # 40-43 platform
-    header += struct.pack('>I', 0)                      # 44-47 flags
-    header += b'QNTA'                                    # 48-51 manufacturer
-    header += b'CALB'                                    # 52-55 model
-    header += struct.pack('>Q', 0)                      # 56-63 attributes
-    header += struct.pack('>I', 0)                      # 64-67 intent (perceptual)
-    header += struct.pack('>III',                        # 68-79 PCS illuminant
-                          _float_to_s15fixed16(D50_X),
-                          _float_to_s15fixed16(D50_Y),
-                          _float_to_s15fixed16(D50_Z))
-    header += b'QNTA'                                    # 80-83 creator
-    header += b'\x00' * 16                               # 84-99 MD5 (filled later)
-    header += b'\x00' * 28                               # 100-127 reserved
+    header = struct.pack(">I", profile_size)  # 0-3   profile size
+    header += b"lcms"  # 4-7   preferred CMM
+    header += struct.pack(">I", 0x04400000)  # 8-11  version 4.4
+    header += b"mntr"  # 12-15 display class
+    header += b"RGB "  # 16-19 color space
+    header += b"XYZ "  # 20-23 PCS
+    header += date_bytes  # 24-35 date/time
+    header += b"acsp"  # 36-39 ICC magic
+    header += b"MSFT"  # 40-43 platform
+    header += struct.pack(">I", 0)  # 44-47 flags
+    header += b"QNTA"  # 48-51 manufacturer
+    header += b"CALB"  # 52-55 model
+    header += struct.pack(">Q", 0)  # 56-63 attributes
+    header += struct.pack(">I", 0)  # 64-67 intent (perceptual)
+    header += struct.pack(
+        ">III",  # 68-79 PCS illuminant
+        _float_to_s15fixed16(D50_X),
+        _float_to_s15fixed16(D50_Y),
+        _float_to_s15fixed16(D50_Z),
+    )
+    header += b"QNTA"  # 80-83 creator
+    header += b"\x00" * 16  # 84-99 MD5 (filled later)
+    header += b"\x00" * 28  # 100-127 reserved
 
     # Combine
     profile = header + tag_table + tag_data
 
     # Compute MD5 (per ICC spec, zero out fields 44-47, 64-67, 84-99)
     profile_for_hash = bytearray(profile)
-    profile_for_hash[44:48] = b'\x00\x00\x00\x00'
-    profile_for_hash[64:68] = b'\x00\x00\x00\x00'
-    profile_for_hash[84:100] = b'\x00' * 16
+    profile_for_hash[44:48] = b"\x00\x00\x00\x00"
+    profile_for_hash[64:68] = b"\x00\x00\x00\x00"
+    profile_for_hash[84:100] = b"\x00" * 16
     md5_hash = hashlib.md5(bytes(profile_for_hash)).digest()
     profile = profile[:84] + md5_hash + profile[100:]
 
@@ -1040,7 +1020,7 @@ def install_mhc2_profile(profile_path: str, display_index: int = 0) -> bool:
     # Validate that the file is an ICC profile
     try:
         data = profile_path.read_bytes()
-        if len(data) < 128 or data[36:40] != b'acsp':
+        if len(data) < 128 or data[36:40] != b"acsp":
             return False
     except Exception:
         return False
@@ -1048,8 +1028,9 @@ def install_mhc2_profile(profile_path: str, display_index: int = 0) -> bool:
     # Step 1: Copy to system color directory
     try:
         import os
-        system_root = os.environ.get('SystemRoot', r'C:\Windows')
-        color_dir = Path(system_root) / 'System32' / 'spool' / 'drivers' / 'color'
+
+        system_root = os.environ.get("SystemRoot", r"C:\Windows")
+        color_dir = Path(system_root) / "System32" / "spool" / "drivers" / "color"
         if color_dir.exists():
             dest = color_dir / profile_path.name
             shutil.copy2(str(profile_path), str(dest))
@@ -1064,6 +1045,7 @@ def install_mhc2_profile(profile_path: str, display_index: int = 0) -> bool:
     # Step 2: Register and associate with display using mscms.dll
     try:
         import ctypes
+
         mscms_dll = ctypes.windll.mscms
 
         # InstallColorProfileW
@@ -1111,11 +1093,11 @@ def install_mhc2_profile(profile_path: str, display_index: int = 0) -> bool:
 
         # WcsSetDefaultColorProfile
         mscms_dll.WcsSetDefaultColorProfile(
-            0,           # scope (system)
+            0,  # scope (system)
             device_name,
-            2,           # display device type
-            0,           # subtype
-            0,           # profile ID
+            2,  # display device type
+            0,  # subtype
+            0,  # profile ID
             profile_name,
         )
 

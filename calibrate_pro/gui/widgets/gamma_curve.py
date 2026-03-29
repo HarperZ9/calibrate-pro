@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 # Gamma Functions
 # =============================================================================
 
+
 def srgb_eotf(x: float) -> float:
     """sRGB EOTF (display encoding to linear light)."""
     if x <= 0.04045:
@@ -42,7 +43,7 @@ def bt1886_eotf(x: float, gamma: float = 2.4, black: float = 0.0, white: float =
 
 def power_law_eotf(x: float, gamma: float = 2.2) -> float:
     """Simple power law gamma."""
-    return x ** gamma
+    return x**gamma
 
 
 def l_star_eotf(x: float) -> float:
@@ -55,6 +56,7 @@ def l_star_eotf(x: float) -> float:
 @dataclass
 class CurveData:
     """Data for a gamma curve."""
+
     name: str
     color: QColor
     points: list[tuple[float, float]]  # (input, output) normalized 0-1
@@ -64,6 +66,7 @@ class CurveData:
 # =============================================================================
 # Gamma Curve Widget
 # =============================================================================
+
 
 class GammaCurveWidget(QWidget):
     """Gamma/EOTF curve display widget."""
@@ -129,26 +132,20 @@ class GammaCurveWidget(QWidget):
         self.target_curve = CurveData(
             name=f"{gamma_type} (γ={gamma_value:.1f})" if gamma_type == "power" else gamma_type,
             color=self.colors["target"],
-            points=points
+            points=points,
         )
         self.update()
 
     def set_measured_grayscale(self, points: list[tuple[float, float]]):
         """Set measured grayscale response."""
-        self.measured_curves["grayscale"] = CurveData(
-            name="Measured",
-            color=self.colors["grayscale"],
-            points=points
-        )
+        self.measured_curves["grayscale"] = CurveData(name="Measured", color=self.colors["grayscale"], points=points)
         self.update()
 
     def set_measured_channel(self, channel: str, points: list[tuple[float, float]]):
         """Set measured response for a specific channel (R, G, B)."""
         color_map = {"R": "red", "G": "green", "B": "blue"}
         self.measured_curves[channel] = CurveData(
-            name=channel,
-            color=self.colors.get(color_map.get(channel, "grayscale")),
-            points=points
+            name=channel, color=self.colors.get(color_map.get(channel, "grayscale")), points=points
         )
         self.update()
 
@@ -239,8 +236,9 @@ class GammaCurveWidget(QWidget):
         p2 = self._value_to_pixel(1, 1)
         painter.drawLine(p1, p2)
 
-    def _draw_curve(self, painter: QPainter, curve: CurveData,
-                    width: float = 2, style: Qt.PenStyle = Qt.PenStyle.SolidLine):
+    def _draw_curve(
+        self, painter: QPainter, curve: CurveData, width: float = 2, style: Qt.PenStyle = Qt.PenStyle.SolidLine
+    ):
         """Draw a single curve."""
         if not curve.points or not curve.visible:
             return
@@ -424,6 +422,7 @@ class GammaCurveWidget(QWidget):
 # Gamma Info Panel
 # =============================================================================
 
+
 class GammaInfoPanel(QWidget):
     """Information panel showing gamma statistics."""
 
@@ -458,9 +457,14 @@ class GammaInfoPanel(QWidget):
 
         layout.addStretch()
 
-    def update_stats(self, target_gamma: float, measured_gamma: float,
-                    avg_deviation: float, max_deviation: float,
-                    rgb_balance: tuple[float, float, float]):
+    def update_stats(
+        self,
+        target_gamma: float,
+        measured_gamma: float,
+        avg_deviation: float,
+        max_deviation: float,
+        rgb_balance: tuple[float, float, float],
+    ):
         """Update the statistics display."""
         self.target_label.setText(f"Target: γ {target_gamma:.2f}")
         self.measured_label.setText(f"Measured γ: {measured_gamma:.2f}")

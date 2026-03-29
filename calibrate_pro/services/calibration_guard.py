@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GuardedDisplay:
     """A display whose calibration is being protected."""
-    device_name: str          # e.g., "\\\\.\\DISPLAY1"
-    display_name: str         # Human-readable
+
+    device_name: str  # e.g., "\\\\.\\DISPLAY1"
+    display_name: str  # Human-readable
     icc_profile_path: str | None = None
     lut_path: str | None = None
     vcgt_red: np.ndarray | None = None
@@ -47,11 +48,7 @@ class CalibrationGuard:
     associations and DWM LUT state.
     """
 
-    def __init__(
-        self,
-        check_interval: float = 10.0,
-        on_restore: Callable[[str, str], None] | None = None
-    ):
+    def __init__(self, check_interval: float = 10.0, on_restore: Callable[[str, str], None] | None = None):
         """
         Args:
             check_interval: Seconds between checks (default 10)
@@ -148,8 +145,7 @@ class CalibrationGuard:
 
         if is_linear and not self._is_linear_ramp(display.vcgt_red):
             # Windows reset our calibration to linear — restore it
-            self._apply_vcgt(display.device_name,
-                             display.vcgt_red, display.vcgt_green, display.vcgt_blue)
+            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
             self._restore_count += 1
             if self.on_restore:
                 self.on_restore(display.display_name, "Windows reset gamma ramp to linear")
@@ -157,8 +153,7 @@ class CalibrationGuard:
 
         if not is_matching and not is_linear:
             # Something else changed the ramp — could be another tool, restore ours
-            self._apply_vcgt(display.device_name,
-                             display.vcgt_red, display.vcgt_green, display.vcgt_blue)
+            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
             self._restore_count += 1
             if self.on_restore:
                 self.on_restore(display.display_name, "Gamma ramp was modified by another process")
@@ -189,6 +184,7 @@ class CalibrationGuard:
                 return None
 
             try:
+
                 class GAMMA_RAMP(ctypes.Structure):
                     _fields_ = [
                         ("Red", wintypes.WORD * 256),
@@ -220,6 +216,7 @@ class CalibrationGuard:
                 return False
 
             try:
+
                 class GAMMA_RAMP(ctypes.Structure):
                     _fields_ = [
                         ("Red", wintypes.WORD * 256),
@@ -249,10 +246,8 @@ def detect_acm_enabled() -> bool:
     """
     try:
         import winreg
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvancedDisplay"
-        )
+
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvancedDisplay")
         for i in range(20):
             try:
                 subkey_name = winreg.EnumKey(key, i)

@@ -17,15 +17,16 @@ from dataclasses import dataclass
 @dataclass
 class HDRDisplayState:
     """HDR state for a single display."""
+
     display_index: int
     display_name: str
     device_path: str
     hdr_enabled: bool
     hdr_capable: bool
-    peak_luminance: float       # Current peak in cd/m2
-    sdr_white_level: float      # SDR content white level in cd/m2 (typically 80-480)
-    color_space: str            # "sRGB", "scRGB", "BT2020_PQ", etc.
-    bit_depth: int              # 8, 10, or 12
+    peak_luminance: float  # Current peak in cd/m2
+    sdr_white_level: float  # SDR content white level in cd/m2 (typically 80-480)
+    color_space: str  # "sRGB", "scRGB", "BT2020_PQ", etc.
+    bit_depth: int  # 8, 10, or 12
 
 
 def detect_hdr_state() -> list[HDRDisplayState]:
@@ -38,6 +39,7 @@ def detect_hdr_state() -> list[HDRDisplayState]:
 
     try:
         from calibrate_pro.panels.detection import enumerate_displays, get_display_name
+
         displays = enumerate_displays()
     except Exception:
         return states
@@ -58,6 +60,7 @@ def detect_hdr_state() -> list[HDRDisplayState]:
         try:
             from calibrate_pro.panels.database import PanelDatabase
             from calibrate_pro.panels.detection import identify_display
+
             db = PanelDatabase()
             key = identify_display(display)
             if key:
@@ -77,7 +80,7 @@ def detect_hdr_state() -> list[HDRDisplayState]:
             peak_luminance=peak_lum,
             sdr_white_level=sdr_white,
             color_space="BT2020_PQ" if hdr_on else "sRGB",
-            bit_depth=10 if hdr_on else display.bit_depth
+            bit_depth=10 if hdr_on else display.bit_depth,
         )
         states.append(state)
 
@@ -116,10 +119,7 @@ def _check_hdr_registry(device_name: str) -> bool:
 
         # Method 2: Check GraphicsDrivers for HDR support indication
         try:
-            gfx_key = winreg.OpenKey(
-                winreg.HKEY_LOCAL_MACHINE,
-                r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers"
-            )
+            gfx_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers")
             try:
                 hdr_val, _ = winreg.QueryValueEx(gfx_key, "EnableHDR")
                 if hdr_val:
@@ -176,11 +176,7 @@ class HDRModeWatcher:
     a display's HDR mode changes.
     """
 
-    def __init__(
-        self,
-        on_hdr_change=None,
-        poll_interval: float = 5.0
-    ):
+    def __init__(self, on_hdr_change=None, poll_interval: float = 5.0):
         """
         Args:
             on_hdr_change: Callback(display_index, hdr_enabled, state)
@@ -212,6 +208,7 @@ class HDRModeWatcher:
 
     def _watch_loop(self):
         import time
+
         while self._running:
             time.sleep(self.poll_interval)
             try:
@@ -221,11 +218,7 @@ class HDRModeWatcher:
                     if prev is not None and prev != state.hdr_enabled:
                         self._last_states[state.display_index] = state.hdr_enabled
                         if self.on_hdr_change:
-                            self.on_hdr_change(
-                                state.display_index,
-                                state.hdr_enabled,
-                                state
-                            )
+                            self.on_hdr_change(state.display_index, state.hdr_enabled, state)
                     elif prev is None:
                         self._last_states[state.display_index] = state.hdr_enabled
             except Exception:

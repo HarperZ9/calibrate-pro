@@ -86,14 +86,16 @@ class CalibrationPage(QWidget):
         profile_layout = QFormLayout(profile_group)
 
         self.profile_combo = QComboBox()
-        self.profile_combo.addItems([
-            "sRGB Web Standard",
-            "Rec.709 Broadcast",
-            "DCI-P3 Cinema",
-            "HDR10 Mastering",
-            "Photography (Adobe RGB)",
-            "Custom..."
-        ])
+        self.profile_combo.addItems(
+            [
+                "sRGB Web Standard",
+                "Rec.709 Broadcast",
+                "DCI-P3 Cinema",
+                "HDR10 Mastering",
+                "Photography (Adobe RGB)",
+                "Custom...",
+            ]
+        )
         profile_layout.addRow("Preset:", self.profile_combo)
 
         settings_layout.addWidget(profile_group)
@@ -175,8 +177,10 @@ class CalibrationPage(QWidget):
         self.hardware_first_radio.setChecked(True)
         mode_layout.addWidget(self.hardware_first_radio)
 
-        hw_first_desc = QLabel("Step 1: Adjust monitor OSD settings (RGB gain, gamma)\n"
-                               "Step 2: Fine-tune with 3D LUT. Best quality, Delta E < 0.5")
+        hw_first_desc = QLabel(
+            "Step 1: Adjust monitor OSD settings (RGB gain, gamma)\n"
+            "Step 2: Fine-tune with 3D LUT. Best quality, Delta E < 0.5"
+        )
         hw_first_desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px; margin-left: 24px;")
         hw_first_desc.setWordWrap(True)
         mode_layout.addWidget(hw_first_desc)
@@ -222,9 +226,9 @@ class CalibrationPage(QWidget):
         gamut_preview = QFrame()
         gamut_preview.setMinimumHeight(200)
         gamut_preview.setStyleSheet(f"""
-            background-color: {COLORS['surface_alt']};
+            background-color: {COLORS["surface_alt"]};
             border-radius: 8px;
-            border: 1px solid {COLORS['border']};
+            border: 1px solid {COLORS["border"]};
         """)
 
         # Add gamut info labels
@@ -315,10 +319,7 @@ class CalibrationPage(QWidget):
 
         # Show consent dialog
         dialog = ConsentDialog(
-            self,
-            display_name=display_name,
-            changes=changes,
-            risk_level="MEDIUM" if not use_hardware_first else "HIGH"
+            self, display_name=display_name, changes=changes, risk_level="MEDIUM" if not use_hardware_first else "HIGH"
         )
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -371,7 +372,7 @@ class CalibrationPage(QWidget):
             display_index=self._current_display_index,
             apply_ddc=self._apply_ddc,
             profile_name=profile_name,
-            display_name=display_name
+            display_name=display_name,
         )
         self._worker.progress.connect(self._on_calibration_progress)
         self._worker.finished.connect(self._on_calibration_finished)
@@ -380,7 +381,7 @@ class CalibrationPage(QWidget):
 
     def _on_measurement_closed(self):
         """Called when measurement window is closed (possibly cancelled)."""
-        if not hasattr(self, '_worker') or self._worker is None or not self._worker.isRunning():
+        if not hasattr(self, "_worker") or self._worker is None or not self._worker.isRunning():
             # Measurement was cancelled before calibration started
             self.start_btn.setEnabled(True)
             self.cancel_btn.setEnabled(False)
@@ -404,13 +405,13 @@ class CalibrationPage(QWidget):
             )
 
             # Mark display as calibrated in settings
-            display_index = getattr(self, '_current_display_index', 0)
+            display_index = getattr(self, "_current_display_index", 0)
             DashboardPage.mark_display_calibrated(display_index, result.delta_e_predicted)
 
             # Try to refresh the dashboard if we can find it
             try:
                 main_window = self.window()
-                if hasattr(main_window, '_pages'):
+                if hasattr(main_window, "_pages"):
                     for page in main_window._pages.values():
                         if isinstance(page, DashboardPage):
                             page.refresh_displays()
@@ -424,7 +425,7 @@ class CalibrationPage(QWidget):
             msg.setIcon(QMessageBox.Icon.Information)
 
             # Determine grade and confidence
-            grade = result.verification.get('grade', 'Unknown')
+            grade = result.verification.get("grade", "Unknown")
             delta_e = result.delta_e_predicted
 
             msg.setText(
@@ -489,11 +490,12 @@ class CalibrationPage(QWidget):
         """Check DDC/CI support for the selected display."""
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController
+
             controller = DDCCIController()
             if controller.available:
                 monitors = controller.enumerate_monitors()
                 if monitors:
-                    caps = monitors[0].get('capabilities')
+                    caps = monitors[0].get("capabilities")
                     if caps and caps.has_rgb_gain:
                         self.ddc_status.setText("DDC/CI: RGB gain control available")
                         self.ddc_status.setStyleSheet(f"color: {COLORS['success']}; font-size: 11px; margin-top: 8px;")
@@ -551,7 +553,7 @@ class CalibrationPage(QWidget):
 
     def _on_display_changed(self, index: int):
         """Handle display selection change."""
-        if not hasattr(self, '_displays') or index >= len(self._displays):
+        if not hasattr(self, "_displays") or index >= len(self._displays):
             return
 
         display = self._displays[index]

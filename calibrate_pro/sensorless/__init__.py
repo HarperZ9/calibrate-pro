@@ -87,14 +87,12 @@ __all__ = [
     "get_colorchecker_reference",
     "calibrate_display",
     "verify_display",
-
     # Pattern Generator
     "PatternType",
     "PatternConfig",
     "TestPattern",
     "PatternGenerator",
     "create_pattern_generator",
-
     # Visual Matcher
     "MatchingMethod",
     "AdjustmentType",
@@ -104,7 +102,6 @@ __all__ = [
     "GrayscaleBalancer",
     "WhitepointMatcher",
     "create_visual_matcher",
-
     # Auto-Calibration (Zero-Input)
     "CalibrationRisk",
     "CalibrationStep",

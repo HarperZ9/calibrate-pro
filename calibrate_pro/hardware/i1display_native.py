@@ -35,6 +35,7 @@ from calibrate_pro.hardware.usb_device import (
 # i1Display command codes
 class I1Command:
     """i1Display Pro command codes."""
+
     GET_STATUS = 0x00
     SET_LED = 0x01
     GET_CALIBRATION = 0x02
@@ -54,23 +55,22 @@ class I1Command:
 # i1Display Pro sensor calibration matrices
 # These are device-specific and should be read from EEPROM
 # Default matrices for typical devices
-I1DISPLAY_DEFAULT_MATRIX = np.array([
-    [0.4124564, 0.3575761, 0.1804375],
-    [0.2126729, 0.7151522, 0.0721750],
-    [0.0193339, 0.1191920, 0.9503041]
-])
+I1DISPLAY_DEFAULT_MATRIX = np.array(
+    [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]]
+)
 
 # Spectral sensitivities for i1Display Pro (approximate CIE 1931 response)
 I1DISPLAY_SPECTRAL_RESPONSE = {
     "red": {"peak": 610, "width": 50},
     "green": {"peak": 545, "width": 60},
-    "blue": {"peak": 460, "width": 40}
+    "blue": {"peak": 460, "width": 40},
 }
 
 
 @dataclass
 class I1CalibrationData:
     """Calibration data read from device EEPROM."""
+
     serial: str
     firmware_version: str
     calibration_matrix: np.ndarray
@@ -89,7 +89,7 @@ class I1DisplayNative(ColorimeterBase):
 
     # Supported device IDs
     SUPPORTED_DEVICES = {
-        (0x0765, 0x5001): ("i1Display Pro", True, True),      # (name, has_ambient, has_edr)
+        (0x0765, 0x5001): ("i1Display Pro", True, True),  # (name, has_ambient, has_edr)
         (0x0765, 0x5011): ("i1Display Pro Plus", True, True),
         (0x0765, 0x5020): ("i1Display Studio", True, False),
         (0x0765, 0x5010): ("ColorMunki Display", True, False),
@@ -122,15 +122,17 @@ class I1DisplayNative(ColorimeterBase):
                 if has_edr:
                     caps.append("edr")
 
-                devices.append(DeviceInfo(
-                    name=name,
-                    manufacturer="X-Rite",
-                    model=name,
-                    serial=usb_dev.serial_number or "Unknown",
-                    device_type=DeviceType.COLORIMETER,
-                    firmware_version="",
-                    capabilities=caps
-                ))
+                devices.append(
+                    DeviceInfo(
+                        name=name,
+                        manufacturer="X-Rite",
+                        model=name,
+                        serial=usb_dev.serial_number or "Unknown",
+                        device_type=DeviceType.COLORIMETER,
+                        firmware_version="",
+                        capabilities=caps,
+                    )
+                )
 
         return devices
 
@@ -171,7 +173,7 @@ class I1DisplayNative(ColorimeterBase):
         self.is_connected = False
         return True
 
-    def _send_command(self, cmd: int, data: bytes = b'') -> bytes:
+    def _send_command(self, cmd: int, data: bytes = b"") -> bytes:
         """Send command and receive response."""
         if not self._transport or not self._transport.is_open:
             raise CommunicationError("Device not connected")
@@ -179,7 +181,7 @@ class I1DisplayNative(ColorimeterBase):
         # Build command packet
         # Format: [Report ID (0x00)] [Command] [Length] [Data...]
         packet = bytes([0x00, cmd, len(data)]) + data
-        packet = packet.ljust(64, b'\x00')
+        packet = packet.ljust(64, b"\x00")
 
         self._transport.write(packet)
         time.sleep(0.01)  # Small delay for device processing
@@ -197,21 +199,20 @@ class I1DisplayNative(ColorimeterBase):
                 minor = resp[3]
                 self.device_info = DeviceInfo(
                     name=self.SUPPORTED_DEVICES.get(
-                        (self._usb_info.vendor_id, self._usb_info.product_id),
-                        ("i1Display", True, False)
+                        (self._usb_info.vendor_id, self._usb_info.product_id), ("i1Display", True, False)
                     )[0],
                     manufacturer="X-Rite",
                     model=self._usb_info.product,
                     serial=self._usb_info.serial_number or "",
                     device_type=DeviceType.COLORIMETER,
                     firmware_version=f"{major}.{minor}",
-                    capabilities=["spot", "ambient", "emission"]
+                    capabilities=["spot", "ambient", "emission"],
                 )
 
             # Get serial
             resp = self._send_command(I1Command.GET_SERIAL)
             if len(resp) >= 16:
-                serial = resp[2:18].decode('ascii', errors='ignore').strip('\x00')
+                serial = resp[2:18].decode("ascii", errors="ignore").strip("\x00")
                 if serial and self.device_info:
                     self.device_info.serial = serial
 
@@ -224,7 +225,7 @@ class I1DisplayNative(ColorimeterBase):
                     model=self._usb_info.product,
                     serial=self._usb_info.serial_number or "",
                     device_type=DeviceType.COLORIMETER,
-                    capabilities=["spot", "emission"]
+                    capabilities=["spot", "emission"],
                 )
 
     def _read_calibration_data(self):
@@ -238,21 +239,21 @@ class I1DisplayNative(ColorimeterBase):
                     for j in range(3):
                         idx = 4 + (i * 3 + j) * 4
                         if idx + 4 <= len(resp):
-                            matrix[i, j] = struct.unpack('<f', resp[idx:idx+4])[0]
+                            matrix[i, j] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
                 # Parse dark offsets
                 dark = np.zeros(3)
                 for i in range(3):
                     idx = 40 + i * 4
                     if idx + 4 <= len(resp):
-                        dark[i] = struct.unpack('<f', resp[idx:idx+4])[0]
+                        dark[i] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
                 self._cal_data = I1CalibrationData(
                     serial=self.device_info.serial if self.device_info else "",
                     firmware_version=self.device_info.firmware_version if self.device_info else "",
                     calibration_matrix=matrix if np.any(matrix) else I1DISPLAY_DEFAULT_MATRIX,
                     dark_offsets=dark,
-                    integration_scale=1.0
+                    integration_scale=1.0,
                 )
             else:
                 # Use default calibration
@@ -261,7 +262,7 @@ class I1DisplayNative(ColorimeterBase):
                     firmware_version="",
                     calibration_matrix=I1DISPLAY_DEFAULT_MATRIX,
                     dark_offsets=np.zeros(3),
-                    integration_scale=1.0
+                    integration_scale=1.0,
                 )
         except Exception:
             # Use default calibration
@@ -270,7 +271,7 @@ class I1DisplayNative(ColorimeterBase):
                 firmware_version="",
                 calibration_matrix=I1DISPLAY_DEFAULT_MATRIX,
                 dark_offsets=np.zeros(3),
-                integration_scale=1.0
+                integration_scale=1.0,
             )
 
     def calibrate_device(self) -> bool:
@@ -295,7 +296,7 @@ class I1DisplayNative(ColorimeterBase):
                 for i in range(3):
                     idx = 4 + i * 4
                     if idx + 4 <= len(resp):
-                        self._cal_data.dark_offsets[i] = struct.unpack('<f', resp[idx:idx+4])[0]
+                        self._cal_data.dark_offsets[i] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
             self._report_progress("Dark calibration complete", 1.0)
             return True
@@ -310,7 +311,7 @@ class I1DisplayNative(ColorimeterBase):
 
             # Send to device (time in milliseconds)
             ms = int(seconds * 1000)
-            data = struct.pack('<H', ms)
+            data = struct.pack("<H", ms)
             try:
                 self._send_command(I1Command.SET_INTEGRATION, data)
                 return True
@@ -330,7 +331,7 @@ class I1DisplayNative(ColorimeterBase):
 
         try:
             # Send refresh rate to device
-            data = struct.pack('<H', int(refresh_rate))
+            data = struct.pack("<H", int(refresh_rate))
             self._send_command(I1Command.SET_REFRESH_MODE, data)
             return True
         except Exception:
@@ -344,7 +345,7 @@ class I1DisplayNative(ColorimeterBase):
         try:
             # Set integration time
             ms = int(self._integration_time * 1000)
-            int_data = struct.pack('<H', ms)
+            int_data = struct.pack("<H", ms)
             self._send_command(I1Command.SET_INTEGRATION, int_data)
 
             # Accumulate readings for averaging
@@ -364,7 +365,7 @@ class I1DisplayNative(ColorimeterBase):
                     for i in range(3):
                         idx = 4 + i * 4
                         if idx + 4 <= len(resp):
-                            rgb[i] = struct.unpack('<I', resp[idx:idx+4])[0]
+                            rgb[i] = struct.unpack("<I", resp[idx : idx + 4])[0]
                     rgb_sum += rgb
 
             # Average readings
@@ -383,7 +384,7 @@ class I1DisplayNative(ColorimeterBase):
                 Y=float(xyz[1]),
                 Z=float(xyz[2]),
                 integration_time=self._integration_time,
-                measurement_mode="spot"
+                measurement_mode="spot",
             )
 
         except Exception as e:
@@ -429,13 +430,13 @@ class I1DisplayNative(ColorimeterBase):
 
             if len(resp) >= 8:
                 # Parse illuminance (lux)
-                lux = struct.unpack('<f', resp[4:8])[0] if len(resp) >= 8 else 0
+                lux = struct.unpack("<f", resp[4:8])[0] if len(resp) >= 8 else 0
 
                 return ColorMeasurement(
                     X=0,
                     Y=lux,  # Y represents illuminance for ambient
                     Z=0,
-                    measurement_mode="ambient"
+                    measurement_mode="ambient",
                 )
 
         except Exception:
@@ -452,7 +453,7 @@ class I1DisplayNative(ColorimeterBase):
             resp = self._send_command(I1Command.GET_REFRESH_RATE)
             if len(resp) >= 6:
                 # Parse refresh rate (Hz)
-                rate = struct.unpack('<H', resp[4:6])[0]
+                rate = struct.unpack("<H", resp[4:6])[0]
                 return float(rate)
         except Exception:
             pass

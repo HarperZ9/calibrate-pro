@@ -62,7 +62,9 @@ def demo_uniformity():
     correction = compensator.generate_correction_lut(result)
 
     print(f"    Correction Mode: {correction.mode.name}")
-    print(f"    Luminance Correction Range: {correction.luminance_corrections.min():.3f}x - {correction.luminance_corrections.max():.3f}x")
+    print(
+        f"    Luminance Correction Range: {correction.luminance_corrections.min():.3f}x - {correction.luminance_corrections.max():.3f}x"
+    )
 
     print("\n[OK] Uniformity compensation demo complete!")
 
@@ -87,7 +89,7 @@ def demo_ambient_light():
     # Show lux thresholds
     print("\n[1] Ambient light classification thresholds:")
     for condition, (low, high) in LUX_THRESHOLDS.items():
-        high_str = f"{high:.0f}" if high != float('inf') else "inf"
+        high_str = f"{high:.0f}" if high != float("inf") else "inf"
         print(f"    {condition.name}: {low:.0f} - {high_str} lux")
 
     # Create simulated sensor
@@ -145,7 +147,7 @@ def demo_network_calibration():
 
     # Create calibration server
     print("\n[2] Starting calibration server...")
-    server = CalibrationServer(host='127.0.0.1', port=9999, server_id='demo-server')
+    server = CalibrationServer(host="127.0.0.1", port=9999, server_id="demo-server")
     print(f"    Server ID: {server.server_id}")
     print(f"    Endpoint: {server.host}:{server.port}")
 
@@ -160,12 +162,10 @@ def demo_network_calibration():
     job1 = server.create_job(
         job_type=JobType.FULL_CALIBRATION,
         target_nodes=[nodes[0].node_id],
-        parameters={'whitepoint': 'D65', 'gamma': 2.2}
+        parameters={"whitepoint": "D65", "gamma": 2.2},
     )
     job2 = server.create_job(
-        job_type=JobType.VERIFICATION_ONLY,
-        target_nodes=[n.node_id for n in nodes[1:3]],
-        parameters={'patches': 24}
+        job_type=JobType.VERIFICATION_ONLY, target_nodes=[n.node_id for n in nodes[1:3]], parameters={"patches": 24}
     )
     print(f"    Job 1: {job1.job_type.name} for {len(job1.target_nodes)} node(s)")
     print(f"    Job 2: {job2.job_type.name} for {len(job2.target_nodes)} node(s)")
@@ -245,7 +245,9 @@ def demo_lut_optimization():
     for goal in [OptimizationGoal.MIN_DELTA_E, OptimizationGoal.SMOOTH, OptimizationGoal.BALANCED]:
         opt = LUTOptimizer(goal=goal)
         res = opt.optimize(test_lut, reference=identity_lut)
-        print(f"    {goal.name}: Delta E = {res.optimized_metrics.delta_e_mean:.4f}, Improvement = {res.improvement_percent:.1f}%")
+        print(
+            f"    {goal.name}: Delta E = {res.optimized_metrics.delta_e_mean:.4f}, Improvement = {res.improvement_percent:.1f}%"
+        )
 
     print("\n[OK] LUT optimization demo complete!")
 
@@ -267,19 +269,16 @@ def demo_automation():
 
     # Create custom workflow
     print("\n[2] Creating custom workflow...")
-    workflow = api.create_workflow(
-        name="Custom Demo Workflow",
-        description="Demonstrates workflow creation"
-    )
+    workflow = api.create_workflow(name="Custom Demo Workflow", description="Demonstrates workflow creation")
     print(f"    Workflow: {workflow.name}")
     print(f"    ID: {workflow.workflow_id[:8]}...")
 
     # Add tasks
     print("\n[3] Adding tasks to workflow...")
-    task1 = api.create_task("Measure Display", TaskType.CALIBRATE, {'display_id': 0})
-    task2 = api.create_task("Generate Profile", TaskType.PROFILE, {'format': 'icc'})
-    task3 = api.create_task("Generate LUT", TaskType.LUT_GENERATE, {'size': 33})
-    task4 = api.create_task("Verify Results", TaskType.VERIFY, {'patches': 24})
+    task1 = api.create_task("Measure Display", TaskType.CALIBRATE, {"display_id": 0})
+    task2 = api.create_task("Generate Profile", TaskType.PROFILE, {"format": "icc"})
+    task3 = api.create_task("Generate LUT", TaskType.LUT_GENERATE, {"size": 33})
+    task4 = api.create_task("Verify Results", TaskType.VERIFY, {"patches": 24})
 
     workflow.tasks.append(task1)
     workflow.tasks.append(task2)
@@ -349,6 +348,7 @@ def main():
     except Exception as e:
         print(f"\n[ERROR] Demo failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

@@ -23,11 +23,12 @@ import numpy as np
 @dataclass
 class MeasurementConfig:
     """Configuration for the measurement coordinator."""
-    settle_time: float = 1.5      # Seconds to wait after displaying patch
-    display_index: int = 0        # Which display to measure
+
+    settle_time: float = 1.5  # Seconds to wait after displaying patch
+    display_index: int = 0  # Which display to measure
     argyll_path: str | None = None  # Path to ArgyllCMS bin directory
-    device_index: int = 0         # Colorimeter device index
-    mode: str = "argyll"          # "argyll", "manual", or "simulated"
+    device_index: int = 0  # Colorimeter device index
+    mode: str = "argyll"  # "argyll", "manual", or "simulated"
 
 
 class MeasurementCoordinator:
@@ -63,6 +64,7 @@ class MeasurementCoordinator:
         """Initialize ArgyllCMS backend."""
         try:
             from calibrate_pro.hardware.argyll_backend import ArgyllBackend, ArgyllConfig
+
             config = ArgyllConfig()
             if self.config.argyll_path:
                 config.bin_path = Path(self.config.argyll_path)
@@ -151,10 +153,7 @@ class MeasurementCoordinator:
             self._tk_root.attributes("-topmost", True)
             self._tk_root.deiconify()
 
-            self._tk_canvas = tk.Canvas(
-                self._tk_root, highlightthickness=0,
-                cursor="none"
-            )
+            self._tk_canvas = tk.Canvas(self._tk_root, highlightthickness=0, cursor="none")
             self._tk_canvas.pack(fill=tk.BOTH, expand=True)
             self._tk_root.update()
 
@@ -166,6 +165,7 @@ class MeasurementCoordinator:
         """Get the geometry of the target display."""
         try:
             from calibrate_pro.panels.detection import enumerate_displays
+
             displays = enumerate_displays()
             if self.config.display_index < len(displays):
                 d = displays[self.config.display_index]
@@ -241,9 +241,7 @@ class MeasurementCoordinator:
         self.close()
 
 
-def create_measure_fn(
-    config: MeasurementConfig | None = None
-) -> Callable | None:
+def create_measure_fn(config: MeasurementConfig | None = None) -> Callable | None:
     """
     Create a measure(r, g, b) -> (X, Y, Z) function from config.
 

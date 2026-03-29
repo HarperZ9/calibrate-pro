@@ -54,9 +54,11 @@ COLORS = {
 # Report Data Structures
 # =============================================================================
 
+
 @dataclass
 class GamutCoverage:
     """Gamut coverage analysis."""
+
     srgb_coverage: float = 0.0
     dci_p3_coverage: float = 0.0
     bt2020_coverage: float = 0.0
@@ -67,6 +69,7 @@ class GamutCoverage:
 @dataclass
 class GrayscaleResult:
     """Grayscale calibration results."""
+
     steps: int = 21
     avg_delta_e: float = 0.0
     max_delta_e: float = 0.0
@@ -78,6 +81,7 @@ class GrayscaleResult:
 @dataclass
 class ColorCheckerResult:
     """ColorChecker verification results."""
+
     patches: int = 24
     avg_delta_e: float = 0.0
     max_delta_e: float = 0.0
@@ -89,6 +93,7 @@ class ColorCheckerResult:
 @dataclass
 class CalibrationReport:
     """Complete calibration report."""
+
     # Metadata
     report_id: str = ""
     created_at: datetime = field(default_factory=datetime.now)
@@ -146,13 +151,14 @@ class CalibrationReport:
             "profile": {
                 "name": self.profile_name,
                 "path": self.profile_path,
-            }
+            },
         }
 
 
 # =============================================================================
 # Summary Card Widget
 # =============================================================================
+
 
 class SummaryCard(QFrame):
     """Large summary statistic card."""
@@ -161,8 +167,8 @@ class SummaryCard(QFrame):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
                 padding: 16px;
             }}
@@ -195,6 +201,7 @@ class SummaryCard(QFrame):
 # =============================================================================
 # Report Summary Panel
 # =============================================================================
+
 
 class ReportSummaryPanel(QWidget):
     """Summary panel showing key calibration results."""
@@ -259,23 +266,23 @@ class ReportSummaryPanel(QWidget):
         # Summary cards
         if report.grayscale:
             avg = report.grayscale.avg_delta_e
-            color = COLORS['success'] if avg < 1.0 else COLORS['warning'] if avg < 2.0 else COLORS['error']
+            color = COLORS["success"] if avg < 1.0 else COLORS["warning"] if avg < 2.0 else COLORS["error"]
             quality = "Excellent" if avg < 1.0 else "Good" if avg < 2.0 else "Needs improvement"
             self.avg_delta_e_card.set_value(f"{avg:.2f}", color, quality)
 
             max_de = report.grayscale.max_delta_e
-            color = COLORS['success'] if max_de < 2.0 else COLORS['warning'] if max_de < 4.0 else COLORS['error']
+            color = COLORS["success"] if max_de < 2.0 else COLORS["warning"] if max_de < 4.0 else COLORS["error"]
             self.max_delta_e_card.set_value(f"{max_de:.2f}", color)
 
             gamma = report.grayscale.gamma_measured
             target = report.grayscale.gamma_target
             diff = abs(gamma - target)
-            color = COLORS['success'] if diff < 0.05 else COLORS['warning'] if diff < 0.1 else COLORS['error']
+            color = COLORS["success"] if diff < 0.05 else COLORS["warning"] if diff < 0.1 else COLORS["error"]
             self.gamma_card.set_value(f"{gamma:.2f}", color, f"Target: {target:.2f}")
 
         if report.gamut:
             coverage = report.gamut.srgb_coverage
-            color = COLORS['success'] if coverage > 99 else COLORS['warning'] if coverage > 95 else COLORS['error']
+            color = COLORS["success"] if coverage > 99 else COLORS["warning"] if coverage > 95 else COLORS["error"]
             self.gamut_card.set_value(f"{coverage:.1f}%", color)
 
         # Details
@@ -290,6 +297,7 @@ class ReportSummaryPanel(QWidget):
 # =============================================================================
 # Report Viewer Widget
 # =============================================================================
+
 
 class ReportViewer(QWidget):
     """Complete report viewer with export capabilities."""
@@ -309,8 +317,8 @@ class ReportViewer(QWidget):
         header = QFrame()
         header.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border-bottom: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border-bottom: 1px solid {COLORS["border"]};
                 padding: 12px;
             }}
         """)
@@ -342,16 +350,16 @@ class ReportViewer(QWidget):
         self.tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: none;
-                background-color: {COLORS['background']};
+                background-color: {COLORS["background"]};
             }}
             QTabBar::tab {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 padding: 10px 20px;
                 margin-right: 2px;
             }}
             QTabBar::tab:selected {{
-                background-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
                 color: white;
             }}
         """)
@@ -391,7 +399,7 @@ class ReportViewer(QWidget):
         self.raw_text.setReadOnly(True)
         self.raw_text.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {COLORS['background']};
+                background-color: {COLORS["background"]};
                 border: none;
                 font-family: monospace;
                 font-size: 12px;
@@ -417,7 +425,7 @@ class ReportViewer(QWidget):
             self,
             "Export PDF Report",
             f"calibration_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-            "PDF Files (*.pdf)"
+            "PDF Files (*.pdf)",
         )
 
         if file_path:
@@ -438,13 +446,13 @@ class ReportViewer(QWidget):
             self,
             "Export HTML Report",
             f"calibration_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-            "HTML Files (*.html)"
+            "HTML Files (*.html)",
         )
 
         if file_path:
             try:
                 html = self._generate_html()
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(html)
                 self.report_exported.emit(file_path)
                 QMessageBox.information(self, "Export", f"Report exported to {file_path}")
@@ -461,12 +469,12 @@ class ReportViewer(QWidget):
             self,
             "Export JSON Report",
             f"calibration_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            "JSON Files (*.json)"
+            "JSON Files (*.json)",
         )
 
         if file_path:
             try:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(self.report.to_dict(), f, indent=2)
                 self.report_exported.emit(file_path)
                 QMessageBox.information(self, "Export", f"Report exported to {file_path}")
@@ -568,12 +576,12 @@ class ReportViewer(QWidget):
 
     <div class="card">
         <h2>Results Summary</h2>
-        <p>Average Delta E: <span class="stat {'good' if float(avg_de) < 1 else 'warning' if float(avg_de) < 2 else 'poor'}">{avg_de}</span></p>
+        <p>Average Delta E: <span class="stat {"good" if float(avg_de) < 1 else "warning" if float(avg_de) < 2 else "poor"}">{avg_de}</span></p>
         <p>Maximum Delta E: <span class="stat">{max_de}</span></p>
     </div>
 
     <div class="card">
-        <p><small>Report generated on {report.created_at.strftime('%Y-%m-%d %H:%M:%S')}</small></p>
+        <p><small>Report generated on {report.created_at.strftime("%Y-%m-%d %H:%M:%S")}</small></p>
     </div>
 </body>
 </html>

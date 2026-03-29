@@ -17,22 +17,26 @@ from quanta_color import gamut as _qc_gamut
 from quanta_color import spaces as _qc_spaces
 
 
-def _illuminant_to_array(ill: 'Illuminant') -> np.ndarray:
+def _illuminant_to_array(ill: "Illuminant") -> np.ndarray:
     """Convert Calibrate Pro Illuminant to numpy array for quanta_color."""
     return np.array([ill.X, ill.Y, ill.Z])
+
 
 # =============================================================================
 # Standard Illuminants (CIE 1931 2-degree observer)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class Illuminant:
     """Standard illuminant with XYZ tristimulus values (Y=1.0 normalized)."""
+
     name: str
     X: float
     Y: float
     Z: float
     cct: int  # Correlated Color Temperature in Kelvin
+
 
 # D50 - ICC Profile Connection Space reference white
 D50_WHITE = Illuminant("D50", 0.96422, 1.0, 0.82521, 5003)
@@ -54,58 +58,49 @@ A_WHITE = Illuminant("A", 1.09850, 1.0, 0.35585, 2856)
 # =============================================================================
 
 # sRGB to XYZ (D65) - IEC 61966-2-1
-SRGB_TO_XYZ = np.array([
-    [0.4124564, 0.3575761, 0.1804375],
-    [0.2126729, 0.7151522, 0.0721750],
-    [0.0193339, 0.1191920, 0.9503041]
-], dtype=np.float64)
+SRGB_TO_XYZ = np.array(
+    [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]],
+    dtype=np.float64,
+)
 
 # XYZ (D65) to sRGB
-XYZ_TO_SRGB = np.array([
-    [ 3.2404542, -1.5371385, -0.4985314],
-    [-0.9692660,  1.8760108,  0.0415560],
-    [ 0.0556434, -0.2040259,  1.0572252]
-], dtype=np.float64)
+XYZ_TO_SRGB = np.array(
+    [[3.2404542, -1.5371385, -0.4985314], [-0.9692660, 1.8760108, 0.0415560], [0.0556434, -0.2040259, 1.0572252]],
+    dtype=np.float64,
+)
 
 # Adobe RGB (1998) to XYZ (D65)
-ADOBE_RGB_TO_XYZ = np.array([
-    [0.5767309, 0.1855540, 0.1881852],
-    [0.2973769, 0.6273491, 0.0752741],
-    [0.0270343, 0.0706872, 0.9911085]
-], dtype=np.float64)
+ADOBE_RGB_TO_XYZ = np.array(
+    [[0.5767309, 0.1855540, 0.1881852], [0.2973769, 0.6273491, 0.0752741], [0.0270343, 0.0706872, 0.9911085]],
+    dtype=np.float64,
+)
 
 # DCI-P3 (D65) to XYZ
-DCI_P3_TO_XYZ = np.array([
-    [0.4865709, 0.2656677, 0.1982173],
-    [0.2289746, 0.6917385, 0.0792869],
-    [0.0000000, 0.0451134, 1.0439444]
-], dtype=np.float64)
+DCI_P3_TO_XYZ = np.array(
+    [[0.4865709, 0.2656677, 0.1982173], [0.2289746, 0.6917385, 0.0792869], [0.0000000, 0.0451134, 1.0439444]],
+    dtype=np.float64,
+)
 
 # BT.2020 to XYZ (D65)
-BT2020_TO_XYZ = np.array([
-    [0.6369580, 0.1446169, 0.1688810],
-    [0.2627002, 0.6779981, 0.0593017],
-    [0.0000000, 0.0280727, 1.0609851]
-], dtype=np.float64)
+BT2020_TO_XYZ = np.array(
+    [[0.6369580, 0.1446169, 0.1688810], [0.2627002, 0.6779981, 0.0593017], [0.0000000, 0.0280727, 1.0609851]],
+    dtype=np.float64,
+)
 
 # =============================================================================
 # Bradford Chromatic Adaptation
 # =============================================================================
 
 # Bradford transformation matrix
-BRADFORD_MATRIX = np.array([
-    [ 0.8951000,  0.2664000, -0.1614000],
-    [-0.7502000,  1.7135000,  0.0367000],
-    [ 0.0389000, -0.0685000,  1.0296000]
-], dtype=np.float64)
+BRADFORD_MATRIX = np.array(
+    [[0.8951000, 0.2664000, -0.1614000], [-0.7502000, 1.7135000, 0.0367000], [0.0389000, -0.0685000, 1.0296000]],
+    dtype=np.float64,
+)
 
 BRADFORD_INVERSE = np.linalg.inv(BRADFORD_MATRIX)
 
-def bradford_adapt(
-    xyz: np.ndarray,
-    source_white: Illuminant,
-    dest_white: Illuminant
-) -> np.ndarray:
+
+def bradford_adapt(xyz: np.ndarray, source_white: Illuminant, dest_white: Illuminant) -> np.ndarray:
     """
     Perform Bradford chromatic adaptation transform.
 
@@ -122,23 +117,27 @@ def bradford_adapt(
     """
     if source_white == dest_white:
         return xyz.copy()
-    return _qc_adapt.adapt(np.asarray(xyz, dtype=np.float64), _illuminant_to_array(source_white), _illuminant_to_array(dest_white), method="bradford")
+    return _qc_adapt.adapt(
+        np.asarray(xyz, dtype=np.float64),
+        _illuminant_to_array(source_white),
+        _illuminant_to_array(dest_white),
+        method="bradford",
+    )
 
-def get_adaptation_matrix(
-    source_white: Illuminant,
-    dest_white: Illuminant
-) -> np.ndarray:
+
+def get_adaptation_matrix(source_white: Illuminant, dest_white: Illuminant) -> np.ndarray:
     """Get the 3x3 Bradford adaptation matrix for the given white points."""
-    return _qc_adapt.get_adaptation_matrix(_illuminant_to_array(source_white), _illuminant_to_array(dest_white), method="bradford")
+    return _qc_adapt.get_adaptation_matrix(
+        _illuminant_to_array(source_white), _illuminant_to_array(dest_white), method="bradford"
+    )
+
 
 # =============================================================================
 # XYZ <-> Lab Conversions
 # =============================================================================
 
-def xyz_to_lab(
-    xyz: np.ndarray,
-    illuminant: Illuminant = D50_WHITE
-) -> np.ndarray:
+
+def xyz_to_lab(xyz: np.ndarray, illuminant: Illuminant = D50_WHITE) -> np.ndarray:
     """
     Convert XYZ to CIELAB.
 
@@ -151,10 +150,8 @@ def xyz_to_lab(
     """
     return _qc_spaces.xyz_to_lab(np.asarray(xyz, dtype=np.float64), white=_illuminant_to_array(illuminant))
 
-def lab_to_xyz(
-    lab: np.ndarray,
-    illuminant: Illuminant = D50_WHITE
-) -> np.ndarray:
+
+def lab_to_xyz(lab: np.ndarray, illuminant: Illuminant = D50_WHITE) -> np.ndarray:
     """
     Convert CIELAB to XYZ.
 
@@ -167,9 +164,11 @@ def lab_to_xyz(
     """
     return _qc_spaces.lab_to_xyz(np.asarray(lab, dtype=np.float64), white=_illuminant_to_array(illuminant))
 
+
 # =============================================================================
 # sRGB <-> XYZ Conversions
 # =============================================================================
+
 
 def srgb_gamma_expand(rgb: np.ndarray) -> np.ndarray:
     """
@@ -179,6 +178,7 @@ def srgb_gamma_expand(rgb: np.ndarray) -> np.ndarray:
     """
     return _qc_spaces.srgb_to_linear(np.asarray(rgb, dtype=np.float64))
 
+
 def srgb_gamma_compress(linear: np.ndarray) -> np.ndarray:
     """
     Convert linear RGB to sRGB (gamma-compressed).
@@ -186,6 +186,7 @@ def srgb_gamma_compress(linear: np.ndarray) -> np.ndarray:
     Follows IEC 61966-2-1 specification.
     """
     return _qc_spaces.linear_to_srgb(np.asarray(linear, dtype=np.float64))
+
 
 def srgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     """
@@ -198,6 +199,7 @@ def srgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
         XYZ values (D65)
     """
     return _qc_spaces.srgb_to_xyz(np.asarray(rgb, dtype=np.float64))
+
 
 def xyz_to_srgb(xyz: np.ndarray, clip: bool = True) -> np.ndarray:
     """
@@ -212,15 +214,13 @@ def xyz_to_srgb(xyz: np.ndarray, clip: bool = True) -> np.ndarray:
     """
     return _qc_spaces.xyz_to_srgb(np.asarray(xyz, dtype=np.float64), clip=clip)
 
+
 # =============================================================================
 # Lab <-> sRGB Conversions (via XYZ)
 # =============================================================================
 
-def lab_to_srgb(
-    lab: np.ndarray,
-    illuminant: Illuminant = D50_WHITE,
-    clip: bool = True
-) -> np.ndarray:
+
+def lab_to_srgb(lab: np.ndarray, illuminant: Illuminant = D50_WHITE, clip: bool = True) -> np.ndarray:
     """
     Convert CIELAB to sRGB.
 
@@ -242,10 +242,8 @@ def lab_to_srgb(
 
     return xyz_to_srgb(xyz, clip=clip)
 
-def srgb_to_lab(
-    rgb: np.ndarray,
-    illuminant: Illuminant = D50_WHITE
-) -> np.ndarray:
+
+def srgb_to_lab(rgb: np.ndarray, illuminant: Illuminant = D50_WHITE) -> np.ndarray:
     """
     Convert sRGB to CIELAB.
 
@@ -266,16 +264,14 @@ def srgb_to_lab(
 
     return xyz_to_lab(xyz, illuminant)
 
+
 # =============================================================================
 # CIEDE2000 Delta E Calculation
 # =============================================================================
 
+
 def delta_e_2000(
-    lab1: np.ndarray,
-    lab2: np.ndarray,
-    kL: float = 1.0,
-    kC: float = 1.0,
-    kH: float = 1.0
+    lab1: np.ndarray, lab2: np.ndarray, kL: float = 1.0, kC: float = 1.0, kH: float = 1.0
 ) -> float | np.ndarray:
     """
     Calculate CIEDE2000 color difference.
@@ -302,19 +298,23 @@ def delta_e_2000(
     result = _qc_diff.delta_e_2000(lab1, lab2, kL=kL, kC=kC, kH=kH)
     return float(result[0]) if single else result
 
+
 # =============================================================================
 # Gamma and Transfer Functions
 # =============================================================================
+
 
 def gamma_encode(linear: np.ndarray, gamma: float = 2.2) -> np.ndarray:
     """Apply power-law gamma encoding."""
     linear = np.asarray(linear, dtype=np.float64)
     return np.power(np.clip(linear, 0.0, None), 1.0 / gamma)
 
+
 def gamma_decode(encoded: np.ndarray, gamma: float = 2.2) -> np.ndarray:
     """Apply power-law gamma decoding (linearization)."""
     encoded = np.asarray(encoded, dtype=np.float64)
     return np.power(np.clip(encoded, 0.0, 1.0), gamma)
+
 
 def bt1886_eotf(signal: np.ndarray, gamma: float = 2.4, Lw: float = 100.0, Lb: float = 0.0) -> np.ndarray:
     """
@@ -336,6 +336,7 @@ def bt1886_eotf(signal: np.ndarray, gamma: float = 2.4, Lw: float = 100.0, Lb: f
     b = Lb ** (1.0 / gamma) / (Lw ** (1.0 / gamma) - Lb ** (1.0 / gamma))
     return a * np.power(np.maximum(signal + b, 0.0), gamma)
 
+
 def bt1886_eotf_inv(luminance: np.ndarray, gamma: float = 2.4, Lw: float = 100.0, Lb: float = 0.0) -> np.ndarray:
     """Inverse BT.1886 EOTF (luminance to signal)."""
     luminance = np.asarray(luminance, dtype=np.float64)
@@ -343,9 +344,11 @@ def bt1886_eotf_inv(luminance: np.ndarray, gamma: float = 2.4, Lw: float = 100.0
     b = Lb ** (1.0 / gamma) / (Lw ** (1.0 / gamma) - Lb ** (1.0 / gamma))
     return np.power(luminance / a, 1.0 / gamma) - b
 
+
 # =============================================================================
 # Chromaticity Conversions
 # =============================================================================
+
 
 def xyz_to_xyY(xyz: np.ndarray) -> np.ndarray:
     """
@@ -359,6 +362,7 @@ def xyz_to_xyY(xyz: np.ndarray) -> np.ndarray:
     """
     return _qc_spaces.xyz_to_xyY(np.asarray(xyz, dtype=np.float64))
 
+
 def xyY_to_xyz(xyY: np.ndarray) -> np.ndarray:
     """
     Convert CIE xyY to XYZ.
@@ -371,9 +375,11 @@ def xyY_to_xyz(xyY: np.ndarray) -> np.ndarray:
     """
     return _qc_spaces.xyY_to_xyz(np.asarray(xyY, dtype=np.float64))
 
+
 # =============================================================================
 # CCT (Correlated Color Temperature) Calculations
 # =============================================================================
+
 
 def xy_to_cct(x: float, y: float) -> float:
     """
@@ -389,6 +395,7 @@ def xy_to_cct(x: float, y: float) -> float:
     """
     return _qc_adapt.xy_to_cct_mccamy(x, y)
 
+
 def cct_to_xy(cct: float) -> tuple[float, float]:
     """
     Calculate CIE xy chromaticity from CCT (Planckian locus).
@@ -403,9 +410,11 @@ def cct_to_xy(cct: float) -> tuple[float, float]:
     """
     return _qc_adapt.cct_to_xy(cct)
 
+
 # =============================================================================
 # Gamut Utilities
 # =============================================================================
+
 
 def is_in_gamut(rgb: np.ndarray, tolerance: float = 0.0) -> bool | np.ndarray:
     """
@@ -420,15 +429,13 @@ def is_in_gamut(rgb: np.ndarray, tolerance: float = 0.0) -> bool | np.ndarray:
     """
     return _qc_gamut.is_in_gamut(np.asarray(rgb, dtype=np.float64), tolerance=tolerance)
 
+
 def gamut_clip(rgb: np.ndarray) -> np.ndarray:
     """Simple RGB clipping to [0, 1] range."""
     return _qc_gamut.clip(np.asarray(rgb, dtype=np.float64))
 
-def gamut_compress(
-    rgb: np.ndarray,
-    threshold: float = 0.8,
-    limit: float = 1.0
-) -> np.ndarray:
+
+def gamut_compress(rgb: np.ndarray, threshold: float = 0.8, limit: float = 1.0) -> np.ndarray:
     """
     Soft gamut compression using a power curve.
 
@@ -448,15 +455,17 @@ def gamut_compress(
 
     return np.clip(rgb, 0.0, 1.0)
 
+
 # =============================================================================
 # Matrix Utilities
 # =============================================================================
+
 
 def primaries_to_xyz_matrix(
     red_xy: tuple[float, float],
     green_xy: tuple[float, float],
     blue_xy: tuple[float, float],
-    white_xy: tuple[float, float]
+    white_xy: tuple[float, float],
 ) -> np.ndarray:
     """
     Calculate RGB to XYZ matrix from primary chromaticities.
@@ -470,9 +479,10 @@ def primaries_to_xyz_matrix(
     Returns:
         3x3 RGB to XYZ matrix
     """
+
     # Convert xy to XYZ (assuming Y=1)
     def xy_to_XYZ(x, y):
-        return np.array([x/y, 1.0, (1-x-y)/y])
+        return np.array([x / y, 1.0, (1 - x - y) / y])
 
     R = xy_to_XYZ(*red_xy)
     G = xy_to_XYZ(*green_xy)
@@ -488,6 +498,7 @@ def primaries_to_xyz_matrix(
     # Scale columns
     return M * S
 
+
 def xyz_to_rgb_matrix(rgb_to_xyz: np.ndarray) -> np.ndarray:
     """Calculate XYZ to RGB matrix (inverse of RGB to XYZ)."""
     return np.linalg.inv(rgb_to_xyz)
@@ -496,6 +507,7 @@ def xyz_to_rgb_matrix(rgb_to_xyz: np.ndarray) -> np.ndarray:
 # =============================================================================
 # Oklab / Oklch — Perceptually Uniform Color Space (Björn Ottosson)
 # =============================================================================
+
 
 def linear_srgb_to_oklab(rgb: np.ndarray) -> np.ndarray:
     """
@@ -636,9 +648,9 @@ def jzazbz_to_xyz_abs(jzazbz: np.ndarray) -> np.ndarray:
     mp = _pq_decode(m)
     sp = _pq_decode(s)
 
-    xp =  1.9242264357876067 * lp - 1.0047923125953657 * mp + 0.037651404030618 * sp
-    yp =  0.35031676209499907 * lp + 0.7264811939316552 * mp - 0.06538442294808501 * sp
-    z  = -0.09098281098284752 * lp - 0.3127282905230739 * mp + 1.5227665613052603 * sp
+    xp = 1.9242264357876067 * lp - 1.0047923125953657 * mp + 0.037651404030618 * sp
+    yp = 0.35031676209499907 * lp + 0.7264811939316552 * mp - 0.06538442294808501 * sp
+    z = -0.09098281098284752 * lp - 0.3127282905230739 * mp + 1.5227665613052603 * sp
 
     x = (xp + (_JZ_B - 1.0) * z) / _JZ_B
     y = (yp + (_JZ_G - 1.0) * x) / _JZ_G
@@ -655,7 +667,7 @@ def jzazbz_to_jzczhz(jzazbz: np.ndarray) -> np.ndarray:
         jzazbz = jzazbz.reshape(1, 3)
 
     Jz = jzazbz[:, 0]
-    Cz = np.sqrt(jzazbz[:, 1]**2 + jzazbz[:, 2]**2)
+    Cz = np.sqrt(jzazbz[:, 1] ** 2 + jzazbz[:, 2] ** 2)
     hz = np.degrees(np.arctan2(jzazbz[:, 2], jzazbz[:, 1])) % 360.0
 
     result = np.column_stack([Jz, Cz, hz])
@@ -681,6 +693,7 @@ def jzczhz_to_jzazbz(jzczhz: np.ndarray) -> np.ndarray:
 # ICtCp — Dolby HDR Perceptual Space
 # =============================================================================
 
+
 def xyz_abs_to_ictcp(xyz: np.ndarray) -> np.ndarray:
     """
     Convert absolute XYZ (cd/m²) to ICtCp (Dolby).
@@ -701,9 +714,9 @@ def xyz_abs_to_ictcp(xyz: np.ndarray) -> np.ndarray:
     x, y, z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
 
     # XYZ to LMS
-    L =  0.3592 * x + 0.6976 * y - 0.0358 * z
+    L = 0.3592 * x + 0.6976 * y - 0.0358 * z
     M = -0.1922 * x + 1.1004 * y + 0.0755 * z
-    S =  0.0070 * x + 0.0749 * y + 0.8434 * z
+    S = 0.0070 * x + 0.0749 * y + 0.8434 * z
 
     # PQ encode (normalize to 10000 nits)
     Lp = _pq_st2084_oetf(L / 10000.0)
@@ -711,7 +724,7 @@ def xyz_abs_to_ictcp(xyz: np.ndarray) -> np.ndarray:
     Sp = _pq_st2084_oetf(S / 10000.0)
 
     # LMS' to ICtCp
-    I  = 0.5 * Lp + 0.5 * Mp
+    I = 0.5 * Lp + 0.5 * Mp
     Ct = 1.613769531 * Lp - 3.323486328 * Mp + 1.709716797 * Sp
     Cp = 4.378173828 * Lp - 4.245605469 * Mp - 0.132568359 * Sp
 
@@ -746,8 +759,8 @@ def ictcp_to_xyz_abs(ictcp: np.ndarray) -> np.ndarray:
     S = _pq_st2084_eotf(Sp) * 10000.0
 
     # LMS to XYZ
-    x =  2.0702 * L - 1.3265 * M + 0.2067 * S
-    y =  0.3650 * L + 0.6806 * M - 0.0453 * S
+    x = 2.0702 * L - 1.3265 * M + 0.2067 * S
+    y = 0.3650 * L + 0.6806 * M - 0.0453 * S
     z = -0.0496 * L - 0.0494 * M + 1.1880 * S
 
     result = np.column_stack([x, y, z])
@@ -757,6 +770,7 @@ def ictcp_to_xyz_abs(ictcp: np.ndarray) -> np.ndarray:
 # =============================================================================
 # PQ (ST.2084) and HLG (BT.2100) Transfer Functions
 # =============================================================================
+
 
 def _pq_st2084_oetf(v: np.ndarray) -> np.ndarray:
     """PQ OETF: linear [0,1] normalized to 10000 nits → PQ signal [0,1]."""
@@ -827,11 +841,7 @@ def hlg_eotf(v: np.ndarray) -> np.ndarray:
     return result
 
 
-def hlg_ootf_rgb(
-    rgb: np.ndarray,
-    peak_luminance: float = 1000.0,
-    gamma: float = 1.2
-) -> np.ndarray:
+def hlg_ootf_rgb(rgb: np.ndarray, peak_luminance: float = 1000.0, gamma: float = 1.2) -> np.ndarray:
     """
     HLG OOTF: scene-referred linear → display-referred linear.
 
@@ -859,43 +869,61 @@ def hlg_ootf_rgb(
 # =============================================================================
 
 # ACES 2065-1 (AP0) ↔ XYZ
-ACES2065_1_TO_XYZ = np.array([
-    [0.9525523959, 0.0000000000, 0.0000936786],
-    [0.3439664498, 0.7281660966, -0.0721325464],
-    [0.0000000000, 0.0000000000, 1.0088251844]
-], dtype=np.float64)
+ACES2065_1_TO_XYZ = np.array(
+    [
+        [0.9525523959, 0.0000000000, 0.0000936786],
+        [0.3439664498, 0.7281660966, -0.0721325464],
+        [0.0000000000, 0.0000000000, 1.0088251844],
+    ],
+    dtype=np.float64,
+)
 
-XYZ_TO_ACES2065_1 = np.array([
-    [ 1.0498110175, 0.0000000000, -0.0000974845],
-    [-0.4959030231, 1.3733130458,  0.0982400361],
-    [ 0.0000000000, 0.0000000000,  0.9912520182]
-], dtype=np.float64)
+XYZ_TO_ACES2065_1 = np.array(
+    [
+        [1.0498110175, 0.0000000000, -0.0000974845],
+        [-0.4959030231, 1.3733130458, 0.0982400361],
+        [0.0000000000, 0.0000000000, 0.9912520182],
+    ],
+    dtype=np.float64,
+)
 
 # ACEScg (AP1) ↔ XYZ
-ACESCG_TO_XYZ = np.array([
-    [0.6624541811, 0.1340042065, 0.1561876870],
-    [0.2722287168, 0.6740817658, 0.0536895174],
-    [-0.0055746495, 0.0040607335, 1.0103391003]
-], dtype=np.float64)
+ACESCG_TO_XYZ = np.array(
+    [
+        [0.6624541811, 0.1340042065, 0.1561876870],
+        [0.2722287168, 0.6740817658, 0.0536895174],
+        [-0.0055746495, 0.0040607335, 1.0103391003],
+    ],
+    dtype=np.float64,
+)
 
-XYZ_TO_ACESCG = np.array([
-    [ 1.6410233797, -0.3248032942, -0.2364246952],
-    [-0.6636628587,  1.6153315917,  0.0167563477],
-    [ 0.0117218943, -0.0082844420,  0.9883948585]
-], dtype=np.float64)
+XYZ_TO_ACESCG = np.array(
+    [
+        [1.6410233797, -0.3248032942, -0.2364246952],
+        [-0.6636628587, 1.6153315917, 0.0167563477],
+        [0.0117218943, -0.0082844420, 0.9883948585],
+    ],
+    dtype=np.float64,
+)
 
 # ACEScg ↔ linear sRGB
-ACESCG_TO_SRGB_LINEAR = np.array([
-    [ 1.7050509879, -0.6217921206, -0.0832588234],
-    [-0.1302564175,  1.1408047365, -0.0105482626],
-    [-0.0240033568, -0.1289689761,  1.1529723252]
-], dtype=np.float64)
+ACESCG_TO_SRGB_LINEAR = np.array(
+    [
+        [1.7050509879, -0.6217921206, -0.0832588234],
+        [-0.1302564175, 1.1408047365, -0.0105482626],
+        [-0.0240033568, -0.1289689761, 1.1529723252],
+    ],
+    dtype=np.float64,
+)
 
-SRGB_LINEAR_TO_ACESCG = np.array([
-    [0.6131178520, 0.3395231462, 0.0473590018],
-    [0.0701918649, 0.9163553837, 0.0134527514],
-    [0.0205798908, 0.1096578085, 0.8697623008]
-], dtype=np.float64)
+SRGB_LINEAR_TO_ACESCG = np.array(
+    [
+        [0.6131178520, 0.3395231462, 0.0473590018],
+        [0.0701918649, 0.9163553837, 0.0134527514],
+        [0.0205798908, 0.1096578085, 0.8697623008],
+    ],
+    dtype=np.float64,
+)
 
 
 def acescg_to_xyz(rgb: np.ndarray) -> np.ndarray:
@@ -1062,10 +1090,7 @@ _CIE_EPSILON = 216.0 / 24389.0
 _CIE_KAPPA = 24389.0 / 27.0
 
 
-def xyz_to_luv(
-    xyz: np.ndarray,
-    illuminant: Illuminant = D65_WHITE
-) -> np.ndarray:
+def xyz_to_luv(xyz: np.ndarray, illuminant: Illuminant = D65_WHITE) -> np.ndarray:
     """
     Convert XYZ to CIE L*u*v*.
 
@@ -1105,10 +1130,7 @@ def xyz_to_luv(
     return result[0] if single else result
 
 
-def luv_to_xyz(
-    luv: np.ndarray,
-    illuminant: Illuminant = D65_WHITE
-) -> np.ndarray:
+def luv_to_xyz(luv: np.ndarray, illuminant: Illuminant = D65_WHITE) -> np.ndarray:
     """Convert CIE L*u*v* to XYZ."""
     luv = np.asarray(luv, dtype=np.float64)
     single = luv.ndim == 1
@@ -1125,11 +1147,7 @@ def luv_to_xyz(
     u_p = np.where(L != 0, u_star / (13.0 * L) + un_p, 0.0)
     v_p = np.where(L != 0, v_star / (13.0 * L) + vn_p, 0.0)
 
-    Y = np.where(
-        L > _CIE_KAPPA * _CIE_EPSILON,
-        np.power((L + 16.0) / 116.0, 3.0),
-        L / _CIE_KAPPA
-    ) * ref[1]
+    Y = np.where(L > _CIE_KAPPA * _CIE_EPSILON, np.power((L + 16.0) / 116.0, 3.0), L / _CIE_KAPPA) * ref[1]
 
     X = np.where(v_p != 0, Y * 9.0 * u_p / (4.0 * v_p), 0.0)
     Z = np.where(v_p != 0, Y * (12.0 - 3.0 * u_p - 20.0 * v_p) / (4.0 * v_p), 0.0)
@@ -1141,6 +1159,7 @@ def luv_to_xyz(
 # =============================================================================
 # HSL / HSV / HWB
 # =============================================================================
+
 
 def srgb_to_hsl(rgb: np.ndarray) -> np.ndarray:
     """Convert sRGB [0,1] to HSL (H in degrees, S and L in [0,1])."""
@@ -1178,16 +1197,21 @@ def hsl_to_srgb(hsl: np.ndarray) -> np.ndarray:
     p = 2.0 * l - q
 
     def hue2rgb(p, q, t):
-        if t < 0: t += 1
-        if t > 1: t -= 1
-        if t < 1/6: return p + (q - p) * 6 * t
-        if t < 1/2: return q
-        if t < 2/3: return p + (q - p) * (2/3 - t) * 6
+        if t < 0:
+            t += 1
+        if t > 1:
+            t -= 1
+        if t < 1 / 6:
+            return p + (q - p) * 6 * t
+        if t < 1 / 2:
+            return q
+        if t < 2 / 3:
+            return p + (q - p) * (2 / 3 - t) * 6
         return p
 
-    r = hue2rgb(p, q, h / 360.0 + 1/3)
+    r = hue2rgb(p, q, h / 360.0 + 1 / 3)
     g = hue2rgb(p, q, h / 360.0)
-    b = hue2rgb(p, q, h / 360.0 - 1/3)
+    b = hue2rgb(p, q, h / 360.0 - 1 / 3)
 
     return np.array([r, g, b])
 
@@ -1230,11 +1254,16 @@ def hsv_to_srgb(hsv: np.ndarray) -> np.ndarray:
     q = v * (1.0 - s * f)
     t = v * (1.0 - s * (1.0 - f))
 
-    if i == 0: return np.array([v, t, p])
-    if i == 1: return np.array([q, v, p])
-    if i == 2: return np.array([p, v, t])
-    if i == 3: return np.array([p, q, v])
-    if i == 4: return np.array([t, p, v])
+    if i == 0:
+        return np.array([v, t, p])
+    if i == 1:
+        return np.array([q, v, p])
+    if i == 2:
+        return np.array([p, v, t])
+    if i == 3:
+        return np.array([p, q, v])
+    if i == 4:
+        return np.array([t, p, v])
     return np.array([v, p, q])
 
 
@@ -1266,11 +1295,10 @@ def hwb_to_srgb(hwb: np.ndarray) -> np.ndarray:
 # =============================================================================
 
 # CAT16 forward matrix (XYZ to sharpened RGB)
-_CAT16 = np.array([
-    [ 0.401288,  0.650173, -0.051461],
-    [-0.250268,  1.204414,  0.045854],
-    [-0.002079,  0.048952,  0.953127]
-], dtype=np.float64)
+_CAT16 = np.array(
+    [[0.401288, 0.650173, -0.051461], [-0.250268, 1.204414, 0.045854], [-0.002079, 0.048952, 0.953127]],
+    dtype=np.float64,
+)
 
 _CAT16_INV = np.linalg.inv(_CAT16)
 
@@ -1283,6 +1311,7 @@ CAM16_SURROUND_DARK = (0.525, 0.8, 0.8)
 @dataclass
 class CAM16Env:
     """Pre-computed CAM16 viewing condition parameters."""
+
     c: float
     Nc: float
     F_L: float
@@ -1294,10 +1323,7 @@ class CAM16Env:
 
 
 def cam16_environment(
-    white_xyz: np.ndarray = None,
-    La: float = 64.0,
-    Yb: float = 20.0,
-    surround: tuple = CAM16_SURROUND_AVERAGE
+    white_xyz: np.ndarray = None, La: float = 64.0, Yb: float = 20.0, surround: tuple = CAM16_SURROUND_AVERAGE
 ) -> CAM16Env:
     """
     Pre-compute CAM16 viewing condition parameters.
@@ -1323,11 +1349,7 @@ def cam16_environment(
 
     # Adapted white
     rgb_w = _CAT16 @ white_xyz
-    D_RGB = np.array([
-        D * (Yw / rgb_w[0]) + 1.0 - D,
-        D * (Yw / rgb_w[1]) + 1.0 - D,
-        D * (Yw / rgb_w[2]) + 1.0 - D
-    ])
+    D_RGB = np.array([D * (Yw / rgb_w[0]) + 1.0 - D, D * (Yw / rgb_w[1]) + 1.0 - D, D * (Yw / rgb_w[2]) + 1.0 - D])
 
     # Factors
     n = Yb / Yw
@@ -1336,7 +1358,7 @@ def cam16_environment(
 
     # Luminance adaptation factor
     k = 1.0 / (5.0 * La + 1.0)
-    k4 = k ** 4
+    k4 = k**4
     F_L = k4 * La + 0.1 * (1.0 - k4) ** 2 * (5.0 * La) ** (1.0 / 3.0)
 
     # Achromatic response of white
@@ -1365,10 +1387,7 @@ def _cam16_post_adapt_inv(rgb_a: np.ndarray, F_L: float) -> np.ndarray:
     return sign * 100.0 / F_L * np.power(27.13 * abs_t / denom, 1.0 / 0.42)
 
 
-def xyz_to_cam16(
-    xyz: np.ndarray,
-    env: CAM16Env
-) -> dict:
+def xyz_to_cam16(xyz: np.ndarray, env: CAM16Env) -> dict:
     """
     Convert XYZ to CAM16 appearance correlates.
 
@@ -1408,26 +1427,22 @@ def xyz_to_cam16(
     J = 100.0 * (A / env.Aw) ** (env.c * env.z)
 
     # Brightness
-    Q = (4.0 / env.c) * math.sqrt(J / 100.0) * (env.Aw + 4.0) * env.F_L ** 0.25
+    Q = (4.0 / env.c) * math.sqrt(J / 100.0) * (env.Aw + 4.0) * env.F_L**0.25
 
     # Chroma
-    t_val = (50000.0 / 13.0 * env.Nc * env.Nbb * et * math.sqrt(a**2 + b**2)) / \
-            (rgb_a[0] + rgb_a[1] + 21.0 * rgb_a[2] / 20.0 + 1e-10)
-    C = t_val ** 0.9 * math.sqrt(J / 100.0) * (1.64 - 0.29 ** env.n) ** 0.73
+    t_val = (50000.0 / 13.0 * env.Nc * env.Nbb * et * math.sqrt(a**2 + b**2)) / (
+        rgb_a[0] + rgb_a[1] + 21.0 * rgb_a[2] / 20.0 + 1e-10
+    )
+    C = t_val**0.9 * math.sqrt(J / 100.0) * (1.64 - 0.29**env.n) ** 0.73
 
     # Colorfulness & saturation
-    M = C * env.F_L ** 0.25
+    M = C * env.F_L**0.25
     s_val = 100.0 * math.sqrt(M / max(Q, 1e-10))
 
     return {"J": J, "C": C, "h": h, "Q": Q, "M": M, "s": s_val, "a": a, "b": b}
 
 
-def cam16_to_xyz(
-    J: float,
-    C: float,
-    h: float,
-    env: CAM16Env
-) -> np.ndarray:
+def cam16_to_xyz(J: float, C: float, h: float, env: CAM16Env) -> np.ndarray:
     """
     Convert CAM16 (J, C, h) back to XYZ.
 
@@ -1447,7 +1462,7 @@ def cam16_to_xyz(
 
     A = env.Aw * (J / 100.0) ** (1.0 / (env.c * env.z))
 
-    t = (C / (math.sqrt(J / 100.0) * (1.64 - 0.29 ** env.n) ** 0.73 + 1e-10)) ** (1.0 / 0.9)
+    t = (C / (math.sqrt(J / 100.0) * (1.64 - 0.29**env.n) ** 0.73 + 1e-10)) ** (1.0 / 0.9)
 
     p1 = 50000.0 / 13.0 * env.Nc * env.Nbb * et
     p2 = A / env.Nbb + 0.305
@@ -1462,11 +1477,13 @@ def cam16_to_xyz(
     a = gamma * cos_h
     b = gamma * sin_h
 
-    rgb_a = np.array([
-        460.0 * p2 / 1403.0 + 451.0 * a / 1403.0 + 288.0 * b / 1403.0,
-        460.0 * p2 / 1403.0 - 891.0 * a / 1403.0 - 261.0 * b / 1403.0,
-        460.0 * p2 / 1403.0 - 220.0 * a / 1403.0 - 6300.0 * b / 1403.0
-    ])
+    rgb_a = np.array(
+        [
+            460.0 * p2 / 1403.0 + 451.0 * a / 1403.0 + 288.0 * b / 1403.0,
+            460.0 * p2 / 1403.0 - 891.0 * a / 1403.0 - 261.0 * b / 1403.0,
+            460.0 * p2 / 1403.0 - 220.0 * a / 1403.0 - 6300.0 * b / 1403.0,
+        ]
+    )
 
     rgb_c = _cam16_post_adapt_inv(rgb_a, env.F_L)
     rgb = rgb_c / env.D_RGB
@@ -1497,18 +1514,16 @@ def cam16_to_ucs(J: float, M: float, h: float) -> np.ndarray:
 def cam16_ucs_delta_e(ucs1: np.ndarray, ucs2: np.ndarray) -> float:
     """Euclidean distance in CAM16-UCS (perceptual color difference)."""
     d = np.asarray(ucs1) - np.asarray(ucs2)
-    return float(np.sqrt(np.sum(d ** 2)))
+    return float(np.sqrt(np.sum(d**2)))
 
 
 # =============================================================================
 # Gamut Boundary Descriptor
 # =============================================================================
 
+
 def compute_gamut_boundary(
-    gamut_xyz_to_rgb: np.ndarray,
-    lightness_steps: int = 101,
-    hue_steps: int = 360,
-    illuminant: Illuminant = D65_WHITE
+    gamut_xyz_to_rgb: np.ndarray, lightness_steps: int = 101, hue_steps: int = 360, illuminant: Illuminant = D65_WHITE
 ) -> np.ndarray:
     """
     Compute the maximum chroma at each (lightness, hue) for a color gamut.
@@ -1549,11 +1564,11 @@ def compute_gamut_boundary(
                 fz = fy - b / 200.0
 
                 delta = 6.0 / 29.0
-                delta_cu = delta ** 3
+                delta_cu = delta**3
 
-                xr = fx ** 3 if fx ** 3 > delta_cu else (fx - 4.0 / 29.0) * 3 * delta ** 2
-                yr = fy ** 3 if fy ** 3 > delta_cu else (fy - 4.0 / 29.0) * 3 * delta ** 2
-                zr = fz ** 3 if fz ** 3 > delta_cu else (fz - 4.0 / 29.0) * 3 * delta ** 2
+                xr = fx**3 if fx**3 > delta_cu else (fx - 4.0 / 29.0) * 3 * delta**2
+                yr = fy**3 if fy**3 > delta_cu else (fy - 4.0 / 29.0) * 3 * delta**2
+                zr = fz**3 if fz**3 > delta_cu else (fz - 4.0 / 29.0) * 3 * delta**2
 
                 xyz_val = np.array([xr * ref[0], yr * ref[1], zr * ref[2]])
                 rgb_val = gamut_xyz_to_rgb @ xyz_val
@@ -1568,11 +1583,7 @@ def compute_gamut_boundary(
     return boundary
 
 
-def get_max_chroma(
-    boundary: np.ndarray,
-    L: float,
-    h_deg: float
-) -> float:
+def get_max_chroma(boundary: np.ndarray, L: float, h_deg: float) -> float:
     """
     Look up maximum chroma from a pre-computed gamut boundary.
 
@@ -1614,11 +1625,12 @@ def get_max_chroma(
 # BT.2390 EETF (Electrical-Electrical Transfer Function)
 # =============================================================================
 
+
 def bt2390_eetf(
     pq_signal: np.ndarray,
     source_peak_nits: float = 10000.0,
     target_peak_nits: float = 1000.0,
-    target_black_nits: float = 0.0
+    target_black_nits: float = 0.0,
 ) -> np.ndarray:
     """
     BT.2390 EETF — maps HDR PQ signals from a source peak luminance to a
@@ -1682,11 +1694,7 @@ def bt2390_eetf(
     return np.clip(E2, 0.0, 1.0)
 
 
-def gamut_map_chroma_compress(
-    lab: np.ndarray,
-    boundary: np.ndarray,
-    method: str = "compress"
-) -> np.ndarray:
+def gamut_map_chroma_compress(lab: np.ndarray, boundary: np.ndarray, method: str = "compress") -> np.ndarray:
     """
     Map an out-of-gamut Lab color into gamut by reducing chroma.
 

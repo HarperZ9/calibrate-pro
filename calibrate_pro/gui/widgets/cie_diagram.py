@@ -24,28 +24,71 @@ from calibrate_pro.gui.app import C
 
 # CIE 1931 spectral locus: (wavelength_nm, x, y) at every 5nm from 380-780nm
 SPECTRAL_LOCUS = [
-    (380, 0.1741, 0.0050), (385, 0.1740, 0.0050), (390, 0.1738, 0.0049),
-    (395, 0.1736, 0.0049), (400, 0.1733, 0.0048), (405, 0.1730, 0.0048),
-    (410, 0.1726, 0.0048), (415, 0.1721, 0.0048), (420, 0.1714, 0.0051),
-    (425, 0.1703, 0.0058), (430, 0.1689, 0.0069), (435, 0.1669, 0.0086),
-    (440, 0.1644, 0.0109), (445, 0.1611, 0.0138), (450, 0.1566, 0.0177),
-    (455, 0.1510, 0.0227), (460, 0.1440, 0.0297), (465, 0.1355, 0.0399),
-    (470, 0.1241, 0.0578), (475, 0.1096, 0.0868), (480, 0.0913, 0.1327),
-    (485, 0.0687, 0.2007), (490, 0.0454, 0.2950), (495, 0.0235, 0.4127),
-    (500, 0.0082, 0.5384), (505, 0.0039, 0.6548), (510, 0.0139, 0.7502),
-    (515, 0.0389, 0.8120), (520, 0.0743, 0.8338), (525, 0.1142, 0.8262),
-    (530, 0.1547, 0.8059), (535, 0.1929, 0.7816), (540, 0.2296, 0.7543),
-    (545, 0.2658, 0.7243), (550, 0.3016, 0.6923), (555, 0.3373, 0.6589),
-    (560, 0.3731, 0.6245), (565, 0.4087, 0.5896), (570, 0.4441, 0.5547),
-    (575, 0.4788, 0.5202), (580, 0.5125, 0.4866), (585, 0.5448, 0.4544),
-    (590, 0.5752, 0.4242), (595, 0.6029, 0.3965), (600, 0.6270, 0.3725),
-    (605, 0.6482, 0.3514), (610, 0.6658, 0.3340), (615, 0.6801, 0.3197),
-    (620, 0.6915, 0.3083), (625, 0.7006, 0.2993), (630, 0.7079, 0.2920),
-    (635, 0.7140, 0.2859), (640, 0.7190, 0.2809), (645, 0.7230, 0.2770),
-    (650, 0.7260, 0.2740), (655, 0.7283, 0.2717), (660, 0.7300, 0.2700),
-    (665, 0.7311, 0.2689), (670, 0.7320, 0.2680), (675, 0.7327, 0.2673),
-    (680, 0.7334, 0.2666), (685, 0.7340, 0.2660), (690, 0.7344, 0.2656),
-    (695, 0.7346, 0.2654), (700, 0.7347, 0.2653),
+    (380, 0.1741, 0.0050),
+    (385, 0.1740, 0.0050),
+    (390, 0.1738, 0.0049),
+    (395, 0.1736, 0.0049),
+    (400, 0.1733, 0.0048),
+    (405, 0.1730, 0.0048),
+    (410, 0.1726, 0.0048),
+    (415, 0.1721, 0.0048),
+    (420, 0.1714, 0.0051),
+    (425, 0.1703, 0.0058),
+    (430, 0.1689, 0.0069),
+    (435, 0.1669, 0.0086),
+    (440, 0.1644, 0.0109),
+    (445, 0.1611, 0.0138),
+    (450, 0.1566, 0.0177),
+    (455, 0.1510, 0.0227),
+    (460, 0.1440, 0.0297),
+    (465, 0.1355, 0.0399),
+    (470, 0.1241, 0.0578),
+    (475, 0.1096, 0.0868),
+    (480, 0.0913, 0.1327),
+    (485, 0.0687, 0.2007),
+    (490, 0.0454, 0.2950),
+    (495, 0.0235, 0.4127),
+    (500, 0.0082, 0.5384),
+    (505, 0.0039, 0.6548),
+    (510, 0.0139, 0.7502),
+    (515, 0.0389, 0.8120),
+    (520, 0.0743, 0.8338),
+    (525, 0.1142, 0.8262),
+    (530, 0.1547, 0.8059),
+    (535, 0.1929, 0.7816),
+    (540, 0.2296, 0.7543),
+    (545, 0.2658, 0.7243),
+    (550, 0.3016, 0.6923),
+    (555, 0.3373, 0.6589),
+    (560, 0.3731, 0.6245),
+    (565, 0.4087, 0.5896),
+    (570, 0.4441, 0.5547),
+    (575, 0.4788, 0.5202),
+    (580, 0.5125, 0.4866),
+    (585, 0.5448, 0.4544),
+    (590, 0.5752, 0.4242),
+    (595, 0.6029, 0.3965),
+    (600, 0.6270, 0.3725),
+    (605, 0.6482, 0.3514),
+    (610, 0.6658, 0.3340),
+    (615, 0.6801, 0.3197),
+    (620, 0.6915, 0.3083),
+    (625, 0.7006, 0.2993),
+    (630, 0.7079, 0.2920),
+    (635, 0.7140, 0.2859),
+    (640, 0.7190, 0.2809),
+    (645, 0.7230, 0.2770),
+    (650, 0.7260, 0.2740),
+    (655, 0.7283, 0.2717),
+    (660, 0.7300, 0.2700),
+    (665, 0.7311, 0.2689),
+    (670, 0.7320, 0.2680),
+    (675, 0.7327, 0.2673),
+    (680, 0.7334, 0.2666),
+    (685, 0.7340, 0.2660),
+    (690, 0.7344, 0.2656),
+    (695, 0.7346, 0.2654),
+    (700, 0.7347, 0.2653),
 ]
 
 # Standard illuminant white points
@@ -54,8 +97,8 @@ WHITE_POINTS = {
     "D55": (0.3324, 0.3474),
     "D65": (0.3127, 0.3290),
     "D75": (0.2990, 0.3149),
-    "E":   (0.3333, 0.3333),
-    "A":   (0.4476, 0.4074),
+    "E": (0.3333, 0.3333),
+    "A": (0.4476, 0.4074),
 }
 
 # Standard color gamuts as (R, G, B) xy tuples
@@ -96,6 +139,7 @@ GAMUTS = {
 @dataclass
 class MeasuredPoint:
     """A measured chromaticity point to display on the diagram."""
+
     x: float
     y: float
     label: str = ""
@@ -106,6 +150,7 @@ class MeasuredPoint:
 # Planckian Locus Utilities
 # =============================================================================
 
+
 def _planckian_xy(T: float) -> tuple[float, float]:
     """
     Compute CIE xy chromaticity of a blackbody radiator at temperature T (K).
@@ -114,14 +159,11 @@ def _planckian_xy(T: float) -> tuple[float, float]:
     T2 = T * T
     T3 = T2 * T
     if T <= 4000:
-        x = (-0.2661239e9 / T3 - 0.2343589e6 / T2
-             + 0.8776956e3 / T + 0.179910)
+        x = -0.2661239e9 / T3 - 0.2343589e6 / T2 + 0.8776956e3 / T + 0.179910
     elif T <= 7000:
-        x = (-4.6070e9 / T3 + 2.9678e6 / T2
-             + 0.09911e3 / T + 0.244063)
+        x = -4.6070e9 / T3 + 2.9678e6 / T2 + 0.09911e3 / T + 0.244063
     else:
-        x = (-2.0064e9 / T3 + 1.9018e6 / T2
-             - 0.24748e3 / T + 0.237040)
+        x = -2.0064e9 / T3 + 1.9018e6 / T2 - 0.24748e3 / T + 0.237040
 
     x2 = x * x
     x3 = x2 * x
@@ -156,6 +198,7 @@ def _nearest_cct(cx: float, cy: float) -> float | None:
 # xy to approximate sRGB
 # =============================================================================
 
+
 def _xy_to_srgb(cx: float, cy: float) -> tuple[int, int, int]:
     """
     Convert CIE xy chromaticity (at Y=1) to approximate sRGB (0-255).
@@ -168,9 +211,9 @@ def _xy_to_srgb(cx: float, cy: float) -> tuple[int, int, int]:
     Z = ((1.0 - cx - cy) / cy) * Y
 
     # XYZ to linear sRGB (D65)
-    r =  3.2406 * X - 1.5372 * Y - 0.4986 * Z
+    r = 3.2406 * X - 1.5372 * Y - 0.4986 * Z
     g = -0.9689 * X + 1.8758 * Y + 0.0415 * Z
-    b =  0.0557 * X - 0.2040 * Y + 1.0570 * Z
+    b = 0.0557 * X - 0.2040 * Y + 1.0570 * Z
 
     def gamma(v):
         v = max(0.0, v)
@@ -209,6 +252,7 @@ def _is_inside_locus(cx: float, cy: float) -> bool:
 # CIE 1931 Chromaticity Diagram Widget
 # =============================================================================
 
+
 class CIEDiagramWidget(QWidget):
     """
     Interactive CIE 1931 xy chromaticity diagram.
@@ -233,8 +277,7 @@ class CIEDiagramWidget(QWidget):
         super().__init__(parent)
 
         self.setMinimumSize(350, 350)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding,
-                           QSizePolicy.Policy.Expanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMouseTracking(True)
 
         # View bounds (mutable for zoom / pan)
@@ -249,9 +292,9 @@ class CIEDiagramWidget(QWidget):
         self._bg_cache_view: tuple | None = None
 
         # Overlays
-        self._display_gamut: tuple | None = None   # (r_xy, g_xy, b_xy)
-        self._display_wp: tuple | None = None       # white point xy
-        self._target_gamut: tuple | None = None     # (r_xy, g_xy, b_xy)
+        self._display_gamut: tuple | None = None  # (r_xy, g_xy, b_xy)
+        self._display_wp: tuple | None = None  # white point xy
+        self._target_gamut: tuple | None = None  # (r_xy, g_xy, b_xy)
         self._measured_points: list[MeasuredPoint] = []
 
         # Pan state
@@ -290,9 +333,7 @@ class CIEDiagramWidget(QWidget):
 
     def set_measured_points(self, points: list[tuple[float, float, str]]):
         """Set measured chromaticity points as list of (x, y, label)."""
-        self._measured_points = [
-            MeasuredPoint(x, y, label) for x, y, label in points
-        ]
+        self._measured_points = [MeasuredPoint(x, y, label) for x, y, label in points]
         self.update()
 
     def reset_view(self):
@@ -365,9 +406,7 @@ class CIEDiagramWidget(QWidget):
         """Build the background cache if stale."""
         sz = self.size()
         view = (self._vx0, self._vx1, self._vy0, self._vy1)
-        if (self._bg_cache is not None
-                and self._bg_cache_size == sz
-                and self._bg_cache_view == view):
+        if self._bg_cache is not None and self._bg_cache_size == sz and self._bg_cache_view == view:
             return
         self._bg_cache = self._render_background()
         self._bg_cache_size = QSize(sz)
@@ -406,7 +445,8 @@ class CIEDiagramWidget(QWidget):
         # Target gamut (dotted green)
         if self._target_gamut:
             self._paint_gamut_triangle(
-                p, self._target_gamut,
+                p,
+                self._target_gamut,
                 color=QColor(C.GREEN),
                 width=1.5,
                 style=Qt.PenStyle.DotLine,
@@ -415,7 +455,8 @@ class CIEDiagramWidget(QWidget):
         # Display gamut (solid accent)
         if self._display_gamut:
             self._paint_gamut_triangle(
-                p, self._display_gamut,
+                p,
+                self._display_gamut,
                 color=QColor(C.ACCENT),
                 width=2.0,
                 style=Qt.PenStyle.SolidLine,
@@ -490,8 +531,7 @@ class CIEDiagramWidget(QWidget):
                 off = 12
                 lx = pt.x() + dx / d * off
                 ly = pt.y() - dy / d * off
-                p.drawText(int(lx) - 10, int(ly) - 4, 28, 14,
-                           Qt.AlignmentFlag.AlignCenter, f"{wl}")
+                p.drawText(int(lx) - 10, int(ly) - 4, 28, 14, Qt.AlignmentFlag.AlignCenter, f"{wl}")
 
     # -- Planckian locus ----------------------------------------------------
 
@@ -551,11 +591,11 @@ class CIEDiagramWidget(QWidget):
         p.setPen(QColor(C.TEXT3))
         offsets = [(6, 8), (-14, -6), (-6, 14)]
         for i, (label, off) in enumerate(zip(["R", "G", "B"], offsets)):
-            p.drawText(int(pts[i].x()) + off[0],
-                       int(pts[i].y()) + off[1], label)
+            p.drawText(int(pts[i].x()) + off[0], int(pts[i].y()) + off[1], label)
 
     def _paint_gamut_triangle(
-        self, p: QPainter,
+        self,
+        p: QPainter,
         gamut: tuple,
         color: QColor,
         width: float = 2.0,
@@ -602,12 +642,14 @@ class CIEDiagramWidget(QWidget):
             p.setPen(pen)
             p.setBrush(Qt.BrushStyle.NoBrush)
             # Diamond
-            diamond = QPolygonF([
-                QPointF(wp.x(), wp.y() - sz),
-                QPointF(wp.x() + sz, wp.y()),
-                QPointF(wp.x(), wp.y() + sz),
-                QPointF(wp.x() - sz, wp.y()),
-            ])
+            diamond = QPolygonF(
+                [
+                    QPointF(wp.x(), wp.y() - sz),
+                    QPointF(wp.x() + sz, wp.y()),
+                    QPointF(wp.x(), wp.y() + sz),
+                    QPointF(wp.x() - sz, wp.y()),
+                ]
+            )
             p.drawPolygon(diamond)
             # Label
             p.setFont(QFont("Segoe UI", 7))
@@ -640,9 +682,14 @@ class CIEDiagramWidget(QWidget):
         while x <= 0.8 + 1e-6:
             if self._vx0 <= x <= self._vx1:
                 pt = self._xy_to_px(x, self._vy0)
-                p.drawText(int(pt.x()) - 12, int(pt.y()) + 4, 24, 16,
-                           Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                           f"{x:.1f}")
+                p.drawText(
+                    int(pt.x()) - 12,
+                    int(pt.y()) + 4,
+                    24,
+                    16,
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+                    f"{x:.1f}",
+                )
             x += step
 
         # Y axis tick labels
@@ -650,9 +697,14 @@ class CIEDiagramWidget(QWidget):
         while y <= 0.9 + 1e-6:
             if self._vy0 <= y <= self._vy1:
                 pt = self._xy_to_px(self._vx0, y)
-                p.drawText(int(pt.x()) - 34, int(pt.y()) - 8, 30, 16,
-                           Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                           f"{y:.1f}")
+                p.drawText(
+                    int(pt.x()) - 34,
+                    int(pt.y()) - 8,
+                    30,
+                    16,
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                    f"{y:.1f}",
+                )
             y += step
 
         # Axis titles
@@ -712,10 +764,9 @@ class CIEDiagramWidget(QWidget):
             if self._panning:
                 # If barely moved, treat as a click
                 if self._pan_start_pos:
-                    d = (event.position() - self._pan_start_pos)
+                    d = event.position() - self._pan_start_pos
                     if d.manhattanLength() < 4:
-                        cx, cy = self._px_to_xy(event.position().x(),
-                                                event.position().y())
+                        cx, cy = self._px_to_xy(event.position().x(), event.position().y())
                         self.point_clicked.emit(cx, cy)
             self._panning = False
             self._pan_start_pos = None

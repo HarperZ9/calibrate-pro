@@ -62,14 +62,17 @@ COLORS = {
 # Calibration Configuration
 # =============================================================================
 
+
 class CalibrationMode(Enum):
     """Calibration method."""
+
     SENSORLESS = auto()  # Sensorless calibration
-    HARDWARE = auto()    # Colorimeter
+    HARDWARE = auto()  # Colorimeter
 
 
 class WhitepointTarget(Enum):
     """Standard whitepoint targets."""
+
     D50 = "D50 (5000K)"
     D55 = "D55 (5500K)"
     D65 = "D65 (6500K)"
@@ -80,6 +83,7 @@ class WhitepointTarget(Enum):
 
 class GammaTarget(Enum):
     """Standard gamma targets."""
+
     SRGB = "sRGB (2.2 with toe)"
     BT1886 = "BT.1886 (2.4)"
     GAMMA_22 = "Power 2.2"
@@ -90,6 +94,7 @@ class GammaTarget(Enum):
 
 class GamutTarget(Enum):
     """Standard color gamut targets."""
+
     SRGB = "sRGB"
     DCI_P3 = "DCI-P3"
     DISPLAY_P3 = "Display P3"
@@ -101,6 +106,7 @@ class GamutTarget(Enum):
 @dataclass
 class CalibrationConfig:
     """Configuration for calibration session."""
+
     # Display
     display_id: int = 0
     display_name: str = ""
@@ -134,11 +140,12 @@ class CalibrationConfig:
 # Wizard Step Base
 # =============================================================================
 
+
 class WizardStep(QWidget):
     """Base class for wizard steps."""
 
     step_complete = pyqtSignal(bool)  # Emitted when step validity changes
-    config_changed = pyqtSignal()     # Emitted when configuration changes
+    config_changed = pyqtSignal()  # Emitted when configuration changes
 
     def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(parent)
@@ -177,6 +184,7 @@ class WizardStep(QWidget):
 # Step 1: Display Selection
 # =============================================================================
 
+
 class DisplaySelectionStep(WizardStep):
     """Step 1: Select display to calibrate."""
 
@@ -200,24 +208,24 @@ class DisplaySelectionStep(WizardStep):
         self.display_list = QListWidget()
         self.display_list.setStyleSheet(f"""
             QListWidget {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 8px;
             }}
             QListWidget::item {{
-                background-color: {COLORS['surface_alt']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface_alt"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 6px;
                 padding: 16px;
                 margin: 4px;
             }}
             QListWidget::item:selected {{
-                background-color: {COLORS['accent']};
-                border-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
+                border-color: {COLORS["accent"]};
             }}
             QListWidget::item:hover:!selected {{
-                border-color: {COLORS['accent']};
+                border-color: {COLORS["accent"]};
             }}
         """)
         self.display_list.itemSelectionChanged.connect(self._on_selection_changed)
@@ -227,8 +235,8 @@ class DisplaySelectionStep(WizardStep):
         info_frame = QFrame()
         info_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 16px;
             }}
@@ -257,15 +265,13 @@ class DisplaySelectionStep(WizardStep):
         layout.addWidget(info_frame)
 
         # Warmup reminder
-        warmup_label = QLabel(
-            "💡 For accurate calibration, ensure your display has warmed up for at least 30 minutes."
-        )
+        warmup_label = QLabel("💡 For accurate calibration, ensure your display has warmed up for at least 30 minutes.")
         warmup_label.setWordWrap(True)
         warmup_label.setStyleSheet(f"""
-            background-color: {COLORS['surface_alt']};
+            background-color: {COLORS["surface_alt"]};
             border-radius: 6px;
             padding: 12px;
-            color: {COLORS['text_secondary']};
+            color: {COLORS["text_secondary"]};
         """)
         layout.addWidget(warmup_label)
 
@@ -280,15 +286,18 @@ class DisplaySelectionStep(WizardStep):
             geometry = screen.geometry()
             item = QListWidgetItem()
             item.setText(f"{screen.name()}\n{geometry.width()}x{geometry.height()} @ {screen.refreshRate():.0f}Hz")
-            item.setData(Qt.ItemDataRole.UserRole, {
-                'id': i,
-                'name': screen.name(),
-                'resolution': f"{geometry.width()}x{geometry.height()}",
-                'refresh': f"{screen.refreshRate():.0f}Hz",
-                'depth': f"{screen.depth()}-bit",
-                'technology': 'Unknown',
-                'profile': 'None',
-            })
+            item.setData(
+                Qt.ItemDataRole.UserRole,
+                {
+                    "id": i,
+                    "name": screen.name(),
+                    "resolution": f"{geometry.width()}x{geometry.height()}",
+                    "refresh": f"{screen.refreshRate():.0f}Hz",
+                    "depth": f"{screen.depth()}-bit",
+                    "technology": "Unknown",
+                    "profile": "None",
+                },
+            )
             self.display_list.addItem(item)
 
         # Select first display by default
@@ -300,12 +309,12 @@ class DisplaySelectionStep(WizardStep):
         items = self.display_list.selectedItems()
         if items:
             data = items[0].data(Qt.ItemDataRole.UserRole)
-            self.config.display_id = data['id']
-            self.config.display_name = data['name']
+            self.config.display_id = data["id"]
+            self.config.display_name = data["name"]
 
             # Update info panel
             for key, label in self.info_labels.items():
-                label.setText(data.get(key, '--'))
+                label.setText(data.get(key, "--"))
 
             self._is_valid = True
         else:
@@ -321,6 +330,7 @@ class DisplaySelectionStep(WizardStep):
 # =============================================================================
 # Step 2: Target Settings
 # =============================================================================
+
 
 class TargetSettingsStep(WizardStep):
     """Step 2: Configure calibration targets."""
@@ -492,35 +502,36 @@ class TargetSettingsStep(WizardStep):
     def _preset_photo(self):
         """Photo editing preset: D50, gamma 2.2, Adobe RGB."""
         self.whitepoint_combo.setCurrentIndex(0)  # D50
-        self.gamma_combo.setCurrentIndex(2)       # Power 2.2
-        self.gamut_combo.setCurrentIndex(4)       # Adobe RGB
+        self.gamma_combo.setCurrentIndex(2)  # Power 2.2
+        self.gamut_combo.setCurrentIndex(4)  # Adobe RGB
         self.brightness_spin.setValue(120)
 
     def _preset_video(self):
         """Video production preset: D65, BT.1886, Rec.709."""
         self.whitepoint_combo.setCurrentIndex(2)  # D65
-        self.gamma_combo.setCurrentIndex(1)       # BT.1886
-        self.gamut_combo.setCurrentIndex(0)       # sRGB (Rec.709)
+        self.gamma_combo.setCurrentIndex(1)  # BT.1886
+        self.gamut_combo.setCurrentIndex(0)  # sRGB (Rec.709)
         self.brightness_spin.setValue(100)
 
     def _preset_web(self):
         """Web/general preset: D65, sRGB."""
         self.whitepoint_combo.setCurrentIndex(2)  # D65
-        self.gamma_combo.setCurrentIndex(0)       # sRGB
-        self.gamut_combo.setCurrentIndex(0)       # sRGB
+        self.gamma_combo.setCurrentIndex(0)  # sRGB
+        self.gamut_combo.setCurrentIndex(0)  # sRGB
         self.brightness_spin.setValue(120)
 
     def _preset_hdr(self):
         """HDR content preset: D65, PQ, P3."""
         self.whitepoint_combo.setCurrentIndex(2)  # D65
-        self.gamma_combo.setCurrentIndex(0)       # sRGB (will be overridden for HDR)
-        self.gamut_combo.setCurrentIndex(1)       # DCI-P3
+        self.gamma_combo.setCurrentIndex(0)  # sRGB (will be overridden for HDR)
+        self.gamut_combo.setCurrentIndex(1)  # DCI-P3
         self.brightness_spin.setValue(200)
 
 
 # =============================================================================
 # Step 3: Calibration Mode
 # =============================================================================
+
 
 class CalibrationModeStep(WizardStep):
     """Step 3: Choose calibration method."""
@@ -557,15 +568,14 @@ class CalibrationModeStep(WizardStep):
                 "Supports all display types",
             ],
             CalibrationMode.SENSORLESS,
-            True  # Default selection
+            True,  # Default selection
         )
         layout.addWidget(sensorless_card)
 
         # Hardware card
         hardware_card = self._create_mode_card(
             "Hardware Calibration",
-            "Use a colorimeter for maximum accuracy. "
-            "Supports all major devices via ArgyllCMS.",
+            "Use a colorimeter for maximum accuracy. Supports all major devices via ArgyllCMS.",
             [
                 "Delta E < 0.5 accuracy",
                 "Direct measurement feedback",
@@ -573,7 +583,7 @@ class CalibrationModeStep(WizardStep):
                 "Custom correction matrices",
             ],
             CalibrationMode.HARDWARE,
-            False
+            False,
         )
         layout.addWidget(hardware_card)
 
@@ -583,31 +593,35 @@ class CalibrationModeStep(WizardStep):
 
         hw_layout.addWidget(QLabel("Device:"), 0, 0)
         self.device_combo = QComboBox()
-        self.device_combo.addItems([
-            "Auto-detect",
-            "X-Rite i1Display Pro",
-            "X-Rite i1Display Pro Plus",
-            "Datacolor Spyder X",
-            "Calibrite ColorChecker Display",
-            "Photo Research PR-655",
-        ])
+        self.device_combo.addItems(
+            [
+                "Auto-detect",
+                "X-Rite i1Display Pro",
+                "X-Rite i1Display Pro Plus",
+                "Datacolor Spyder X",
+                "Calibrite ColorChecker Display",
+                "Photo Research PR-655",
+            ]
+        )
         hw_layout.addWidget(self.device_combo, 0, 1)
 
         hw_layout.addWidget(QLabel("Correction:"), 1, 0)
         self.correction_combo = QComboBox()
-        self.correction_combo.addItems([
-            "None",
-            "CCSS (Spectral)",
-            "CCMX (Matrix)",
-            "Custom...",
-        ])
+        self.correction_combo.addItems(
+            [
+                "None",
+                "CCSS (Spectral)",
+                "CCMX (Matrix)",
+                "Custom...",
+            ]
+        )
         hw_layout.addWidget(self.correction_combo, 1, 1)
 
         hw_layout.addWidget(QLabel("Patch Count:"), 2, 0)
         self.patch_spin = QSpinBox()
         self.patch_spin.setRange(36, 4096)
         self.patch_spin.setValue(729)
-        self.patch_spin.valueChanged.connect(lambda v: setattr(self.config, 'patch_count', v))
+        self.patch_spin.valueChanged.connect(lambda v: setattr(self.config, "patch_count", v))
         hw_layout.addWidget(self.patch_spin, 2, 1)
 
         self.hardware_options.setVisible(False)
@@ -615,20 +629,20 @@ class CalibrationModeStep(WizardStep):
 
         layout.addStretch()
 
-    def _create_mode_card(self, title: str, description: str,
-                          features: list[str], mode: CalibrationMode,
-                          checked: bool) -> QFrame:
+    def _create_mode_card(
+        self, title: str, description: str, features: list[str], mode: CalibrationMode, checked: bool
+    ) -> QFrame:
         """Create a mode selection card."""
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 2px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 2px solid {COLORS["border"]};
                 border-radius: 12px;
                 padding: 20px;
             }}
             QFrame:hover {{
-                border-color: {COLORS['accent']};
+                border-color: {COLORS["accent"]};
             }}
         """)
 
@@ -682,6 +696,7 @@ class CalibrationModeStep(WizardStep):
 # Step 4: Measurement Process
 # =============================================================================
 
+
 class MeasurementStep(WizardStep):
     """Step 4: Perform calibration measurements."""
 
@@ -709,8 +724,8 @@ class MeasurementStep(WizardStep):
         status_frame = QFrame()
         status_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
                 padding: 24px;
             }}
@@ -733,14 +748,14 @@ class MeasurementStep(WizardStep):
         self.progress.setValue(0)
         self.progress.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {COLORS['background_alt']};
+                background-color: {COLORS["background_alt"]};
                 border: none;
                 border-radius: 8px;
                 height: 16px;
                 text-align: center;
             }}
             QProgressBar::chunk {{
-                background-color: {COLORS['accent']};
+                background-color: {COLORS["accent"]};
                 border-radius: 8px;
             }}
         """)
@@ -752,8 +767,8 @@ class MeasurementStep(WizardStep):
         self.measurement_frame = QFrame()
         self.measurement_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
                 padding: 24px;
             }}
@@ -765,7 +780,7 @@ class MeasurementStep(WizardStep):
         self.color_swatch.setFixedSize(100, 100)
         self.color_swatch.setStyleSheet(f"""
             background-color: #808080;
-            border: 2px solid {COLORS['border']};
+            border: 2px solid {COLORS["border"]};
             border-radius: 8px;
         """)
         measurement_layout.addWidget(self.color_swatch, 0, 0, 2, 1)
@@ -812,8 +827,8 @@ class MeasurementStep(WizardStep):
         self.log_text.setMaximumHeight(150)
         self.log_text.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {COLORS['background']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["background"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 6px;
                 font-family: monospace;
                 font-size: 11px;
@@ -864,11 +879,11 @@ class MeasurementStep(WizardStep):
             gray = int((self._current_step / (self._total_steps - 1)) * 255)
             self.color_swatch.setStyleSheet(f"""
                 background-color: rgb({gray}, {gray}, {gray});
-                border: 2px solid {COLORS['border']};
+                border: 2px solid {COLORS["border"]};
                 border-radius: 8px;
             """)
             self.target_rgb.setText(f"({gray}, {gray}, {gray})")
-            self.measured_xyz.setText(f"({gray/2.55:.1f}, {gray/2.55:.1f}, {gray/2.55:.1f})")
+            self.measured_xyz.setText(f"({gray / 2.55:.1f}, {gray / 2.55:.1f}, {gray / 2.55:.1f})")
 
             delta = abs(0.5 - self._current_step / self._total_steps) * 0.8
             self.delta_e.setText(f"{delta:.2f}")
@@ -902,6 +917,7 @@ class MeasurementStep(WizardStep):
 # =============================================================================
 # Step 5: Profile Generation
 # =============================================================================
+
 
 class ProfileGenerationStep(WizardStep):
     """Step 5: Generate and save calibration profile."""
@@ -1010,6 +1026,7 @@ class ProfileGenerationStep(WizardStep):
 # Step 6: Verification
 # =============================================================================
 
+
 class VerificationStep(WizardStep):
     """Step 6: Verify calibration accuracy."""
 
@@ -1034,8 +1051,8 @@ class VerificationStep(WizardStep):
         results_frame = QFrame()
         results_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
                 padding: 24px;
             }}
@@ -1106,17 +1123,20 @@ class VerificationStep(WizardStep):
     def _run_verification(self, mode: str):
         """Run verification in specified mode."""
         from PyQt6.QtWidgets import QMessageBox
+
         QMessageBox.information(
-            self, "Verification",
+            self,
+            "Verification",
             f"Verification mode '{mode}' will be available in a future update.\n\n"
             "For now, use the CLI command:\n"
-            "  calibrate-pro verify --patches colorchecker"
+            "  calibrate-pro verify --patches colorchecker",
         )
 
 
 # =============================================================================
 # Main Wizard Widget
 # =============================================================================
+
 
 class CalibrationWizard(QWidget):
     """Main calibration wizard container."""
@@ -1137,8 +1157,8 @@ class CalibrationWizard(QWidget):
         header = QFrame()
         header.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border-bottom: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border-bottom: 1px solid {COLORS["border"]};
                 padding: 16px;
             }}
         """)
@@ -1152,7 +1172,7 @@ class CalibrationWizard(QWidget):
             indicator.setStyleSheet(f"""
                 padding: 8px 16px;
                 border-radius: 16px;
-                color: {COLORS['text_disabled']};
+                color: {COLORS["text_disabled"]};
             """)
             self.step_indicators.append(indicator)
             header_layout.addWidget(indicator)
@@ -1182,8 +1202,8 @@ class CalibrationWizard(QWidget):
         footer = QFrame()
         footer.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border-top: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border-top: 1px solid {COLORS["border"]};
                 padding: 16px;
             }}
         """)
@@ -1216,7 +1236,7 @@ class CalibrationWizard(QWidget):
                 indicator.setStyleSheet(f"""
                     padding: 8px 16px;
                     border-radius: 16px;
-                    background-color: {COLORS['success']};
+                    background-color: {COLORS["success"]};
                     color: white;
                 """)
             elif i == self._current_step:
@@ -1224,7 +1244,7 @@ class CalibrationWizard(QWidget):
                 indicator.setStyleSheet(f"""
                     padding: 8px 16px;
                     border-radius: 16px;
-                    background-color: {COLORS['accent']};
+                    background-color: {COLORS["accent"]};
                     color: white;
                 """)
             else:
@@ -1232,7 +1252,7 @@ class CalibrationWizard(QWidget):
                 indicator.setStyleSheet(f"""
                     padding: 8px 16px;
                     border-radius: 16px;
-                    color: {COLORS['text_disabled']};
+                    color: {COLORS["text_disabled"]};
                 """)
 
         # Update buttons

@@ -16,6 +16,7 @@ from calibrate_pro import __version__
 @dataclass
 class CalibrationStatus:
     """Status of calibration for one display."""
+
     display_index: int
     display_name: str
     is_calibrated: bool
@@ -73,18 +74,20 @@ def check_calibration_status(max_age_days: int = 30) -> list[CalibrationStatus]:
 
         needs_recal = age_days > max_age_days if last_cal is not None else False
 
-        results.append(CalibrationStatus(
-            display_index=state.display_id,
-            display_name=state.display_name or state.model or f"Display {state.display_id}",
-            is_calibrated=last_cal is not None,
-            last_calibrated=last_cal,
-            age_days=age_days,
-            needs_recalibration=needs_recal,
-            lut_applied=lut_exists,
-            lut_path=state.lut_path,
-            icc_installed=icc_exists,
-            icc_path=state.icc_path,
-        ))
+        results.append(
+            CalibrationStatus(
+                display_index=state.display_id,
+                display_name=state.display_name or state.model or f"Display {state.display_id}",
+                is_calibrated=last_cal is not None,
+                last_calibrated=last_cal,
+                age_days=age_days,
+                needs_recalibration=needs_recal,
+                lut_applied=lut_exists,
+                lut_path=state.lut_path,
+                icc_installed=icc_exists,
+                icc_path=state.icc_path,
+            )
+        )
 
     return results
 

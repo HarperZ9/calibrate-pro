@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # =====================================================================
 
+
 def _run_cmd(cmd: list[str], timeout: int = 10) -> str | None:
     """Run a shell command and return stdout, or None on failure."""
     try:
@@ -77,9 +78,9 @@ def _parse_edid_name(edid_bytes: bytes) -> tuple[str, str, str]:
     # Manufacturer ID: bytes 8-9 (compressed ASCII, 3 chars)
     try:
         mfg_raw = (edid_bytes[8] << 8) | edid_bytes[9]
-        c1 = chr(((mfg_raw >> 10) & 0x1F) + ord('A') - 1)
-        c2 = chr(((mfg_raw >> 5) & 0x1F) + ord('A') - 1)
-        c3 = chr((mfg_raw & 0x1F) + ord('A') - 1)
+        c1 = chr(((mfg_raw >> 10) & 0x1F) + ord("A") - 1)
+        c2 = chr(((mfg_raw >> 5) & 0x1F) + ord("A") - 1)
+        c3 = chr((mfg_raw & 0x1F) + ord("A") - 1)
         manufacturer = f"{c1}{c2}{c3}"
     except Exception:
         pass
@@ -87,7 +88,7 @@ def _parse_edid_name(edid_bytes: bytes) -> tuple[str, str, str]:
     # Parse descriptor blocks (bytes 54-125, four 18-byte blocks)
     for i in range(4):
         offset = 54 + i * 18
-        block = edid_bytes[offset:offset + 18]
+        block = edid_bytes[offset : offset + 18]
         if len(block) < 18:
             break
 
@@ -95,7 +96,7 @@ def _parse_edid_name(edid_bytes: bytes) -> tuple[str, str, str]:
         if block[0] == 0 and block[1] == 0 and block[2] == 0:
             tag = block[3]
             # 0xFC = Monitor name, 0xFF = Serial string
-            text = block[5:18].split(b'\n')[0].decode('ascii', errors='replace').strip()
+            text = block[5:18].split(b"\n")[0].decode("ascii", errors="replace").strip()
             if tag == 0xFC:
                 model = text
             elif tag == 0xFF:
@@ -121,6 +122,7 @@ def _read_drm_edid(card_path: Path) -> bytes | None:
 # xrandr output parser
 # =====================================================================
 
+
 def _parse_xrandr_output(xrandr_text: str) -> list[dict]:
     """
     Parse xrandr --query output into a list of connected display dicts.
@@ -132,11 +134,11 @@ def _parse_xrandr_output(xrandr_text: str) -> list[dict]:
     # e.g.: "DP-1 connected primary 2560x1440+0+0 ..."
     #        "HDMI-1 connected 1920x1080+2560+0 ..."
     pattern = re.compile(
-        r'^(\S+)\s+connected\s+'
-        r'(primary\s+)?'
-        r'(\d+)x(\d+)\+(\d+)\+(\d+)'
-        r'.*?'
-        r'$',
+        r"^(\S+)\s+connected\s+"
+        r"(primary\s+)?"
+        r"(\d+)x(\d+)\+(\d+)\+(\d+)"
+        r".*?"
+        r"$",
         re.MULTILINE,
     )
 
@@ -153,23 +155,25 @@ def _parse_xrandr_output(xrandr_text: str) -> list[dict]:
         refresh = 60
         out_start = match.end()
         # Find the next output line or end of string
-        next_output = re.search(r'^\S+\s+(connected|disconnected)', xrandr_text[out_start:], re.MULTILINE)
-        mode_section = xrandr_text[out_start:out_start + next_output.start() if next_output else len(xrandr_text)]
+        next_output = re.search(r"^\S+\s+(connected|disconnected)", xrandr_text[out_start:], re.MULTILINE)
+        mode_section = xrandr_text[out_start : out_start + next_output.start() if next_output else len(xrandr_text)]
 
         # Match active mode: "   2560x1440     59.95*+  143.97 ..."
-        rate_match = re.search(r'(\d+\.\d+)\*', mode_section)
+        rate_match = re.search(r"(\d+\.\d+)\*", mode_section)
         if rate_match:
             refresh = int(float(rate_match.group(1)))
 
-        displays.append({
-            'name': output_name,
-            'width': width,
-            'height': height,
-            'refresh': refresh,
-            'primary': is_primary,
-            'pos_x': pos_x,
-            'pos_y': pos_y,
-        })
+        displays.append(
+            {
+                "name": output_name,
+                "width": width,
+                "height": height,
+                "refresh": refresh,
+                "primary": is_primary,
+                "pos_x": pos_x,
+                "pos_y": pos_y,
+            }
+        )
 
     return displays
 
@@ -177,6 +181,7 @@ def _parse_xrandr_output(xrandr_text: str) -> list[dict]:
 # =====================================================================
 # Linux Backend
 # =====================================================================
+
 
 class LinuxBackend(PlatformBackend):
     """
@@ -211,10 +216,7 @@ class LinuxBackend(PlatformBackend):
         if displays:
             return displays
 
-        logger.warning(
-            "No display enumeration method available. "
-            "Install xrandr or ensure /sys/class/drm/ is readable."
-        )
+        logger.warning("No display enumeration method available. Install xrandr or ensure /sys/class/drm/ is readable.")
         return []
 
     def _enumerate_xrandr(self) -> list[PlatformDisplayInfo]:
@@ -235,37 +237,39 @@ class LinuxBackend(PlatformBackend):
             manufacturer = ""
             model = ""
             serial = ""
-            edid_key = d['name'].lower().replace('-', '')
+            edid_key = d["name"].lower().replace("-", "")
 
             for drm_name, edid_bytes in drm_edid_map.items():
                 # DRM names like "card0-DP-1" map to xrandr "DP-1"
-                if edid_key in drm_name.lower().replace('-', ''):
+                if edid_key in drm_name.lower().replace("-", ""):
                     manufacturer, model, serial = _parse_edid_name(edid_bytes)
                     break
 
-            display_name = model or d['name']
+            display_name = model or d["name"]
             if manufacturer and manufacturer not in display_name:
                 display_name = f"{manufacturer} {display_name}"
 
             # Get current ICC profile via colord
-            icc_profile = self._get_colord_profile(d['name'])
+            icc_profile = self._get_colord_profile(d["name"])
 
-            results.append(PlatformDisplayInfo(
-                index=idx,
-                name=display_name,
-                device_path=d['name'],
-                is_primary=d['primary'],
-                width=d['width'],
-                height=d['height'],
-                refresh_rate=d['refresh'],
-                bit_depth=8,
-                position_x=d['pos_x'],
-                position_y=d['pos_y'],
-                manufacturer=manufacturer,
-                model=model,
-                serial=serial,
-                current_icc_profile=icc_profile,
-            ))
+            results.append(
+                PlatformDisplayInfo(
+                    index=idx,
+                    name=display_name,
+                    device_path=d["name"],
+                    is_primary=d["primary"],
+                    width=d["width"],
+                    height=d["height"],
+                    refresh_rate=d["refresh"],
+                    bit_depth=8,
+                    position_x=d["pos_x"],
+                    position_y=d["pos_y"],
+                    manufacturer=manufacturer,
+                    model=model,
+                    serial=serial,
+                    current_icc_profile=icc_profile,
+                )
+            )
 
         return results
 
@@ -314,27 +318,29 @@ class LinuxBackend(PlatformBackend):
                 modes_file = card_dir / "modes"
                 try:
                     if modes_file.exists():
-                        first_mode = modes_file.read_text().strip().split('\n')[0]
-                        mode_match = re.match(r'(\d+)x(\d+)', first_mode)
+                        first_mode = modes_file.read_text().strip().split("\n")[0]
+                        mode_match = re.match(r"(\d+)x(\d+)", first_mode)
                         if mode_match:
                             width = int(mode_match.group(1))
                             height = int(mode_match.group(2))
                 except (PermissionError, OSError):
                     pass
 
-                results.append(PlatformDisplayInfo(
-                    index=idx,
-                    name=display_name,
-                    device_path=output_name,
-                    is_primary=(idx == 0),  # First connected = primary heuristic
-                    width=width,
-                    height=height,
-                    refresh_rate=refresh,
-                    bit_depth=8,
-                    manufacturer=manufacturer,
-                    model=model,
-                    serial=serial,
-                ))
+                results.append(
+                    PlatformDisplayInfo(
+                        index=idx,
+                        name=display_name,
+                        device_path=output_name,
+                        is_primary=(idx == 0),  # First connected = primary heuristic
+                        width=width,
+                        height=height,
+                        refresh_rate=refresh,
+                        bit_depth=8,
+                        manufacturer=manufacturer,
+                        model=model,
+                        serial=serial,
+                    )
+                )
                 idx += 1
 
         except (PermissionError, OSError) as e:
@@ -414,6 +420,7 @@ class LinuxBackend(PlatformBackend):
 
             # Interpolate our 256-entry tables to match the driver's gamma size
             import numpy as np
+
             r_arr = np.interp(
                 np.linspace(0, 255, gamma_size),
                 np.arange(256),
@@ -466,6 +473,7 @@ class LinuxBackend(PlatformBackend):
             if mid <= 0.0 or mid >= 1.0:
                 return 1.0
             import math
+
             # For gamma encoding: output = input^gamma
             # At input=0.5: output = 0.5^gamma
             # So gamma = log(output) / log(0.5)
@@ -475,15 +483,23 @@ class LinuxBackend(PlatformBackend):
         g_gamma = _estimate_gamma(green)
         b_gamma = _estimate_gamma(blue)
 
-        result = _run_cmd([
-            "xrandr", "--output", output_name,
-            "--gamma", f"{r_gamma:.3f}:{g_gamma:.3f}:{b_gamma:.3f}",
-        ])
+        result = _run_cmd(
+            [
+                "xrandr",
+                "--output",
+                output_name,
+                "--gamma",
+                f"{r_gamma:.3f}:{g_gamma:.3f}:{b_gamma:.3f}",
+            ]
+        )
 
         if result is not None:
             logger.info(
                 "Gamma approximation applied via xrandr --gamma %.3f:%.3f:%.3f on %s",
-                r_gamma, g_gamma, b_gamma, output_name,
+                r_gamma,
+                g_gamma,
+                b_gamma,
+                output_name,
             )
             return True
 
@@ -591,7 +607,7 @@ class LinuxBackend(PlatformBackend):
             return []
 
         parsed = _parse_xrandr_output(output)
-        return [d['name'] for d in parsed]
+        return [d["name"] for d in parsed]
 
     def _get_colord_profile(self, output_name: str) -> str | None:
         """Get the active ICC profile path for an xrandr output via colord."""
@@ -616,9 +632,14 @@ class LinuxBackend(PlatformBackend):
 
     def _find_colord_device(self, output_name: str) -> str | None:
         """Find the colord device object path for an xrandr output."""
-        output = _run_cmd([
-            "colormgr", "find-device-by-property", "OutputName", output_name,
-        ])
+        output = _run_cmd(
+            [
+                "colormgr",
+                "find-device-by-property",
+                "OutputName",
+                output_name,
+            ]
+        )
         if not output:
             return None
 
@@ -674,6 +695,7 @@ class LinuxBackend(PlatformBackend):
 # Linux Startup Persistence (systemd user unit / XDG autostart)
 # =============================================================================
 
+
 def enable_linux_startup(silent: bool = True) -> bool:
     """Register Calibrate Pro as an XDG autostart entry."""
     import sys
@@ -682,7 +704,7 @@ def enable_linux_startup(silent: bool = True) -> bool:
     autostart_dir.mkdir(parents=True, exist_ok=True)
     desktop_path = autostart_dir / "calibrate-pro.desktop"
 
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         exec_line = str(Path(sys.executable))
     else:
         args = f"{sys.executable} -m calibrate_pro.startup.calibration_loader start-service"

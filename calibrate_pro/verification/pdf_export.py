@@ -138,8 +138,7 @@ def export_report_pdf(html_content: str, output_path: str) -> bool:
     # Strategy 2: System browser
     if _fallback_browser_print(html_content, output_path):
         logger.info(
-            "Opened HTML in browser for manual PDF print. "
-            "HTML saved at: %s",
+            "Opened HTML in browser for manual PDF print. HTML saved at: %s",
             Path(output_path).with_suffix(".html"),
         )
         return True

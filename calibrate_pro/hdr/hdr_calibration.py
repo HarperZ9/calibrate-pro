@@ -38,6 +38,7 @@ from .pq_st2084 import (
 
 class HDRFormat(Enum):
     """Supported HDR formats."""
+
     HDR10 = "hdr10"
     HDR10_PLUS = "hdr10plus"
     HLG = "hlg"
@@ -46,8 +47,9 @@ class HDRFormat(Enum):
 
 class CalibrationMode(Enum):
     """Calibration workflow modes."""
-    QUICK = "quick"           # Basic grayscale only (~20 patches)
-    STANDARD = "standard"     # Grayscale + primaries (~100 patches)
+
+    QUICK = "quick"  # Basic grayscale only (~20 patches)
+    STANDARD = "standard"  # Grayscale + primaries (~100 patches)
     PROFESSIONAL = "professional"  # Full profiling (~1000 patches)
     VERIFICATION = "verification"  # Post-calibration check
 
@@ -55,12 +57,13 @@ class CalibrationMode(Enum):
 @dataclass
 class HDRCalibrationConfig:
     """Configuration for HDR calibration."""
+
     format: HDRFormat = HDRFormat.HDR10
     mode: CalibrationMode = CalibrationMode.STANDARD
 
     # Target specifications
     target_peak_luminance: float = 1000.0  # cd/m²
-    target_min_luminance: float = 0.0001   # cd/m²
+    target_min_luminance: float = 0.0001  # cd/m²
     target_primaries: str = "p3_d65"  # p3_d65, bt2020, srgb
 
     # HLG specific
@@ -78,6 +81,7 @@ class HDRCalibrationConfig:
 @dataclass
 class HDRMeasurement:
     """Single HDR measurement point."""
+
     signal_level: float  # Input signal [0, 1]
     target_luminance: float  # Expected luminance (cd/m²)
     measured_luminance: float  # Actual luminance (cd/m²)
@@ -90,6 +94,7 @@ class HDRMeasurement:
 @dataclass
 class HDRCalibrationResult:
     """Complete HDR calibration result."""
+
     config: HDRCalibrationConfig
     measurements: list[HDRMeasurement]
 
@@ -135,21 +140,22 @@ class HDRCalibrationResult:
                     "signal": m.signal_level,
                     "target": m.target_luminance,
                     "measured": m.measured_luminance,
-                    "error_pct": m.eotf_error_percent
+                    "error_pct": m.eotf_error_percent,
                 }
                 for m in self.measurements
-            ]
+            ],
         }
 
     def save_report(self, path: Path):
         """Save calibration report to JSON."""
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
 
 
 # =============================================================================
 # HDR10 Calibration
 # =============================================================================
+
 
 class HDR10Calibration:
     """
@@ -194,18 +200,12 @@ class HDR10Calibration:
                 # Soft rolloff for content above display peak
                 knee = peak * 0.9
                 target = np.where(
-                    target <= knee,
-                    target,
-                    knee + (peak - knee) * np.tanh((target - knee) / (10000 - knee) * 3)
+                    target <= knee, target, knee + (peak - knee) * np.tanh((target - knee) / (10000 - knee) * 3)
                 )
 
         return target
 
-    def analyze_measurements(
-        self,
-        signals: np.ndarray,
-        luminances: np.ndarray
-    ) -> HDRCalibrationResult:
+    def analyze_measurements(self, signals: np.ndarray, luminances: np.ndarray) -> HDRCalibrationResult:
         """
         Analyze PQ EOTF measurements.
 
@@ -222,12 +222,14 @@ class HDR10Calibration:
         for i in range(len(signals)):
             error_pct = abs(luminances[i] - targets[i]) / max(targets[i], 0.001) * 100
 
-            measurements.append(HDRMeasurement(
-                signal_level=float(signals[i]),
-                target_luminance=float(targets[i]),
-                measured_luminance=float(luminances[i]),
-                eotf_error_percent=float(error_pct)
-            ))
+            measurements.append(
+                HDRMeasurement(
+                    signal_level=float(signals[i]),
+                    target_luminance=float(targets[i]),
+                    measured_luminance=float(luminances[i]),
+                    eotf_error_percent=float(error_pct),
+                )
+            )
 
         # Calculate statistics
         errors = np.array([m.eotf_error_percent for m in measurements])
@@ -245,29 +247,19 @@ class HDR10Calibration:
             contrast_ratio=peak / max(black, 0.0001),
             avg_eotf_error=float(np.mean(errors)),
             max_eotf_error=float(np.max(errors)),
-            near_black_error=float(np.mean(near_black_errors))
+            near_black_error=float(np.mean(near_black_errors)),
         )
 
         # Check compliance
         if self.config.mastering_standard:
-            meas_dict = {
-                'peak_luminance': peak,
-                'min_luminance': black,
-                'eotf_error': result.avg_eotf_error
-            }
-            level, issues, _ = validate_mastering_compliance(
-                meas_dict, self.config.mastering_standard
-            )
+            meas_dict = {"peak_luminance": peak, "min_luminance": black, "eotf_error": result.avg_eotf_error}
+            level, issues, _ = validate_mastering_compliance(meas_dict, self.config.mastering_standard)
             result.compliance_level = level
             result.compliance_issues = issues
 
         return result
 
-    def generate_correction_lut(
-        self,
-        measurements: list[HDRMeasurement],
-        lut_size: int = 65
-    ) -> np.ndarray:
+    def generate_correction_lut(self, measurements: list[HDRMeasurement], lut_size: int = 65) -> np.ndarray:
         """
         Generate 1D correction LUT from measurements.
 
@@ -303,8 +295,8 @@ class HDR10Calibration:
                     corrections[i] = signals[-1]
                 else:
                     # Linear interpolation
-                    t = (target - measured[idx-1]) / (measured[idx] - measured[idx-1])
-                    corrections[i] = signals[idx-1] + t * (signals[idx] - signals[idx-1])
+                    t = (target - measured[idx - 1]) / (measured[idx] - measured[idx - 1])
+                    corrections[i] = signals[idx - 1] + t * (signals[idx] - signals[idx - 1])
             else:
                 corrections[i] = 1.0
 
@@ -314,6 +306,7 @@ class HDR10Calibration:
 # =============================================================================
 # HDR10+ Calibration
 # =============================================================================
+
 
 class HDR10PlusCalibration(HDR10Calibration):
     """
@@ -336,44 +329,30 @@ class HDR10PlusCalibration(HDR10Calibration):
         scenes = []
 
         # Scene 1: Dark scene (low MaxCLL)
-        scenes.append({
-            'name': 'dark_scene',
-            'max_cll': 200,
-            'max_fall': 50,
-            'patches': np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-        })
+        scenes.append(
+            {"name": "dark_scene", "max_cll": 200, "max_fall": 50, "patches": np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5])}
+        )
 
         # Scene 2: Normal scene
-        scenes.append({
-            'name': 'normal_scene',
-            'max_cll': 500,
-            'max_fall': 150,
-            'patches': np.linspace(0, 0.7, 15)
-        })
+        scenes.append({"name": "normal_scene", "max_cll": 500, "max_fall": 150, "patches": np.linspace(0, 0.7, 15)})
 
         # Scene 3: Bright scene
-        scenes.append({
-            'name': 'bright_scene',
-            'max_cll': 800,
-            'max_fall': 300,
-            'patches': np.linspace(0, 0.85, 15)
-        })
+        scenes.append({"name": "bright_scene", "max_cll": 800, "max_fall": 300, "patches": np.linspace(0, 0.85, 15)})
 
         # Scene 4: High contrast
-        scenes.append({
-            'name': 'high_contrast',
-            'max_cll': 1000,
-            'max_fall': 200,
-            'patches': np.array([0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 1.0])
-        })
+        scenes.append(
+            {
+                "name": "high_contrast",
+                "max_cll": 1000,
+                "max_fall": 200,
+                "patches": np.array([0, 0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 1.0]),
+            }
+        )
 
         # Scene 5: Peak highlights
-        scenes.append({
-            'name': 'peak_highlights',
-            'max_cll': 1000,
-            'max_fall': 400,
-            'patches': np.linspace(0.5, 1.0, 20)
-        })
+        scenes.append(
+            {"name": "peak_highlights", "max_cll": 1000, "max_fall": 400, "patches": np.linspace(0.5, 1.0, 20)}
+        )
 
         return scenes[:num_scenes]
 
@@ -381,6 +360,7 @@ class HDR10PlusCalibration(HDR10Calibration):
 # =============================================================================
 # HLG Calibration
 # =============================================================================
+
 
 class HLGCalibration:
     """
@@ -409,28 +389,24 @@ class HLGCalibration:
         display = hlg_eotf(signal, self.config.hlg_system_gamma)
         return display * self.config.target_peak_luminance
 
-    def analyze_measurements(
-        self,
-        signals: np.ndarray,
-        luminances: np.ndarray
-    ) -> HDRCalibrationResult:
+    def analyze_measurements(self, signals: np.ndarray, luminances: np.ndarray) -> HDRCalibrationResult:
         """Analyze HLG EOTF measurements."""
         targets = self.get_target_luminance(signals)
 
         errors, avg_error = calculate_hlg_eotf_error(
-            luminances, signals,
-            self.config.target_peak_luminance,
-            self.config.hlg_system_gamma
+            luminances, signals, self.config.target_peak_luminance, self.config.hlg_system_gamma
         )
 
         measurements = []
         for i in range(len(signals)):
-            measurements.append(HDRMeasurement(
-                signal_level=float(signals[i]),
-                target_luminance=float(targets[i]),
-                measured_luminance=float(luminances[i]),
-                eotf_error_percent=float(errors[i])
-            ))
+            measurements.append(
+                HDRMeasurement(
+                    signal_level=float(signals[i]),
+                    target_luminance=float(targets[i]),
+                    measured_luminance=float(luminances[i]),
+                    eotf_error_percent=float(errors[i]),
+                )
+            )
 
         peak = float(np.max(luminances))
         black = float(np.min(luminances[luminances > 0])) if np.any(luminances > 0) else 0.01
@@ -443,13 +419,14 @@ class HLGCalibration:
             contrast_ratio=peak / black,
             avg_eotf_error=avg_error,
             max_eotf_error=float(np.max(errors)),
-            near_black_error=float(np.mean(errors[signals < 0.1]))
+            near_black_error=float(np.mean(errors[signals < 0.1])),
         )
 
 
 # =============================================================================
 # Unified HDR Calibration Suite
 # =============================================================================
+
 
 class HDRCalibrationSuite:
     """
@@ -482,30 +459,25 @@ class HDRCalibrationSuite:
             - near_black: Extra near-black patches
             - primaries: RGB primary patches (if applicable)
         """
-        result = {
-            'grayscale': self.calibrator.generate_patches()
-        }
+        result = {"grayscale": self.calibrator.generate_patches()}
 
         if self.config.mode in [CalibrationMode.STANDARD, CalibrationMode.PROFESSIONAL]:
             # Add near-black emphasis
-            result['near_black'] = np.linspace(0, 0.05, 11)
+            result["near_black"] = np.linspace(0, 0.05, 11)
 
         if self.config.mode == CalibrationMode.PROFESSIONAL:
             # Add primary patches at various luminance levels
             levels = [0.5, 0.75, 1.0]
-            result['primaries'] = {
-                'red': [(l, 0, 0) for l in levels],
-                'green': [(0, l, 0) for l in levels],
-                'blue': [(0, 0, l) for l in levels]
+            result["primaries"] = {
+                "red": [(l, 0, 0) for l in levels],
+                "green": [(0, l, 0) for l in levels],
+                "blue": [(0, 0, l) for l in levels],
             }
 
         return result
 
     def analyze(
-        self,
-        grayscale_signals: np.ndarray,
-        grayscale_luminance: np.ndarray,
-        primary_measurements: dict | None = None
+        self, grayscale_signals: np.ndarray, grayscale_luminance: np.ndarray, primary_measurements: dict | None = None
     ) -> HDRCalibrationResult:
         """
         Analyze calibration measurements.
@@ -518,9 +490,7 @@ class HDRCalibrationSuite:
         Returns:
             Complete calibration result
         """
-        result = self.calibrator.analyze_measurements(
-            grayscale_signals, grayscale_luminance
-        )
+        result = self.calibrator.analyze_measurements(grayscale_signals, grayscale_luminance)
 
         # Add primary analysis if available
         if primary_measurements:
@@ -530,9 +500,7 @@ class HDRCalibrationSuite:
         return result
 
     def generate_correction(
-        self,
-        result: HDRCalibrationResult,
-        output_format: str = "cube"
+        self, result: HDRCalibrationResult, output_format: str = "cube"
     ) -> tuple[np.ndarray, Path | None]:
         """
         Generate correction LUT from calibration result.
@@ -551,11 +519,7 @@ class HDRCalibrationSuite:
         return np.linspace(0, 1, 65), None
 
     def quick_assessment(
-        self,
-        peak_luminance: float,
-        black_level: float,
-        sample_luminances: np.ndarray,
-        sample_signals: np.ndarray
+        self, peak_luminance: float, black_level: float, sample_luminances: np.ndarray, sample_signals: np.ndarray
     ) -> dict:
         """
         Quick HDR capability assessment without full calibration.
@@ -579,7 +543,7 @@ class HDRCalibrationSuite:
             "dynamic_range_stops": np.log2(peak_luminance / max(black_level, 0.0001)),
             "eotf_accuracy": assessment.eotf_accuracy,
             "grade": assessment.grade,
-            "recommendation": self._get_recommendation(assessment)
+            "recommendation": self._get_recommendation(assessment),
         }
 
     def _get_recommendation(self, assessment: PQDisplayAssessment) -> str:
@@ -600,9 +564,9 @@ class HDRCalibrationSuite:
 # Convenience Functions
 # =============================================================================
 
+
 def calibrate_hdr10(
-    measure_func: Callable[[float], float],
-    config: HDRCalibrationConfig = None
+    measure_func: Callable[[float], float], config: HDRCalibrationConfig = None
 ) -> HDRCalibrationResult:
     """
     Complete HDR10 calibration workflow.
@@ -620,16 +584,14 @@ def calibrate_hdr10(
     suite = HDRCalibrationSuite(config)
     patches = suite.get_test_patches()
 
-    signals = patches['grayscale']
+    signals = patches["grayscale"]
     luminances = np.array([measure_func(s) for s in signals])
 
     return suite.analyze(signals, luminances)
 
 
 def calibrate_hlg(
-    measure_func: Callable[[float], float],
-    system_gamma: float = 1.2,
-    config: HDRCalibrationConfig = None
+    measure_func: Callable[[float], float], system_gamma: float = 1.2, config: HDRCalibrationConfig = None
 ) -> HDRCalibrationResult:
     """
     Complete HLG calibration workflow.
@@ -649,7 +611,7 @@ def calibrate_hlg(
     suite = HDRCalibrationSuite(config)
     patches = suite.get_test_patches()
 
-    signals = patches['grayscale']
+    signals = patches["grayscale"]
     luminances = np.array([measure_func(s) for s in signals])
 
     return suite.analyze(signals, luminances)

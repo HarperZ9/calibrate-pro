@@ -22,27 +22,28 @@ import numpy as np
 
 class GamutPreset(Enum):
     """Standard color gamut presets."""
+
     # SDR Standards
-    SRGB = "sRGB"                     # Rec.709 / Web standard
-    REC709 = "Rec.709"                # Same as sRGB primaries
+    SRGB = "sRGB"  # Rec.709 / Web standard
+    REC709 = "Rec.709"  # Same as sRGB primaries
 
     # Wide Gamut
-    DCI_P3 = "DCI-P3"                 # DCI-P3 (D65 white)
-    DCI_P3_THEATER = "DCI-P3 Theater" # DCI-P3 (theater white 6300K)
-    DISPLAY_P3 = "Display P3"         # Apple Display P3 (D65)
-    ADOBE_RGB = "Adobe RGB"           # Adobe RGB (1998)
+    DCI_P3 = "DCI-P3"  # DCI-P3 (D65 white)
+    DCI_P3_THEATER = "DCI-P3 Theater"  # DCI-P3 (theater white 6300K)
+    DISPLAY_P3 = "Display P3"  # Apple Display P3 (D65)
+    ADOBE_RGB = "Adobe RGB"  # Adobe RGB (1998)
 
     # Ultra Wide
-    BT2020 = "BT.2020"                # Rec.2020 / Ultra HD
-    PROPHOTO = "ProPhoto RGB"         # Very wide gamut photography
-    ACES_CG = "ACEScg"                # ACES computer graphics
+    BT2020 = "BT.2020"  # Rec.2020 / Ultra HD
+    PROPHOTO = "ProPhoto RGB"  # Very wide gamut photography
+    ACES_CG = "ACEScg"  # ACES computer graphics
 
     # Legacy
-    NTSC_1953 = "NTSC 1953"           # Original NTSC
-    PAL_SECAM = "PAL/SECAM"           # European broadcast
+    NTSC_1953 = "NTSC 1953"  # Original NTSC
+    PAL_SECAM = "PAL/SECAM"  # European broadcast
 
     # Native
-    NATIVE = "Native"                 # Display native gamut
+    NATIVE = "Native"  # Display native gamut
     CUSTOM = "Custom"
 
 
@@ -51,10 +52,11 @@ class ColorPrimaries:
     """
     CIE xy chromaticity coordinates for RGB primaries and white point.
     """
-    red: tuple[float, float]      # (x, y)
-    green: tuple[float, float]    # (x, y)
-    blue: tuple[float, float]     # (x, y)
-    white: tuple[float, float]    # (x, y)
+
+    red: tuple[float, float]  # (x, y)
+    green: tuple[float, float]  # (x, y)
+    blue: tuple[float, float]  # (x, y)
+    white: tuple[float, float]  # (x, y)
 
     def to_matrix(self) -> np.ndarray:
         """
@@ -75,11 +77,7 @@ class ColorPrimaries:
         Xb, Yb, Zb = xb / yb, 1.0, (1 - xb - yb) / yb
 
         # Primaries matrix
-        P = np.array([
-            [Xr, Xg, Xb],
-            [Yr, Yg, Yb],
-            [Zr, Zg, Zb]
-        ])
+        P = np.array([[Xr, Xg, Xb], [Yr, Yg, Yb], [Zr, Zg, Zb]])
 
         # White point XYZ
         Xw = xw / yw
@@ -110,31 +108,19 @@ class ColorPrimaries:
         x = [self.red[0], self.green[0], self.blue[0]]
         y = [self.red[1], self.green[1], self.blue[1]]
 
-        area = 0.5 * abs(
-            (x[0] * (y[1] - y[2])) +
-            (x[1] * (y[2] - y[0])) +
-            (x[2] * (y[0] - y[1]))
-        )
+        area = 0.5 * abs((x[0] * (y[1] - y[2])) + (x[1] * (y[2] - y[0])) + (x[2] * (y[0] - y[1])))
 
         return area
 
     def to_dict(self) -> dict:
         """Serialize to dictionary."""
-        return {
-            "red": self.red,
-            "green": self.green,
-            "blue": self.blue,
-            "white": self.white
-        }
+        return {"red": self.red, "green": self.green, "blue": self.blue, "white": self.white}
 
     @classmethod
     def from_dict(cls, data: dict) -> "ColorPrimaries":
         """Create from dictionary."""
         return cls(
-            red=tuple(data["red"]),
-            green=tuple(data["green"]),
-            blue=tuple(data["blue"]),
-            white=tuple(data["white"])
+            red=tuple(data["red"]), green=tuple(data["green"]), blue=tuple(data["blue"]), white=tuple(data["white"])
         )
 
 
@@ -146,7 +132,7 @@ PRIMARIES_SRGB = ColorPrimaries(
     red=(0.6400, 0.3300),
     green=(0.3000, 0.6000),
     blue=(0.1500, 0.0600),
-    white=(0.3127, 0.3290)  # D65
+    white=(0.3127, 0.3290),  # D65
 )
 
 PRIMARIES_REC709 = PRIMARIES_SRGB  # Identical primaries
@@ -155,14 +141,14 @@ PRIMARIES_DCI_P3 = ColorPrimaries(
     red=(0.6800, 0.3200),
     green=(0.2650, 0.6900),
     blue=(0.1500, 0.0600),
-    white=(0.3127, 0.3290)  # D65 for Display P3
+    white=(0.3127, 0.3290),  # D65 for Display P3
 )
 
 PRIMARIES_DCI_P3_THEATER = ColorPrimaries(
     red=(0.6800, 0.3200),
     green=(0.2650, 0.6900),
     blue=(0.1500, 0.0600),
-    white=(0.3140, 0.3510)  # DCI white (6300K)
+    white=(0.3140, 0.3510),  # DCI white (6300K)
 )
 
 PRIMARIES_DISPLAY_P3 = PRIMARIES_DCI_P3  # Same as DCI-P3 D65
@@ -171,42 +157,42 @@ PRIMARIES_ADOBE_RGB = ColorPrimaries(
     red=(0.6400, 0.3300),
     green=(0.2100, 0.7100),
     blue=(0.1500, 0.0600),
-    white=(0.3127, 0.3290)  # D65
+    white=(0.3127, 0.3290),  # D65
 )
 
 PRIMARIES_BT2020 = ColorPrimaries(
     red=(0.7080, 0.2920),
     green=(0.1700, 0.7970),
     blue=(0.1310, 0.0460),
-    white=(0.3127, 0.3290)  # D65
+    white=(0.3127, 0.3290),  # D65
 )
 
 PRIMARIES_PROPHOTO = ColorPrimaries(
     red=(0.7347, 0.2653),
     green=(0.1596, 0.8404),
     blue=(0.0366, 0.0001),
-    white=(0.3457, 0.3585)  # D50
+    white=(0.3457, 0.3585),  # D50
 )
 
 PRIMARIES_ACES_CG = ColorPrimaries(
     red=(0.713, 0.293),
     green=(0.165, 0.830),
     blue=(0.128, 0.044),
-    white=(0.32168, 0.33767)  # D60 (ACES white)
+    white=(0.32168, 0.33767),  # D60 (ACES white)
 )
 
 PRIMARIES_NTSC_1953 = ColorPrimaries(
     red=(0.6700, 0.3300),
     green=(0.2100, 0.7100),
     blue=(0.1400, 0.0800),
-    white=(0.3100, 0.3160)  # Illuminant C
+    white=(0.3100, 0.3160),  # Illuminant C
 )
 
 PRIMARIES_PAL_SECAM = ColorPrimaries(
     red=(0.6400, 0.3300),
     green=(0.2900, 0.6000),
     blue=(0.1500, 0.0600),
-    white=(0.3127, 0.3290)  # D65
+    white=(0.3127, 0.3290),  # D65
 )
 
 # Lookup table
@@ -234,10 +220,7 @@ GAMUT_AREAS: dict[str, float] = {
 }
 
 
-def calculate_gamut_coverage(
-    display_primaries: ColorPrimaries,
-    reference_primaries: ColorPrimaries
-) -> float:
+def calculate_gamut_coverage(display_primaries: ColorPrimaries, reference_primaries: ColorPrimaries) -> float:
     """
     Calculate how much of a reference gamut is covered by display primaries.
 
@@ -258,10 +241,7 @@ def calculate_gamut_coverage(
     return (display_area / reference_area) * 100
 
 
-def calculate_gamut_volume_coverage(
-    display_primaries: ColorPrimaries,
-    reference_primaries: ColorPrimaries
-) -> float:
+def calculate_gamut_volume_coverage(display_primaries: ColorPrimaries, reference_primaries: ColorPrimaries) -> float:
     """
     Calculate 3D gamut volume coverage.
 
@@ -282,7 +262,7 @@ def calculate_gamut_volume_coverage(
     # Simplified approximation using area ratio raised to 1.5
     # (accounts for 3D nature of gamut)
     area_ratio = calculate_gamut_coverage(display_primaries, reference_primaries) / 100
-    return (area_ratio ** 1.5) * 100
+    return (area_ratio**1.5) * 100
 
 
 @dataclass
@@ -301,6 +281,7 @@ class GamutTarget:
         target_coverage_bt2020: Target BT.2020 coverage %
         tolerance_delta_xy: Acceptable primary deviation
     """
+
     preset: GamutPreset = GamutPreset.SRGB
     primaries: ColorPrimaries | None = None
 
@@ -358,17 +339,17 @@ class GamutTarget:
     def is_wide_gamut(self) -> bool:
         """Check if this is a wide gamut target (wider than sRGB)."""
         return self.preset in {
-            GamutPreset.DCI_P3, GamutPreset.DCI_P3_THEATER,
-            GamutPreset.DISPLAY_P3, GamutPreset.ADOBE_RGB,
-            GamutPreset.BT2020, GamutPreset.PROPHOTO,
-            GamutPreset.ACES_CG
+            GamutPreset.DCI_P3,
+            GamutPreset.DCI_P3_THEATER,
+            GamutPreset.DISPLAY_P3,
+            GamutPreset.ADOBE_RGB,
+            GamutPreset.BT2020,
+            GamutPreset.PROPHOTO,
+            GamutPreset.ACES_CG,
         }
 
     def verify_primaries(
-        self,
-        measured_red: tuple[float, float],
-        measured_green: tuple[float, float],
-        measured_blue: tuple[float, float]
+        self, measured_red: tuple[float, float], measured_green: tuple[float, float], measured_blue: tuple[float, float]
     ) -> dict:
         """
         Verify measured primaries against target.
@@ -385,7 +366,7 @@ class GamutTarget:
 
         # Calculate chromaticity errors
         def delta_xy(target: tuple[float, float], measured: tuple[float, float]) -> float:
-            return np.sqrt((target[0] - measured[0])**2 + (target[1] - measured[1])**2)
+            return np.sqrt((target[0] - measured[0]) ** 2 + (target[1] - measured[1]) ** 2)
 
         red_error = delta_xy(target.red, measured_red)
         green_error = delta_xy(target.green, measured_green)
@@ -398,32 +379,17 @@ class GamutTarget:
         passed = max_error <= self.tolerance_delta_xy
 
         return {
-            "target_primaries": {
-                "red": target.red,
-                "green": target.green,
-                "blue": target.blue
-            },
-            "measured_primaries": {
-                "red": measured_red,
-                "green": measured_green,
-                "blue": measured_blue
-            },
-            "errors": {
-                "red": red_error,
-                "green": green_error,
-                "blue": blue_error
-            },
+            "target_primaries": {"red": target.red, "green": target.green, "blue": target.blue},
+            "measured_primaries": {"red": measured_red, "green": measured_green, "blue": measured_blue},
+            "errors": {"red": red_error, "green": green_error, "blue": blue_error},
             "average_delta_xy": avg_error,
             "max_delta_xy": max_error,
             "tolerance": self.tolerance_delta_xy,
             "passed": passed,
-            "grade": self._grade_result(max_error)
+            "grade": self._grade_result(max_error),
         }
 
-    def verify_coverage(
-        self,
-        display_primaries: ColorPrimaries
-    ) -> dict:
+    def verify_coverage(self, display_primaries: ColorPrimaries) -> dict:
         """
         Verify gamut coverage of display.
 
@@ -448,7 +414,7 @@ class GamutTarget:
             "target_coverage": target_cov,
             "display_area": display_primaries.get_gamut_area(),
             "is_wide_gamut": srgb_cov > 100,
-            "grade": self._grade_coverage(srgb_cov, p3_cov)
+            "grade": self._grade_coverage(srgb_cov, p3_cov),
         }
 
     def _grade_result(self, max_error: float) -> str:
@@ -484,7 +450,7 @@ class GamutTarget:
             "description": self.description,
             "target_primaries": self.get_primaries().to_dict(),
             "gamut_area": self.get_gamut_area(),
-            "is_wide_gamut": self.is_wide_gamut()
+            "is_wide_gamut": self.is_wide_gamut(),
         }
 
     @classmethod
@@ -498,7 +464,7 @@ class GamutTarget:
             preset=GamutPreset(data.get("preset", "sRGB")),
             primaries=primaries,
             name=data.get("name", ""),
-            description=data.get("description", "")
+            description=data.get("description", ""),
         )
 
 
@@ -510,7 +476,7 @@ GAMUT_SRGB = GamutTarget(
     preset=GamutPreset.SRGB,
     target_coverage_srgb=100.0,
     name="sRGB (Rec.709)",
-    description="Standard web and consumer content"
+    description="Standard web and consumer content",
 )
 
 GAMUT_DCI_P3 = GamutTarget(
@@ -518,7 +484,7 @@ GAMUT_DCI_P3 = GamutTarget(
     target_coverage_srgb=100.0,
     target_coverage_p3=100.0,
     name="DCI-P3 (D65)",
-    description="Wide gamut for cinema and HDR content"
+    description="Wide gamut for cinema and HDR content",
 )
 
 GAMUT_DCI_P3_THEATER = GamutTarget(
@@ -526,7 +492,7 @@ GAMUT_DCI_P3_THEATER = GamutTarget(
     target_coverage_srgb=100.0,
     target_coverage_p3=100.0,
     name="DCI-P3 (Theater)",
-    description="Digital cinema with 6300K white point"
+    description="Digital cinema with 6300K white point",
 )
 
 GAMUT_DISPLAY_P3 = GamutTarget(
@@ -534,14 +500,14 @@ GAMUT_DISPLAY_P3 = GamutTarget(
     target_coverage_srgb=100.0,
     target_coverage_p3=100.0,
     name="Display P3",
-    description="Apple Display P3 (wide gamut with D65)"
+    description="Apple Display P3 (wide gamut with D65)",
 )
 
 GAMUT_ADOBE_RGB = GamutTarget(
     preset=GamutPreset.ADOBE_RGB,
     target_coverage_srgb=100.0,
     name="Adobe RGB (1998)",
-    description="Wide gamut for photography"
+    description="Wide gamut for photography",
 )
 
 GAMUT_BT2020 = GamutTarget(
@@ -550,19 +516,15 @@ GAMUT_BT2020 = GamutTarget(
     target_coverage_p3=100.0,
     target_coverage_bt2020=100.0,
     name="BT.2020 (Rec.2020)",
-    description="Ultra-wide gamut for UHD/HDR"
+    description="Ultra-wide gamut for UHD/HDR",
 )
 
 GAMUT_PROPHOTO = GamutTarget(
-    preset=GamutPreset.PROPHOTO,
-    name="ProPhoto RGB",
-    description="Very wide gamut for photography archival"
+    preset=GamutPreset.PROPHOTO, name="ProPhoto RGB", description="Very wide gamut for photography archival"
 )
 
 GAMUT_ACES_CG = GamutTarget(
-    preset=GamutPreset.ACES_CG,
-    name="ACEScg",
-    description="ACES computer graphics working space"
+    preset=GamutPreset.ACES_CG, name="ACEScg", description="ACES computer graphics working space"
 )
 
 
@@ -598,7 +560,7 @@ def create_custom_gamut(
     green: tuple[float, float],
     blue: tuple[float, float],
     white: tuple[float, float] = (0.3127, 0.3290),
-    name: str = "Custom"
+    name: str = "Custom",
 ) -> GamutTarget:
     """
     Create a custom gamut target.
@@ -613,18 +575,9 @@ def create_custom_gamut(
     Returns:
         GamutTarget
     """
-    primaries = ColorPrimaries(
-        red=red,
-        green=green,
-        blue=blue,
-        white=white
-    )
+    primaries = ColorPrimaries(red=red, green=green, blue=blue, white=white)
 
-    return GamutTarget(
-        preset=GamutPreset.CUSTOM,
-        primaries=primaries,
-        name=name
-    )
+    return GamutTarget(preset=GamutPreset.CUSTOM, primaries=primaries, name=name)
 
 
 def get_gamut_comparison(gamut1: GamutTarget, gamut2: GamutTarget) -> dict:
@@ -656,5 +609,5 @@ def get_gamut_comparison(gamut1: GamutTarget, gamut2: GamutTarget) -> dict:
         "area_ratio": area1 / area2,
         "gamut1_covers_gamut2": cov_1_of_2,
         "gamut2_covers_gamut1": cov_2_of_1,
-        "larger": gamut1.name if area1 > area2 else gamut2.name
+        "larger": gamut1.name if area1 > area2 else gamut2.name,
     }
