@@ -53,6 +53,7 @@ class ProfilesPage(QWidget):
         """Initialize the color loader for applying profiles."""
         try:
             from calibrate_pro.lut_system.color_loader import get_color_loader
+
             self.color_loader = get_color_loader()
         except Exception as e:
             print(f"Could not initialize color loader: {e}")
@@ -250,9 +251,9 @@ class ProfilesPage(QWidget):
         self.display_combo.clear()
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
-            name = screen.name() or f"Display {i+1}"
+            name = screen.name() or f"Display {i + 1}"
             geo = screen.geometry()
-            self.display_combo.addItem(f"Display {i+1}: {name} ({geo.width()}x{geo.height()})")
+            self.display_combo.addItem(f"Display {i + 1}: {name} ({geo.width()}x{geo.height()})")
 
     def _update_display_status(self):
         """Update the per-display status widgets."""
@@ -270,7 +271,7 @@ class ProfilesPage(QWidget):
             frame = QFrame()
             frame.setStyleSheet(f"""
                 QFrame {{
-                    background-color: {COLORS['surface']};
+                    background-color: {COLORS["surface"]};
                     border-radius: 8px;
                     padding: 8px;
                 }}
@@ -285,15 +286,15 @@ class ProfilesPage(QWidget):
 
             if is_active:
                 active_count += 1
-                status_color = COLORS['success']
+                status_color = COLORS["success"]
                 status_text = "ACTIVE"
                 profile_name = Path(active_profile).stem if active_profile else ""
             else:
-                status_color = COLORS['text_disabled']
+                status_color = COLORS["text_disabled"]
                 status_text = "Inactive"
                 profile_name = "No profile"
 
-            name_label = QLabel(screen.name() or f"Display {i+1}")
+            name_label = QLabel(screen.name() or f"Display {i + 1}")
             name_label.setStyleSheet("font-weight: 600;")
             frame_layout.addWidget(name_label)
 
@@ -330,6 +331,7 @@ class ProfilesPage(QWidget):
             return
 
         from pathlib import Path
+
         path = Path(profile_path)
 
         self.detail_name.setText(path.name)
@@ -347,11 +349,11 @@ class ProfilesPage(QWidget):
             self.detail_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
 
         # Profile type
-        if path.suffix.lower() in ('.icc', '.icm'):
+        if path.suffix.lower() in (".icc", ".icm"):
             self.detail_type.setText("ICC Profile")
-        elif path.suffix.lower() == '.cube':
+        elif path.suffix.lower() == ".cube":
             self.detail_type.setText("3D LUT (.cube)")
-        elif path.suffix.lower() == '.3dl':
+        elif path.suffix.lower() == ".3dl":
             self.detail_type.setText("3D LUT (.3dl)")
         else:
             self.detail_type.setText("Unknown")
@@ -369,7 +371,7 @@ class ProfilesPage(QWidget):
             self.detail_size.setText("-")
 
         # Check for associated LUT
-        lut_path = path.with_suffix('.cube')
+        lut_path = path.with_suffix(".cube")
         if lut_path.exists():
             self.detail_lut.setText(f"Yes ({lut_path.name})")
             self.detail_lut.setStyleSheet(f"color: {COLORS['success']};")
@@ -390,6 +392,7 @@ class ProfilesPage(QWidget):
 
         display_idx = self.display_combo.currentIndex()
         from pathlib import Path
+
         path = Path(profile_path)
 
         try:
@@ -398,15 +401,15 @@ class ProfilesPage(QWidget):
                 success = False
 
                 # Try ICC profile first
-                if path.suffix.lower() in ('.icc', '.icm'):
+                if path.suffix.lower() in (".icc", ".icm"):
                     success = self.color_loader.load_icc_profile(display_idx, str(path))
 
                     # Also try to load associated .cube LUT
-                    lut_path = path.with_suffix('.cube')
+                    lut_path = path.with_suffix(".cube")
                     if lut_path.exists():
                         self.color_loader.load_lut_file(display_idx, str(lut_path))
 
-                elif path.suffix.lower() in ('.cube', '.3dl'):
+                elif path.suffix.lower() in (".cube", ".3dl"):
                     success = self.color_loader.load_lut_file(display_idx, str(path))
 
                 if success:
@@ -419,25 +422,26 @@ class ProfilesPage(QWidget):
                     settings.sync()
 
                     QMessageBox.information(
-                        self, "Profile Activated",
+                        self,
+                        "Profile Activated",
                         f"Color profile activated for Display {display_idx + 1}!\n\n"
                         f"Profile: {path.name}\n\n"
                         "You should see visible changes to your display colors.\n"
-                        "The VCGT gamma curves have been applied."
+                        "The VCGT gamma curves have been applied.",
                     )
 
                     self._update_display_status()
                     self._on_selection_changed()
                 else:
                     QMessageBox.warning(
-                        self, "Activation Failed",
+                        self,
+                        "Activation Failed",
                         "Could not activate profile. The profile may not contain VCGT data,\n"
-                        "or the system could not apply the gamma ramp."
+                        "or the system could not apply the gamma ramp.",
                     )
             else:
                 QMessageBox.warning(
-                    self, "Color Loader Unavailable",
-                    "The color loader is not available. Cannot apply profiles."
+                    self, "Color Loader Unavailable", "The color loader is not available. Cannot apply profiles."
                 )
 
         except Exception as e:
@@ -448,10 +452,11 @@ class ProfilesPage(QWidget):
         display_idx = self.display_combo.currentIndex()
 
         reply = QMessageBox.question(
-            self, "Deactivate Profile",
+            self,
+            "Deactivate Profile",
             f"Remove color correction from Display {display_idx + 1}?\n\n"
             "This will reset the display to linear gamma (no correction).",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply != QMessageBox.StandardButton.Yes:
@@ -467,9 +472,10 @@ class ProfilesPage(QWidget):
             settings.sync()
 
             QMessageBox.information(
-                self, "Profile Deactivated",
+                self,
+                "Profile Deactivated",
                 f"Color management disabled for Display {display_idx + 1}.\n\n"
-                "Display is now using linear gamma (no correction)."
+                "Display is now using linear gamma (no correction).",
             )
 
             self._update_display_status()
@@ -481,10 +487,10 @@ class ProfilesPage(QWidget):
     def _reset_all_displays(self):
         """Reset all displays to linear gamma."""
         reply = QMessageBox.question(
-            self, "Reset All Displays",
-            "Remove all color corrections from all displays?\n\n"
-            "This will reset all displays to linear gamma.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            self,
+            "Reset All Displays",
+            "Remove all color corrections from all displays?\n\nThis will reset all displays to linear gamma.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply != QMessageBox.StandardButton.Yes:
@@ -502,9 +508,7 @@ class ProfilesPage(QWidget):
             settings.sync()
 
             QMessageBox.information(
-                self, "Reset Complete",
-                "All displays reset to linear gamma.\n\n"
-                "No color correction is active."
+                self, "Reset Complete", "All displays reset to linear gamma.\n\nNo color correction is active."
             )
 
             self._update_display_status()
@@ -520,9 +524,10 @@ class ProfilesPage(QWidget):
                 success_count = sum(1 for v in results.values() if v)
 
                 QMessageBox.information(
-                    self, "Profiles Reloaded",
+                    self,
+                    "Profiles Reloaded",
                     f"Reloaded {success_count} active profile(s).\n\n"
-                    "This is useful if another application has overridden your color settings."
+                    "This is useful if another application has overridden your color settings.",
                 )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to reload:\n\n{str(e)}")
@@ -533,7 +538,7 @@ class ProfilesPage(QWidget):
             self,
             "Import Profile or LUT",
             str(Path.home()),
-            "Color Files (*.icc *.icm *.cube *.3dl);;ICC Profiles (*.icc *.icm);;3D LUTs (*.cube *.3dl)"
+            "Color Files (*.icc *.icm *.cube *.3dl);;ICC Profiles (*.icc *.icm);;3D LUTs (*.cube *.3dl)",
         )
 
         if not file_path:
@@ -542,16 +547,14 @@ class ProfilesPage(QWidget):
         # Copy to profiles directory
         try:
             from shutil import copy2
+
             profiles_dir = Path.home() / ".calibrate_pro" / "profiles"
             profiles_dir.mkdir(parents=True, exist_ok=True)
 
             dest = profiles_dir / Path(file_path).name
             copy2(file_path, dest)
 
-            QMessageBox.information(
-                self, "Profile Imported",
-                f"Profile imported successfully:\n\n{dest.name}"
-            )
+            QMessageBox.information(self, "Profile Imported", f"Profile imported successfully:\n\n{dest.name}")
 
             self._refresh_profiles()
 
@@ -568,7 +571,7 @@ class ProfilesPage(QWidget):
 
     def _select_custom_profiles(self):
         """Select only custom (non-system) profiles."""
-        SYSTEM_PROFILES = {'srgb color space profile.icm', 'rswop.icm', 'wscrgb.icc', 'wsrgb.icc'}
+        SYSTEM_PROFILES = {"srgb color space profile.icm", "rswop.icm", "wscrgb.icc", "wsrgb.icc"}
 
         self.profile_list.clearSelection()
         for i in range(self.profile_list.count()):
@@ -576,6 +579,7 @@ class ProfilesPage(QWidget):
             profile_path = item.data(Qt.ItemDataRole.UserRole)
             if profile_path:
                 from pathlib import Path
+
                 name = Path(profile_path).name.lower()
                 if name not in SYSTEM_PROFILES:
                     item.setSelected(True)
@@ -584,11 +588,15 @@ class ProfilesPage(QWidget):
         """Delete all selected profiles."""
         selected_items = self.profile_list.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, "No Selection", "Please select profiles to delete.\n\nTip: Use Ctrl+Click or Shift+Click to select multiple profiles.")
+            QMessageBox.warning(
+                self,
+                "No Selection",
+                "Please select profiles to delete.\n\nTip: Use Ctrl+Click or Shift+Click to select multiple profiles.",
+            )
             return
 
         # System profiles that should not be deleted
-        SYSTEM_PROFILES = {'srgb color space profile.icm', 'rswop.icm', 'wscrgb.icc', 'wsrgb.icc'}
+        SYSTEM_PROFILES = {"srgb color space profile.icm", "rswop.icm", "wscrgb.icc", "wsrgb.icc"}
 
         from pathlib import Path
 
@@ -606,8 +614,9 @@ class ProfilesPage(QWidget):
                     profiles_to_delete.append(path)
 
         if not profiles_to_delete:
-            QMessageBox.warning(self, "No Deletable Profiles",
-                "All selected profiles are system profiles and cannot be deleted.")
+            QMessageBox.warning(
+                self, "No Deletable Profiles", "All selected profiles are system profiles and cannot be deleted."
+            )
             return
 
         # Confirm deletion
@@ -626,9 +635,7 @@ class ProfilesPage(QWidget):
         msg += "\n\nThis cannot be undone."
 
         reply = QMessageBox.question(
-            self, "Delete Profiles",
-            msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            self, "Delete Profiles", msg, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
         if reply != QMessageBox.StandardButton.Yes:
@@ -644,7 +651,7 @@ class ProfilesPage(QWidget):
                 deleted += 1
 
                 # Also delete associated LUT if present
-                lut_path = path.with_suffix('.cube')
+                lut_path = path.with_suffix(".cube")
                 if lut_path.exists():
                     lut_path.unlink()
 
@@ -695,30 +702,33 @@ class ProfilesPage(QWidget):
         for source_name, dir_path in profile_dirs:
             try:
                 for file_path in dir_path.iterdir():
-                    if file_path.suffix.lower() in ('.icc', '.icm'):
+                    if file_path.suffix.lower() in (".icc", ".icm"):
                         # Get file info
                         stat = file_path.stat()
                         mod_time = stat.st_mtime
                         from datetime import datetime
+
                         mod_date = datetime.fromtimestamp(mod_time).strftime("%b %d, %Y")
 
-                        profiles_found.append({
-                            'name': file_path.name,
-                            'path': file_path,
-                            'source': source_name,
-                            'date': mod_date,
-                            'size': stat.st_size
-                        })
+                        profiles_found.append(
+                            {
+                                "name": file_path.name,
+                                "path": file_path,
+                                "source": source_name,
+                                "date": mod_date,
+                                "size": stat.st_size,
+                            }
+                        )
             except (PermissionError, OSError):
                 continue
 
         # Sort by modification time (newest first)
-        profiles_found.sort(key=lambda x: x['path'].stat().st_mtime, reverse=True)
+        profiles_found.sort(key=lambda x: x["path"].stat().st_mtime, reverse=True)
 
         # Add to list widget
         for profile in profiles_found:
             item = QListWidgetItem(f"{profile['name']}\n{profile['source']} - {profile['date']}")
-            item.setData(Qt.ItemDataRole.UserRole, str(profile['path']))
+            item.setData(Qt.ItemDataRole.UserRole, str(profile["path"]))
             self.profile_list.addItem(item)
 
         if not profiles_found:
@@ -739,6 +749,7 @@ class ProfilesPage(QWidget):
             return
 
         from pathlib import Path
+
         profile_path = Path(profile_path)
 
         if not profile_path.exists():
@@ -749,11 +760,7 @@ class ProfilesPage(QWidget):
         # Get new name from user
         old_name = profile_path.stem
         new_name, ok = QInputDialog.getText(
-            self,
-            "Rename Profile",
-            f"Enter new name for '{old_name}':",
-            QLineEdit.EchoMode.Normal,
-            old_name
+            self, "Rename Profile", f"Enter new name for '{old_name}':", QLineEdit.EchoMode.Normal, old_name
         )
 
         if not ok or not new_name.strip():
@@ -764,7 +771,7 @@ class ProfilesPage(QWidget):
         # Sanitize the name
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
-            new_name = new_name.replace(char, '_')
+            new_name = new_name.replace(char, "_")
 
         if new_name == old_name:
             return
@@ -775,8 +782,7 @@ class ProfilesPage(QWidget):
         # Check if target already exists
         if new_profile_path.exists():
             QMessageBox.warning(
-                self, "File Exists",
-                f"A profile named '{new_name}{profile_path.suffix}' already exists."
+                self, "File Exists", f"A profile named '{new_name}{profile_path.suffix}' already exists."
             )
             return
 
@@ -785,20 +791,19 @@ class ProfilesPage(QWidget):
             profile_path.rename(new_profile_path)
 
             # Also rename associated .cube LUT file if it exists
-            lut_path = profile_path.with_suffix('.cube')
+            lut_path = profile_path.with_suffix(".cube")
             if lut_path.exists():
-                new_lut_path = new_profile_path.with_suffix('.cube')
+                new_lut_path = new_profile_path.with_suffix(".cube")
                 lut_path.rename(new_lut_path)
 
             # Also check for .3dl
-            lut_3dl_path = profile_path.with_suffix('.3dl')
+            lut_3dl_path = profile_path.with_suffix(".3dl")
             if lut_3dl_path.exists():
-                new_lut_3dl_path = new_profile_path.with_suffix('.3dl')
+                new_lut_3dl_path = new_profile_path.with_suffix(".3dl")
                 lut_3dl_path.rename(new_lut_3dl_path)
 
             QMessageBox.information(
-                self, "Profile Renamed",
-                f"Profile renamed successfully:\n\n{old_name} \u2192 {new_name}"
+                self, "Profile Renamed", f"Profile renamed successfully:\n\n{old_name} \u2192 {new_name}"
             )
 
             # Refresh the list
@@ -806,11 +811,9 @@ class ProfilesPage(QWidget):
 
         except PermissionError:
             QMessageBox.critical(
-                self, "Permission Denied",
-                "Cannot rename this profile. It may be in use or require administrator privileges."
+                self,
+                "Permission Denied",
+                "Cannot rename this profile. It may be in use or require administrator privileges.",
             )
         except Exception as e:
-            QMessageBox.critical(
-                self, "Rename Failed",
-                f"Failed to rename profile:\n\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Rename Failed", f"Failed to rename profile:\n\n{str(e)}")

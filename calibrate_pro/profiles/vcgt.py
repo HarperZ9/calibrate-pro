@@ -26,9 +26,9 @@ import numpy as np
 # =============================================================================
 
 # Standard table sizes
-VCGT_SIZE_STANDARD = 256      # Windows gamma ramp size
-VCGT_SIZE_EXTENDED = 1024     # High-precision
-VCGT_SIZE_MAXIMUM = 4096      # Maximum precision
+VCGT_SIZE_STANDARD = 256  # Windows gamma ramp size
+VCGT_SIZE_EXTENDED = 1024  # High-precision
+VCGT_SIZE_MAXIMUM = 4096  # Maximum precision
 
 # Gamma ramp limits (Windows API)
 GAMMA_RAMP_SIZE = 256
@@ -40,6 +40,7 @@ GAMMA_RAMP_MIN = 0
 # VCGT Data Structures
 # =============================================================================
 
+
 @dataclass
 class VCGTTable:
     """
@@ -47,9 +48,10 @@ class VCGTTable:
 
     Stores per-channel calibration curves for display correction.
     """
-    red: np.ndarray      # Red channel LUT [0, 1]
-    green: np.ndarray    # Green channel LUT [0, 1]
-    blue: np.ndarray     # Blue channel LUT [0, 1]
+
+    red: np.ndarray  # Red channel LUT [0, 1]
+    green: np.ndarray  # Green channel LUT [0, 1]
+    blue: np.ndarray  # Blue channel LUT [0, 1]
     size: int = 256
 
     def __post_init__(self):
@@ -68,26 +70,20 @@ class VCGTTable:
         self.blue = np.clip(self.blue, 0.0, 1.0)
 
     @classmethod
-    def identity(cls, size: int = 256) -> 'VCGTTable':
+    def identity(cls, size: int = 256) -> "VCGTTable":
         """Create identity (linear) VCGT table."""
         linear = np.linspace(0, 1, size)
         return cls(red=linear.copy(), green=linear.copy(), blue=linear.copy())
 
     @classmethod
-    def from_gamma(cls, gamma: float, size: int = 256) -> 'VCGTTable':
+    def from_gamma(cls, gamma: float, size: int = 256) -> "VCGTTable":
         """Create VCGT from gamma value."""
         x = np.linspace(0, 1, size)
         curve = np.power(x, 1.0 / gamma)  # Inverse gamma for correction
         return cls(red=curve.copy(), green=curve.copy(), blue=curve.copy())
 
     @classmethod
-    def from_rgb_gamma(
-        cls,
-        gamma_r: float,
-        gamma_g: float,
-        gamma_b: float,
-        size: int = 256
-    ) -> 'VCGTTable':
+    def from_rgb_gamma(cls, gamma_r: float, gamma_g: float, gamma_b: float, size: int = 256) -> "VCGTTable":
         """Create VCGT with per-channel gamma."""
         x = np.linspace(0, 1, size)
         red = np.power(x, 1.0 / gamma_r)
@@ -96,30 +92,22 @@ class VCGTTable:
         return cls(red=red, green=green, blue=blue)
 
     @classmethod
-    def from_srgb_correction(cls, size: int = 256) -> 'VCGTTable':
+    def from_srgb_correction(cls, size: int = 256) -> "VCGTTable":
         """Create VCGT for sRGB correction."""
         x = np.linspace(0, 1, size)
 
         # sRGB EOTF (decode)
         def srgb_eotf(v):
-            return np.where(
-                v <= 0.04045,
-                v / 12.92,
-                np.power((v + 0.055) / 1.055, 2.4)
-            )
+            return np.where(v <= 0.04045, v / 12.92, np.power((v + 0.055) / 1.055, 2.4))
 
         # For correction, we apply inverse (OETF)
         def srgb_oetf(v):
-            return np.where(
-                v <= 0.0031308,
-                v * 12.92,
-                1.055 * np.power(v, 1/2.4) - 0.055
-            )
+            return np.where(v <= 0.0031308, v * 12.92, 1.055 * np.power(v, 1 / 2.4) - 0.055)
 
         curve = srgb_oetf(x)
         return cls(red=curve.copy(), green=curve.copy(), blue=curve.copy())
 
-    def resize(self, new_size: int) -> 'VCGTTable':
+    def resize(self, new_size: int) -> "VCGTTable":
         """Resize table using linear interpolation."""
         old_x = np.linspace(0, 1, self.size)
         new_x = np.linspace(0, 1, new_size)
@@ -130,7 +118,7 @@ class VCGTTable:
 
         return VCGTTable(red=red, green=green, blue=blue)
 
-    def apply_brightness(self, brightness: float) -> 'VCGTTable':
+    def apply_brightness(self, brightness: float) -> "VCGTTable":
         """
         Apply brightness adjustment (0-2, 1.0 = no change).
 
@@ -143,10 +131,10 @@ class VCGTTable:
         return VCGTTable(
             red=np.clip(self.red * brightness, 0, 1),
             green=np.clip(self.green * brightness, 0, 1),
-            blue=np.clip(self.blue * brightness, 0, 1)
+            blue=np.clip(self.blue * brightness, 0, 1),
         )
 
-    def apply_contrast(self, contrast: float) -> 'VCGTTable':
+    def apply_contrast(self, contrast: float) -> "VCGTTable":
         """
         Apply contrast adjustment (0-2, 1.0 = no change).
 
@@ -160,15 +148,10 @@ class VCGTTable:
         return VCGTTable(
             red=np.clip((self.red - mid) * contrast + mid, 0, 1),
             green=np.clip((self.green - mid) * contrast + mid, 0, 1),
-            blue=np.clip((self.blue - mid) * contrast + mid, 0, 1)
+            blue=np.clip((self.blue - mid) * contrast + mid, 0, 1),
         )
 
-    def apply_rgb_gain(
-        self,
-        r_gain: float = 1.0,
-        g_gain: float = 1.0,
-        b_gain: float = 1.0
-    ) -> 'VCGTTable':
+    def apply_rgb_gain(self, r_gain: float = 1.0, g_gain: float = 1.0, b_gain: float = 1.0) -> "VCGTTable":
         """
         Apply per-channel gain adjustment.
 
@@ -183,15 +166,10 @@ class VCGTTable:
         return VCGTTable(
             red=np.clip(self.red * r_gain, 0, 1),
             green=np.clip(self.green * g_gain, 0, 1),
-            blue=np.clip(self.blue * b_gain, 0, 1)
+            blue=np.clip(self.blue * b_gain, 0, 1),
         )
 
-    def apply_black_point(
-        self,
-        black_r: float = 0.0,
-        black_g: float = 0.0,
-        black_b: float = 0.0
-    ) -> 'VCGTTable':
+    def apply_black_point(self, black_r: float = 0.0, black_g: float = 0.0, black_b: float = 0.0) -> "VCGTTable":
         """
         Apply black point lift.
 
@@ -206,10 +184,10 @@ class VCGTTable:
         return VCGTTable(
             red=black_r + self.red * (1.0 - black_r),
             green=black_g + self.green * (1.0 - black_g),
-            blue=black_b + self.blue * (1.0 - black_b)
+            blue=black_b + self.blue * (1.0 - black_b),
         )
 
-    def combine(self, other: 'VCGTTable') -> 'VCGTTable':
+    def combine(self, other: "VCGTTable") -> "VCGTTable":
         """
         Combine with another VCGT (apply this first, then other).
 
@@ -232,7 +210,7 @@ class VCGTTable:
 
         return VCGTTable(red=red, green=green, blue=blue)
 
-    def invert(self) -> 'VCGTTable':
+    def invert(self) -> "VCGTTable":
         """
         Invert the VCGT curves.
 
@@ -255,13 +233,9 @@ class VCGTTable:
 
             return np.interp(x, y_unique, x_unique)
 
-        return VCGTTable(
-            red=invert_channel(self.red),
-            green=invert_channel(self.green),
-            blue=invert_channel(self.blue)
-        )
+        return VCGTTable(red=invert_channel(self.red), green=invert_channel(self.green), blue=invert_channel(self.blue))
 
-    def smooth(self, window_size: int = 5) -> 'VCGTTable':
+    def smooth(self, window_size: int = 5) -> "VCGTTable":
         """
         Apply smoothing to curves.
 
@@ -274,9 +248,9 @@ class VCGTTable:
         from scipy.ndimage import uniform_filter1d
 
         return VCGTTable(
-            red=uniform_filter1d(self.red, window_size, mode='nearest'),
-            green=uniform_filter1d(self.green, window_size, mode='nearest'),
-            blue=uniform_filter1d(self.blue, window_size, mode='nearest')
+            red=uniform_filter1d(self.red, window_size, mode="nearest"),
+            green=uniform_filter1d(self.green, window_size, mode="nearest"),
+            blue=uniform_filter1d(self.blue, window_size, mode="nearest"),
         )
 
     def to_uint16(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -284,53 +258,53 @@ class VCGTTable:
         return (
             (self.red * 65535).astype(np.uint16),
             (self.green * 65535).astype(np.uint16),
-            (self.blue * 65535).astype(np.uint16)
+            (self.blue * 65535).astype(np.uint16),
         )
 
     def to_icc_bytes(self) -> bytes:
         """Serialize to ICC VCGT tag format."""
-        data = b'vcgt' + b'\x00\x00\x00\x00'
+        data = b"vcgt" + b"\x00\x00\x00\x00"
 
         # Type 0 = table
-        data += struct.pack('>I', 0)
+        data += struct.pack(">I", 0)
 
         # Channels, entries, entry size
-        data += struct.pack('>HHH', 3, self.size, 2)
+        data += struct.pack(">HHH", 3, self.size, 2)
 
         # Channel data (16-bit)
         r_u16, g_u16, b_u16 = self.to_uint16()
 
         for v in r_u16:
-            data += struct.pack('>H', v)
+            data += struct.pack(">H", v)
         for v in g_u16:
-            data += struct.pack('>H', v)
+            data += struct.pack(">H", v)
         for v in b_u16:
-            data += struct.pack('>H', v)
+            data += struct.pack(">H", v)
 
         # Pad to 4-byte boundary
         while len(data) % 4 != 0:
-            data += b'\x00'
+            data += b"\x00"
 
         return data
 
     @classmethod
-    def from_icc_bytes(cls, data: bytes) -> Optional['VCGTTable']:
+    def from_icc_bytes(cls, data: bytes) -> Optional["VCGTTable"]:
         """Parse from ICC VCGT tag data."""
         if len(data) < 18:
             return None
 
         # Check signature
-        if data[:4] != b'vcgt':
+        if data[:4] != b"vcgt":
             return None
 
         # Parse header
-        tag_type = struct.unpack('>I', data[8:12])[0]
+        tag_type = struct.unpack(">I", data[8:12])[0]
 
         if tag_type == 0:
             # Table type
-            channels = struct.unpack('>H', data[12:14])[0]
-            entries = struct.unpack('>H', data[14:16])[0]
-            entry_size = struct.unpack('>H', data[16:18])[0]
+            channels = struct.unpack(">H", data[12:14])[0]
+            entries = struct.unpack(">H", data[14:16])[0]
+            entry_size = struct.unpack(">H", data[16:18])[0]
 
             if channels != 3 or entry_size != 2:
                 return None
@@ -342,32 +316,32 @@ class VCGTTable:
             blue = np.zeros(entries)
 
             for i in range(entries):
-                red[i] = struct.unpack('>H', data[offset:offset+2])[0] / 65535.0
+                red[i] = struct.unpack(">H", data[offset : offset + 2])[0] / 65535.0
                 offset += 2
 
             for i in range(entries):
-                green[i] = struct.unpack('>H', data[offset:offset+2])[0] / 65535.0
+                green[i] = struct.unpack(">H", data[offset : offset + 2])[0] / 65535.0
                 offset += 2
 
             for i in range(entries):
-                blue[i] = struct.unpack('>H', data[offset:offset+2])[0] / 65535.0
+                blue[i] = struct.unpack(">H", data[offset : offset + 2])[0] / 65535.0
                 offset += 2
 
             return cls(red=red, green=green, blue=blue)
 
         elif tag_type == 1:
             # Formula type
-            gamma_r = struct.unpack('>H', data[12:14])[0] / 256.0
-            min_r = struct.unpack('>H', data[14:16])[0] / 65535.0
-            max_r = struct.unpack('>H', data[16:18])[0] / 65535.0
+            gamma_r = struct.unpack(">H", data[12:14])[0] / 256.0
+            min_r = struct.unpack(">H", data[14:16])[0] / 65535.0
+            max_r = struct.unpack(">H", data[16:18])[0] / 65535.0
 
-            gamma_g = struct.unpack('>H', data[18:20])[0] / 256.0
-            min_g = struct.unpack('>H', data[20:22])[0] / 65535.0
-            max_g = struct.unpack('>H', data[22:24])[0] / 65535.0
+            gamma_g = struct.unpack(">H", data[18:20])[0] / 256.0
+            min_g = struct.unpack(">H", data[20:22])[0] / 65535.0
+            max_g = struct.unpack(">H", data[22:24])[0] / 65535.0
 
-            gamma_b = struct.unpack('>H', data[24:26])[0] / 256.0
-            min_b = struct.unpack('>H', data[26:28])[0] / 65535.0
-            max_b = struct.unpack('>H', data[28:30])[0] / 65535.0
+            gamma_b = struct.unpack(">H", data[24:26])[0] / 256.0
+            min_b = struct.unpack(">H", data[26:28])[0] / 65535.0
+            max_b = struct.unpack(">H", data[28:30])[0] / 65535.0
 
             x = np.linspace(0, 1, 256)
 
@@ -383,6 +357,7 @@ class VCGTTable:
 # =============================================================================
 # Windows Gamma Ramp API
 # =============================================================================
+
 
 class GammaRampController:
     """
@@ -419,9 +394,7 @@ class GammaRampController:
 
         if display_name:
             # Get DC for specific display
-            hdc = self._user32.CreateDCW(
-                display_name, display_name, None, None
-            )
+            hdc = self._user32.CreateDCW(display_name, display_name, None, None)
         else:
             # Get DC for primary display
             hdc = self._user32.GetDC(0)
@@ -490,11 +463,7 @@ class GammaRampController:
 
         return None
 
-    def set_gamma_ramp(
-        self,
-        table: VCGTTable,
-        display_id: int = 0
-    ) -> bool:
+    def set_gamma_ramp(self, table: VCGTTable, display_id: int = 0) -> bool:
         """
         Set gamma ramp for display.
 
@@ -544,11 +513,7 @@ class GammaRampController:
         """
         return self.set_gamma_ramp(VCGTTable.identity(256), display_id)
 
-    def apply_vcgt_from_profile(
-        self,
-        profile_path: str | Path,
-        display_id: int = 0
-    ) -> bool:
+    def apply_vcgt_from_profile(self, profile_path: str | Path, display_id: int = 0) -> bool:
         """
         Apply VCGT from ICC profile.
 
@@ -570,6 +535,7 @@ class GammaRampController:
 # =============================================================================
 # Profile VCGT Extraction
 # =============================================================================
+
 
 def extract_vcgt_from_profile(profile_path: str | Path) -> VCGTTable | None:
     """
@@ -593,16 +559,16 @@ def extract_vcgt_from_profile(profile_path: str | Path) -> VCGTTable | None:
             return None
 
         # Parse tag table
-        tag_count = struct.unpack('>I', data[128:132])[0]
+        tag_count = struct.unpack(">I", data[128:132])[0]
 
         for i in range(tag_count):
             offset = 132 + i * 12
-            sig = data[offset:offset+4]
-            tag_offset = struct.unpack('>I', data[offset+4:offset+8])[0]
-            tag_size = struct.unpack('>I', data[offset+8:offset+12])[0]
+            sig = data[offset : offset + 4]
+            tag_offset = struct.unpack(">I", data[offset + 4 : offset + 8])[0]
+            tag_size = struct.unpack(">I", data[offset + 8 : offset + 12])[0]
 
-            if sig == b'vcgt':
-                vcgt_data = data[tag_offset:tag_offset+tag_size]
+            if sig == b"vcgt":
+                vcgt_data = data[tag_offset : tag_offset + tag_size]
                 return VCGTTable.from_icc_bytes(vcgt_data)
 
     except Exception:
@@ -611,11 +577,7 @@ def extract_vcgt_from_profile(profile_path: str | Path) -> VCGTTable | None:
     return None
 
 
-def embed_vcgt_in_profile(
-    profile_path: str | Path,
-    vcgt: VCGTTable,
-    output_path: str | Path | None = None
-) -> bool:
+def embed_vcgt_in_profile(profile_path: str | Path, vcgt: VCGTTable, output_path: str | Path | None = None) -> bool:
     """
     Embed or update VCGT in ICC profile.
 
@@ -640,14 +602,14 @@ def embed_vcgt_in_profile(
             return False
 
         # Find existing vcgt tag
-        tag_count = struct.unpack('>I', data[128:132])[0]
+        tag_count = struct.unpack(">I", data[128:132])[0]
         vcgt_index = -1
 
         for i in range(tag_count):
             offset = 132 + i * 12
-            sig = data[offset:offset+4]
+            sig = data[offset : offset + 4]
 
-            if sig == b'vcgt':
+            if sig == b"vcgt":
                 vcgt_index = i
                 break
 
@@ -656,12 +618,12 @@ def embed_vcgt_in_profile(
         if vcgt_index >= 0:
             # Update existing tag (simplified - assumes same size)
             offset = 132 + vcgt_index * 12
-            tag_offset = struct.unpack('>I', data[offset+4:offset+8])[0]
-            old_size = struct.unpack('>I', data[offset+8:offset+12])[0]
+            tag_offset = struct.unpack(">I", data[offset + 4 : offset + 8])[0]
+            old_size = struct.unpack(">I", data[offset + 8 : offset + 12])[0]
 
             if len(vcgt_data) <= old_size:
                 # Can replace in place
-                data[tag_offset:tag_offset+len(vcgt_data)] = vcgt_data
+                data[tag_offset : tag_offset + len(vcgt_data)] = vcgt_data
                 output.write_bytes(bytes(data))
                 return True
 
@@ -676,11 +638,8 @@ def embed_vcgt_in_profile(
 # Calibration Curve Generation
 # =============================================================================
 
-def generate_correction_vcgt(
-    measured_trc: np.ndarray,
-    target_gamma: float = 2.2,
-    size: int = 256
-) -> VCGTTable:
+
+def generate_correction_vcgt(measured_trc: np.ndarray, target_gamma: float = 2.2, size: int = 256) -> VCGTTable:
     """
     Generate correction VCGT from measured TRC.
 
@@ -719,11 +678,7 @@ def generate_correction_vcgt(
 
 
 def generate_rgb_correction_vcgt(
-    measured_r: np.ndarray,
-    measured_g: np.ndarray,
-    measured_b: np.ndarray,
-    target_gamma: float = 2.2,
-    size: int = 256
+    measured_r: np.ndarray, measured_g: np.ndarray, measured_b: np.ndarray, target_gamma: float = 2.2, size: int = 256
 ) -> VCGTTable:
     """
     Generate per-channel correction VCGT.
@@ -750,17 +705,11 @@ def generate_rgb_correction_vcgt(
         return np.interp(target, measured[sort_idx], x[sort_idx])
 
     return VCGTTable(
-        red=correct_channel(measured_r),
-        green=correct_channel(measured_g),
-        blue=correct_channel(measured_b)
+        red=correct_channel(measured_r), green=correct_channel(measured_g), blue=correct_channel(measured_b)
     )
 
 
-def generate_whitepoint_vcgt(
-    current_kelvin: float,
-    target_kelvin: float,
-    size: int = 256
-) -> VCGTTable:
+def generate_whitepoint_vcgt(current_kelvin: float, target_kelvin: float, size: int = 256) -> VCGTTable:
     """
     Generate VCGT for white point adjustment.
 
@@ -772,6 +721,7 @@ def generate_whitepoint_vcgt(
     Returns:
         VCGTTable for white point shift
     """
+
     def kelvin_to_rgb(temp: float) -> tuple[float, float, float]:
         """Approximate CCT to RGB multipliers."""
         temp = temp / 100.0
@@ -809,8 +759,4 @@ def generate_whitepoint_vcgt(
 
     x = np.linspace(0, 1, size)
 
-    return VCGTTable(
-        red=x * r_ratio,
-        green=x * g_ratio,
-        blue=x * b_ratio
-    )
+    return VCGTTable(red=x * r_ratio, green=x * g_ratio, blue=x * b_ratio)

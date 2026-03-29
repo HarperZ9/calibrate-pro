@@ -35,8 +35,10 @@ import numpy as np
 # NVAPI Constants and Types
 # =============================================================================
 
+
 class NvStatus(IntEnum):
     """NVAPI return status codes."""
+
     OK = 0
     ERROR = -1
     LIBRARY_NOT_FOUND = -2
@@ -54,6 +56,7 @@ class NvStatus(IntEnum):
 
 class NvColorCommand(IntEnum):
     """Color control commands."""
+
     GET_CURRENT = 0x00000001
     SET_CURRENT = 0x00000002
     GET_DEFAULT = 0x00000010
@@ -62,6 +65,7 @@ class NvColorCommand(IntEnum):
 
 class NvColorType(IntFlag):
     """Color control types."""
+
     BRIGHTNESS = 0x00000001
     CONTRAST = 0x00000002
     GAMMA = 0x00000004
@@ -71,6 +75,7 @@ class NvColorType(IntFlag):
 
 class NvHdrMode(IntEnum):
     """HDR modes."""
+
     OFF = 0
     UHDA = 2  # Ultra HD Alliance mode (HDR10)
     UHDA_PASSTHROUGH = 3
@@ -91,22 +96,22 @@ NVAPI_LONG_STRING_MAX = 256
 
 # NVAPI function IDs (used with nvapi_QueryInterface)
 NVAPI_FUNCS = {
-    'Initialize': 0x0150E828,
-    'Unload': 0xD22BDD7E,
-    'GetErrorMessage': 0x6C2D048C,
-    'EnumNvidiaDisplayHandle': 0x9ABDD40D,
-    'EnumPhysicalGPUs': 0xE5AC921F,
-    'GetPhysicalGPUsFromDisplay': 0x34EF9506,
-    'GPU_GetFullName': 0xCEEE8E9F,
-    'GetAssociatedNvidiaDisplayHandle': 0x35C29134,
-    'GetAssociatedDisplayOutputId': 0xD995937E,
-    'Disp_ColorControl': 0x92F9D80D,
-    'Disp_GetHdrCapabilities': 0x84F2A8E5,
-    'Disp_HdrColorControl': 0x351DA224,
-    'Disp_GetGDIPrimaryDisplayId': 0x1E9D8A31,
-    'GPU_GetConnectedDisplayIds': 0x0078DBA2,
-    'Disp_GetDisplayIdByDisplayName': 0xAE457190,
-    'SYS_GetDisplayDriverVersion': 0xF951A4D1,
+    "Initialize": 0x0150E828,
+    "Unload": 0xD22BDD7E,
+    "GetErrorMessage": 0x6C2D048C,
+    "EnumNvidiaDisplayHandle": 0x9ABDD40D,
+    "EnumPhysicalGPUs": 0xE5AC921F,
+    "GetPhysicalGPUsFromDisplay": 0x34EF9506,
+    "GPU_GetFullName": 0xCEEE8E9F,
+    "GetAssociatedNvidiaDisplayHandle": 0x35C29134,
+    "GetAssociatedDisplayOutputId": 0xD995937E,
+    "Disp_ColorControl": 0x92F9D80D,
+    "Disp_GetHdrCapabilities": 0x84F2A8E5,
+    "Disp_HdrColorControl": 0x351DA224,
+    "Disp_GetGDIPrimaryDisplayId": 0x1E9D8A31,
+    "GPU_GetConnectedDisplayIds": 0x0078DBA2,
+    "Disp_GetDisplayIdByDisplayName": 0xAE457190,
+    "SYS_GetDisplayDriverVersion": 0xF951A4D1,
 }
 
 
@@ -114,63 +119,68 @@ NVAPI_FUNCS = {
 # NVAPI Structures
 # =============================================================================
 
+
 class NV_COLOR_DATA_V5(Structure):
     """Color control data structure (version 5)."""
+
     _fields_ = [
-        ('version', c_uint),
-        ('size', c_uint),
-        ('cmd', c_int),
-        ('data', c_int),  # NvColorType flags
-        ('colorBrightness', c_int),  # -100 to 100
-        ('colorContrast', c_int),    # -100 to 100
-        ('colorGamma', c_int),       # -100 to 100
-        ('colorSaturation', c_int),  # -100 to 100 (vibrance)
-        ('colorHue', c_int),         # 0 to 359
+        ("version", c_uint),
+        ("size", c_uint),
+        ("cmd", c_int),
+        ("data", c_int),  # NvColorType flags
+        ("colorBrightness", c_int),  # -100 to 100
+        ("colorContrast", c_int),  # -100 to 100
+        ("colorGamma", c_int),  # -100 to 100
+        ("colorSaturation", c_int),  # -100 to 100 (vibrance)
+        ("colorHue", c_int),  # 0 to 359
     ]
 
 
 class NV_HDR_CAPABILITIES_V2(Structure):
     """HDR capabilities structure."""
+
     _fields_ = [
-        ('version', c_uint),
-        ('isST2084EotfSupported', c_uint, 1),
-        ('isTraditionalHdrGammaSupported', c_uint, 1),
-        ('isEdrSupported', c_uint, 1),
-        ('driverExpandDefaultHdrParameters', c_uint, 1),
-        ('isTraditionalSdrGammaSupported', c_uint, 1),
-        ('isDolbyVisionSupported', c_uint, 1),
-        ('reserved', c_uint, 26),
-        ('display_data', c_char * 64),  # Simplified - actual structure is more complex
+        ("version", c_uint),
+        ("isST2084EotfSupported", c_uint, 1),
+        ("isTraditionalHdrGammaSupported", c_uint, 1),
+        ("isEdrSupported", c_uint, 1),
+        ("driverExpandDefaultHdrParameters", c_uint, 1),
+        ("isTraditionalSdrGammaSupported", c_uint, 1),
+        ("isDolbyVisionSupported", c_uint, 1),
+        ("reserved", c_uint, 26),
+        ("display_data", c_char * 64),  # Simplified - actual structure is more complex
     ]
 
 
 class NV_HDR_COLOR_DATA_V2(Structure):
     """HDR color control structure."""
+
     _fields_ = [
-        ('version', c_uint),
-        ('cmd', c_int),
-        ('hdrMode', c_int),
-        ('static_metadata_descriptor_id', c_int),
-        ('mastering_display_data', c_char * 40),  # Simplified
+        ("version", c_uint),
+        ("cmd", c_int),
+        ("hdrMode", c_int),
+        ("static_metadata_descriptor_id", c_int),
+        ("mastering_display_data", c_char * 40),  # Simplified
     ]
 
 
 class NV_GPU_DISPLAYIDS(Structure):
     """Display ID structure."""
+
     _fields_ = [
-        ('version', c_uint),
-        ('connectorType', c_uint),
-        ('displayId', c_uint),
-        ('isDynamic', c_uint, 1),
-        ('isMultiStreamRootNode', c_uint, 1),
-        ('isActive', c_uint, 1),
-        ('isCluster', c_uint, 1),
-        ('isOSVisible', c_uint, 1),
-        ('isWFD', c_uint, 1),
-        ('isConnected', c_uint, 1),
-        ('reserved', c_uint, 22),
-        ('isPhysicallyConnected', c_uint, 1),
-        ('reserved2', c_uint, 2),
+        ("version", c_uint),
+        ("connectorType", c_uint),
+        ("displayId", c_uint),
+        ("isDynamic", c_uint, 1),
+        ("isMultiStreamRootNode", c_uint, 1),
+        ("isActive", c_uint, 1),
+        ("isCluster", c_uint, 1),
+        ("isOSVisible", c_uint, 1),
+        ("isWFD", c_uint, 1),
+        ("isConnected", c_uint, 1),
+        ("reserved", c_uint, 22),
+        ("isPhysicallyConnected", c_uint, 1),
+        ("reserved2", c_uint, 2),
     ]
 
 
@@ -178,9 +188,11 @@ class NV_GPU_DISPLAYIDS(Structure):
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class NvidiaDisplayInfo:
     """NVIDIA display information."""
+
     display_id: int
     display_handle: int
     gpu_handle: int
@@ -197,6 +209,7 @@ class NvidiaDisplayInfo:
 @dataclass
 class NvidiaGpuInfo:
     """NVIDIA GPU information."""
+
     handle: int
     name: str
     driver_version: str
@@ -206,21 +219,24 @@ class NvidiaGpuInfo:
 @dataclass
 class ColorSettings:
     """Display color settings."""
-    brightness: int = 0   # -100 to 100
-    contrast: int = 0     # -100 to 100
-    gamma: int = 0        # -100 to 100
-    saturation: int = 0   # -100 to 100 (vibrance)
-    hue: int = 0          # 0 to 359
+
+    brightness: int = 0  # -100 to 100
+    contrast: int = 0  # -100 to 100
+    gamma: int = 0  # -100 to 100
+    saturation: int = 0  # -100 to 100 (vibrance)
+    hue: int = 0  # 0 to 359
 
 
 class NvidiaAPIError(Exception):
     """NVIDIA API error."""
+
     pass
 
 
 # =============================================================================
 # Main NVIDIA API Class
 # =============================================================================
+
 
 class NvidiaAPI:
     """
@@ -261,14 +277,11 @@ class NvidiaAPI:
             query_interface.argtypes = [c_uint]
 
             # Get NvAPI_Initialize
-            init_ptr = query_interface(NVAPI_FUNCS['Initialize'])
+            init_ptr = query_interface(NVAPI_FUNCS["Initialize"])
             if not init_ptr:
                 return False
 
-            NvAPI_Initialize = ctypes.cast(
-                init_ptr,
-                ctypes.CFUNCTYPE(c_int)
-            )
+            NvAPI_Initialize = ctypes.cast(init_ptr, ctypes.CFUNCTYPE(c_int))
 
             status = NvAPI_Initialize()
             if status != NvStatus.OK:
@@ -292,70 +305,61 @@ class NvidiaAPI:
     def _cache_functions(self, query_interface):
         """Cache NVAPI function pointers."""
         # Color control
-        ptr = query_interface(NVAPI_FUNCS['Disp_ColorControl'])
+        ptr = query_interface(NVAPI_FUNCS["Disp_ColorControl"])
         if ptr:
-            self._funcs['ColorControl'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, c_int, POINTER(NV_COLOR_DATA_V5))
-            )
+            self._funcs["ColorControl"] = ctypes.cast(ptr, ctypes.CFUNCTYPE(c_int, c_int, POINTER(NV_COLOR_DATA_V5)))
 
         # HDR capabilities
-        ptr = query_interface(NVAPI_FUNCS['Disp_GetHdrCapabilities'])
+        ptr = query_interface(NVAPI_FUNCS["Disp_GetHdrCapabilities"])
         if ptr:
-            self._funcs['GetHdrCapabilities'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NV_HDR_CAPABILITIES_V2))
+            self._funcs["GetHdrCapabilities"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NV_HDR_CAPABILITIES_V2))
             )
 
         # HDR color control
-        ptr = query_interface(NVAPI_FUNCS['Disp_HdrColorControl'])
+        ptr = query_interface(NVAPI_FUNCS["Disp_HdrColorControl"])
         if ptr:
-            self._funcs['HdrColorControl'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NV_HDR_COLOR_DATA_V2))
+            self._funcs["HdrColorControl"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NV_HDR_COLOR_DATA_V2))
             )
 
         # Enum displays
-        ptr = query_interface(NVAPI_FUNCS['EnumNvidiaDisplayHandle'])
+        ptr = query_interface(NVAPI_FUNCS["EnumNvidiaDisplayHandle"])
         if ptr:
-            self._funcs['EnumDisplayHandle'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NvDisplayHandle))
+            self._funcs["EnumDisplayHandle"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, c_uint, POINTER(NvDisplayHandle))
             )
 
         # Enum GPUs
-        ptr = query_interface(NVAPI_FUNCS['EnumPhysicalGPUs'])
+        ptr = query_interface(NVAPI_FUNCS["EnumPhysicalGPUs"])
         if ptr:
-            self._funcs['EnumPhysicalGPUs'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, POINTER(NvPhysicalGpuHandle * 64), POINTER(c_uint))
+            self._funcs["EnumPhysicalGPUs"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, POINTER(NvPhysicalGpuHandle * 64), POINTER(c_uint))
             )
 
         # GPU name
-        ptr = query_interface(NVAPI_FUNCS['GPU_GetFullName'])
+        ptr = query_interface(NVAPI_FUNCS["GPU_GetFullName"])
         if ptr:
-            self._funcs['GetGpuFullName'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, NvPhysicalGpuHandle, ctypes.c_char_p)
+            self._funcs["GetGpuFullName"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, NvPhysicalGpuHandle, ctypes.c_char_p)
             )
 
         # Get GPU from display
-        ptr = query_interface(NVAPI_FUNCS['GetPhysicalGPUsFromDisplay'])
+        ptr = query_interface(NVAPI_FUNCS["GetPhysicalGPUsFromDisplay"])
         if ptr:
-            self._funcs['GetPhysicalGPUsFromDisplay'] = ctypes.cast(
-                ptr,
-                ctypes.CFUNCTYPE(c_int, NvDisplayHandle, POINTER(NvPhysicalGpuHandle * 64), POINTER(c_uint))
+            self._funcs["GetPhysicalGPUsFromDisplay"] = ctypes.cast(
+                ptr, ctypes.CFUNCTYPE(c_int, NvDisplayHandle, POINTER(NvPhysicalGpuHandle * 64), POINTER(c_uint))
             )
 
     def _enumerate_gpus(self):
         """Enumerate NVIDIA GPUs."""
-        if 'EnumPhysicalGPUs' not in self._funcs:
+        if "EnumPhysicalGPUs" not in self._funcs:
             return
 
         gpu_handles = (NvPhysicalGpuHandle * 64)()
         gpu_count = c_uint(0)
 
-        status = self._funcs['EnumPhysicalGPUs'](byref(gpu_handles), byref(gpu_count))
+        status = self._funcs["EnumPhysicalGPUs"](byref(gpu_handles), byref(gpu_count))
         if status != NvStatus.OK:
             return
 
@@ -366,21 +370,23 @@ class NvidiaAPI:
             name_buffer = ctypes.create_string_buffer(NVAPI_SHORT_STRING_MAX)
             gpu_name = "Unknown NVIDIA GPU"
 
-            if 'GetGpuFullName' in self._funcs:
-                status = self._funcs['GetGpuFullName'](gpu_handle, name_buffer)
+            if "GetGpuFullName" in self._funcs:
+                status = self._funcs["GetGpuFullName"](gpu_handle, name_buffer)
                 if status == NvStatus.OK:
-                    gpu_name = name_buffer.value.decode('utf-8', errors='ignore')
+                    gpu_name = name_buffer.value.decode("utf-8", errors="ignore")
 
-            self._gpus.append(NvidiaGpuInfo(
-                handle=gpu_handle,
-                name=gpu_name,
-                driver_version="",  # Would need separate API call
-                display_count=0
-            ))
+            self._gpus.append(
+                NvidiaGpuInfo(
+                    handle=gpu_handle,
+                    name=gpu_name,
+                    driver_version="",  # Would need separate API call
+                    display_count=0,
+                )
+            )
 
     def _enumerate_displays(self):
         """Enumerate NVIDIA displays."""
-        if 'EnumDisplayHandle' not in self._funcs:
+        if "EnumDisplayHandle" not in self._funcs:
             # Fall back to Windows enumeration
             self._enumerate_displays_windows()
             return
@@ -388,7 +394,7 @@ class NvidiaAPI:
         i = 0
         while True:
             display_handle = NvDisplayHandle()
-            status = self._funcs['EnumDisplayHandle'](i, byref(display_handle))
+            status = self._funcs["EnumDisplayHandle"](i, byref(display_handle))
 
             if status == NvStatus.END_ENUMERATION:
                 break
@@ -397,36 +403,36 @@ class NvidiaAPI:
 
             # Get GPU for this display
             gpu_handle = 0
-            if 'GetPhysicalGPUsFromDisplay' in self._funcs:
+            if "GetPhysicalGPUsFromDisplay" in self._funcs:
                 gpu_handles = (NvPhysicalGpuHandle * 64)()
                 gpu_count = c_uint(0)
-                status = self._funcs['GetPhysicalGPUsFromDisplay'](
-                    display_handle, byref(gpu_handles), byref(gpu_count)
-                )
+                status = self._funcs["GetPhysicalGPUsFromDisplay"](display_handle, byref(gpu_handles), byref(gpu_count))
                 if status == NvStatus.OK and gpu_count.value > 0:
                     gpu_handle = gpu_handles[0]
 
             # Check HDR capability
             is_hdr_capable = False
             is_hdr_enabled = False
-            if 'GetHdrCapabilities' in self._funcs:
+            if "GetHdrCapabilities" in self._funcs:
                 caps = NV_HDR_CAPABILITIES_V2()
                 caps.version = sizeof(NV_HDR_CAPABILITIES_V2) | (2 << 16)
                 # Would need display ID, not handle
 
-            self._displays.append(NvidiaDisplayInfo(
-                display_id=i,
-                display_handle=display_handle,
-                gpu_handle=gpu_handle,
-                name=f"NVIDIA Display {i}",
-                is_primary=(i == 0),
-                is_active=True,
-                is_hdr_capable=is_hdr_capable,
-                is_hdr_enabled=is_hdr_enabled,
-                resolution=(0, 0),
-                refresh_rate=60.0,
-                connector_type="Unknown"
-            ))
+            self._displays.append(
+                NvidiaDisplayInfo(
+                    display_id=i,
+                    display_handle=display_handle,
+                    gpu_handle=gpu_handle,
+                    name=f"NVIDIA Display {i}",
+                    is_primary=(i == 0),
+                    is_active=True,
+                    is_hdr_capable=is_hdr_capable,
+                    is_hdr_enabled=is_hdr_enabled,
+                    resolution=(0, 0),
+                    refresh_rate=60.0,
+                    connector_type="Unknown",
+                )
+            )
 
             i += 1
 
@@ -451,24 +457,23 @@ class NvidiaAPI:
 
             while user32.EnumDisplayDevicesW(None, i, byref(device), 0):
                 if device.StateFlags & 0x00000001:  # ACTIVE
-                    is_nvidia = (
-                        "NVIDIA" in device.DeviceString or
-                        "nvidia" in device.DeviceID.lower()
-                    )
+                    is_nvidia = "NVIDIA" in device.DeviceString or "nvidia" in device.DeviceID.lower()
                     if is_nvidia:
-                        self._displays.append(NvidiaDisplayInfo(
-                            display_id=i,
-                            display_handle=i,
-                            gpu_handle=0,
-                            name=device.DeviceString,
-                            is_primary=bool(device.StateFlags & 0x00000004),
-                            is_active=True,
-                            is_hdr_capable=False,
-                            is_hdr_enabled=False,
-                            resolution=(0, 0),
-                            refresh_rate=60.0,
-                            connector_type="Unknown"
-                        ))
+                        self._displays.append(
+                            NvidiaDisplayInfo(
+                                display_id=i,
+                                display_handle=i,
+                                gpu_handle=0,
+                                name=device.DeviceString,
+                                is_primary=bool(device.StateFlags & 0x00000004),
+                                is_active=True,
+                                is_hdr_capable=False,
+                                is_hdr_enabled=False,
+                                resolution=(0, 0),
+                                refresh_rate=60.0,
+                                connector_type="Unknown",
+                            )
+                        )
                 i += 1
         except OSError:
             pass
@@ -516,7 +521,7 @@ class NvidiaAPI:
 
     def _get_color_via_nvapi(self, display_id: int) -> ColorSettings | None:
         """Get color settings via NVAPI (may not work on all driver versions)."""
-        if not self._initialized or 'ColorControl' not in self._funcs:
+        if not self._initialized or "ColorControl" not in self._funcs:
             return None
 
         if display_id >= len(self._displays):
@@ -533,10 +538,11 @@ class NvidiaAPI:
         color_data.version = sizeof(NV_COLOR_DATA_V5) | (5 << 16)
         color_data.size = sizeof(NV_COLOR_DATA_V5)
         color_data.cmd = NvColorCommand.GET_CURRENT
-        color_data.data = (NvColorType.BRIGHTNESS | NvColorType.CONTRAST |
-                          NvColorType.GAMMA | NvColorType.SATURATION | NvColorType.HUE)
+        color_data.data = (
+            NvColorType.BRIGHTNESS | NvColorType.CONTRAST | NvColorType.GAMMA | NvColorType.SATURATION | NvColorType.HUE
+        )
 
-        status = self._funcs['ColorControl'](actual_display_id, byref(color_data))
+        status = self._funcs["ColorControl"](actual_display_id, byref(color_data))
 
         if status == NvStatus.OK:
             return ColorSettings(
@@ -544,7 +550,7 @@ class NvidiaAPI:
                 contrast=color_data.colorContrast,
                 gamma=color_data.colorGamma,
                 saturation=color_data.colorSaturation,
-                hue=color_data.colorHue
+                hue=color_data.colorHue,
             )
 
         return None
@@ -560,7 +566,7 @@ class NvidiaAPI:
             query_interface.argtypes = [c_uint]
 
             # NvAPI_Disp_GetGDIPrimaryDisplayId
-            ptr = query_interface(NVAPI_FUNCS['Disp_GetGDIPrimaryDisplayId'])
+            ptr = query_interface(NVAPI_FUNCS["Disp_GetGDIPrimaryDisplayId"])
             if ptr and display_index == 0:
                 func = ctypes.cast(ptr, ctypes.CFUNCTYPE(c_int, POINTER(c_uint)))
                 display_id = c_uint(0)
@@ -599,7 +605,7 @@ class NvidiaAPI:
         contrast: int | None = None,
         gamma: int | None = None,
         saturation: int | None = None,
-        hue: int | None = None
+        hue: int | None = None,
     ) -> bool:
         """
         Set color settings for a display.
@@ -635,10 +641,10 @@ class NvidiaAPI:
         contrast: int | None,
         gamma: int | None,
         saturation: int | None,
-        hue: int | None
+        hue: int | None,
     ) -> bool:
         """Set color via NVAPI (may not work on all driver versions)."""
-        if not self._initialized or 'ColorControl' not in self._funcs:
+        if not self._initialized or "ColorControl" not in self._funcs:
             return False
 
         if display_id >= len(self._displays):
@@ -696,7 +702,7 @@ class NvidiaAPI:
 
         color_data.data = data_flags
 
-        status = self._funcs['ColorControl'](actual_display_id, byref(color_data))
+        status = self._funcs["ColorControl"](actual_display_id, byref(color_data))
         return status == NvStatus.OK
 
     def _set_vibrance_via_registry(self, display_id: int, saturation: int) -> bool:
@@ -712,8 +718,7 @@ class NvidiaAPI:
             key_path = r"SOFTWARE\NVIDIA Corporation\Global\NVTweak"
 
             try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
-                                   winreg.KEY_SET_VALUE) as key:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
                     winreg.SetValueEx(key, "DVibrance", 0, winreg.REG_DWORD, vibrance)
             except FileNotFoundError:
                 # Create the key if it doesn't exist
@@ -737,25 +742,13 @@ class NvidiaAPI:
         Returns:
             True if successful
         """
-        return self.set_color_settings(
-            display_id,
-            brightness=0,
-            contrast=0,
-            gamma=0,
-            saturation=0,
-            hue=0
-        )
+        return self.set_color_settings(display_id, brightness=0, contrast=0, gamma=0, saturation=0, hue=0)
 
     # =========================================================================
     # 3D LUT Methods
     # =========================================================================
 
-    def load_3d_lut(
-        self,
-        display_id: int,
-        lut_data: np.ndarray,
-        interpolation: str = "tetrahedral"
-    ) -> bool:
+    def load_3d_lut(self, display_id: int, lut_data: np.ndarray, interpolation: str = "tetrahedral") -> bool:
         """
         Load 3D LUT to GPU.
 
@@ -797,10 +790,10 @@ class NvidiaAPI:
 
             return self.set_color_settings(
                 display_id,
-                brightness=adjustments.get('brightness', 0),
-                contrast=adjustments.get('contrast', 0),
-                gamma=adjustments.get('gamma', 0),
-                saturation=adjustments.get('saturation', 0)
+                brightness=adjustments.get("brightness", 0),
+                contrast=adjustments.get("contrast", 0),
+                gamma=adjustments.get("gamma", 0),
+                saturation=adjustments.get("saturation", 0),
             )
         except (ValueError, OSError):
             return False
@@ -816,9 +809,7 @@ class NvidiaAPI:
         adjustments = {}
 
         # Sample diagonal (grayscale response)
-        diagonal = np.array([
-            lut_data[i, i, i] for i in range(size)
-        ])
+        diagonal = np.array([lut_data[i, i, i] for i in range(size)])
 
         # Average RGB response
         avg_response = diagonal.mean(axis=1)
@@ -829,14 +820,14 @@ class NvidiaAPI:
         # Estimate brightness (offset at black point)
         black_offset = avg_response[0] - expected[0]
         brightness = int(black_offset * 100)
-        adjustments['brightness'] = max(-100, min(100, brightness))
+        adjustments["brightness"] = max(-100, min(100, brightness))
 
         # Estimate contrast (difference between white and black)
         actual_range = avg_response[-1] - avg_response[0]
         expected_range = 1.0
         contrast_factor = actual_range / expected_range if expected_range > 0 else 1.0
         contrast = int((contrast_factor - 1.0) * 100)
-        adjustments['contrast'] = max(-100, min(100, contrast))
+        adjustments["contrast"] = max(-100, min(100, contrast))
 
         # Estimate gamma (midtone deviation)
         mid_idx = size // 2
@@ -846,23 +837,19 @@ class NvidiaAPI:
             # Gamma estimation: actual = expected^(1/gamma_factor)
             gamma_ratio = np.log(mid_actual) / np.log(mid_expected) if mid_expected < 1 else 1.0
             gamma = int((gamma_ratio - 1.0) * 50)
-            adjustments['gamma'] = max(-100, min(100, gamma))
+            adjustments["gamma"] = max(-100, min(100, gamma))
         else:
-            adjustments['gamma'] = 0
+            adjustments["gamma"] = 0
 
         # Estimate saturation by comparing color channel separation
         # At white, check if channels are equal (desaturated) or separated
         white_rgb = lut_data[-1, -1, -1]
         np.std(white_rgb)
-        adjustments['saturation'] = 0  # Hard to estimate from LUT
+        adjustments["saturation"] = 0  # Hard to estimate from LUT
 
         return adjustments
 
-    def load_lut_file(
-        self,
-        display_id: int,
-        lut_path: str | Path
-    ) -> bool:
+    def load_lut_file(self, display_id: int, lut_path: str | Path) -> bool:
         """
         Load 3D LUT from file.
 
@@ -920,13 +907,13 @@ class NvidiaAPI:
             Dictionary with HDR capability info
         """
         result = {
-            'hdr_supported': False,
-            'hdr10_supported': False,
-            'dolby_vision_supported': False,
-            'edr_supported': False,
+            "hdr_supported": False,
+            "hdr10_supported": False,
+            "dolby_vision_supported": False,
+            "edr_supported": False,
         }
 
-        if not self._initialized or 'GetHdrCapabilities' not in self._funcs:
+        if not self._initialized or "GetHdrCapabilities" not in self._funcs:
             return result
 
         if display_id >= len(self._displays):
@@ -935,17 +922,12 @@ class NvidiaAPI:
         # Note: GetHdrCapabilities requires display ID, not handle
         # This is a simplified check
         if self._displays[display_id].is_hdr_capable:
-            result['hdr_supported'] = True
-            result['hdr10_supported'] = True
+            result["hdr_supported"] = True
+            result["hdr10_supported"] = True
 
         return result
 
-    def set_hdr_mode(
-        self,
-        display_id: int,
-        enabled: bool,
-        mode: NvHdrMode = NvHdrMode.UHDA
-    ) -> bool:
+    def set_hdr_mode(self, display_id: int, enabled: bool, mode: NvHdrMode = NvHdrMode.UHDA) -> bool:
         """
         Enable/disable HDR mode.
 
@@ -957,7 +939,7 @@ class NvidiaAPI:
         Returns:
             True if successful
         """
-        if not self._initialized or 'HdrColorControl' not in self._funcs:
+        if not self._initialized or "HdrColorControl" not in self._funcs:
             return False
 
         if display_id >= len(self._displays):
@@ -975,30 +957,30 @@ class NvidiaAPI:
     def get_info(self) -> dict:
         """Get NVIDIA API information."""
         return {
-            'available': self._initialized,
-            'gpu_count': len(self._gpus),
-            'display_count': len(self._displays),
-            'gpus': [
+            "available": self._initialized,
+            "gpu_count": len(self._gpus),
+            "display_count": len(self._displays),
+            "gpus": [
                 {
-                    'name': gpu.name,
-                    'handle': gpu.handle,
+                    "name": gpu.name,
+                    "handle": gpu.handle,
                 }
                 for gpu in self._gpus
             ],
-            'displays': [
+            "displays": [
                 {
-                    'id': d.display_id,
-                    'name': d.name,
-                    'primary': d.is_primary,
-                    'active': d.is_active,
-                    'hdr_capable': d.is_hdr_capable,
+                    "id": d.display_id,
+                    "name": d.name,
+                    "primary": d.is_primary,
+                    "active": d.is_active,
+                    "hdr_capable": d.is_hdr_capable,
                 }
                 for d in self._displays
             ],
-            'features': {
-                'color_control': 'ColorControl' in self._funcs,
-                'hdr_control': 'HdrColorControl' in self._funcs,
-            }
+            "features": {
+                "color_control": "ColorControl" in self._funcs,
+                "hdr_control": "HdrColorControl" in self._funcs,
+            },
         }
 
     def cleanup(self):
@@ -1008,12 +990,9 @@ class NvidiaAPI:
                 query_interface = self._nvapi.nvapi_QueryInterface
                 query_interface.restype = c_void_p
 
-                unload_ptr = query_interface(NVAPI_FUNCS['Unload'])
+                unload_ptr = query_interface(NVAPI_FUNCS["Unload"])
                 if unload_ptr:
-                    NvAPI_Unload = ctypes.cast(
-                        unload_ptr,
-                        ctypes.CFUNCTYPE(c_int)
-                    )
+                    NvAPI_Unload = ctypes.cast(unload_ptr, ctypes.CFUNCTYPE(c_int))
                     NvAPI_Unload()
             except OSError:
                 pass
@@ -1028,6 +1007,7 @@ class NvidiaAPI:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def check_nvidia_available() -> bool:
     """Check if NVIDIA GPU is available."""
@@ -1045,10 +1025,7 @@ def get_nvidia_info() -> dict:
     return info
 
 
-def apply_nvidia_lut(
-    lut_data: np.ndarray,
-    display_id: int = 0
-) -> tuple[bool, str]:
+def apply_nvidia_lut(lut_data: np.ndarray, display_id: int = 0) -> tuple[bool, str]:
     """
     Apply 3D LUT via NVIDIA API.
 
@@ -1079,10 +1056,7 @@ def apply_nvidia_lut(
         pass
 
 
-def apply_nvidia_lut_file(
-    lut_path: str | Path,
-    display_id: int = 0
-) -> tuple[bool, str]:
+def apply_nvidia_lut_file(lut_path: str | Path, display_id: int = 0) -> tuple[bool, str]:
     """
     Apply 3D LUT file via NVIDIA API.
 
@@ -1115,7 +1089,7 @@ def set_nvidia_color(
     brightness: int | None = None,
     contrast: int | None = None,
     gamma: int | None = None,
-    saturation: int | None = None
+    saturation: int | None = None,
 ) -> tuple[bool, str]:
     """
     Set NVIDIA display color settings.
@@ -1137,11 +1111,7 @@ def set_nvidia_color(
 
     try:
         success = api.set_color_settings(
-            display_id,
-            brightness=brightness,
-            contrast=contrast,
-            gamma=gamma,
-            saturation=saturation
+            display_id, brightness=brightness, contrast=contrast, gamma=gamma, saturation=saturation
         )
         if success:
             return True, "Color settings applied"

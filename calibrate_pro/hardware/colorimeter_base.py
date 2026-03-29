@@ -16,36 +16,43 @@ import numpy as np
 
 class DeviceType(Enum):
     """Type of measurement device."""
-    COLORIMETER = "colorimeter"           # Tristimulus colorimeter
+
+    COLORIMETER = "colorimeter"  # Tristimulus colorimeter
     SPECTROPHOTOMETER = "spectrophotometer"  # Spectral measurement
     UNKNOWN = "unknown"
 
+
 class CalibrationMode(Enum):
     """Device calibration/correction mode."""
-    NONE = "none"                  # No correction
-    FACTORY = "factory"            # Factory calibration
-    CCSS = "ccss"                  # Colorimeter Calibration Spectral Set
-    CCMX = "ccmx"                  # Colorimeter Correction Matrix
-    EDR = "edr"                    # Extended Dynamic Range
-    REFRESH = "refresh"            # Refresh display mode
+
+    NONE = "none"  # No correction
+    FACTORY = "factory"  # Factory calibration
+    CCSS = "ccss"  # Colorimeter Calibration Spectral Set
+    CCMX = "ccmx"  # Colorimeter Correction Matrix
+    EDR = "edr"  # Extended Dynamic Range
+    REFRESH = "refresh"  # Refresh display mode
+
 
 class MeasurementType(Enum):
     """Type of measurement to perform."""
-    SPOT = "spot"                  # Single spot reading
-    AMBIENT = "ambient"            # Ambient light measurement
-    EMISSION = "emission"          # Display emission
-    REFRESH_RATE = "refresh"       # Display refresh rate detection
+
+    SPOT = "spot"  # Single spot reading
+    AMBIENT = "ambient"  # Ambient light measurement
+    EMISSION = "emission"  # Display emission
+    REFRESH_RATE = "refresh"  # Display refresh rate detection
+
 
 @dataclass
 class DeviceInfo:
     """Information about a connected measurement device."""
-    name: str                      # Device name
-    manufacturer: str              # Manufacturer name
-    model: str                     # Model identifier
-    serial: str                    # Serial number
-    device_type: DeviceType        # Device type
-    firmware_version: str = ""     # Firmware version
-    driver_version: str = ""       # Driver version
+
+    name: str  # Device name
+    manufacturer: str  # Manufacturer name
+    model: str  # Model identifier
+    serial: str  # Serial number
+    device_type: DeviceType  # Device type
+    firmware_version: str = ""  # Firmware version
+    driver_version: str = ""  # Driver version
     capabilities: list[str] = field(default_factory=list)  # Supported features
 
     def supports_spectral(self) -> bool:
@@ -64,12 +71,14 @@ class DeviceInfo:
             "serial": self.serial,
             "type": self.device_type.value,
             "firmware": self.firmware_version,
-            "capabilities": self.capabilities
+            "capabilities": self.capabilities,
         }
+
 
 @dataclass
 class ColorMeasurement:
     """Result of a color measurement."""
+
     # XYZ tristimulus values (Y in cd/m2 for absolute, or normalized)
     X: float
     Y: float
@@ -123,12 +132,14 @@ class ColorMeasurement:
             "luminance_cdm2": self.luminance,
             "cct": self.cct,
             "delta_uv": self.delta_uv,
-            "has_spectral": self.spectral_data is not None
+            "has_spectral": self.spectral_data is not None,
         }
+
 
 @dataclass
 class CalibrationPatch:
     """A color patch for display calibration."""
+
     # Target RGB values [0-1]
     r: float
     g: float
@@ -145,11 +156,8 @@ class CalibrationPatch:
         return (self.r, self.g, self.b)
 
     def get_rgb_8bit(self) -> tuple[int, int, int]:
-        return (
-            int(self.r * 255),
-            int(self.g * 255),
-            int(self.b * 255)
-        )
+        return (int(self.r * 255), int(self.g * 255), int(self.b * 255))
+
 
 class ColorimeterBase(ABC):
     """
@@ -320,9 +328,7 @@ class ColorimeterBase(ABC):
     # ==========================================================================
 
     def measure_patches(
-        self,
-        patches: list[CalibrationPatch],
-        display_callback: Callable[[CalibrationPatch], None]
+        self, patches: list[CalibrationPatch], display_callback: Callable[[CalibrationPatch], None]
     ) -> list[CalibrationPatch]:
         """
         Measure a sequence of color patches.
@@ -338,8 +344,8 @@ class ColorimeterBase(ABC):
 
         for i, patch in enumerate(patches):
             self._report_progress(
-                f"Measuring patch {i+1}/{total}: {patch.name or f'RGB({patch.r:.2f},{patch.g:.2f},{patch.b:.2f})'}",
-                i / total
+                f"Measuring patch {i + 1}/{total}: {patch.name or f'RGB({patch.r:.2f},{patch.g:.2f},{patch.b:.2f})'}",
+                i / total,
             )
 
             # Display the patch
@@ -354,9 +360,7 @@ class ColorimeterBase(ABC):
         return patches
 
     def measure_grayscale(
-        self,
-        steps: int = 21,
-        display_callback: Callable[[CalibrationPatch], None] = None
+        self, steps: int = 21, display_callback: Callable[[CalibrationPatch], None] = None
     ) -> list[CalibrationPatch]:
         """
         Measure grayscale ramp.
@@ -371,19 +375,14 @@ class ColorimeterBase(ABC):
         patches = []
         for i in range(steps):
             level = i / (steps - 1)
-            patches.append(CalibrationPatch(
-                r=level, g=level, b=level,
-                index=i,
-                name=f"Gray {int(level * 100)}%"
-            ))
+            patches.append(CalibrationPatch(r=level, g=level, b=level, index=i, name=f"Gray {int(level * 100)}%"))
 
         if display_callback:
             return self.measure_patches(patches, display_callback)
         return patches
 
     def measure_primaries(
-        self,
-        display_callback: Callable[[CalibrationPatch], None] = None
+        self, display_callback: Callable[[CalibrationPatch], None] = None
     ) -> dict[str, ColorMeasurement]:
         """
         Measure display primary colors and white point.
@@ -418,16 +417,13 @@ class ColorimeterBase(ABC):
 # Patch Set Generators
 # =============================================================================
 
+
 def generate_grayscale_patches(steps: int = 21) -> list[CalibrationPatch]:
     """Generate grayscale ramp patches."""
     patches = []
     for i in range(steps):
         level = i / (steps - 1)
-        patches.append(CalibrationPatch(
-            r=level, g=level, b=level,
-            index=i,
-            name=f"Gray {int(level * 100)}%"
-        ))
+        patches.append(CalibrationPatch(r=level, g=level, b=level, index=i, name=f"Gray {int(level * 100)}%"))
     return patches
 
 
@@ -488,8 +484,8 @@ def generate_profiling_patches(size: int = 729) -> list[CalibrationPatch]:
         List of profiling patches
     """
     # Calculate grid size
-    grid = int(round(size ** (1/3)))
-    grid ** 3
+    grid = int(round(size ** (1 / 3)))
+    grid**3
 
     patches = []
     index = 0
@@ -501,11 +497,7 @@ def generate_profiling_patches(size: int = 729) -> list[CalibrationPatch]:
                 g = g_idx / (grid - 1)
                 b = b_idx / (grid - 1)
 
-                patches.append(CalibrationPatch(
-                    r=r, g=g, b=b,
-                    index=index,
-                    name=f"P{index:04d}"
-                ))
+                patches.append(CalibrationPatch(r=r, g=g, b=b, index=index, name=f"P{index:04d}"))
                 index += 1
 
     return patches

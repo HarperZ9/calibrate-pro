@@ -34,15 +34,20 @@ try:
     # EnumDisplayDevices for getting display names
     class DISPLAY_DEVICE(ctypes.Structure):
         _fields_ = [
-            ('cb', wintypes.DWORD),
-            ('DeviceName', wintypes.WCHAR * 32),
-            ('DeviceString', wintypes.WCHAR * 128),
-            ('StateFlags', wintypes.DWORD),
-            ('DeviceID', wintypes.WCHAR * 128),
-            ('DeviceKey', wintypes.WCHAR * 128),
+            ("cb", wintypes.DWORD),
+            ("DeviceName", wintypes.WCHAR * 32),
+            ("DeviceString", wintypes.WCHAR * 128),
+            ("StateFlags", wintypes.DWORD),
+            ("DeviceID", wintypes.WCHAR * 128),
+            ("DeviceKey", wintypes.WCHAR * 128),
         ]
 
-    user32.EnumDisplayDevicesW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.POINTER(DISPLAY_DEVICE), wintypes.DWORD]
+    user32.EnumDisplayDevicesW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(DISPLAY_DEVICE),
+        wintypes.DWORD,
+    ]
     user32.EnumDisplayDevicesW.restype = wintypes.BOOL
 
     VCGT_AVAILABLE = True
@@ -108,6 +113,7 @@ GammaRamp = (ctypes.c_ushort * 256) * 3
 @dataclass
 class CalibrationCurves:
     """RGB calibration curves (256 points each, 0.0-1.0 range)."""
+
     red: np.ndarray
     green: np.ndarray
     blue: np.ndarray

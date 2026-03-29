@@ -109,24 +109,24 @@ class DDCControlPage(QWidget):
         self.control_tabs = QTabWidget()
         self.control_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
-                border: 1px solid {COLORS['border']};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 4px;
-                background: {COLORS['surface']};
+                background: {COLORS["surface"]};
             }}
             QTabBar::tab {{
-                background: {COLORS['background_alt']};
-                color: {COLORS['text_secondary']};
+                background: {COLORS["background_alt"]};
+                color: {COLORS["text_secondary"]};
                 padding: 8px 16px;
                 margin-right: 2px;
                 border-top-left-radius: 4px;
                 border-top-right-radius: 4px;
             }}
             QTabBar::tab:selected {{
-                background: {COLORS['surface']};
-                color: {COLORS['text_primary']};
+                background: {COLORS["surface"]};
+                color: {COLORS["text_primary"]};
             }}
             QTabBar::tab:hover {{
-                background: {COLORS['surface_alt']};
+                background: {COLORS["surface_alt"]};
             }}
         """)
 
@@ -186,16 +186,12 @@ class DDCControlPage(QWidget):
         basic_layout = QVBoxLayout(self.basic_group)
 
         self.brightness_slider = self._create_slider_row(
-            "Brightness", 0, 100, 50,
-            "Adjusts monitor backlight/OLED pixel brightness"
+            "Brightness", 0, 100, 50, "Adjusts monitor backlight/OLED pixel brightness"
         )
-        basic_layout.addLayout(self.brightness_slider['layout'])
+        basic_layout.addLayout(self.brightness_slider["layout"])
 
-        self.contrast_slider = self._create_slider_row(
-            "Contrast", 0, 100, 50,
-            "Adjusts display contrast ratio"
-        )
-        basic_layout.addLayout(self.contrast_slider['layout'])
+        self.contrast_slider = self._create_slider_row("Contrast", 0, 100, 50, "Adjusts display contrast ratio")
+        basic_layout.addLayout(self.contrast_slider["layout"])
 
         scroll_layout.addWidget(self.basic_group)
 
@@ -209,37 +205,32 @@ class DDCControlPage(QWidget):
         )
         self.rgb_unsupported_label.setWordWrap(True)
         self.rgb_unsupported_label.setStyleSheet(
-            f"color: {COLORS['error']}; padding: 8px; "
-            f"background-color: rgba(255,100,100,0.1); border-radius: 4px;"
+            f"color: {COLORS['error']}; padding: 8px; background-color: rgba(255,100,100,0.1); border-radius: 4px;"
         )
         self.rgb_unsupported_label.setVisible(False)
         rgb_layout.addWidget(self.rgb_unsupported_label)
 
         rgb_info = QLabel(
-            "Adjust these to achieve D65 (6504K) white point. "
-            "Values should be near 100 for neutral gray at all levels."
+            "Adjust these to achieve D65 (6504K) white point. Values should be near 100 for neutral gray at all levels."
         )
         rgb_info.setWordWrap(True)
         rgb_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 4px;")
         rgb_layout.addWidget(rgb_info)
 
         self.red_gain_slider = self._create_slider_row(
-            "Red Gain", 0, 100, 100, "Increases red in highlights (warm)",
-            value_color="#ff6b6b"
+            "Red Gain", 0, 100, 100, "Increases red in highlights (warm)", value_color="#ff6b6b"
         )
-        rgb_layout.addLayout(self.red_gain_slider['layout'])
+        rgb_layout.addLayout(self.red_gain_slider["layout"])
 
         self.green_gain_slider = self._create_slider_row(
-            "Green Gain", 0, 100, 100, "Increases green in highlights",
-            value_color="#69db7c"
+            "Green Gain", 0, 100, 100, "Increases green in highlights", value_color="#69db7c"
         )
-        rgb_layout.addLayout(self.green_gain_slider['layout'])
+        rgb_layout.addLayout(self.green_gain_slider["layout"])
 
         self.blue_gain_slider = self._create_slider_row(
-            "Blue Gain", 0, 100, 100, "Increases blue in highlights (cool)",
-            value_color="#74c0fc"
+            "Blue Gain", 0, 100, 100, "Increases blue in highlights (cool)", value_color="#74c0fc"
         )
-        rgb_layout.addLayout(self.blue_gain_slider['layout'])
+        rgb_layout.addLayout(self.blue_gain_slider["layout"])
 
         scroll_layout.addWidget(self.rgb_group)
 
@@ -247,41 +238,33 @@ class DDCControlPage(QWidget):
         self.black_group = QGroupBox("RGB Black Level (Shadow Balance)")
         black_layout = QVBoxLayout(self.black_group)
 
-        self.black_unsupported_label = QLabel(
-            "\u274c RGB Black Level is NOT supported by this monitor via DDC/CI."
-        )
+        self.black_unsupported_label = QLabel("\u274c RGB Black Level is NOT supported by this monitor via DDC/CI.")
         self.black_unsupported_label.setWordWrap(True)
         self.black_unsupported_label.setStyleSheet(
-            f"color: {COLORS['error']}; padding: 8px; "
-            f"background-color: rgba(255,100,100,0.1); border-radius: 4px;"
+            f"color: {COLORS['error']}; padding: 8px; background-color: rgba(255,100,100,0.1); border-radius: 4px;"
         )
         self.black_unsupported_label.setVisible(False)
         black_layout.addWidget(self.black_unsupported_label)
 
-        black_info = QLabel(
-            "Adjusts color balance in shadows/blacks. Keep balanced for neutral grays."
-        )
+        black_info = QLabel("Adjusts color balance in shadows/blacks. Keep balanced for neutral grays.")
         black_info.setWordWrap(True)
         black_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 4px;")
         black_layout.addWidget(black_info)
 
         self.red_black_slider = self._create_slider_row(
-            "Red Black", 0, 100, 50, "Red level in shadows",
-            value_color="#ff6b6b"
+            "Red Black", 0, 100, 50, "Red level in shadows", value_color="#ff6b6b"
         )
-        black_layout.addLayout(self.red_black_slider['layout'])
+        black_layout.addLayout(self.red_black_slider["layout"])
 
         self.green_black_slider = self._create_slider_row(
-            "Green Black", 0, 100, 50, "Green level in shadows",
-            value_color="#69db7c"
+            "Green Black", 0, 100, 50, "Green level in shadows", value_color="#69db7c"
         )
-        black_layout.addLayout(self.green_black_slider['layout'])
+        black_layout.addLayout(self.green_black_slider["layout"])
 
         self.blue_black_slider = self._create_slider_row(
-            "Blue Black", 0, 100, 50, "Blue level in shadows",
-            value_color="#74c0fc"
+            "Blue Black", 0, 100, 50, "Blue level in shadows", value_color="#74c0fc"
         )
-        black_layout.addLayout(self.blue_black_slider['layout'])
+        black_layout.addLayout(self.blue_black_slider["layout"])
 
         scroll_layout.addWidget(self.black_group)
         scroll_layout.addStretch()
@@ -329,9 +312,7 @@ class DDCControlPage(QWidget):
         # Results table
         self.vcp_table = QTableWidget()
         self.vcp_table.setColumnCount(5)
-        self.vcp_table.setHorizontalHeaderLabels([
-            "Code", "Name", "Current", "Maximum", "Actions"
-        ])
+        self.vcp_table.setHorizontalHeaderLabels(["Code", "Name", "Current", "Maximum", "Actions"])
         self.vcp_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.vcp_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.vcp_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -340,21 +321,21 @@ class DDCControlPage(QWidget):
         self.vcp_table.setAlternatingRowColors(True)
         self.vcp_table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['surface']};
-                gridline-color: {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                gridline-color: {COLORS["border"]};
             }}
             QTableWidget::item {{
                 padding: 4px 8px;
             }}
             QTableWidget::item:alternate {{
-                background-color: {COLORS['background_alt']};
+                background-color: {COLORS["background_alt"]};
             }}
             QHeaderView::section {{
-                background-color: {COLORS['background_alt']};
-                color: {COLORS['text_primary']};
+                background-color: {COLORS["background_alt"]};
+                color: {COLORS["text_primary"]};
                 padding: 6px;
                 border: none;
-                border-bottom: 1px solid {COLORS['border']};
+                border-bottom: 1px solid {COLORS["border"]};
             }}
         """)
         layout.addWidget(self.vcp_table)
@@ -464,30 +445,30 @@ class DDCControlPage(QWidget):
         color_group = QGroupBox("Color Temperature / Preset (VCP 0x14)")
         color_layout = QVBoxLayout(color_group)
 
-        color_info = QLabel(
-            "Select a color temperature preset. Available presets depend on your monitor."
-        )
+        color_info = QLabel("Select a color temperature preset. Available presets depend on your monitor.")
         color_info.setWordWrap(True)
         color_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 4px;")
         color_layout.addWidget(color_info)
 
         preset_row = QHBoxLayout()
         self.color_preset_combo = QComboBox()
-        self.color_preset_combo.addItems([
-            "1 - Native/sRGB",
-            "2 - 4000K (Warm)",
-            "3 - 5000K (Warm)",
-            "4 - 5500K",
-            "5 - 6500K (D65)",
-            "6 - 7500K (Cool)",
-            "7 - 8200K (Cool)",
-            "8 - 9300K (Cool)",
-            "9 - 10000K",
-            "10 - 11500K",
-            "11 - User 1",
-            "12 - User 2",
-            "13 - User 3",
-        ])
+        self.color_preset_combo.addItems(
+            [
+                "1 - Native/sRGB",
+                "2 - 4000K (Warm)",
+                "3 - 5000K (Warm)",
+                "4 - 5500K",
+                "5 - 6500K (D65)",
+                "6 - 7500K (Cool)",
+                "7 - 8200K (Cool)",
+                "8 - 9300K (Cool)",
+                "9 - 10000K",
+                "10 - 11500K",
+                "11 - User 1",
+                "12 - User 2",
+                "13 - User 3",
+            ]
+        )
         self.color_preset_combo.setCurrentIndex(4)  # Default to 6500K
         preset_row.addWidget(self.color_preset_combo)
 
@@ -512,25 +493,25 @@ class DDCControlPage(QWidget):
         image_group = QGroupBox("Image Mode / Picture Preset (VCP 0xDB)")
         image_layout = QVBoxLayout(image_group)
 
-        image_info = QLabel(
-            "Picture mode presets like Standard, Movie, Game, Photo, etc."
-        )
+        image_info = QLabel("Picture mode presets like Standard, Movie, Game, Photo, etc.")
         image_info.setWordWrap(True)
         image_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 4px;")
         image_layout.addWidget(image_info)
 
         image_row = QHBoxLayout()
         self.image_mode_combo = QComboBox()
-        self.image_mode_combo.addItems([
-            "0 - Standard",
-            "1 - Movie/Cinema",
-            "2 - Game",
-            "3 - Photo/Graphics",
-            "4 - Text/Office",
-            "5 - Dynamic",
-            "6 - Custom 1",
-            "7 - Custom 2",
-        ])
+        self.image_mode_combo.addItems(
+            [
+                "0 - Standard",
+                "1 - Movie/Cinema",
+                "2 - Game",
+                "3 - Photo/Graphics",
+                "4 - Text/Office",
+                "5 - Dynamic",
+                "6 - Custom 1",
+                "7 - Custom 2",
+            ]
+        )
         image_row.addWidget(self.image_mode_combo)
 
         apply_image_btn = QPushButton("Apply")
@@ -554,23 +535,23 @@ class DDCControlPage(QWidget):
         gamma_group = QGroupBox("Gamma Preset (VCP 0xF2)")
         gamma_layout = QVBoxLayout(gamma_group)
 
-        gamma_info = QLabel(
-            "Gamma curve preset. Values are manufacturer-specific."
-        )
+        gamma_info = QLabel("Gamma curve preset. Values are manufacturer-specific.")
         gamma_info.setWordWrap(True)
         gamma_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 4px;")
         gamma_layout.addWidget(gamma_info)
 
         gamma_row = QHBoxLayout()
         self.gamma_combo = QComboBox()
-        self.gamma_combo.addItems([
-            "0 - Native/Default",
-            "1 - 1.8",
-            "2 - 2.0",
-            "3 - 2.2 (sRGB)",
-            "4 - 2.4 (BT.1886)",
-            "5 - 2.6",
-        ])
+        self.gamma_combo.addItems(
+            [
+                "0 - Native/Default",
+                "1 - 1.8",
+                "2 - 2.0",
+                "3 - 2.2 (sRGB)",
+                "4 - 2.4 (BT.1886)",
+                "5 - 2.6",
+            ]
+        )
         self.gamma_combo.setCurrentIndex(3)  # Default to 2.2
         gamma_row.addWidget(self.gamma_combo)
 
@@ -633,13 +614,15 @@ class DDCControlPage(QWidget):
         detect_btn_layout.addWidget(detect_colorimeter_btn)
 
         self.colorimeter_combo = QComboBox()
-        self.colorimeter_combo.addItems([
-            "Auto-detect",
-            "i1Display Pro",
-            "Spyder X",
-            "ColorChecker Display",
-            "ArgyllCMS (any device)",
-        ])
+        self.colorimeter_combo.addItems(
+            [
+                "Auto-detect",
+                "i1Display Pro",
+                "Spyder X",
+                "ColorChecker Display",
+                "ArgyllCMS (any device)",
+            ]
+        )
         detect_btn_layout.addWidget(self.colorimeter_combo)
         detect_btn_layout.addStretch()
 
@@ -721,7 +704,7 @@ class DDCControlPage(QWidget):
         self.auto_log.setMaximumHeight(150)
         self.auto_log.setStyleSheet(f"""
             QPlainTextEdit {{
-                background-color: {COLORS['background_alt']};
+                background-color: {COLORS["background_alt"]};
                 font-family: 'Consolas', monospace;
                 font-size: 11px;
             }}
@@ -779,9 +762,7 @@ class DDCControlPage(QWidget):
 
             if devices:
                 device = devices[0]
-                self.colorimeter_status.setText(
-                    f"\u2713 Found: {device.name} ({device.manufacturer})"
-                )
+                self.colorimeter_status.setText(f"\u2713 Found: {device.name} ({device.manufacturer})")
                 self.colorimeter_status.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
                 self._colorimeter = backend
                 return
@@ -794,10 +775,7 @@ class DDCControlPage(QWidget):
             self.colorimeter_status.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
         except Exception as e:
-            self.colorimeter_status.setText(
-                f"ArgyllCMS not found. Install from argyllcms.com\n"
-                f"Error: {e}"
-            )
+            self.colorimeter_status.setText(f"ArgyllCMS not found. Install from argyllcms.com\nError: {e}")
             self.colorimeter_status.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
 
     def _start_hardware_calibration(self):
@@ -820,13 +798,13 @@ class DDCControlPage(QWidget):
             engine = HardwareCalibrationEngine()
 
             # Get colorimeter if available
-            colorimeter = getattr(self, '_colorimeter', None)
+            colorimeter = getattr(self, "_colorimeter", None)
 
             # Initialize
             if not engine.initialize(
                 colorimeter=colorimeter,
                 ddc_controller=self.ddc_controller,
-                display_index=self.monitor_combo.currentIndex()
+                display_index=self.monitor_combo.currentIndex(),
             ):
                 self.auto_log.appendPlainText("ERROR: Failed to initialize calibration engine")
                 return
@@ -905,12 +883,13 @@ class DDCControlPage(QWidget):
             QMessageBox.warning(self, "No Monitor", "Select a DDC/CI monitor first.")
             return
 
-        colorimeter = getattr(self, '_colorimeter', None)
+        colorimeter = getattr(self, "_colorimeter", None)
         if not colorimeter:
             QMessageBox.information(
-                self, "Colorimeter Required",
+                self,
+                "Colorimeter Required",
                 "Quick white balance requires a colorimeter to measure actual display output.\n\n"
-                "Click 'Detect Colorimeter' first, or use 'Sensorless Calibration' instead."
+                "Click 'Detect Colorimeter' first, or use 'Sensorless Calibration' instead.",
             )
             return
 
@@ -921,7 +900,7 @@ class DDCControlPage(QWidget):
             engine.initialize(
                 colorimeter=colorimeter,
                 ddc_controller=self.ddc_controller,
-                display_index=self.monitor_combo.currentIndex()
+                display_index=self.monitor_combo.currentIndex(),
             )
 
             self.auto_log.appendPlainText("Starting quick white balance...")
@@ -1017,16 +996,16 @@ class DDCControlPage(QWidget):
                 # Determine accuracy rating
                 if result.estimated_delta_e_white < 1.0:
                     rating = "REFERENCE GRADE"
-                    rating_color = COLORS['success']
+                    rating_color = COLORS["success"]
                 elif result.estimated_delta_e_white < 2.0:
                     rating = "PROFESSIONAL GRADE"
-                    rating_color = COLORS['success']
+                    rating_color = COLORS["success"]
                 elif result.estimated_delta_e_white < 3.0:
                     rating = "PHOTO EDITING GRADE"
-                    rating_color = COLORS['warning']
+                    rating_color = COLORS["warning"]
                 else:
                     rating = "GENERAL USE"
-                    rating_color = COLORS['warning']
+                    rating_color = COLORS["warning"]
 
                 self.auto_results.setText(
                     f"CALIBRATION COMPLETE!\n\n"
@@ -1047,6 +1026,7 @@ class DDCControlPage(QWidget):
 
         except Exception as e:
             import traceback
+
             self.auto_log.appendPlainText(f"ERROR: {e}")
             self.auto_log.appendPlainText(traceback.format_exc())
             self.auto_results.setText(f"Error: {e}")
@@ -1057,8 +1037,9 @@ class DDCControlPage(QWidget):
         self.auto_progress.setFormat("Stopped")
         self.start_calibration_btn.setEnabled(True)
 
-    def _create_slider_row(self, label: str, min_val: int, max_val: int,
-                           default: int, tooltip: str, value_color: str = None) -> dict:
+    def _create_slider_row(
+        self, label: str, min_val: int, max_val: int, default: int, tooltip: str, value_color: str = None
+    ) -> dict:
         """Create a labeled slider with value display."""
         layout = QHBoxLayout()
         layout.setSpacing(12)
@@ -1077,7 +1058,7 @@ class DDCControlPage(QWidget):
         layout.addWidget(slider, stretch=1)
 
         # Value label
-        color = value_color or COLORS['text_primary']
+        color = value_color or COLORS["text_primary"]
         value_lbl = QLabel(str(default))
         value_lbl.setMinimumWidth(40)
         value_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -1092,18 +1073,18 @@ class DDCControlPage(QWidget):
 
         slider.valueChanged.connect(on_value_changed)
 
-        return {'layout': layout, 'slider': slider, 'value_label': value_lbl}
+        return {"layout": layout, "slider": slider, "value_label": value_lbl}
 
     def _initialize_ddc(self):
         """Initialize DDC/CI controller and enumerate monitors."""
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController
+
             self.ddc_controller = DDCCIController()
 
             if not self.ddc_controller.available:
                 self.status_label.setText(
-                    "\u274c DDC/CI is not available on this system. "
-                    "Monitor hardware control requires DDC/CI support."
+                    "\u274c DDC/CI is not available on this system. Monitor hardware control requires DDC/CI support."
                 )
                 self.status_label.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
                 return
@@ -1131,14 +1112,13 @@ class DDCControlPage(QWidget):
             return
 
         for i, monitor in enumerate(self.monitors):
-            name = monitor.get('name', f'Monitor {i+1}')
-            caps = monitor.get('capabilities')
+            name = monitor.get("name", f"Monitor {i + 1}")
+            caps = monitor.get("capabilities")
             rgb_support = "\u2713 RGB" if caps and caps.has_rgb_gain else "\u25cb Basic"
             self.monitor_combo.addItem(f"{name} [{rgb_support}]")
 
         self.status_label.setText(
-            f"\u2713 Found {len(self.monitors)} DDC/CI monitor(s). "
-            "Adjust sliders to see live changes on your display."
+            f"\u2713 Found {len(self.monitors)} DDC/CI monitor(s). Adjust sliders to see live changes on your display."
         )
         self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
 
@@ -1151,14 +1131,14 @@ class DDCControlPage(QWidget):
             return
 
         self.current_monitor = self.monitors[index]
-        caps = self.current_monitor.get('capabilities')
+        caps = self.current_monitor.get("capabilities")
 
         # Track supported features for this monitor
         self._supported_features = {
-            'brightness': False,
-            'contrast': False,
-            'rgb_gain': False,
-            'rgb_black': False,
+            "brightness": False,
+            "contrast": False,
+            "rgb_gain": False,
+            "rgb_black": False,
         }
 
         if caps:
@@ -1168,32 +1148,32 @@ class DDCControlPage(QWidget):
             # Check brightness (VCP 0x10)
             if 0x10 in caps.supported_vcp_codes:
                 cap_text.append("Brightness \u2713")
-                self._supported_features['brightness'] = True
+                self._supported_features["brightness"] = True
             else:
                 supported_unsupported.append("Brightness \u2717")
 
             # Check contrast (VCP 0x12)
             if 0x12 in caps.supported_vcp_codes:
                 cap_text.append("Contrast \u2713")
-                self._supported_features['contrast'] = True
+                self._supported_features["contrast"] = True
             else:
                 supported_unsupported.append("Contrast \u2717")
 
             # Check RGB Gain
             if caps.has_rgb_gain:
                 cap_text.append("RGB Gain \u2713")
-                self._supported_features['rgb_gain'] = True
+                self._supported_features["rgb_gain"] = True
             else:
                 supported_unsupported.append("RGB Gain \u2717")
 
             # Check RGB Black Level
             if caps.has_rgb_black_level:
                 cap_text.append("RGB Black Level \u2713")
-                self._supported_features['rgb_black'] = True
+                self._supported_features["rgb_black"] = True
             else:
                 supported_unsupported.append("RGB Black \u2717")
 
-            status = ', '.join(cap_text) if cap_text else 'None'
+            status = ", ".join(cap_text) if cap_text else "None"
             if supported_unsupported:
                 status += f" | Not supported: {', '.join(supported_unsupported)}"
             self.capabilities_label.setText(f"Capabilities: {status}")
@@ -1209,10 +1189,10 @@ class DDCControlPage(QWidget):
     def _update_slider_states(self):
         """Enable/disable sliders based on monitor capabilities."""
         # Brightness/Contrast
-        has_brightness = self._supported_features.get('brightness', False)
-        has_contrast = self._supported_features.get('contrast', False)
-        self.brightness_slider['slider'].setEnabled(has_brightness)
-        self.contrast_slider['slider'].setEnabled(has_contrast)
+        has_brightness = self._supported_features.get("brightness", False)
+        has_contrast = self._supported_features.get("contrast", False)
+        self.brightness_slider["slider"].setEnabled(has_brightness)
+        self.contrast_slider["slider"].setEnabled(has_contrast)
 
         if not has_brightness and not has_contrast:
             self.basic_group.setTitle("Brightness & Contrast (NOT SUPPORTED)")
@@ -1220,11 +1200,11 @@ class DDCControlPage(QWidget):
             self.basic_group.setTitle("Brightness & Contrast")
 
         # RGB Gain
-        has_rgb_gain = self._supported_features.get('rgb_gain', False)
+        has_rgb_gain = self._supported_features.get("rgb_gain", False)
         self.rgb_unsupported_label.setVisible(not has_rgb_gain)
-        self.red_gain_slider['slider'].setEnabled(has_rgb_gain)
-        self.green_gain_slider['slider'].setEnabled(has_rgb_gain)
-        self.blue_gain_slider['slider'].setEnabled(has_rgb_gain)
+        self.red_gain_slider["slider"].setEnabled(has_rgb_gain)
+        self.green_gain_slider["slider"].setEnabled(has_rgb_gain)
+        self.blue_gain_slider["slider"].setEnabled(has_rgb_gain)
 
         if has_rgb_gain:
             self.rgb_group.setTitle("RGB Gain (White Balance) - Adjusts D65 White Point")
@@ -1232,11 +1212,11 @@ class DDCControlPage(QWidget):
             self.rgb_group.setTitle("RGB Gain (White Balance) - NOT SUPPORTED")
 
         # RGB Black Level
-        has_rgb_black = self._supported_features.get('rgb_black', False)
+        has_rgb_black = self._supported_features.get("rgb_black", False)
         self.black_unsupported_label.setVisible(not has_rgb_black)
-        self.red_black_slider['slider'].setEnabled(has_rgb_black)
-        self.green_black_slider['slider'].setEnabled(has_rgb_black)
-        self.blue_black_slider['slider'].setEnabled(has_rgb_black)
+        self.red_black_slider["slider"].setEnabled(has_rgb_black)
+        self.green_black_slider["slider"].setEnabled(has_rgb_black)
+        self.blue_black_slider["slider"].setEnabled(has_rgb_black)
 
         if has_rgb_black:
             self.black_group.setTitle("RGB Black Level (Shadow Balance)")
@@ -1254,21 +1234,21 @@ class DDCControlPage(QWidget):
             settings = self.ddc_controller.get_settings(self.current_monitor)
 
             if settings.brightness > 0:
-                self.brightness_slider['slider'].setValue(settings.brightness)
+                self.brightness_slider["slider"].setValue(settings.brightness)
             if settings.contrast > 0:
-                self.contrast_slider['slider'].setValue(settings.contrast)
+                self.contrast_slider["slider"].setValue(settings.contrast)
             if settings.red_gain > 0:
-                self.red_gain_slider['slider'].setValue(settings.red_gain)
+                self.red_gain_slider["slider"].setValue(settings.red_gain)
             if settings.green_gain > 0:
-                self.green_gain_slider['slider'].setValue(settings.green_gain)
+                self.green_gain_slider["slider"].setValue(settings.green_gain)
             if settings.blue_gain > 0:
-                self.blue_gain_slider['slider'].setValue(settings.blue_gain)
+                self.blue_gain_slider["slider"].setValue(settings.blue_gain)
             if settings.red_black_level > 0:
-                self.red_black_slider['slider'].setValue(settings.red_black_level)
+                self.red_black_slider["slider"].setValue(settings.red_black_level)
             if settings.green_black_level > 0:
-                self.green_black_slider['slider'].setValue(settings.green_black_level)
+                self.green_black_slider["slider"].setValue(settings.green_black_level)
             if settings.blue_black_level > 0:
-                self.blue_black_slider['slider'].setValue(settings.blue_black_level)
+                self.blue_black_slider["slider"].setValue(settings.blue_black_level)
 
         except Exception as e:
             self.status_label.setText(f"\u26a0\ufe0f Error reading values: {e}")
@@ -1311,10 +1291,11 @@ class DDCControlPage(QWidget):
     def _reset_to_defaults(self):
         """Reset all values to factory defaults."""
         reply = QMessageBox.question(
-            self, "Reset to Defaults",
+            self,
+            "Reset to Defaults",
             "Reset all DDC/CI values to factory defaults?\n\n"
             "This will set brightness/contrast to 50 and RGB gains to 100.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply != QMessageBox.StandardButton.Yes:
@@ -1334,7 +1315,7 @@ class DDCControlPage(QWidget):
         ]
 
         for slider_dict, value in defaults:
-            slider_dict['slider'].setValue(value)
+            slider_dict["slider"].setValue(value)
 
         self._updating_sliders = False
 
@@ -1349,19 +1330,17 @@ class DDCControlPage(QWidget):
     def _test_ddc_connection(self):
         """Test DDC/CI by visibly flashing brightness."""
         if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(
-                self, "No Monitor",
-                "No DDC/CI capable monitor is selected."
-            )
+            QMessageBox.warning(self, "No Monitor", "No DDC/CI capable monitor is selected.")
             return
 
         # Check if brightness is supported
-        if not self._supported_features.get('brightness', False):
+        if not self._supported_features.get("brightness", False):
             QMessageBox.warning(
-                self, "Brightness Not Supported",
+                self,
+                "Brightness Not Supported",
                 "This monitor does not support brightness control via DDC/CI.\n\n"
                 "DDC/CI control may not work on this monitor.\n"
-                "Many monitors have DDC/CI disabled by default - check your monitor's OSD settings."
+                "Many monitors have DDC/CI disabled by default - check your monitor's OSD settings.",
             )
             return
 
@@ -1387,38 +1366,36 @@ class DDCControlPage(QWidget):
                 self.status_label.setText(f"Testing: {msg}")
                 QApplication.processEvents()
 
-                success = self.ddc_controller.set_vcp(
-                    self.current_monitor, VCPCode.BRIGHTNESS, brightness
-                )
+                success = self.ddc_controller.set_vcp(self.current_monitor, VCPCode.BRIGHTNESS, brightness)
 
                 if not success:
                     QMessageBox.warning(
-                        self, "DDC/CI Test Failed",
+                        self,
+                        "DDC/CI Test Failed",
                         f"Failed to set brightness to {brightness}%.\n\n"
                         "DDC/CI commands are being rejected by the monitor.\n"
                         "This could mean:\n"
                         "\u2022 DDC/CI is disabled in monitor OSD settings\n"
                         "\u2022 Monitor doesn't fully support DDC/CI\n"
                         "\u2022 Cable doesn't support DDC/CI (use HDMI or DisplayPort)\n"
-                        "\u2022 GPU driver issue"
+                        "\u2022 GPU driver issue",
                     )
                     return
 
                 time.sleep(0.8)  # Visible delay
 
-            self.status_label.setText(
-                "\u2713 DDC/CI test complete! If you saw brightness changes, DDC is working."
-            )
+            self.status_label.setText("\u2713 DDC/CI test complete! If you saw brightness changes, DDC is working.")
             self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
 
             QMessageBox.information(
-                self, "DDC/CI Test",
+                self,
+                "DDC/CI Test",
                 "Did you see the screen brightness change?\n\n"
                 "YES - DDC/CI is working correctly.\n"
                 "NO - DDC/CI is not working. Check:\n"
                 "\u2022 Monitor OSD: Enable DDC/CI option\n"
                 "\u2022 Use HDMI or DisplayPort (not VGA)\n"
-                "\u2022 Some monitors ignore DDC brightness commands"
+                "\u2022 Some monitors ignore DDC brightness commands",
             )
 
         except Exception as e:
@@ -1428,14 +1405,15 @@ class DDCControlPage(QWidget):
     def _auto_calibrate_d65(self):
         """Attempt automatic D65 white point calibration."""
         QMessageBox.information(
-            self, "Auto-Calibrate to D65",
+            self,
+            "Auto-Calibrate to D65",
             "This feature requires a colorimeter (hardware sensor) to measure "
             "actual display output and iteratively adjust RGB gains.\n\n"
             "Without a colorimeter, you can manually adjust:\n"
             "\u2022 If image looks too warm (yellow/red): Reduce Red Gain, increase Blue Gain\n"
             "\u2022 If image looks too cool (blue): Reduce Blue Gain, increase Red Gain\n"
             "\u2022 If image looks green: Reduce Green Gain\n\n"
-            "Target: Neutral gray at all brightness levels"
+            "Target: Neutral gray at all brightness levels",
         )
 
     # =========================================================================
@@ -1467,8 +1445,7 @@ class DDCControlPage(QWidget):
         try:
             # Perform the scan
             self._discovered_vcp_codes = self.ddc_controller.scan_all_vcp_codes(
-                self.current_monitor,
-                progress_callback=update_progress
+                self.current_monitor, progress_callback=update_progress
             )
 
             # Populate table
@@ -1535,21 +1512,17 @@ class DDCControlPage(QWidget):
             else:
                 test_value = 50 if current != 50 else 0
 
-            success, msg = self.ddc_controller.try_set_vcp(
-                self.current_monitor, code, test_value
-            )
+            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, code, test_value)
 
             if success:
                 QMessageBox.information(
-                    self, "VCP Test",
-                    f"VCP 0x{code:02X}: {msg}\n\n"
-                    "If you saw a change on your monitor, this code is working!"
+                    self,
+                    "VCP Test",
+                    f"VCP 0x{code:02X}: {msg}\n\nIf you saw a change on your monitor, this code is working!",
                 )
             else:
                 QMessageBox.warning(
-                    self, "VCP Test",
-                    f"VCP 0x{code:02X}: {msg}\n\n"
-                    "This code may be read-only or not fully supported."
+                    self, "VCP Test", f"VCP 0x{code:02X}: {msg}\n\nThis code may be read-only or not fully supported."
                 )
 
             # Restore original value
@@ -1579,9 +1552,7 @@ class DDCControlPage(QWidget):
             code = self._parse_vcp_code(self.read_code_input.text())
 
             current, maximum = self.ddc_controller.get_vcp(self.current_monitor, code)
-            self.read_result.setText(
-                f"Result: Current={current}, Max={maximum}"
-            )
+            self.read_result.setText(f"Result: Current={current}, Max={maximum}")
             self.read_result.setStyleSheet(f"color: {COLORS['success']};")
 
         except ValueError:
@@ -1601,9 +1572,7 @@ class DDCControlPage(QWidget):
             code = self._parse_vcp_code(self.write_code_input.text())
             value = int(self.write_value_input.text().strip())
 
-            success, msg = self.ddc_controller.try_set_vcp(
-                self.current_monitor, code, value
-            )
+            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, code, value)
 
             if success:
                 self.write_result.setText(f"Result: {msg}")
@@ -1636,9 +1605,7 @@ class DDCControlPage(QWidget):
             selection = self.color_preset_combo.currentText()
             value = int(selection.split(" - ")[0])
 
-            success, msg = self.ddc_controller.try_set_vcp(
-                self.current_monitor, VCPCode.COLOR_PRESET, value
-            )
+            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.COLOR_PRESET, value)
 
             if success:
                 self.preset_status.setText(f"Status: \u2713 {msg}")
@@ -1660,9 +1627,7 @@ class DDCControlPage(QWidget):
         try:
             from calibrate_pro.hardware.ddc_ci import VCPCode
 
-            current, maximum = self.ddc_controller.get_vcp(
-                self.current_monitor, VCPCode.COLOR_PRESET
-            )
+            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.COLOR_PRESET)
             self.preset_status.setText(f"Status: Current preset = {current} (max: {maximum})")
             self.preset_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
 
@@ -1688,9 +1653,7 @@ class DDCControlPage(QWidget):
             selection = self.image_mode_combo.currentText()
             value = int(selection.split(" - ")[0])
 
-            success, msg = self.ddc_controller.try_set_vcp(
-                self.current_monitor, VCPCode.IMAGE_MODE, value
-            )
+            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.IMAGE_MODE, value)
 
             if success:
                 self.image_mode_status.setText(f"Status: \u2713 {msg}")
@@ -1712,9 +1675,7 @@ class DDCControlPage(QWidget):
         try:
             from calibrate_pro.hardware.ddc_ci import VCPCode
 
-            current, maximum = self.ddc_controller.get_vcp(
-                self.current_monitor, VCPCode.IMAGE_MODE
-            )
+            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.IMAGE_MODE)
             self.image_mode_status.setText(f"Status: Current mode = {current} (max: {maximum})")
             self.image_mode_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
 
@@ -1740,9 +1701,7 @@ class DDCControlPage(QWidget):
             selection = self.gamma_combo.currentText()
             value = int(selection.split(" - ")[0])
 
-            success, msg = self.ddc_controller.try_set_vcp(
-                self.current_monitor, VCPCode.GAMMA, value
-            )
+            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.GAMMA, value)
 
             if success:
                 self.gamma_status.setText(f"Status: \u2713 {msg}")
@@ -1764,9 +1723,7 @@ class DDCControlPage(QWidget):
         try:
             from calibrate_pro.hardware.ddc_ci import VCPCode
 
-            current, maximum = self.ddc_controller.get_vcp(
-                self.current_monitor, VCPCode.GAMMA
-            )
+            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.GAMMA)
             self.gamma_status.setText(f"Status: Current gamma = {current} (max: {maximum})")
             self.gamma_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
 

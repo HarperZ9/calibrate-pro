@@ -165,8 +165,8 @@ class MainWindow(QMainWindow):
         self.toolbar_cm_status = QLabel()
         self.toolbar_cm_status.setStyleSheet(f"""
             QLabel {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 4px;
                 padding: 4px 8px;
                 font-size: 11px;
@@ -254,7 +254,7 @@ class MainWindow(QMainWindow):
             self.tray_icon.setIcon(IconFactory.tray_icon_inactive())
 
     def _update_tray_status(self):
-        if hasattr(self, 'tray_status_action'):
+        if hasattr(self, "tray_status_action"):
             if self.cm_status.is_active():
                 self.tray_status_action.setText(f"Active: {self.cm_status.get_status_text()}")
                 self.tray_lut_action.setText("Disable LUT")
@@ -265,15 +265,15 @@ class MainWindow(QMainWindow):
     def _update_toolbar_cm_status(self):
         if self.cm_status.is_active():
             status_text = self.cm_status.get_status_text()
-            color = COLORS['success']
+            color = COLORS["success"]
         else:
             status_text = "No CM active"
-            color = COLORS['text_disabled']
+            color = COLORS["text_disabled"]
 
         self.toolbar_cm_status.setText(f"  {status_text}")
         self.toolbar_cm_status.setStyleSheet(f"""
             QLabel {{
-                background-color: {COLORS['surface']};
+                background-color: {COLORS["surface"]};
                 border: 1px solid {color};
                 border-radius: 4px;
                 padding: 4px 8px;
@@ -282,7 +282,7 @@ class MainWindow(QMainWindow):
             }}
         """)
 
-        if hasattr(self, 'statusbar_cm_indicator'):
+        if hasattr(self, "statusbar_cm_indicator"):
             self.statusbar_cm_indicator.setText(status_text)
 
     def _load_color_management_state(self):
@@ -308,10 +308,10 @@ class MainWindow(QMainWindow):
 
     def _refresh_all_cm_displays(self):
         self._update_toolbar_cm_status()
-        if hasattr(self, 'tray_icon'):
+        if hasattr(self, "tray_icon"):
             self._update_tray_icon()
             self._update_tray_status()
-        if hasattr(self, 'dashboard_page'):
+        if hasattr(self, "dashboard_page"):
             self.dashboard_page.update_cm_status()
 
     def _show_from_tray(self):
@@ -348,7 +348,7 @@ class MainWindow(QMainWindow):
 
         self.settings.setValue("geometry", self.saveGeometry())
 
-        if hasattr(self, 'tray_icon'):
+        if hasattr(self, "tray_icon"):
             self.tray_icon.hide()
 
         QApplication.quit()
@@ -361,20 +361,19 @@ class MainWindow(QMainWindow):
             screen = QGuiApplication.primaryScreen()
             if screen:
                 sg = screen.availableGeometry()
-                self.move(sg.x() + (sg.width() - self.width()) // 2,
-                          sg.y() + (sg.height() - self.height()) // 2)
+                self.move(sg.x() + (sg.width() - self.width()) // 2, sg.y() + (sg.height() - self.height()) // 2)
 
     def closeEvent(self, event):
         minimize_to_tray = self.settings.value("general/minimize_to_tray", True, type=bool)
 
-        if minimize_to_tray and hasattr(self, 'tray_icon') and self.tray_icon.isVisible():
+        if minimize_to_tray and hasattr(self, "tray_icon") and self.tray_icon.isVisible():
             event.ignore()
             self.hide()
             self.tray_icon.showMessage(
                 APP_NAME,
                 "Running in background. Right-click tray icon for options.",
                 QSystemTrayIcon.MessageIcon.Information,
-                2000
+                2000,
             )
         else:
             self._quit_application()
@@ -385,7 +384,9 @@ class MainWindow(QMainWindow):
         if displays:
             primary = displays[0]
             g = primary.geometry()
-            self.display_indicator.setText(f"{primary.name()} - {g.width()}x{g.height()} @ {primary.refreshRate():.0f}Hz")
+            self.display_indicator.setText(
+                f"{primary.name()} - {g.width()}x{g.height()} @ {primary.refreshRate():.0f}Hz"
+            )
             self.status_label.setText(f"Detected {len(displays)} display(s)")
 
     def _new_calibration(self):
@@ -393,15 +394,18 @@ class MainWindow(QMainWindow):
 
     def _open_profile(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Profile", "",
-            "Calibration Files (*.icc *.cube *.3dlut);;ICC Profiles (*.icc);;3D LUTs (*.cube *.3dlut);;All Files (*)")
+            self,
+            "Open Profile",
+            "",
+            "Calibration Files (*.icc *.cube *.3dlut);;ICC Profiles (*.icc);;3D LUTs (*.cube *.3dlut);;All Files (*)",
+        )
         if path:
             self.status_label.setText(f"Loaded: {path}")
 
     def _save_profile(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Profile", "",
-            "ICC Profile (*.icc);;3D LUT (*.cube);;All Files (*)")
+            self, "Save Profile", "", "ICC Profile (*.icc);;3D LUT (*.cube);;All Files (*)"
+        )
         if path:
             self.status_label.setText(f"Saved: {path}")
 
@@ -414,17 +418,16 @@ class MainWindow(QMainWindow):
             "mpv": "mpv Config (*.conf)",
             "obs": "OBS LUT (*.cube)",
         }
-        path, _ = QFileDialog.getSaveFileName(
-            self, f"Export {fmt.upper()}", "", extensions.get(fmt, "All Files (*)"))
+        path, _ = QFileDialog.getSaveFileName(self, f"Export {fmt.upper()}", "", extensions.get(fmt, "All Files (*)"))
         if path:
             self.status_label.setText(f"Exported: {path}")
 
     def _install_profile(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
+        path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
         if path:
             try:
                 from calibrate_pro.panels.detection import install_profile
+
                 install_profile(path)
                 self.status_label.setText(f"Installed: {path}")
                 QMessageBox.information(self, "Profile Installed", f"ICC profile installed:\n{path}")
@@ -435,6 +438,7 @@ class MainWindow(QMainWindow):
         try:
             from calibrate_pro.lut_system.dwm_lut import remove_lut
             from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
+
             displays = enumerate_displays()
             for i, d in enumerate(displays):
                 reset_gamma_ramp(d.device_name)
@@ -451,12 +455,15 @@ class MainWindow(QMainWindow):
     def _show_test_patterns(self):
         try:
             from calibrate_pro.patterns.display import show_patterns
+
             show_patterns()
         except (ImportError, OSError) as e:
             QMessageBox.warning(self, "Test Patterns", str(e))
 
     def _show_about(self):
-        QMessageBox.about(self, f"About {APP_NAME}",
+        QMessageBox.about(
+            self,
+            f"About {APP_NAME}",
             f"<h2>{APP_NAME}</h2>"
             f"<p>Version {APP_VERSION}</p>"
             f"<p>Professional display calibration suite with:</p>"
@@ -466,7 +473,8 @@ class MainWindow(QMainWindow):
             f"<li>System-wide 3D LUT (dwm_lut)</li>"
             f"<li>Full HDR calibration suite</li>"
             f"</ul>"
-            f"<p>2024 {APP_ORGANIZATION}</p>")
+            f"<p>2024 {APP_ORGANIZATION}</p>",
+        )
 
 
 def run_application():

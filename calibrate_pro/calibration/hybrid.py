@@ -43,9 +43,10 @@ MeasureFn = Callable[[float, float, float], tuple[float, float, float]]
 @dataclass
 class RefinementResult:
     """Result from one refinement iteration."""
+
     iteration: int
     delta_e_before: float  # Average dE before this iteration's correction
-    delta_e_after: float   # Average dE after (predicted from residual correction)
+    delta_e_after: float  # Average dE after (predicted from residual correction)
     patches_measured: int
     residual_corrections: np.ndarray | None = None  # 3x3 residual matrix
 
@@ -53,6 +54,7 @@ class RefinementResult:
 @dataclass
 class HybridCalibrationResult:
     """Complete result from hybrid calibration."""
+
     success: bool = False
     message: str = ""
 
@@ -77,18 +79,18 @@ class HybridCalibrationResult:
 # Standard verification patches — subset of ColorChecker for fast measurement
 # These 12 patches cover: neutrals, primaries, secondaries, skin tones
 QUICK_VERIFY_PATCHES = [
-    ("White",      (0.95, 0.95, 0.95)),
+    ("White", (0.95, 0.95, 0.95)),
     ("Neutral 80", (0.80, 0.80, 0.80)),
     ("Neutral 50", (0.50, 0.50, 0.50)),
     ("Neutral 20", (0.20, 0.20, 0.20)),
-    ("Red",        (0.75, 0.15, 0.15)),
-    ("Green",      (0.15, 0.60, 0.15)),
-    ("Blue",       (0.15, 0.15, 0.75)),
-    ("Cyan",       (0.15, 0.70, 0.70)),
-    ("Magenta",    (0.70, 0.15, 0.70)),
-    ("Yellow",     (0.80, 0.80, 0.15)),
+    ("Red", (0.75, 0.15, 0.15)),
+    ("Green", (0.15, 0.60, 0.15)),
+    ("Blue", (0.15, 0.15, 0.75)),
+    ("Cyan", (0.15, 0.70, 0.70)),
+    ("Magenta", (0.70, 0.15, 0.70)),
+    ("Yellow", (0.80, 0.80, 0.15)),
     ("Skin Light", (0.78, 0.58, 0.50)),
-    ("Skin Dark",  (0.45, 0.32, 0.26)),
+    ("Skin Dark", (0.45, 0.32, 0.26)),
 ]
 
 
@@ -115,7 +117,7 @@ class HybridCalibrationEngine:
         measure_fn: MeasureFn | None = None,
         max_iterations: int = 3,
         convergence_threshold: float = 0.5,  # Stop when dE improvement < this
-        progress_fn: Callable[[str, float], None] | None = None
+        progress_fn: Callable[[str, float], None] | None = None,
     ):
         self.measure_fn = measure_fn
         self.max_iterations = max_iterations
@@ -127,11 +129,7 @@ class HybridCalibrationEngine:
             self.progress_fn(message, pct)
 
     def calibrate(
-        self,
-        panel,
-        output_dir: Path,
-        target: str = "native",
-        hdr_mode: bool = False
+        self, panel, output_dir: Path, target: str = "native", hdr_mode: bool = False
     ) -> HybridCalibrationResult:
         """
         Run hybrid calibration.
@@ -167,10 +165,7 @@ class HybridCalibrationEngine:
         sensorless_verify = engine.verify_calibration(panel)
         result.sensorless_delta_e = sensorless_verify.get("delta_e_avg", 0.0)
 
-        self._progress(
-            f"Sensorless baseline: predicted dE {result.sensorless_delta_e:.2f}",
-            0.2
-        )
+        self._progress(f"Sensorless baseline: predicted dE {result.sensorless_delta_e:.2f}", 0.2)
 
         # Step 2: If no colorimeter, stop here
         if self.measure_fn is None:
@@ -209,13 +204,11 @@ class HybridCalibrationEngine:
         for iteration in range(self.max_iterations):
             self._progress(
                 f"Refinement iteration {iteration + 1}/{self.max_iterations}...",
-                0.4 + 0.5 * (iteration / self.max_iterations)
+                0.4 + 0.5 * (iteration / self.max_iterations),
             )
 
             # Compute residual correction from measurements
-            residual_matrix = self._compute_residual_correction(
-                QUICK_VERIFY_PATCHES, measured_data
-            )
+            residual_matrix = self._compute_residual_correction(QUICK_VERIFY_PATCHES, measured_data)
 
             if residual_matrix is None:
                 break
@@ -245,14 +238,13 @@ class HybridCalibrationEngine:
                 delta_e_before=prev_de,
                 delta_e_after=float(new_avg_de),
                 patches_measured=len(QUICK_VERIFY_PATCHES),
-                residual_corrections=residual_matrix
+                residual_corrections=residual_matrix,
             )
             result.iterations.append(iter_result)
 
             self._progress(
-                f"Iteration {iteration + 1}: dE {prev_de:.2f} -> {new_avg_de:.2f} "
-                f"(improvement: {improvement:.2f})",
-                0.4 + 0.5 * ((iteration + 1) / self.max_iterations)
+                f"Iteration {iteration + 1}: dE {prev_de:.2f} -> {new_avg_de:.2f} (improvement: {improvement:.2f})",
+                0.4 + 0.5 * ((iteration + 1) / self.max_iterations),
             )
 
             result.final_measured_delta_e = float(new_avg_de)
@@ -264,10 +256,7 @@ class HybridCalibrationEngine:
 
             # Check convergence
             if improvement < self.convergence_threshold:
-                self._progress(
-                    f"Converged after {iteration + 1} iterations (dE {new_avg_de:.2f})",
-                    0.9
-                )
+                self._progress(f"Converged after {iteration + 1} iterations (dE {new_avg_de:.2f})", 0.9)
                 break
 
         # Generate ICC profile
@@ -306,9 +295,7 @@ class HybridCalibrationEngine:
         return measurements
 
     def _compute_measured_delta_e(
-        self,
-        patches: list[tuple[str, tuple[float, float, float]]],
-        measured_xyz: list[tuple[float, float, float]]
+        self, patches: list[tuple[str, tuple[float, float, float]]], measured_xyz: list[tuple[float, float, float]]
     ) -> list[dict]:
         """Compute Delta E between expected and measured XYZ for each patch."""
         results = []
@@ -327,22 +314,22 @@ class HybridCalibrationEngine:
 
             de = delta_e_2000(lab_meas, lab_exp)
 
-            results.append({
-                "name": name,
-                "srgb": srgb,
-                "expected_xyz": tuple(xyz_expected),
-                "measured_xyz": xyz_measured,
-                "expected_lab": tuple(lab_exp),
-                "measured_lab": tuple(lab_meas),
-                "delta_e": float(de)
-            })
+            results.append(
+                {
+                    "name": name,
+                    "srgb": srgb,
+                    "expected_xyz": tuple(xyz_expected),
+                    "measured_xyz": xyz_measured,
+                    "expected_lab": tuple(lab_exp),
+                    "measured_lab": tuple(lab_meas),
+                    "delta_e": float(de),
+                }
+            )
 
         return results
 
     def _compute_residual_correction(
-        self,
-        patches: list[tuple[str, tuple[float, float, float]]],
-        measured_xyz: list[tuple[float, float, float]]
+        self, patches: list[tuple[str, tuple[float, float, float]]], measured_xyz: list[tuple[float, float, float]]
     ) -> np.ndarray | None:
         """
         Compute a 3x3 residual correction matrix from measurement error.
@@ -365,29 +352,21 @@ class HybridCalibrationEngine:
 
         # Stack into matrices
         expected_mat = np.array(expected_list).T  # 3 x N
-        measured_mat = np.array(measured_list).T   # 3 x N
+        measured_mat = np.array(measured_list).T  # 3 x N
 
         # Least-squares: find M such that expected ≈ M @ measured
         # M = expected @ measured^T @ (measured @ measured^T)^-1
         try:
-            M = expected_mat @ measured_mat.T @ np.linalg.inv(
-                measured_mat @ measured_mat.T
-            )
+            M = expected_mat @ measured_mat.T @ np.linalg.inv(measured_mat @ measured_mat.T)
             return M
         except np.linalg.LinAlgError:
             return None
 
-    def _apply_residual_to_lut(
-        self, lut, residual_matrix: np.ndarray
-    ):
+    def _apply_residual_to_lut(self, lut, residual_matrix: np.ndarray):
         """Apply a 3x3 residual correction to an existing 3D LUT."""
         from calibrate_pro.core.lut_engine import LUT3D
 
-        refined = LUT3D(
-            size=lut.size,
-            data=lut.data.copy(),
-            title=lut.title + " (refined)"
-        )
+        refined = LUT3D(size=lut.size, data=lut.data.copy(), title=lut.title + " (refined)")
 
         # Apply residual matrix to every LUT entry
         shape = refined.data.shape

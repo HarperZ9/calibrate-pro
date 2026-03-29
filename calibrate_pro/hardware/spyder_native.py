@@ -35,6 +35,7 @@ from calibrate_pro.hardware.usb_device import (
 # Spyder command codes
 class SpyderCommand:
     """Spyder device command codes."""
+
     RESET = 0x00
     GET_STATUS = 0x01
     GET_SERIAL = 0x02
@@ -52,30 +53,19 @@ class SpyderCommand:
 
 # SpyderX default calibration matrix
 # Maps sensor RGB to CIE XYZ
-SPYDER_X_MATRIX = np.array([
-    [0.4361, 0.3851, 0.1431],
-    [0.2225, 0.7169, 0.0606],
-    [0.0139, 0.0971, 0.7141]
-])
+SPYDER_X_MATRIX = np.array([[0.4361, 0.3851, 0.1431], [0.2225, 0.7169, 0.0606], [0.0139, 0.0971, 0.7141]])
 
 # SpyderX2 has improved sensors
-SPYDER_X2_MATRIX = np.array([
-    [0.4243, 0.3836, 0.1570],
-    [0.2126, 0.7152, 0.0722],
-    [0.0193, 0.1192, 0.9503]
-])
+SPYDER_X2_MATRIX = np.array([[0.4243, 0.3836, 0.1570], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9503]])
 
 # Spyder5 matrix
-SPYDER_5_MATRIX = np.array([
-    [0.4124, 0.3576, 0.1805],
-    [0.2126, 0.7152, 0.0722],
-    [0.0193, 0.1192, 0.9505]
-])
+SPYDER_5_MATRIX = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
 
 
 @dataclass
 class SpyderCalibrationData:
     """Spyder calibration data from EEPROM."""
+
     serial: str
     model: str
     firmware_version: str
@@ -94,7 +84,7 @@ class SpyderNative(ColorimeterBase):
 
     # Supported device IDs
     SUPPORTED_DEVICES = {
-        (0x085C, 0x0700): ("SpyderX2 Ultra", 6, True),   # (name, sensors, has_ambient)
+        (0x085C, 0x0700): ("SpyderX2 Ultra", 6, True),  # (name, sensors, has_ambient)
         (0x085C, 0x0600): ("SpyderX Elite", 3, True),
         (0x085C, 0x0500): ("Spyder5 Elite", 7, True),
         (0x085C, 0x0400): ("Spyder4 Elite", 7, True),
@@ -123,15 +113,17 @@ class SpyderNative(ColorimeterBase):
                 if has_ambient:
                     caps.append("ambient")
 
-                devices.append(DeviceInfo(
-                    name=name,
-                    manufacturer="Datacolor",
-                    model=name,
-                    serial=usb_dev.serial_number or "Unknown",
-                    device_type=DeviceType.COLORIMETER,
-                    firmware_version="",
-                    capabilities=caps
-                ))
+                devices.append(
+                    DeviceInfo(
+                        name=name,
+                        manufacturer="Datacolor",
+                        model=name,
+                        serial=usb_dev.serial_number or "Unknown",
+                        device_type=DeviceType.COLORIMETER,
+                        firmware_version="",
+                        capabilities=caps,
+                    )
+                )
 
         return devices
 
@@ -188,14 +180,14 @@ class SpyderNative(ColorimeterBase):
         self.is_connected = False
         return True
 
-    def _send_command(self, cmd: int, data: bytes = b'') -> bytes:
+    def _send_command(self, cmd: int, data: bytes = b"") -> bytes:
         """Send command and receive response."""
         if not self._transport or not self._transport.is_open:
             raise CommunicationError("Device not connected")
 
         # Spyder command format: [0x00] [cmd] [len] [data...]
         packet = bytes([0x00, cmd, len(data)]) + data
-        packet = packet.ljust(64, b'\x00')
+        packet = packet.ljust(64, b"\x00")
 
         self._transport.write(packet)
         time.sleep(0.02)
@@ -233,7 +225,7 @@ class SpyderNative(ColorimeterBase):
             resp = self._send_command(SpyderCommand.GET_SERIAL)
             serial = ""
             if len(resp) >= 16:
-                serial = resp[3:19].decode('ascii', errors='ignore').strip('\x00')
+                serial = resp[3:19].decode("ascii", errors="ignore").strip("\x00")
 
             key = (self._usb_info.vendor_id, self._usb_info.product_id)
             name = self.SUPPORTED_DEVICES.get(key, ("Spyder", 3, True))[0]
@@ -245,7 +237,7 @@ class SpyderNative(ColorimeterBase):
                 serial=serial or self._usb_info.serial_number or "",
                 device_type=DeviceType.COLORIMETER,
                 firmware_version=version,
-                capabilities=["spot", "ambient", "emission"]
+                capabilities=["spot", "ambient", "emission"],
             )
 
         except Exception:
@@ -256,7 +248,7 @@ class SpyderNative(ColorimeterBase):
                     model=self._usb_info.product,
                     serial=self._usb_info.serial_number or "",
                     device_type=DeviceType.COLORIMETER,
-                    capabilities=["spot", "emission"]
+                    capabilities=["spot", "emission"],
                 )
 
     def _read_calibration_data(self):
@@ -271,14 +263,14 @@ class SpyderNative(ColorimeterBase):
                     for j in range(3):
                         idx = 4 + (i * 3 + j) * 4
                         if idx + 4 <= len(resp):
-                            matrix[i, j] = struct.unpack('<f', resp[idx:idx+4])[0]
+                            matrix[i, j] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
                 # Parse dark offsets
                 dark = np.zeros(self._sensor_count)
                 for i in range(min(3, self._sensor_count)):
                     idx = 40 + i * 4
                     if idx + 4 <= len(resp):
-                        dark[i] = struct.unpack('<f', resp[idx:idx+4])[0]
+                        dark[i] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
                 self._cal_data = SpyderCalibrationData(
                     serial=self.device_info.serial if self.device_info else "",
@@ -286,7 +278,7 @@ class SpyderNative(ColorimeterBase):
                     firmware_version=self.device_info.firmware_version if self.device_info else "",
                     calibration_matrix=matrix if np.any(matrix) else self._default_matrix,
                     dark_offsets=dark,
-                    sensor_sensitivities=np.ones(self._sensor_count)
+                    sensor_sensitivities=np.ones(self._sensor_count),
                 )
             else:
                 self._use_default_calibration()
@@ -302,7 +294,7 @@ class SpyderNative(ColorimeterBase):
             firmware_version="",
             calibration_matrix=self._default_matrix,
             dark_offsets=np.zeros(self._sensor_count),
-            sensor_sensitivities=np.ones(self._sensor_count)
+            sensor_sensitivities=np.ones(self._sensor_count),
         )
 
     def _set_led(self, state: int):
@@ -333,7 +325,7 @@ class SpyderNative(ColorimeterBase):
                 for i in range(min(3, self._sensor_count)):
                     idx = 40 + i * 4
                     if idx + 4 <= len(resp):
-                        self._cal_data.dark_offsets[i] = struct.unpack('<f', resp[idx:idx+4])[0]
+                        self._cal_data.dark_offsets[i] = struct.unpack("<f", resp[idx : idx + 4])[0]
 
             self._set_led(1)  # Green
             self._report_progress("Dark calibration complete", 1.0)
@@ -350,7 +342,7 @@ class SpyderNative(ColorimeterBase):
             self._integration_time = seconds
 
             ms = int(seconds * 1000)
-            data = struct.pack('<H', ms)
+            data = struct.pack("<H", ms)
             try:
                 self._send_command(SpyderCommand.SET_INTEGRATION, data)
                 return True
@@ -369,7 +361,7 @@ class SpyderNative(ColorimeterBase):
         try:
             # Set integration time
             ms = int(self._integration_time * 1000)
-            int_data = struct.pack('<H', ms)
+            int_data = struct.pack("<H", ms)
             self._send_command(SpyderCommand.SET_INTEGRATION, int_data)
 
             # Accumulate for averaging
@@ -387,7 +379,7 @@ class SpyderNative(ColorimeterBase):
                     for i in range(min(3, self._sensor_count)):
                         idx = 4 + i * 4
                         if idx + 4 <= len(resp):
-                            sensor_sum[i] += struct.unpack('<I', resp[idx:idx+4])[0]
+                            sensor_sum[i] += struct.unpack("<I", resp[idx : idx + 4])[0]
 
             # Average
             sensor_avg = sensor_sum / self._averaging
@@ -407,7 +399,7 @@ class SpyderNative(ColorimeterBase):
                 Y=float(xyz[1]),
                 Z=float(xyz[2]),
                 integration_time=self._integration_time,
-                measurement_mode="spot"
+                measurement_mode="spot",
             )
 
         except Exception as e:
@@ -444,13 +436,8 @@ class SpyderNative(ColorimeterBase):
             time.sleep(1.0)
 
             if len(resp) >= 8:
-                lux = struct.unpack('<f', resp[4:8])[0]
-                return ColorMeasurement(
-                    X=0,
-                    Y=lux,
-                    Z=0,
-                    measurement_mode="ambient"
-                )
+                lux = struct.unpack("<f", resp[4:8])[0]
+                return ColorMeasurement(X=0, Y=lux, Z=0, measurement_mode="ambient")
         except Exception:
             pass
 

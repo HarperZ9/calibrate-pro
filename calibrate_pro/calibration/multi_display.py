@@ -15,28 +15,30 @@ from dataclasses import dataclass
 @dataclass
 class DisplayTarget:
     """Matched calibration target for one display."""
+
     display_index: int
     display_name: str
     panel_type: str
 
     # Matched targets (common across all displays)
     target_white_xy: tuple[float, float]
-    target_luminance: float       # cd/m2 — limited to weakest display's capability
+    target_luminance: float  # cd/m2 — limited to weakest display's capability
     target_gamma: float
 
     # Per-display adjustments needed
     brightness_adjustment: float  # DDC-CI brightness (0-100)
-    rgb_gain_r: float            # DDC-CI red gain
-    rgb_gain_g: float            # DDC-CI green gain
-    rgb_gain_b: float            # DDC-CI blue gain
+    rgb_gain_r: float  # DDC-CI red gain
+    rgb_gain_g: float  # DDC-CI green gain
+    rgb_gain_b: float  # DDC-CI blue gain
 
 
 @dataclass
 class MatchingResult:
     """Result from multi-display matching analysis."""
-    matched_white: tuple[float, float]     # Common white point (typically D65)
-    matched_luminance: float               # Common achievable brightness
-    matched_gamma: float                   # Common gamma target
+
+    matched_white: tuple[float, float]  # Common white point (typically D65)
+    matched_luminance: float  # Common achievable brightness
+    matched_gamma: float  # Common gamma target
     per_display: list[DisplayTarget]
     notes: list[str]
 
@@ -64,7 +66,7 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
             matched_luminance=120.0,
             matched_gamma=2.2,
             per_display=[],
-            notes=["No displays provided"]
+            notes=["No displays provided"],
         )
 
     notes = []
@@ -120,7 +122,7 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
             brightness_adjustment=brightness_pct,
             rgb_gain_r=gains[0],
             rgb_gain_g=gains[1],
-            rgb_gain_b=gains[2]
+            rgb_gain_b=gains[2],
         )
         per_display.append(dt)
 
@@ -138,14 +140,11 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
         matched_luminance=matched_luminance,
         matched_gamma=target_gamma,
         per_display=per_display,
-        notes=notes
+        notes=notes,
     )
 
 
-def _compute_wp_gains(
-    panel_x: float, panel_y: float,
-    target_x: float, target_y: float
-) -> tuple[float, float, float]:
+def _compute_wp_gains(panel_x: float, panel_y: float, target_x: float, target_y: float) -> tuple[float, float, float]:
     """
     Compute RGB gain adjustments to shift white point from panel to target.
 
@@ -170,11 +169,7 @@ def _compute_wp_gains(
         g_gain /= max_gain
         b_gain /= max_gain
 
-    return (
-        max(0.5, min(1.0, r_gain)),
-        max(0.5, min(1.0, g_gain)),
-        max(0.5, min(1.0, b_gain))
-    )
+    return (max(0.5, min(1.0, r_gain)), max(0.5, min(1.0, g_gain)), max(0.5, min(1.0, b_gain)))
 
 
 def print_matching_plan(result: MatchingResult):

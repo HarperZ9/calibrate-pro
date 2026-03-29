@@ -51,6 +51,7 @@ MAX_PATH = 260
 # Win32 helpers (ctypes)
 # ---------------------------------------------------------------------------
 
+
 def _get_foreground_window() -> int:
     """Return the HWND of the current foreground window, or 0."""
     try:
@@ -131,6 +132,7 @@ _DEFAULT_CONFIG: dict = {
 # ---------------------------------------------------------------------------
 # Core service class
 # ---------------------------------------------------------------------------
+
 
 class AppProfileSwitcher:
     """
@@ -302,6 +304,7 @@ class AppProfileSwitcher:
 
         try:
             from calibrate_pro.core.lut_engine import LUT3D
+
             lut = LUT3D.load(lut_path)
             self._lut_cache[profile_name] = lut
             logger.info("Cached LUT for profile '%s' from %s", profile_name, lut_path)
@@ -360,8 +363,7 @@ class AppProfileSwitcher:
                 from calibrate_pro.core.vcgt import VCGTTable, apply_vcgt_windows
 
                 identity = np.linspace(0.0, 1.0, 256)
-                vcgt = VCGTTable(red=identity, green=identity, blue=identity,
-                                 size=256, bit_depth=16)
+                vcgt = VCGTTable(red=identity, green=identity, blue=identity, size=256, bit_depth=16)
                 if apply_vcgt_windows(vcgt, display_index=self._display_index):
                     logger.info("Reset VCGT to identity for profile '%s'", profile_name)
                     return True
@@ -390,7 +392,10 @@ class AppProfileSwitcher:
                         old_profile = self._current_profile
                         logger.info(
                             "Foreground changed: %s -> %s (profile: %s -> %s)",
-                            self._current_app, app_name, old_profile, new_profile,
+                            self._current_app,
+                            app_name,
+                            old_profile,
+                            new_profile,
                         )
                         self._apply_profile(new_profile)
                         self._current_profile = new_profile

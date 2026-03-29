@@ -34,6 +34,7 @@ kernel32 = ctypes.windll.kernel32
 
 class LoaderStatus(Enum):
     """Color loader status."""
+
     STOPPED = "stopped"
     RUNNING = "running"
     PAUSED = "paused"
@@ -43,6 +44,7 @@ class LoaderStatus(Enum):
 @dataclass
 class DisplayCalibration:
     """Calibration data for a single display."""
+
     display_id: int
     device_name: str
     friendly_name: str
@@ -56,15 +58,17 @@ class DisplayCalibration:
 @dataclass
 class LoaderConfig:
     """Color loader configuration."""
+
     refresh_interval: float = 5.0  # Seconds between re-applications
-    force_override: bool = True     # Override other color management
-    apply_on_start: bool = True     # Apply immediately on start
+    force_override: bool = True  # Override other color management
+    apply_on_start: bool = True  # Apply immediately on start
     persist_across_restart: bool = True  # Save config for system restart
     config_file: str = ""
 
 
 class GammaRamp(ctypes.Structure):
     """Windows GAMMARAMP structure."""
+
     _fields_ = [
         ("Red", wintypes.WORD * 256),
         ("Green", wintypes.WORD * 256),
@@ -91,10 +95,8 @@ class ColorLoader:
 
         # Set default config path
         if not self.config.config_file:
-            app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
-            self.config.config_file = os.path.join(
-                app_data, 'CalibratePro', 'color_loader.json'
-            )
+            app_data = os.environ.get("APPDATA", os.path.expanduser("~"))
+            self.config.config_file = os.path.join(app_data, "CalibratePro", "color_loader.json")
 
         # Load saved config
         if self.config.persist_across_restart:
@@ -125,13 +127,15 @@ class ColorLoader:
                 monitor.cb = ctypes.sizeof(monitor)
                 user32.EnumDisplayDevicesW(device.DeviceName, 0, ctypes.byref(monitor), 0)
 
-                displays.append({
-                    'id': i,
-                    'device_name': device.DeviceName,
-                    'adapter': device.DeviceString,
-                    'monitor': monitor.DeviceString if monitor.DeviceString else "Unknown",
-                    'primary': bool(device.StateFlags & 0x00000004),
-                })
+                displays.append(
+                    {
+                        "id": i,
+                        "device_name": device.DeviceName,
+                        "adapter": device.DeviceString,
+                        "monitor": monitor.DeviceString if monitor.DeviceString else "Unknown",
+                        "primary": bool(device.StateFlags & 0x00000004),
+                    }
+                )
             i += 1
 
         return displays
@@ -154,6 +158,7 @@ class ColorLoader:
         try:
             # Load LUT and extract 1D gamma ramp
             from calibrate_pro.lut_system import load_lut
+
             lut = load_lut(lut_path)
 
             # Extract gamma ramp from LUT diagonal
@@ -170,11 +175,11 @@ class ColorLoader:
             with self._lock:
                 self.calibrations[display_id] = DisplayCalibration(
                     display_id=display_id,
-                    device_name=display['device_name'],
-                    friendly_name=display['monitor'],
+                    device_name=display["device_name"],
+                    friendly_name=display["monitor"],
                     lut_file=str(lut_path),
                     gamma_ramp=gamma_ramp,
-                    enabled=True
+                    enabled=True,
                 )
 
             # Apply immediately
@@ -230,11 +235,11 @@ class ColorLoader:
             with self._lock:
                 self.calibrations[display_id] = DisplayCalibration(
                     display_id=display_id,
-                    device_name=display['device_name'],
-                    friendly_name=display['monitor'],
+                    device_name=display["device_name"],
+                    friendly_name=display["monitor"],
                     icc_profile=str(icc_path),
                     gamma_ramp=gamma_ramp,
-                    enabled=True
+                    enabled=True,
                 )
 
             # Apply immediately
@@ -250,13 +255,7 @@ class ColorLoader:
             print(f"Error loading ICC profile: {e}")
             return False
 
-    def set_gamma_ramp(
-        self,
-        display_id: int,
-        red: np.ndarray,
-        green: np.ndarray,
-        blue: np.ndarray
-    ) -> bool:
+    def set_gamma_ramp(self, display_id: int, red: np.ndarray, green: np.ndarray, blue: np.ndarray) -> bool:
         """
         Set custom gamma ramp for a display.
 
@@ -283,10 +282,10 @@ class ColorLoader:
         with self._lock:
             self.calibrations[display_id] = DisplayCalibration(
                 display_id=display_id,
-                device_name=display['device_name'],
-                friendly_name=display['monitor'],
+                device_name=display["device_name"],
+                friendly_name=display["monitor"],
                 gamma_ramp=gamma_ramp,
-                enabled=True
+                enabled=True,
             )
 
         return self._apply_calibration(display_id)
@@ -307,7 +306,7 @@ class ColorLoader:
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
 
-        self._notify_callbacks('started')
+        self._notify_callbacks("started")
 
     def stop(self):
         """Stop the color loader service."""
@@ -321,19 +320,19 @@ class ColorLoader:
             self._thread.join(timeout=2.0)
             self._thread = None
 
-        self._notify_callbacks('stopped')
+        self._notify_callbacks("stopped")
 
     def pause(self):
         """Pause color loading (keeps thread running but doesn't apply)."""
         self.status = LoaderStatus.PAUSED
-        self._notify_callbacks('paused')
+        self._notify_callbacks("paused")
 
     def resume(self):
         """Resume color loading after pause."""
         if self.status == LoaderStatus.PAUSED:
             self.status = LoaderStatus.RUNNING
             self.apply_all()
-            self._notify_callbacks('resumed')
+            self._notify_callbacks("resumed")
 
     def apply_all(self) -> dict[int, bool]:
         """Apply all calibrations immediately."""
@@ -376,19 +375,19 @@ class ColorLoader:
     def get_status(self) -> dict:
         """Get current loader status."""
         return {
-            'status': self.status.value,
-            'displays': len(self.calibrations),
-            'calibrations': {
+            "status": self.status.value,
+            "displays": len(self.calibrations),
+            "calibrations": {
                 k: {
-                    'device': v.device_name,
-                    'name': v.friendly_name,
-                    'enabled': v.enabled,
-                    'icc': v.icc_profile,
-                    'lut': v.lut_file,
-                    'last_applied': v.last_applied
+                    "device": v.device_name,
+                    "name": v.friendly_name,
+                    "enabled": v.enabled,
+                    "icc": v.icc_profile,
+                    "lut": v.lut_file,
+                    "last_applied": v.last_applied,
                 }
                 for k, v in self.calibrations.items()
-            }
+            },
         }
 
     # -------------------------------------------------------------------------
@@ -423,7 +422,7 @@ class ColorLoader:
         if display_id >= len(displays):
             return False
 
-        device_name = displays[display_id]['device_name']
+        device_name = displays[display_id]["device_name"]
 
         # Create DC for display
         hdc = gdi32.CreateDCW(device_name, device_name, None, None)
@@ -476,16 +475,16 @@ class ColorLoader:
             data = icc_path.read_bytes()
 
             # Find tag table
-            tag_count = struct.unpack('>I', data[128:132])[0]
+            tag_count = struct.unpack(">I", data[128:132])[0]
 
             for i in range(tag_count):
                 offset = 132 + i * 12
-                tag_sig = data[offset:offset+4]
-                tag_offset = struct.unpack('>I', data[offset+4:offset+8])[0]
-                tag_size = struct.unpack('>I', data[offset+8:offset+12])[0]
+                tag_sig = data[offset : offset + 4]
+                tag_offset = struct.unpack(">I", data[offset + 4 : offset + 8])[0]
+                tag_size = struct.unpack(">I", data[offset + 8 : offset + 12])[0]
 
-                if tag_sig == b'vcgt':
-                    return self._parse_vcgt(data[tag_offset:tag_offset+tag_size])
+                if tag_sig == b"vcgt":
+                    return self._parse_vcgt(data[tag_offset : tag_offset + tag_size])
 
             return None
 
@@ -496,16 +495,16 @@ class ColorLoader:
         """Parse VCGT tag data."""
         try:
             # VCGT type signature
-            if vcgt_data[0:4] != b'vcgt':
+            if vcgt_data[0:4] != b"vcgt":
                 return None
 
-            gamma_type = struct.unpack('>I', vcgt_data[8:12])[0]
+            gamma_type = struct.unpack(">I", vcgt_data[8:12])[0]
 
             if gamma_type == 0:
                 # Table type
-                channels = struct.unpack('>H', vcgt_data[12:14])[0]
-                entry_count = struct.unpack('>H', vcgt_data[14:16])[0]
-                entry_size = struct.unpack('>H', vcgt_data[16:18])[0]
+                channels = struct.unpack(">H", vcgt_data[12:14])[0]
+                entry_count = struct.unpack(">H", vcgt_data[14:16])[0]
+                entry_size = struct.unpack(">H", vcgt_data[16:18])[0]
 
                 gamma_ramp = np.zeros((256, 3), dtype=np.uint16)
                 offset = 18
@@ -513,7 +512,7 @@ class ColorLoader:
                 for c in range(min(channels, 3)):
                     for i in range(entry_count):
                         if entry_size == 2:
-                            value = struct.unpack('>H', vcgt_data[offset:offset+2])[0]
+                            value = struct.unpack(">H", vcgt_data[offset : offset + 2])[0]
                             offset += 2
                         else:
                             value = vcgt_data[offset] * 257
@@ -534,13 +533,13 @@ class ColorLoader:
 
                 for c in range(3):
                     offset = 12 + c * 12
-                    gamma = struct.unpack('>I', vcgt_data[offset:offset+4])[0] / 65536.0
-                    min_val = struct.unpack('>I', vcgt_data[offset+4:offset+8])[0] / 65536.0
-                    max_val = struct.unpack('>I', vcgt_data[offset+8:offset+12])[0] / 65536.0
+                    gamma = struct.unpack(">I", vcgt_data[offset : offset + 4])[0] / 65536.0
+                    min_val = struct.unpack(">I", vcgt_data[offset + 4 : offset + 8])[0] / 65536.0
+                    max_val = struct.unpack(">I", vcgt_data[offset + 8 : offset + 12])[0] / 65536.0
 
                     for i in range(256):
                         x = i / 255.0
-                        y = min_val + (max_val - min_val) * (x ** gamma)
+                        y = min_val + (max_val - min_val) * (x**gamma)
                         gamma_ramp[i, c] = int(np.clip(y, 0, 1) * 65535)
 
                 return gamma_ramp
@@ -556,20 +555,20 @@ class ColorLoader:
             data = icc_path.read_bytes()
 
             # Find tag table
-            tag_count = struct.unpack('>I', data[128:132])[0]
+            tag_count = struct.unpack(">I", data[128:132])[0]
 
             curves = {}
-            trc_tags = {b'rTRC': 0, b'gTRC': 1, b'bTRC': 2}
+            trc_tags = {b"rTRC": 0, b"gTRC": 1, b"bTRC": 2}
 
             for i in range(tag_count):
                 offset = 132 + i * 12
-                tag_sig = data[offset:offset+4]
-                tag_offset = struct.unpack('>I', data[offset+4:offset+8])[0]
-                tag_size = struct.unpack('>I', data[offset+8:offset+12])[0]
+                tag_sig = data[offset : offset + 4]
+                tag_offset = struct.unpack(">I", data[offset + 4 : offset + 8])[0]
+                tag_size = struct.unpack(">I", data[offset + 8 : offset + 12])[0]
 
                 if tag_sig in trc_tags:
                     channel = trc_tags[tag_sig]
-                    curves[channel] = self._parse_trc(data[tag_offset:tag_offset+tag_size])
+                    curves[channel] = self._parse_trc(data[tag_offset : tag_offset + tag_size])
 
             if len(curves) < 3:
                 return None
@@ -589,8 +588,8 @@ class ColorLoader:
         try:
             type_sig = trc_data[0:4]
 
-            if type_sig == b'curv':
-                count = struct.unpack('>I', trc_data[8:12])[0]
+            if type_sig == b"curv":
+                count = struct.unpack(">I", trc_data[8:12])[0]
 
                 if count == 0:
                     # Identity
@@ -598,14 +597,14 @@ class ColorLoader:
 
                 elif count == 1:
                     # Gamma value
-                    gamma = struct.unpack('>H', trc_data[12:14])[0] / 256.0
+                    gamma = struct.unpack(">H", trc_data[12:14])[0] / 256.0
                     return np.array([int((i / 255.0) ** gamma * 65535) for i in range(256)], dtype=np.uint16)
 
                 else:
                     # Table
                     curve = np.zeros(256, dtype=np.uint16)
                     for i in range(min(count, 256)):
-                        value = struct.unpack('>H', trc_data[12+i*2:14+i*2])[0]
+                        value = struct.unpack(">H", trc_data[12 + i * 2 : 14 + i * 2])[0]
                         if count == 256:
                             curve[i] = value
                         else:
@@ -613,10 +612,10 @@ class ColorLoader:
                             curve[idx] = value
                     return curve
 
-            elif type_sig == b'para':
+            elif type_sig == b"para":
                 # Parametric curve
-                struct.unpack('>H', trc_data[8:10])[0]
-                gamma = struct.unpack('>I', trc_data[12:16])[0] / 65536.0
+                struct.unpack(">H", trc_data[8:10])[0]
+                gamma = struct.unpack(">I", trc_data[12:16])[0] / 65536.0
 
                 # Simple gamma for now
                 return np.array([int((i / 255.0) ** gamma * 65535) for i in range(256)], dtype=np.uint16)
@@ -633,18 +632,18 @@ class ColorLoader:
             config_path.parent.mkdir(parents=True, exist_ok=True)
 
             data = {
-                'refresh_interval': self.config.refresh_interval,
-                'force_override': self.config.force_override,
-                'calibrations': {}
+                "refresh_interval": self.config.refresh_interval,
+                "force_override": self.config.force_override,
+                "calibrations": {},
             }
 
             for display_id, cal in self.calibrations.items():
-                data['calibrations'][str(display_id)] = {
-                    'device_name': cal.device_name,
-                    'friendly_name': cal.friendly_name,
-                    'icc_profile': cal.icc_profile,
-                    'lut_file': cal.lut_file,
-                    'enabled': cal.enabled
+                data["calibrations"][str(display_id)] = {
+                    "device_name": cal.device_name,
+                    "friendly_name": cal.friendly_name,
+                    "icc_profile": cal.icc_profile,
+                    "lut_file": cal.lut_file,
+                    "enabled": cal.enabled,
                 }
 
             config_path.write_text(json.dumps(data, indent=2))
@@ -661,17 +660,17 @@ class ColorLoader:
 
             data = json.loads(config_path.read_text())
 
-            self.config.refresh_interval = data.get('refresh_interval', 5.0)
-            self.config.force_override = data.get('force_override', True)
+            self.config.refresh_interval = data.get("refresh_interval", 5.0)
+            self.config.force_override = data.get("force_override", True)
 
-            for display_id_str, cal_data in data.get('calibrations', {}).items():
+            for display_id_str, cal_data in data.get("calibrations", {}).items():
                 display_id = int(display_id_str)
 
                 # Reload the LUT or profile
-                if cal_data.get('lut_file') and Path(cal_data['lut_file']).exists():
-                    self.load_lut_file(display_id, cal_data['lut_file'])
-                elif cal_data.get('icc_profile') and Path(cal_data['icc_profile']).exists():
-                    self.load_icc_profile(display_id, cal_data['icc_profile'])
+                if cal_data.get("lut_file") and Path(cal_data["lut_file"]).exists():
+                    self.load_lut_file(display_id, cal_data["lut_file"])
+                elif cal_data.get("icc_profile") and Path(cal_data["icc_profile"]).exists():
+                    self.load_icc_profile(display_id, cal_data["icc_profile"])
 
         except Exception as e:
             print(f"Error loading config: {e}")
@@ -698,10 +697,7 @@ def get_color_loader() -> ColorLoader:
 
 
 def apply_calibration(
-    display_id: int = 0,
-    lut_path: str | None = None,
-    icc_path: str | None = None,
-    start_service: bool = True
+    display_id: int = 0, lut_path: str | None = None, icc_path: str | None = None, start_service: bool = True
 ) -> bool:
     """
     Quick function to apply calibration and start the loader.

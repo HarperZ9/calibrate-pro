@@ -43,18 +43,18 @@ def get_platform_backend() -> PlatformBackend:
     """
     if sys.platform == "win32":
         from calibrate_pro.platform.windows import WindowsBackend
+
         return WindowsBackend()
     elif sys.platform == "darwin":
         from calibrate_pro.platform.macos import MacOSBackend
+
         return MacOSBackend()
     elif sys.platform.startswith("linux"):
         from calibrate_pro.platform.linux import LinuxBackend
+
         return LinuxBackend()
     else:
-        raise RuntimeError(
-            f"Unsupported platform: {sys.platform}. "
-            "Calibrate Pro supports win32, darwin, and linux."
-        )
+        raise RuntimeError(f"Unsupported platform: {sys.platform}. Calibrate Pro supports win32, darwin, and linux.")
 
 
 __all__ = ["get_platform_backend"]

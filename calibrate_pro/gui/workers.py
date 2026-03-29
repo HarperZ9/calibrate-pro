@@ -12,14 +12,17 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 # Calibration Worker Thread
 
+
 class CalibrationWorker(QThread):
     """Background thread for running calibration."""
+
     progress = pyqtSignal(str, float)  # message, progress (0-1)
     finished = pyqtSignal(object)  # result object
     error = pyqtSignal(str)  # error message
 
-    def __init__(self, display_index: int = 0, apply_ddc: bool = False,
-                 profile_name: str = None, display_name: str = None):
+    def __init__(
+        self, display_index: int = 0, apply_ddc: bool = False, profile_name: str = None, display_name: str = None
+    ):
         super().__init__()
         self.display_index = display_index
         self.apply_ddc = apply_ddc
@@ -41,17 +44,14 @@ class CalibrationWorker(QThread):
             # Create consent if DDC approved
             consent = None
             if self.apply_ddc:
-                consent = UserConsent(
-                    user_acknowledged_risks=True,
-                    hardware_modification_approved=True
-                )
+                consent = UserConsent(user_acknowledged_risks=True, hardware_modification_approved=True)
 
             result = engine.run_calibration(
                 apply_ddc=self.apply_ddc,
                 display_index=self.display_index,
                 consent=consent,
                 profile_name=self.profile_name,
-                display_name=self.display_name
+                display_name=self.display_name,
             )
 
             self.finished.emit(result)
@@ -61,6 +61,7 @@ class CalibrationWorker(QThread):
 
 
 # Color Management Status Tracker
+
 
 class ColorManagementStatus:
     """Tracks the current state of color management (ICC profiles and LUTs)."""
@@ -74,21 +75,21 @@ class ColorManagementStatus:
     def set_icc_profile(self, display_id: str, profile_path: str):
         if display_id not in self.displays:
             self.displays[display_id] = {}
-        self.displays[display_id]['icc_profile'] = profile_path
+        self.displays[display_id]["icc_profile"] = profile_path
         self.active_icc_profile = profile_path
 
     def set_lut(self, display_id: str, lut_path: str, method: str = "dwm_lut"):
         if display_id not in self.displays:
             self.displays[display_id] = {}
-        self.displays[display_id]['lut'] = lut_path
-        self.displays[display_id]['lut_method'] = method
+        self.displays[display_id]["lut"] = lut_path
+        self.displays[display_id]["lut_method"] = method
         self.active_lut = lut_path
         self.lut_method = method
 
     def clear_lut(self, display_id: str):
         if display_id in self.displays:
-            self.displays[display_id].pop('lut', None)
-            self.displays[display_id].pop('lut_method', None)
+            self.displays[display_id].pop("lut", None)
+            self.displays[display_id].pop("lut_method", None)
         self.active_lut = None
         self.lut_method = None
 

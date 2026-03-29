@@ -18,6 +18,7 @@ import numpy as np
 
 class PatternType(Enum):
     """Types of calibration test patterns."""
+
     SOLID = "solid"
     GRAYSCALE_RAMP = "grayscale_ramp"
     RGB_PRIMARIES = "rgb_primaries"
@@ -33,6 +34,7 @@ class PatternType(Enum):
 @dataclass
 class PatternConfig:
     """Configuration for pattern generation."""
+
     width: int = 1920
     height: int = 1080
     bit_depth: int = 8
@@ -43,6 +45,7 @@ class PatternConfig:
 @dataclass
 class TestPattern:
     """Generated test pattern."""
+
     pattern_type: PatternType
     data: np.ndarray
     rgb_value: tuple[int, int, int] | None = None
@@ -61,7 +64,7 @@ class PatternGenerator:
             config: Pattern configuration settings
         """
         self.config = config or PatternConfig()
-        self.max_value = (2 ** self.config.bit_depth) - 1
+        self.max_value = (2**self.config.bit_depth) - 1
 
     def generate_solid(self, r: int, g: int, b: int) -> TestPattern:
         """
@@ -79,10 +82,7 @@ class PatternGenerator:
         data[:, :] = [r, g, b]
 
         return TestPattern(
-            pattern_type=PatternType.SOLID,
-            data=data,
-            rgb_value=(r, g, b),
-            name=f"Solid RGB({r},{g},{b})"
+            pattern_type=PatternType.SOLID, data=data, rgb_value=(r, g, b), name=f"Solid RGB({r},{g},{b})"
         )
 
     def generate_grayscale_ramp(self, steps: int = 21) -> list[TestPattern]:
@@ -138,8 +138,7 @@ class PatternGenerator:
             patterns.append(pattern)
         return patterns
 
-    def generate_window(self, r: int, g: int, b: int,
-                        window_percent: float = 10.0) -> TestPattern:
+    def generate_window(self, r: int, g: int, b: int, window_percent: float = 10.0) -> TestPattern:
         """
         Generate a window pattern (colored rectangle on black background).
 
@@ -169,7 +168,7 @@ class PatternGenerator:
             data=data,
             rgb_value=(r, g, b),
             name=f"Window {window_percent}% RGB({r},{g},{b})",
-            metadata={"window_percent": window_percent}
+            metadata={"window_percent": window_percent},
         )
 
     def generate_gradient_horizontal(self) -> TestPattern:
@@ -185,11 +184,7 @@ class PatternGenerator:
             level = int((x / (self.config.width - 1)) * 255)
             data[:, x] = [level, level, level]
 
-        return TestPattern(
-            pattern_type=PatternType.GRADIENT_H,
-            data=data,
-            name="Horizontal Gradient"
-        )
+        return TestPattern(pattern_type=PatternType.GRADIENT_H, data=data, name="Horizontal Gradient")
 
     def generate_gradient_vertical(self) -> TestPattern:
         """
@@ -204,14 +199,9 @@ class PatternGenerator:
             level = int((y / (self.config.height - 1)) * 255)
             data[y, :] = [level, level, level]
 
-        return TestPattern(
-            pattern_type=PatternType.GRADIENT_V,
-            data=data,
-            name="Vertical Gradient"
-        )
+        return TestPattern(pattern_type=PatternType.GRADIENT_V, data=data, name="Vertical Gradient")
 
-    def generate_uniformity_grid(self, rows: int = 5, cols: int = 5,
-                                  level: int = 255) -> TestPattern:
+    def generate_uniformity_grid(self, rows: int = 5, cols: int = 5, level: int = 255) -> TestPattern:
         """
         Generate uniformity test grid pattern.
 
@@ -241,11 +231,10 @@ class PatternGenerator:
             pattern_type=PatternType.UNIFORMITY_GRID,
             data=data,
             name=f"Uniformity Grid {rows}x{cols}",
-            metadata={"rows": rows, "cols": cols, "level": level}
+            metadata={"rows": rows, "cols": cols, "level": level},
         )
 
-    def generate_crosshatch(self, line_spacing: int = 100,
-                            line_width: int = 1) -> TestPattern:
+    def generate_crosshatch(self, line_spacing: int = 100, line_width: int = 1) -> TestPattern:
         """
         Generate crosshatch pattern for geometry testing.
 
@@ -274,7 +263,7 @@ class PatternGenerator:
             pattern_type=PatternType.CROSSHATCH,
             data=data,
             name=f"Crosshatch {line_spacing}px",
-            metadata={"line_spacing": line_spacing, "line_width": line_width}
+            metadata={"line_spacing": line_spacing, "line_width": line_width},
         )
 
     def generate_colorchecker_patches(self) -> list[TestPattern]:
@@ -319,11 +308,13 @@ class PatternGenerator:
             patterns.append(pattern)
         return patterns
 
-    def generate_calibration_sequence(self,
-                                       include_grayscale: bool = True,
-                                       grayscale_steps: int = 21,
-                                       include_primaries: bool = True,
-                                       include_colorchecker: bool = False) -> Generator[TestPattern, None, None]:
+    def generate_calibration_sequence(
+        self,
+        include_grayscale: bool = True,
+        grayscale_steps: int = 21,
+        include_primaries: bool = True,
+        include_colorchecker: bool = False,
+    ) -> Generator[TestPattern, None, None]:
         """
         Generate a complete calibration pattern sequence.
 
@@ -349,8 +340,7 @@ class PatternGenerator:
                 yield pattern
 
 
-def create_pattern_generator(width: int = 1920, height: int = 1080,
-                              bit_depth: int = 8) -> PatternGenerator:
+def create_pattern_generator(width: int = 1920, height: int = 1080, bit_depth: int = 8) -> PatternGenerator:
     """
     Create a pattern generator with specified settings.
 

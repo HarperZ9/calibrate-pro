@@ -128,6 +128,7 @@ def test_jzczhz_roundtrip(Y_nits):
 # ICtCp roundtrip
 # -------------------------------------------------------------------------
 
+
 def test_ictcp_roundtrip():
     """Absolute XYZ -> ICtCp -> absolute XYZ roundtrip."""
     xyz = np.array([95.047, 100.0, 108.883])  # D65 at 100 cd/m2
@@ -174,6 +175,7 @@ def test_pq_peak():
 # HLG encode/decode roundtrip
 # -------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("v", [0.0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0])
 def test_hlg_roundtrip(v):
     """HLG OETF -> EOTF roundtrip."""
@@ -187,6 +189,7 @@ def test_hlg_roundtrip(v):
 # ACEScg / XYZ roundtrip
 # -------------------------------------------------------------------------
 
+
 def test_acescg_xyz_roundtrip():
     """ACEScg -> XYZ -> ACEScg roundtrip."""
     rgb = np.array([0.5, 0.3, 0.7])
@@ -198,6 +201,7 @@ def test_acescg_xyz_roundtrip():
 # -------------------------------------------------------------------------
 # ACEScc encode/decode roundtrip
 # -------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("v", [0.001, 0.01, 0.1, 0.5, 1.0, 10.0])
 def test_acescc_roundtrip(v):
@@ -212,6 +216,7 @@ def test_acescc_roundtrip(v):
 # ACEScct encode/decode roundtrip
 # -------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("v", [0.001, 0.005, 0.01, 0.1, 0.5, 1.0, 10.0])
 def test_acescct_roundtrip(v):
     """ACEScct encode -> decode roundtrip."""
@@ -225,6 +230,7 @@ def test_acescct_roundtrip(v):
 # Display P3 roundtrip
 # -------------------------------------------------------------------------
 
+
 def test_display_p3_roundtrip():
     """Display P3 -> XYZ -> Display P3 roundtrip."""
     rgb = np.array([0.6, 0.4, 0.2])
@@ -236,6 +242,7 @@ def test_display_p3_roundtrip():
 # -------------------------------------------------------------------------
 # Rec.2020 roundtrip (OETF/EOTF)
 # -------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("v", [0.0, 0.01, 0.1, 0.5, 0.9, 1.0])
 def test_rec2020_oetf_eotf_roundtrip(v):
@@ -257,6 +264,7 @@ def test_rec2020_xyz_roundtrip():
 # -------------------------------------------------------------------------
 # CIE Luv roundtrip
 # -------------------------------------------------------------------------
+
 
 def test_luv_roundtrip(sample_xyz):
     """XYZ -> Luv -> XYZ roundtrip."""
@@ -317,6 +325,7 @@ def test_hwb_roundtrip(name, rgb):
 # CAM16 roundtrip
 # -------------------------------------------------------------------------
 
+
 def test_cam16_white_has_high_J_low_C():
     """D65 white should have J near 100 and C near 0."""
     env = cam16_environment()
@@ -338,6 +347,7 @@ def test_cam16_roundtrip():
 # -------------------------------------------------------------------------
 # CAM16-UCS Delta E
 # -------------------------------------------------------------------------
+
 
 def test_cam16_ucs_delta_e_identical():
     """Identical colors should have Delta E = 0."""
@@ -364,6 +374,7 @@ def test_cam16_ucs_delta_e_different():
 # Bradford chromatic adaptation
 # -------------------------------------------------------------------------
 
+
 def test_bradford_d65_d50_d65_roundtrip():
     """D65 -> D50 -> D65 roundtrip should recover original XYZ."""
     xyz = np.array([0.5, 0.4, 0.3])
@@ -382,6 +393,7 @@ def test_bradford_same_illuminant():
 # -------------------------------------------------------------------------
 # CIEDE2000
 # -------------------------------------------------------------------------
+
 
 def test_ciede2000_identical():
     """Identical Lab colors should have Delta E = 0."""
@@ -403,6 +415,7 @@ def test_ciede2000_known_pair():
 # Gamut boundary computation
 # -------------------------------------------------------------------------
 
+
 def test_gamut_boundary_mid_lightness():
     """Max chroma at L=50 should be > 0 for sRGB."""
     boundary = compute_gamut_boundary(XYZ_TO_SRGB, lightness_steps=11, hue_steps=36)
@@ -422,6 +435,7 @@ def test_gamut_boundary_black():
 # Gamut mapping
 # -------------------------------------------------------------------------
 
+
 def test_gamut_map_reduces_chroma():
     """An out-of-gamut color should have reduced chroma after mapping."""
     boundary = compute_gamut_boundary(XYZ_TO_SRGB, lightness_steps=11, hue_steps=36)
@@ -429,8 +443,9 @@ def test_gamut_map_reduces_chroma():
     lab_oog = np.array([50.0, 100.0, 50.0])
     mapped = gamut_map_chroma_compress(lab_oog, boundary, method="clip")
     import math
-    original_c = math.sqrt(lab_oog[1]**2 + lab_oog[2]**2)
-    mapped_c = math.sqrt(mapped[1]**2 + mapped[2]**2)
+
+    original_c = math.sqrt(lab_oog[1] ** 2 + lab_oog[2] ** 2)
+    mapped_c = math.sqrt(mapped[1] ** 2 + mapped[2] ** 2)
     assert mapped_c <= original_c
 
 

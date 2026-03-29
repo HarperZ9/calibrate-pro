@@ -19,9 +19,10 @@ class DisplayInfo:
     ``calibrate_pro.panels.detection.DisplayInfo`` but is kept
     independent so the platform layer has no upward dependency.
     """
+
     index: int
-    name: str               # Human-readable name (e.g. "ASUS PG27UCDM")
-    device_path: str         # OS-specific device identifier
+    name: str  # Human-readable name (e.g. "ASUS PG27UCDM")
+    device_path: str  # OS-specific device identifier
     is_primary: bool
     width: int
     height: int

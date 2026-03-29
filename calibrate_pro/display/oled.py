@@ -19,6 +19,7 @@ import numpy as np
 # ABL (Auto Brightness Limiter) Models
 # =============================================================================
 
+
 @dataclass
 class ABLModel:
     """
@@ -38,9 +39,10 @@ class ABLModel:
         min_factor = luminance at 100% APL relative to peak (typically 0.15-0.35)
         rolloff = shape of the ABL curve (higher = more aggressive)
     """
-    peak_luminance: float       # Peak at 2-10% APL (cd/m2)
-    min_factor: float           # Luminance ratio at 100% APL (0.15 = 15% of peak)
-    rolloff: float              # Curve shape (1.0 = linear, 2.0 = aggressive)
+
+    peak_luminance: float  # Peak at 2-10% APL (cd/m2)
+    min_factor: float  # Luminance ratio at 100% APL (0.15 = 15% of peak)
+    rolloff: float  # Curve shape (1.0 = linear, 2.0 = aggressive)
     apl_threshold: float = 0.0  # APL below which no ABL applies (some panels)
 
     def get_luminance(self, apl: float) -> float:
@@ -69,34 +71,26 @@ ABL_MODELS = {
     # Samsung QD-OLED (2024 generation - PG27UCDM, AW3225QF, G80SD)
     "QD-OLED-2024": ABLModel(
         peak_luminance=1000.0,  # 2% window
-        min_factor=0.28,        # ~280 nits at 100% white
+        min_factor=0.28,  # ~280 nits at 100% white
         rolloff=1.5,
-        apl_threshold=0.03
+        apl_threshold=0.03,
     ),
-
     # Samsung QD-OLED (2023 generation - AW3423DW, G85SB)
     "QD-OLED-2023": ABLModel(
         peak_luminance=1000.0,
-        min_factor=0.25,        # ~250 nits at 100% white
+        min_factor=0.25,  # ~250 nits at 100% white
         rolloff=1.6,
-        apl_threshold=0.02
+        apl_threshold=0.02,
     ),
-
     # LG WOLED evo (C3/C4/G3/G4)
     "WOLED-EVO": ABLModel(
-        peak_luminance=800.0,   # 2% window
-        min_factor=0.18,        # ~150 nits at 100% white
+        peak_luminance=800.0,  # 2% window
+        min_factor=0.18,  # ~150 nits at 100% white
         rolloff=1.8,
-        apl_threshold=0.02
+        apl_threshold=0.02,
     ),
-
     # LG WOLED (older - C1/C2)
-    "WOLED": ABLModel(
-        peak_luminance=700.0,
-        min_factor=0.15,
-        rolloff=2.0,
-        apl_threshold=0.02
-    ),
+    "WOLED": ABLModel(peak_luminance=700.0, min_factor=0.15, rolloff=2.0, apl_threshold=0.02),
 }
 
 
@@ -110,8 +104,7 @@ def get_abl_model(panel_type: str, panel_key: str = "") -> ABLModel | None:
     """
     if panel_type == "QD-OLED":
         # 2024 generation panels
-        if any(k in panel_key for k in ["PG27UCDM", "PG32UCDM", "AW3225QF",
-                                         "G80SD", "PG34WCDM", "FO32U2P", "S95D"]):
+        if any(k in panel_key for k in ["PG27UCDM", "PG32UCDM", "AW3225QF", "G80SD", "PG34WCDM", "FO32U2P", "S95D"]):
             return ABL_MODELS["QD-OLED-2024"]
         return ABL_MODELS["QD-OLED-2023"]
     elif panel_type == "WOLED":
@@ -124,6 +117,7 @@ def get_abl_model(panel_type: str, panel_key: str = "") -> ABLModel | None:
 # =============================================================================
 # Near-Black Handling
 # =============================================================================
+
 
 @dataclass
 class NearBlackModel:
@@ -138,12 +132,13 @@ class NearBlackModel:
 
     This model allows LUT correction for these artifacts.
     """
+
     # Signal level below which near-black issues appear (0-1)
     threshold: float = 0.03
 
     # Gamma deviation in the near-black region
     # Actual gamma may be higher or lower than target in this range
-    gamma_lift: float = 0.0     # Positive = raised blacks, negative = crushed
+    gamma_lift: float = 0.0  # Positive = raised blacks, negative = crushed
 
     # Color shift in near-black (Lab a*, b* offsets)
     # QD-OLED: typically small, WOLED: can be noticeable green shift
@@ -159,33 +154,29 @@ class NearBlackModel:
 NEAR_BLACK_MODELS = {
     "QD-OLED": NearBlackModel(
         threshold=0.03,
-        gamma_lift=0.005,       # Slight raised blacks
+        gamma_lift=0.005,  # Slight raised blacks
         near_black_a_shift=0.0,
         near_black_b_shift=0.0,
-        black_cutoff=0.001
+        black_cutoff=0.001,
     ),
     "WOLED": NearBlackModel(
         threshold=0.04,
         gamma_lift=0.003,
         near_black_a_shift=-0.5,  # Slight green tint in near-black
         near_black_b_shift=0.3,
-        black_cutoff=0.001
+        black_cutoff=0.001,
     ),
     "WOLED-EVO": NearBlackModel(
         threshold=0.03,
         gamma_lift=0.002,
         near_black_a_shift=-0.3,  # Reduced with newer panels
         near_black_b_shift=0.2,
-        black_cutoff=0.001
+        black_cutoff=0.001,
     ),
 }
 
 
-def apply_near_black_correction(
-    rgb: np.ndarray,
-    model: NearBlackModel,
-    target_gamma: float = 2.2
-) -> np.ndarray:
+def apply_near_black_correction(rgb: np.ndarray, model: NearBlackModel, target_gamma: float = 2.2) -> np.ndarray:
     """
     Apply near-black correction to an RGB value.
 
@@ -221,11 +212,13 @@ def apply_near_black_correction(
 # Panel Technology Characteristics
 # =============================================================================
 
+
 @dataclass
 class OLEDCharacteristics:
     """Complete OLED panel characteristic profile."""
-    technology: str              # "QD-OLED", "WOLED", "WOLED-EVO"
-    subpixel_layout: str         # "triangle" (QD-OLED), "WRGB" (WOLED)
+
+    technology: str  # "QD-OLED", "WOLED", "WOLED-EVO"
+    subpixel_layout: str  # "triangle" (QD-OLED), "WRGB" (WOLED)
     abl_model: ABLModel | None = None
     near_black_model: NearBlackModel | None = None
 
@@ -235,7 +228,7 @@ class OLEDCharacteristics:
 
     # Power efficiency characteristics
     max_sustained_luminance: float = 0.0  # Full-screen sustainable (cd/m2)
-    thermal_throttle_time: float = 0.0    # Seconds before thermal throttle
+    thermal_throttle_time: float = 0.0  # Seconds before thermal throttle
 
     @property
     def is_qd_oled(self) -> bool:
@@ -265,7 +258,7 @@ def get_oled_characteristics(panel_type: str, panel_key: str = "") -> OLEDCharac
             near_black_model=near_black,
             gamut_luminance_rolloff=0.05,  # QD-OLED maintains gamut well
             max_sustained_luminance=abl.get_luminance(1.0),
-            thermal_throttle_time=300.0  # ~5 minutes to thermal throttle
+            thermal_throttle_time=300.0,  # ~5 minutes to thermal throttle
         )
     elif panel_type == "WOLED":
         is_evo = any(k in panel_key for k in ["C3", "C4", "G3", "G4", "32GS95UE"])
@@ -278,7 +271,7 @@ def get_oled_characteristics(panel_type: str, panel_key: str = "") -> OLEDCharac
             near_black_model=near_black,
             gamut_luminance_rolloff=0.15,  # WOLED loses saturation at high lum
             max_sustained_luminance=abl.get_luminance(1.0),
-            thermal_throttle_time=600.0  # ~10 minutes
+            thermal_throttle_time=600.0,  # ~10 minutes
         )
     return None
 
@@ -287,11 +280,8 @@ def get_oled_characteristics(panel_type: str, panel_key: str = "") -> OLEDCharac
 # OLED-Aware LUT Compensation
 # =============================================================================
 
-def compensate_abl_in_lut(
-    rgb: np.ndarray,
-    abl_model: ABLModel,
-    target_apl: float = 0.25
-) -> np.ndarray:
+
+def compensate_abl_in_lut(rgb: np.ndarray, abl_model: ABLModel, target_apl: float = 0.25) -> np.ndarray:
     """
     Compensate for ABL in a LUT value.
 

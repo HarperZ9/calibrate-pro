@@ -29,17 +29,19 @@ from calibrate_pro.panels.database import (
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PanelSubmission:
     """Data format for community panel submissions."""
+
     panel_key: str
     manufacturer: str
     model: str
     panel_type: str
-    primaries: dict       # red/green/blue/white xy
-    gamma: dict           # red/green/blue values
+    primaries: dict  # red/green/blue/white xy
+    gamma: dict  # red/green/blue values
     capabilities: dict
-    measured_by: str      # submitter name
+    measured_by: str  # submitter name
     measurement_date: str
     measurement_device: str  # e.g., "i1Display Pro"
     notes: str = ""
@@ -82,6 +84,7 @@ class PanelSubmission:
 # ---------------------------------------------------------------------------
 # Export
 # ---------------------------------------------------------------------------
+
 
 def export_panel(panel: PanelCharacterization, output_path: Path) -> Path:
     """
@@ -145,6 +148,7 @@ def export_panel(panel: PanelCharacterization, output_path: Path) -> Path:
 # Import
 # ---------------------------------------------------------------------------
 
+
 def import_panel(json_path: Path) -> PanelCharacterization:
     """
     Import a panel from a community JSON file.
@@ -174,9 +178,7 @@ def import_panel(json_path: Path) -> PanelCharacterization:
         data = json.load(fh)
 
     if not data.get("calibrate_pro_community"):
-        raise ValueError(
-            f"File does not appear to be a Calibrate Pro community panel: {json_path}"
-        )
+        raise ValueError(f"File does not appear to be a Calibrate Pro community panel: {json_path}")
 
     prims = data["primaries"]
     gamma = data.get("gamma", {})
@@ -215,6 +217,7 @@ def import_panel(json_path: Path) -> PanelCharacterization:
 # Interactive submission helper
 # ---------------------------------------------------------------------------
 
+
 def submit_panel_cli():
     """Interactive CLI for submitting panel data."""
     print("\n--- Community Panel Submission ---\n")
@@ -225,6 +228,7 @@ def submit_panel_cli():
     panel_type = input("Panel type (QD-OLED / WOLED / IPS / VA): ").strip()
 
     print("\nPrimaries (CIE 1931 xy chromaticity):")
+
     def _read_xy(label: str) -> dict[str, float]:
         raw = input(f"  {label} (x y): ").strip().split()
         return {"x": float(raw[0]), "y": float(raw[1])}
@@ -284,6 +288,7 @@ def submit_panel_cli():
 # ---------------------------------------------------------------------------
 # CLI command handlers
 # ---------------------------------------------------------------------------
+
 
 def cmd_export_panel(args) -> int:
     """CLI handler for the ``export-panel`` subcommand."""

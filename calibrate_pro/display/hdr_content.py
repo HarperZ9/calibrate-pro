@@ -22,6 +22,7 @@ from typing import Any
 # Content information
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class HDRContentInfo:
     """Description of an HDR (or SDR) content stream."""
@@ -140,12 +141,7 @@ def detect_content_type_from_metadata(metadata: dict[str, Any]) -> HDRContentInf
     md: dict[str, Any] = {k.lower().replace(" ", "_"): v for k, v in metadata.items()}
 
     # Transfer function
-    raw_tf = (
-        md.get("transfer_function")
-        or md.get("eotf")
-        or md.get("tf")
-        or ""
-    )
+    raw_tf = md.get("transfer_function") or md.get("eotf") or md.get("tf") or ""
     tf = _normalise_tf(str(raw_tf)) if raw_tf else ""
 
     # Color primaries
@@ -153,12 +149,7 @@ def detect_content_type_from_metadata(metadata: dict[str, Any]) -> HDRContentInf
     primaries = _normalise_primaries(str(raw_pri)) if raw_pri else ""
 
     # Peak luminance
-    peak = float(
-        md.get("max_cll")
-        or md.get("peak_luminance")
-        or md.get("maxcll")
-        or 0
-    )
+    peak = float(md.get("max_cll") or md.get("peak_luminance") or md.get("maxcll") or 0)
 
     # MaxFALL
     max_fall = float(md.get("max_fall") or md.get("maxfall") or 0)
@@ -231,6 +222,7 @@ def detect_content_type_from_metadata(metadata: dict[str, Any]) -> HDRContentInf
 # ---------------------------------------------------------------------------
 # LUT recommendation
 # ---------------------------------------------------------------------------
+
 
 def get_recommended_lut_for_content(
     content: HDRContentInfo,
@@ -305,6 +297,7 @@ def get_recommended_lut_for_content(
 # ---------------------------------------------------------------------------
 # Convenience: build HDRContentInfo from common shorthand
 # ---------------------------------------------------------------------------
+
 
 def content_info_from_type(
     content_type: str,

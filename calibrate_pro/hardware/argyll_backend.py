@@ -26,13 +26,15 @@ from calibrate_pro.hardware.colorimeter_base import (
 # ArgyllCMS Configuration
 # =============================================================================
 
+
 @dataclass
 class ArgyllConfig:
     """ArgyllCMS installation configuration."""
-    bin_path: Path | None = None      # Path to ArgyllCMS bin directory
-    ccss_path: Path | None = None     # Path to CCSS files
-    ccmx_path: Path | None = None     # Path to CCMX files
-    ref_path: Path | None = None      # Path to reference files
+
+    bin_path: Path | None = None  # Path to ArgyllCMS bin directory
+    ccss_path: Path | None = None  # Path to CCSS files
+    ccmx_path: Path | None = None  # Path to CCMX files
+    ref_path: Path | None = None  # Path to reference files
 
     def find_argyll(self) -> bool:
         """
@@ -68,7 +70,7 @@ class ArgyllConfig:
         for path in search_paths:
             if not path or not path.exists():
                 continue
-            exe = "spotread.exe" if os.name == 'nt' else "spotread"
+            exe = "spotread.exe" if os.name == "nt" else "spotread"
             if (path / exe).exists():
                 self.bin_path = path
                 return True
@@ -86,7 +88,7 @@ class ArgyllConfig:
         if self.bin_path is None:
             raise RuntimeError("ArgyllCMS not found. Please install ArgyllCMS.")
 
-        exe = f"{name}.exe" if os.name == 'nt' else name
+        exe = f"{name}.exe" if os.name == "nt" else name
         tool_path = self.bin_path / exe
 
         if not tool_path.exists():
@@ -115,6 +117,7 @@ def set_argyll_path(path: Path):
 # ArgyllCMS Backend
 # =============================================================================
 
+
 class ArgyllBackend(ColorimeterBase):
     """
     ArgyllCMS-based colorimeter implementation.
@@ -140,11 +143,7 @@ class ArgyllBackend(ColorimeterBase):
         self._devices: list[DeviceInfo] = []
 
     def _run_tool(
-        self,
-        tool_name: str,
-        args: list[str],
-        timeout: int = 60,
-        capture_output: bool = True
+        self, tool_name: str, args: list[str], timeout: int = 60, capture_output: bool = True
     ) -> subprocess.CompletedProcess:
         """
         Run an ArgyllCMS tool.
@@ -168,7 +167,7 @@ class ArgyllBackend(ColorimeterBase):
                 text=True,
                 timeout=timeout,
                 input="\n",  # Send newline to trigger interactive prompts
-                cwd=str(self.temp_dir) if self.temp_dir else None
+                cwd=str(self.temp_dir) if self.temp_dir else None,
             )
             return result
         except subprocess.TimeoutExpired as e:
@@ -249,14 +248,16 @@ class ArgyllBackend(ColorimeterBase):
                 if "pro" in name.lower():
                     capabilities.append("ambient")
 
-                self._devices.append(DeviceInfo(
-                    name=name,
-                    manufacturer=manufacturer,
-                    model=name,
-                    serial="",
-                    device_type=device_type,
-                    capabilities=capabilities
-                ))
+                self._devices.append(
+                    DeviceInfo(
+                        name=name,
+                        manufacturer=manufacturer,
+                        model=name,
+                        serial="",
+                        device_type=device_type,
+                        capabilities=capabilities,
+                    )
+                )
 
         except Exception as e:
             print(f"Warning: Could not detect devices: {e}")
@@ -335,10 +336,10 @@ class ArgyllBackend(ColorimeterBase):
         try:
             args = [
                 f"-d{self.current_device_index + 1}",  # Device number (1-based)
-                f"-y{self.display_type}",               # Display type
-                "-e",                                   # Emission mode
-                "-x",                                   # No auto-calibrate prompt
-                "-O",                                   # High resolution
+                f"-y{self.display_type}",  # Display type
+                "-e",  # Emission mode
+                "-x",  # No auto-calibrate prompt
+                "-O",  # High resolution
             ]
 
             if self.high_res_mode:
@@ -390,7 +391,7 @@ class ArgyllBackend(ColorimeterBase):
         display_number: int = 1,
         patch_count: int = 729,
         quality: str = "high",
-        output_name: str = "display_profile"
+        output_name: str = "display_profile",
     ) -> Path | None:
         """
         Generate full display profile using ArgyllCMS workflow.
@@ -428,7 +429,7 @@ class ArgyllBackend(ColorimeterBase):
             f"-f{patch_count}",  # Number of patches
             "-e4",  # White + primaries
             "-s100",  # Saturation patches
-            str(ti1_path.with_suffix(""))
+            str(ti1_path.with_suffix("")),
         ]
 
         result = self._run_tool("targen", targen_args, timeout=60)
@@ -464,16 +465,24 @@ class ArgyllBackend(ColorimeterBase):
 
         # Step 3: Generate ICC profile (colprof)
         icc_path = self.temp_dir / f"{output_name}.icc"
-        colprof_args = [
-            "-v",
-            "-D", f"Calibrate Pro: {output_name}",
-            "-C", "Copyright Zain Dana Harper 2022-2026",
-            "-A", "ASUS",  # Will be updated based on display
-            "-M", "Display",
-        ] + quality_args + [
-            "-aS",  # Shaper + matrix
-            str(ti3_path.with_suffix(""))
-        ]
+        colprof_args = (
+            [
+                "-v",
+                "-D",
+                f"Calibrate Pro: {output_name}",
+                "-C",
+                "Copyright Zain Dana Harper 2022-2026",
+                "-A",
+                "ASUS",  # Will be updated based on display
+                "-M",
+                "Display",
+            ]
+            + quality_args
+            + [
+                "-aS",  # Shaper + matrix
+                str(ti3_path.with_suffix("")),
+            ]
+        )
 
         result = self._run_tool("colprof", colprof_args, timeout=300)
         if result.returncode != 0:
@@ -492,7 +501,7 @@ class ArgyllBackend(ColorimeterBase):
         whitepoint: str = "D65",
         gamma: float = 2.2,
         luminance: float | None = None,
-        output_name: str = "calibration"
+        output_name: str = "calibration",
     ) -> tuple[Path, Path] | None:
         """
         Calibrate display using ArgyllCMS dispcal.
@@ -576,11 +585,7 @@ class ArgyllBackend(ColorimeterBase):
 
         return None
 
-    def verify_calibration(
-        self,
-        display_number: int = 1,
-        profile_path: Path | None = None
-    ) -> dict | None:
+    def verify_calibration(self, display_number: int = 1, profile_path: Path | None = None) -> dict | None:
         """
         Verify display calibration using dispread.
 
@@ -602,7 +607,7 @@ class ArgyllBackend(ColorimeterBase):
             "-d3",
             "-f100",  # 100 verification patches
             "-e4",
-            str(ti1_path)
+            str(ti1_path),
         ]
 
         result = self._run_tool("targen", targen_args, timeout=60)
@@ -651,7 +656,7 @@ class ArgyllBackend(ColorimeterBase):
                     "delta_e_avg": sum(delta_e_values) / len(delta_e_values),
                     "delta_e_max": max(delta_e_values),
                     "delta_e_min": min(delta_e_values),
-                    "patch_count": len(delta_e_values)
+                    "patch_count": len(delta_e_values),
                 }
 
         except Exception as e:
@@ -663,6 +668,7 @@ class ArgyllBackend(ColorimeterBase):
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def check_argyll_installation() -> bool:
     """Check if ArgyllCMS is installed and accessible."""

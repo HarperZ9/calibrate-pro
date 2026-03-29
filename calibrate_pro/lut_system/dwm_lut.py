@@ -56,6 +56,7 @@ HDR_PEAK_LUMINANCE = 10000  # PQ max luminance
 
 class ColorPipelineStage(Enum):
     """Color pipeline stages where LUT can be applied."""
+
     PRE_BLEND = "pre_blend"
     POST_BLEND = "post_blend"
     DISPLAY_OUTPUT = "output"
@@ -63,6 +64,7 @@ class ColorPipelineStage(Enum):
 
 class LUTColorSpace(Enum):
     """Color space for LUT interpretation."""
+
     SRGB = "sRGB"
     SCRGB = "scRGB"
     HDR10 = "HDR10"
@@ -71,6 +73,7 @@ class LUTColorSpace(Enum):
 
 class LUTType(Enum):
     """Type of LUT (SDR or HDR)."""
+
     SDR = "sdr"
     HDR = "hdr"
 
@@ -78,6 +81,7 @@ class LUTType(Enum):
 @dataclass
 class MonitorInfo:
     """Information about a connected monitor."""
+
     device_name: str
     friendly_name: str
     left: int
@@ -94,6 +98,7 @@ class MonitorInfo:
 @dataclass
 class DisplayLUTInfo:
     """Information about LUT applied to a display."""
+
     display_id: int
     display_name: str
     lut_active: bool
@@ -105,12 +110,14 @@ class DisplayLUTInfo:
 
 class DwmLutError(Exception):
     """DWM LUT operation error."""
+
     pass
 
 
 # =============================================================================
 # PQ (ST.2084) EOTF Functions for HDR
 # =============================================================================
+
 
 def pq_eotf(E: np.ndarray) -> np.ndarray:
     """
@@ -155,11 +162,7 @@ def srgb_eotf(V: np.ndarray) -> np.ndarray:
     Converts sRGB-encoded signal (0-1) to linear light (0-1).
     """
     V = np.clip(V, 0, 1)
-    return np.where(
-        V <= 0.04045,
-        V / 12.92,
-        np.power((V + 0.055) / 1.055, 2.4)
-    )
+    return np.where(V <= 0.04045, V / 12.92, np.power((V + 0.055) / 1.055, 2.4))
 
 
 def srgb_oetf(L: np.ndarray) -> np.ndarray:
@@ -168,11 +171,7 @@ def srgb_oetf(L: np.ndarray) -> np.ndarray:
     Converts linear light (0-1) to sRGB-encoded signal (0-1).
     """
     L = np.clip(L, 0, 1)
-    return np.where(
-        L <= 0.0031308,
-        L * 12.92,
-        1.055 * np.power(L, 1/2.4) - 0.055
-    )
+    return np.where(L <= 0.0031308, L * 12.92, 1.055 * np.power(L, 1 / 2.4) - 0.055)
 
 
 def bt1886_eotf(V: np.ndarray, gamma: float = 2.4, Lw: float = 1.0, Lb: float = 0.0) -> np.ndarray:
@@ -186,8 +185,8 @@ def bt1886_eotf(V: np.ndarray, gamma: float = 2.4, Lw: float = 1.0, Lb: float = 
         Lb: Black luminance (normalized)
     """
     V = np.clip(V, 0, 1)
-    a = (Lw ** (1/gamma) - Lb ** (1/gamma)) ** gamma
-    b = Lb ** (1/gamma) / (Lw ** (1/gamma) - Lb ** (1/gamma))
+    a = (Lw ** (1 / gamma) - Lb ** (1 / gamma)) ** gamma
+    b = Lb ** (1 / gamma) / (Lw ** (1 / gamma) - Lb ** (1 / gamma))
     return a * np.power(np.maximum(V + b, 0), gamma)
 
 
@@ -196,32 +195,24 @@ def bt1886_eotf(V: np.ndarray, gamma: float = 2.4, Lw: float = 1.0, Lb: float = 
 # =============================================================================
 
 # sRGB/BT.709 to XYZ (D65)
-SRGB_TO_XYZ = np.array([
-    [0.4124564, 0.3575761, 0.1804375],
-    [0.2126729, 0.7151522, 0.0721750],
-    [0.0193339, 0.1191920, 0.9503041]
-])
+SRGB_TO_XYZ = np.array(
+    [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]]
+)
 
 # XYZ to sRGB/BT.709 (D65)
-XYZ_TO_SRGB = np.array([
-    [ 3.2404542, -1.5371385, -0.4985314],
-    [-0.9692660,  1.8760108,  0.0415560],
-    [ 0.0556434, -0.2040259,  1.0572252]
-])
+XYZ_TO_SRGB = np.array(
+    [[3.2404542, -1.5371385, -0.4985314], [-0.9692660, 1.8760108, 0.0415560], [0.0556434, -0.2040259, 1.0572252]]
+)
 
 # BT.2020 to XYZ (D65)
-BT2020_TO_XYZ = np.array([
-    [0.6369580, 0.1446169, 0.1688810],
-    [0.2627002, 0.6779981, 0.0593017],
-    [0.0000000, 0.0280727, 1.0609851]
-])
+BT2020_TO_XYZ = np.array(
+    [[0.6369580, 0.1446169, 0.1688810], [0.2627002, 0.6779981, 0.0593017], [0.0000000, 0.0280727, 1.0609851]]
+)
 
 # XYZ to BT.2020 (D65)
-XYZ_TO_BT2020 = np.array([
-    [ 1.7166512, -0.3556708, -0.2533663],
-    [-0.6666844,  1.6164812,  0.0157685],
-    [ 0.0176399, -0.0427706,  0.9421031]
-])
+XYZ_TO_BT2020 = np.array(
+    [[1.7166512, -0.3556708, -0.2533663], [-0.6666844, 1.6164812, 0.0157685], [0.0176399, -0.0427706, 0.9421031]]
+)
 
 # Direct sRGB to BT.2020 conversion
 SRGB_TO_BT2020 = XYZ_TO_BT2020 @ SRGB_TO_XYZ
@@ -241,6 +232,7 @@ def apply_matrix(rgb: np.ndarray, matrix: np.ndarray) -> np.ndarray:
 # =============================================================================
 # LUT Generation
 # =============================================================================
+
 
 def generate_identity_lut(size: int = 33) -> np.ndarray:
     """Generate identity (pass-through) 3D LUT."""
@@ -378,6 +370,7 @@ def generate_sdr_calibration_lut(
 # .cube File Format
 # =============================================================================
 
+
 def write_cube_file(path: Path, lut: np.ndarray, title: str = "Calibration LUT") -> None:
     """
     Write 3D LUT to .cube file format.
@@ -389,8 +382,8 @@ def write_cube_file(path: Path, lut: np.ndarray, title: str = "Calibration LUT")
     """
     size = lut.shape[0]
 
-    with open(path, 'w') as f:
-        f.write(f"TITLE \"{title}\"\n")
+    with open(path, "w") as f:
+        f.write(f'TITLE "{title}"\n')
         f.write(f"LUT_3D_SIZE {size}\n")
         f.write("DOMAIN_MIN 0.0 0.0 0.0\n")
         f.write("DOMAIN_MAX 1.0 1.0 1.0\n")
@@ -420,14 +413,14 @@ def read_cube_file(path: Path) -> tuple[np.ndarray, int]:
     with open(path) as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
-            if line.startswith('TITLE'):
+            if line.startswith("TITLE"):
                 continue
-            if line.startswith('LUT_3D_SIZE'):
+            if line.startswith("LUT_3D_SIZE"):
                 size = int(line.split()[1])
                 continue
-            if line.startswith('DOMAIN'):
+            if line.startswith("DOMAIN"):
                 continue
 
             # Parse RGB values
@@ -442,7 +435,7 @@ def read_cube_file(path: Path) -> tuple[np.ndarray, int]:
     if size is None:
         # Try to infer size from data count
         count = len(data)
-        size = int(round(count ** (1/3)))
+        size = int(round(count ** (1 / 3)))
 
     # Reshape to 3D LUT
     lut = np.array(data, dtype=np.float32).reshape(size, size, size, 3)
@@ -453,8 +446,10 @@ def read_cube_file(path: Path) -> tuple[np.ndarray, int]:
 # Monitor Detection and Position
 # =============================================================================
 
+
 class DEVMODE(ctypes.Structure):
     """Windows DEVMODE structure for display settings."""
+
     _fields_ = [
         ("dmDeviceName", wintypes.WCHAR * 32),
         ("dmSpecVersion", wintypes.WORD),
@@ -491,6 +486,7 @@ class DEVMODE(ctypes.Structure):
 
 class DISPLAY_DEVICE(ctypes.Structure):
     """Windows DISPLAY_DEVICE structure."""
+
     _fields_ = [
         ("cb", wintypes.DWORD),
         ("DeviceName", wintypes.WCHAR * 32),
@@ -541,7 +537,7 @@ def get_monitors() -> list[MonitorInfo]:
                     height=height,
                     is_primary=bool(device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE),
                     is_hdr=is_hdr,
-                    device_id=device.DeviceID
+                    device_id=device.DeviceID,
                 )
                 monitors.append(monitor)
 
@@ -595,13 +591,14 @@ def get_lut_filename(monitor: MonitorInfo, lut_type: LUTType) -> str:
 def get_dwm_lut_directory() -> Path:
     """Get the dwm_lut LUT directory path."""
     # dwm_lut looks for LUTs in %SYSTEMROOT%\Temp\luts
-    system_root = os.environ.get('SYSTEMROOT', 'C:\\Windows')
+    system_root = os.environ.get("SYSTEMROOT", "C:\\Windows")
     return Path(system_root) / "Temp" / "luts"
 
 
 # =============================================================================
 # DWM LUT Controller
 # =============================================================================
+
 
 class DwmLutController:
     """
@@ -641,15 +638,17 @@ class DwmLutController:
         search_paths = []
 
         # Frozen build: look next to the executable
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             search_paths.append(Path(sys.executable).parent / "dwm_lut")
 
-        search_paths.extend([
-            Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
-            Path(__file__).parent / "bin",
-            Path("C:/Program Files/dwm_lut"),
-            Path.home() / "dwm_lut",
-        ])
+        search_paths.extend(
+            [
+                Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
+                Path(__file__).parent / "bin",
+                Path("C:/Program Files/dwm_lut"),
+                Path.home() / "dwm_lut",
+            ]
+        )
 
         for path in search_paths:
             if path.exists() and (path / "DwmLutGUI.exe").exists():
@@ -658,6 +657,7 @@ class DwmLutController:
 
         # Check PATH
         import shutil as sh
+
         exe = sh.which("DwmLutGUI.exe")
         if exe:
             self._dwm_lut_path = Path(exe).parent
@@ -668,9 +668,8 @@ class DwmLutController:
             self._lut_directory.mkdir(parents=True, exist_ok=True)
         except PermissionError:
             import logging
-            logging.getLogger(__name__).warning(
-                "Cannot create LUT directory %s (may need admin)", self._lut_directory
-            )
+
+            logging.getLogger(__name__).warning("Cannot create LUT directory %s (may need admin)", self._lut_directory)
 
     def _ensure_dwm_running(self) -> None:
         """Ensure DwmLutGUI is running after a LUT file is placed."""
@@ -682,9 +681,9 @@ class DwmLutController:
             self.start_dwm_lut_gui()
         except DwmLutError:
             import logging
+
             logging.getLogger(__name__).warning(
-                "DwmLutGUI not running. LUT file placed but not active. "
-                "Start DwmLutGUI.exe manually as admin."
+                "DwmLutGUI not running. LUT file placed but not active. Start DwmLutGUI.exe manually as admin."
             )
 
     @property
@@ -729,7 +728,7 @@ class DwmLutController:
         monitor: int | MonitorInfo,
         lut_data: np.ndarray,
         lut_type: LUTType = LUTType.SDR,
-        title: str = "Calibration LUT"
+        title: str = "Calibration LUT",
     ) -> bool:
         """
         Load a 3D LUT for a specific monitor.
@@ -780,7 +779,7 @@ class DwmLutController:
             lut_path=str(lut_path),
             lut_size=size,
             color_space=LUTColorSpace.HDR10 if lut_type == LUTType.HDR else LUTColorSpace.SRGB,
-            lut_type=lut_type
+            lut_type=lut_type,
         )
 
         # Ensure DwmLutGUI is running so the LUT is actually applied
@@ -789,10 +788,7 @@ class DwmLutController:
         return True
 
     def load_lut_file(
-        self,
-        monitor: int | MonitorInfo,
-        source_path: str | Path,
-        lut_type: LUTType = LUTType.SDR
+        self, monitor: int | MonitorInfo, source_path: str | Path, lut_type: LUTType = LUTType.SDR
     ) -> bool:
         """
         Load a LUT from file for a specific monitor.
@@ -841,7 +837,7 @@ class DwmLutController:
             lut_path=str(dest_path),
             lut_size=size,
             color_space=LUTColorSpace.HDR10 if lut_type == LUTType.HDR else LUTColorSpace.SRGB,
-            lut_type=lut_type
+            lut_type=lut_type,
         )
 
         # Ensure DwmLutGUI is running so the LUT is actually applied
@@ -849,11 +845,7 @@ class DwmLutController:
 
         return True
 
-    def unload_lut(
-        self,
-        monitor: int | MonitorInfo,
-        lut_type: LUTType = LUTType.SDR
-    ) -> bool:
+    def unload_lut(self, monitor: int | MonitorInfo, lut_type: LUTType = LUTType.SDR) -> bool:
         """
         Remove LUT from a monitor (restore identity).
 
@@ -934,12 +926,17 @@ class DwmLutController:
 
             # Try elevated launch via ShellExecuteW (UAC prompt)
             import logging
+
             logger = logging.getLogger(__name__)
 
             try:
                 result = ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", str(self.dwm_lut_exe), "",
-                    str(self._dwm_lut_path), 0  # SW_HIDE
+                    None,
+                    "runas",
+                    str(self.dwm_lut_exe),
+                    "",
+                    str(self._dwm_lut_path),
+                    0,  # SW_HIDE
                 )
                 # ShellExecuteW returns > 32 on success
                 if result > 32:
@@ -953,9 +950,7 @@ class DwmLutController:
             # Fallback: try without elevation (works if already admin)
             try:
                 subprocess.Popen(
-                    [str(self.dwm_lut_exe)],
-                    cwd=str(self._dwm_lut_path),
-                    creationflags=subprocess.CREATE_NO_WINDOW
+                    [str(self.dwm_lut_exe)], cwd=str(self._dwm_lut_path), creationflags=subprocess.CREATE_NO_WINDOW
                 )
                 time.sleep(1)
                 if self._is_dwm_lut_running():
@@ -975,7 +970,7 @@ class DwmLutController:
             subprocess.run(
                 ["taskkill", "/F", "/IM", "DwmLutGUI.exe"],
                 capture_output=True,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return True
         except (subprocess.SubprocessError, OSError):
@@ -988,7 +983,7 @@ class DwmLutController:
                 ["tasklist", "/FI", "IMAGENAME eq DwmLutGUI.exe"],
                 capture_output=True,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return "DwmLutGUI.exe" in result.stdout
         except (subprocess.SubprocessError, OSError):
@@ -1001,7 +996,7 @@ class DwmLutController:
         rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
         whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
         peak_luminance: float = 1000.0,
-        lut_size: int = 33
+        lut_size: int = 33,
     ) -> bool:
         """
         Apply HDR calibration to a monitor.
@@ -1025,7 +1020,7 @@ class DwmLutController:
             target_whitepoint=whitepoint,
             rgb_gains=rgb_gains,
             rgb_offsets=rgb_offsets,
-            peak_luminance=peak_luminance
+            peak_luminance=peak_luminance,
         )
 
         # Load LUT
@@ -1038,7 +1033,7 @@ class DwmLutController:
         rgb_offsets: tuple[float, float, float] = (0.0, 0.0, 0.0),
         whitepoint: tuple[float, float, float] = (1.0, 1.0, 1.0),
         target_gamma: float = 2.2,
-        lut_size: int = 33
+        lut_size: int = 33,
     ) -> bool:
         """
         Apply SDR calibration to a monitor.
@@ -1062,7 +1057,7 @@ class DwmLutController:
             target_gamma=target_gamma,
             target_whitepoint=whitepoint,
             rgb_gains=rgb_gains,
-            rgb_offsets=rgb_offsets
+            rgb_offsets=rgb_offsets,
         )
 
         # Load LUT
@@ -1072,6 +1067,7 @@ class DwmLutController:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def apply_lut(lut_path: str | Path, monitor_index: int = 0, lut_type: str = "sdr") -> bool:
     """

@@ -5,7 +5,6 @@ Contains factory-measured panel characteristics for 58 monitors,
 used for sensorless calibration when no external profile is available.
 """
 
-
 from calibrate_pro.panels.panel_types import (
     ChromaticityCoord,
     DDCRecommendations,
@@ -34,7 +33,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6795, 0.3095),
             green=ChromaticityCoord(0.2325, 0.7115),
             blue=ChromaticityCoord(0.1375, 0.0495),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2020, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1980, offset=0.0, linear_portion=0.0),
@@ -48,7 +47,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -64,11 +63,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1 picture mode for unlocked RGB gain controls. "
-                  "Disable ELMB Sync for stable DDC communication. "
-                  "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off. "
-                  "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6."
+            "Disable ELMB Sync for stable DDC communication. "
+            "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off. "
+            "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6.",
         ),
-        notes="ASUS ROG Swift 27-inch 4K 240Hz QD-OLED. Samsung Display 2024 panel. 92% BT.2020."
+        notes="ASUS ROG Swift 27-inch 4K 240Hz QD-OLED. Samsung Display 2024 panel. 92% BT.2020.",
     )
 
     # Samsung Odyssey OLED G85SB (Samsung QD-OLED panel)
@@ -81,7 +80,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3080),
             green=ChromaticityCoord(0.2340, 0.7100),
             blue=ChromaticityCoord(0.1380, 0.0510),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1980, offset=0.0, linear_portion=0.0),
@@ -95,7 +94,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -111,11 +110,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Disable game features (Game Mode, VRR) during calibration for stable DDC. "
-                  "Dynamic Brightness must be off. Core Lighting sync may interfere - disable. "
-                  "Color temperature presets: Custom, Warm, Normal, Cool."
+            "Disable game features (Game Mode, VRR) during calibration for stable DDC. "
+            "Dynamic Brightness must be off. Core Lighting sync may interfere - disable. "
+            "Color temperature presets: Custom, Warm, Normal, Cool.",
         ),
-        notes="Samsung QD-OLED with wider gamut than WOLED. May need slight chroma adjustment."
+        notes="Samsung QD-OLED with wider gamut than WOLED. May need slight chroma adjustment.",
     )
 
     # Dell Alienware AW3423DW (Samsung QD-OLED)
@@ -128,7 +127,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3080),
             green=ChromaticityCoord(0.2340, 0.7100),
             blue=ChromaticityCoord(0.1380, 0.0510),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1950, offset=0.0, linear_portion=0.0),
@@ -142,7 +141,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -158,11 +157,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for full DDC/CI control over RGB gains. "
-                  "Disable Smart HDR (Creator mode) as it interferes with DDC adjustments. "
-                  "Gamma options in OSD: 2.2, 2.4, sRGB, BT.1886, PQ. "
-                  "Set color space to Wide for full gamut, or sRGB to clamp."
+            "Disable Smart HDR (Creator mode) as it interferes with DDC adjustments. "
+            "Gamma options in OSD: 2.2, 2.4, sRGB, BT.1886, PQ. "
+            "Set color space to Wide for full gamut, or sRGB to clamp.",
         ),
-        notes="First consumer QD-OLED. Same panel as G85SB with Dell calibration."
+        notes="First consumer QD-OLED. Same panel as G85SB with Dell calibration.",
     )
 
     # Dell Alienware AW3423DWF (Samsung QD-OLED - FreeSync Edition)
@@ -176,7 +175,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3080),
             green=ChromaticityCoord(0.2340, 0.7100),
             blue=ChromaticityCoord(0.1380, 0.0510),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2080, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1960, offset=0.0, linear_portion=0.0),
@@ -190,7 +189,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -206,11 +205,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for full DDC/CI control over RGB gains. "
-                  "Disable Creator mode Smart HDR as it overrides DDC brightness/contrast. "
-                  "Gamma options: 2.2, 2.4, sRGB, BT.1886, PQ. "
-                  "FreeSync edition - no G-Sync module, DDC/CI more reliable over DP."
+            "Disable Creator mode Smart HDR as it overrides DDC brightness/contrast. "
+            "Gamma options: 2.2, 2.4, sRGB, BT.1886, PQ. "
+            "FreeSync edition - no G-Sync module, DDC/CI more reliable over DP.",
         ),
-        notes="FreeSync QD-OLED. Same Samsung panel as AW3423DW. Source: Rtings."
+        notes="FreeSync QD-OLED. Same Samsung panel as AW3423DW. Source: Rtings.",
     )
 
     # Dell Alienware AW3225QF (Samsung QD-OLED 4K 32" - 2024)
@@ -224,7 +223,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6792, 0.3098),
             green=ChromaticityCoord(0.2318, 0.7108),
             blue=ChromaticityCoord(0.1372, 0.0498),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2015, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1985, offset=0.0, linear_portion=0.0),
@@ -238,7 +237,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -254,14 +253,14 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for full DDC/CI RGB gain access. "
-                  "Enable DDC/CI in Others menu. Creator mode with sRGB or DCI-P3 gamut "
-                  "is accurate but locks color controls. Smart HDR modes: Desktop, Movie HDR, "
-                  "Game HDR, Custom Color HDR, DisplayHDR 400 True Black, HDR Peak 1000. "
-                  "Preset modes: Standard, Creator (DCI-P3/sRGB selectable), FPS, MOBA/RTS, RPG, Sports. "
-                  "Dark Stabilizer manipulates gamma - disable for calibration. "
-                  "Color temp presets: Warm, Cool, Custom. Dell Display Manager works over DP and HDMI."
+            "Enable DDC/CI in Others menu. Creator mode with sRGB or DCI-P3 gamut "
+            "is accurate but locks color controls. Smart HDR modes: Desktop, Movie HDR, "
+            "Game HDR, Custom Color HDR, DisplayHDR 400 True Black, HDR Peak 1000. "
+            "Preset modes: Standard, Creator (DCI-P3/sRGB selectable), FPS, MOBA/RTS, RPG, Sports. "
+            "Dark Stabilizer manipulates gamma - disable for calibration. "
+            "Color temp presets: Warm, Cool, Custom. Dell Display Manager works over DP and HDMI.",
         ),
-        notes="Samsung 2024 QD-OLED 4K panel. 99.3% DCI-P3, Delta E 1.8 out of box. Source: Rtings/TFTCentral."
+        notes="Samsung 2024 QD-OLED 4K panel. 99.3% DCI-P3, Delta E 1.8 out of box. Source: Rtings/TFTCentral.",
     )
 
     # ASUS ROG Swift PG32UCDM (Samsung QD-OLED 4K 32")
@@ -275,7 +274,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6798, 0.3102),
             green=ChromaticityCoord(0.2322, 0.7112),
             blue=ChromaticityCoord(0.1378, 0.0502),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2025, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1990, offset=0.0, linear_portion=0.0),
@@ -289,7 +288,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -305,13 +304,13 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1 picture mode for unlocked RGB gain controls. "
-                  "DDC/CI enable in OSD Setup menu. Disable ELMB Sync for stable DDC comm. "
-                  "Picture modes: Scenery, Racing, Cinema, RTS/RPG, FPS, Night Vision, User. "
-                  "Blue Light Filter affects white point - disable for calibration. "
-                  "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
-                  "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off."
+            "DDC/CI enable in OSD Setup menu. Disable ELMB Sync for stable DDC comm. "
+            "Picture modes: Scenery, Racing, Cinema, RTS/RPG, FPS, Night Vision, User. "
+            "Blue Light Filter affects white point - disable for calibration. "
+            "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
+            "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off.",
         ),
-        notes="32-inch sibling of PG27UCDM. Same Samsung QD-OLED panel. Source: Hardware Unboxed."
+        notes="32-inch sibling of PG27UCDM. Same Samsung QD-OLED panel. Source: Hardware Unboxed.",
     )
 
     # Samsung Odyssey OLED G8 G80SD (QD-OLED 32" 4K)
@@ -325,7 +324,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6785, 0.3095),
             green=ChromaticityCoord(0.2330, 0.7105),
             blue=ChromaticityCoord(0.1375, 0.0505),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -339,7 +338,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -355,11 +354,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Disable Game Mode and Adaptive-Sync during calibration for stable DDC. "
-                  "Dynamic Brightness must be off. Core Lighting sync may interfere. "
-                  "Color temp presets: Custom, Warm, Normal, Cool."
+            "Disable Game Mode and Adaptive-Sync during calibration for stable DDC. "
+            "Dynamic Brightness must be off. Core Lighting sync may interfere. "
+            "Color temp presets: Custom, Warm, Normal, Cool.",
         ),
-        notes="Samsung's own 32-inch 4K QD-OLED. Very accurate out of box. Source: Rtings."
+        notes="Samsung's own 32-inch 4K QD-OLED. Very accurate out of box. Source: Rtings.",
     )
 
     # Samsung Odyssey G95SC (QD-OLED 49" Super Ultrawide)
@@ -373,7 +372,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6782, 0.3085),
             green=ChromaticityCoord(0.2338, 0.7098),
             blue=ChromaticityCoord(0.1382, 0.0512),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2080, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1960, offset=0.0, linear_portion=0.0),
@@ -387,7 +386,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -403,15 +402,15 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=None,
             notes="WARNING: Samsung Odyssey OLED G9 G95SC has severely limited DDC/CI support. "
-                  "DDC/CI does not work over DisplayPort on most Samsung monitors - HDMI only. "
-                  "Many standard VCP codes are not implemented. Input switching via DDC is unsupported. "
-                  "Use Custom picture mode in OSD manually. Preset modes: Eco (default), Movie, Custom. "
-                  "Movie mode has best default grayscale/gamma (BT.1886). "
-                  "Color space: Auto (sRGB clamp) or Native (wide). "
-                  "Dynamic Brightness must be off. Eye Saver Mode must be off. "
-                  "Calibration primarily requires manual OSD adjustment rather than DDC/CI automation."
+            "DDC/CI does not work over DisplayPort on most Samsung monitors - HDMI only. "
+            "Many standard VCP codes are not implemented. Input switching via DDC is unsupported. "
+            "Use Custom picture mode in OSD manually. Preset modes: Eco (default), Movie, Custom. "
+            "Movie mode has best default grayscale/gamma (BT.1886). "
+            "Color space: Auto (sRGB clamp) or Native (wide). "
+            "Dynamic Brightness must be off. Eye Saver Mode must be off. "
+            "Calibration primarily requires manual OSD adjustment rather than DDC/CI automation.",
         ),
-        notes="49-inch 5120x1440 QD-OLED ultrawide. 32:9 aspect. Source: TFTCentral/Hardware Unboxed."
+        notes="49-inch 5120x1440 QD-OLED ultrawide. 32:9 aspect. Source: TFTCentral/Hardware Unboxed.",
     )
 
     # LG C3 OLED (WOLED TV used as monitor - 42/48/55 inch)
@@ -425,7 +424,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6399, 0.3301),
             green=ChromaticityCoord(0.2998, 0.5998),
             blue=ChromaticityCoord(0.1502, 0.0601),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -439,7 +438,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Game Optimizer",
@@ -455,12 +454,12 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="BT.1886",
             gamma_vcp_value=0x08,
             notes="Use Game Optimizer or Filmmaker mode for DDC/CI access. "
-                  "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
-                  "Disable ASBL (Auto Static Brightness Limiter) via service menu if possible. "
-                  "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI input label to PC. "
-                  "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65."
+            "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
+            "Disable ASBL (Auto Static Brightness Limiter) via service menu if possible. "
+            "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI input label to PC. "
+            "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65.",
         ),
-        notes="LG WOLED evo panel. Excellent for gaming. Use PC mode. Source: Rtings/HDTVTest."
+        notes="LG WOLED evo panel. Excellent for gaming. Use PC mode. Source: Rtings/HDTVTest.",
     )
 
     # LG C4 OLED (2024 WOLED evo)
@@ -474,7 +473,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6398, 0.3302),
             green=ChromaticityCoord(0.2999, 0.5997),
             blue=ChromaticityCoord(0.1501, 0.0602),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2005, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1998, offset=0.0, linear_portion=0.0),
@@ -488,7 +487,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Filmmaker",
@@ -504,12 +503,12 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="BT.1886",
             gamma_vcp_value=0x08,
             notes="Use Filmmaker or Game Optimizer mode for DDC/CI access. "
-                  "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
-                  "Disable ASBL via service menu if possible for stable luminance. "
-                  "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI label to PC. "
-                  "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65."
+            "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
+            "Disable ASBL via service menu if possible for stable luminance. "
+            "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI label to PC. "
+            "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65.",
         ),
-        notes="2024 LG WOLED evo with improved brightness. Excellent factory calibration. Source: Rtings/HDTVTest."
+        notes="2024 LG WOLED evo with improved brightness. Excellent factory calibration. Source: Rtings/HDTVTest.",
     )
 
     # LG 27GP950-B (Nano IPS)
@@ -523,7 +522,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2150, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
@@ -537,7 +536,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Gamer 1",
@@ -553,15 +552,15 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="Mode 3",
             gamma_vcp_value=0x04,
             notes="Use Gamer 1 or Gamer 2 picture mode for DDC/CI RGB gain access. "
-                  "sRGB mode clamps gamut and locks brightness/contrast/color controls. "
-                  "Picture modes: FPS, RTS, sRGB, Reader, Gamer 1, Gamer 2, Calibration 1, Calibration 2. "
-                  "Gamma modes: Mode 1 (2.0), Mode 2 (2.2), Mode 3 (2.4), Mode 4 (2.6). "
-                  "Color temp: Custom, 6500K, 7500K, 9300K. 6-axis hue/saturation available. "
-                  "LG Calibration Studio supports hardware calibration into Calibration 1/2 slots. "
-                  "HDMI ULTRA HD Deep Color must be enabled for 10-bit. "
-                  "On-Screen Control app provides DDC/CI access from desktop."
+            "sRGB mode clamps gamut and locks brightness/contrast/color controls. "
+            "Picture modes: FPS, RTS, sRGB, Reader, Gamer 1, Gamer 2, Calibration 1, Calibration 2. "
+            "Gamma modes: Mode 1 (2.0), Mode 2 (2.2), Mode 3 (2.4), Mode 4 (2.6). "
+            "Color temp: Custom, 6500K, 7500K, 9300K. 6-axis hue/saturation available. "
+            "LG Calibration Studio supports hardware calibration into Calibration 1/2 slots. "
+            "HDMI ULTRA HD Deep Color must be enabled for 10-bit. "
+            "On-Screen Control app provides DDC/CI access from desktop.",
         ),
-        notes="Nano IPS with 98% DCI-P3. Good for HDR600 content. Source: TFTCentral/Rtings."
+        notes="Nano IPS with 98% DCI-P3. Good for HDR600 content. Source: TFTCentral/Rtings.",
     )
 
     # BenQ PD3220U (IPS - Professional color work)
@@ -575,7 +574,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6495, 0.3380),
             green=ChromaticityCoord(0.2680, 0.6550),
             blue=ChromaticityCoord(0.1490, 0.0550),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -589,9 +588,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Professional 4K monitor. Factory calibrated Delta E < 2. Thunderbolt 3. Source: TFTCentral."
+        notes="Professional 4K monitor. Factory calibrated Delta E < 2. Thunderbolt 3. Source: TFTCentral.",
     )
 
     # ASUS ProArt PA32UCG-K (Mini-LED)
@@ -605,7 +604,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1380, 0.0520),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -620,7 +619,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=False,
             local_dimming=True,
-            local_dimming_zones=1152
+            local_dimming_zones=1152,
         ),
         ddc=DDCRecommendations(
             picture_mode="User Mode 1",
@@ -636,17 +635,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use User Mode 1 or User Mode 2 for full DDC/CI RGB gain access. "
-                  "Picture modes: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
-                  "Rec.709, HDR_PQ DCI, HDR_PQ Rec.2020, HDR_HLG, HDR_HLG DCI, "
-                  "Dolby Vision, User Mode 1, User Mode 2. "
-                  "Color temp: 9300K, 6500K, 5500K, 5000K, P3-Theater (DCI-P3 only). "
-                  "Gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
-                  "6-axis color adjustment (R/G/B/C/M/Y) available. "
-                  "ProArt Calibration software stores profiles to User Mode 1/2. "
-                  "1152 Mini-LED zones - local dimming may affect uniformity measurements. "
-                  "Disable local dimming for flat-field calibration if possible."
+            "Picture modes: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
+            "Rec.709, HDR_PQ DCI, HDR_PQ Rec.2020, HDR_HLG, HDR_HLG DCI, "
+            "Dolby Vision, User Mode 1, User Mode 2. "
+            "Color temp: 9300K, 6500K, 5500K, 5000K, P3-Theater (DCI-P3 only). "
+            "Gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
+            "6-axis color adjustment (R/G/B/C/M/Y) available. "
+            "ProArt Calibration software stores profiles to User Mode 1/2. "
+            "1152 Mini-LED zones - local dimming may affect uniformity measurements. "
+            "Disable local dimming for flat-field calibration if possible.",
         ),
-        notes="Reference Mini-LED. 99% DCI-P3, 89% BT.2020. 1152 zones FALD. Source: TFTCentral/Rtings."
+        notes="Reference Mini-LED. 99% DCI-P3, 89% BT.2020. 1152 zones FALD. Source: TFTCentral/Rtings.",
     )
 
     # MSI MEG 342C QD-OLED
@@ -660,7 +659,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6785, 0.3090),
             green=ChromaticityCoord(0.2335, 0.7105),
             blue=ChromaticityCoord(0.1380, 0.0508),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2040, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1975, offset=0.0, linear_portion=0.0),
@@ -674,9 +673,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="34-inch 3440x1440 QD-OLED ultrawide. Same panel family as G85SB. Source: HUB/TFTCentral."
+        notes="34-inch 3440x1440 QD-OLED ultrawide. Same panel family as G85SB. Source: HUB/TFTCentral.",
     )
 
     # Corsair Xeneon 34 QD-OLED
@@ -690,7 +689,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6788, 0.3092),
             green=ChromaticityCoord(0.2332, 0.7102),
             blue=ChromaticityCoord(0.1378, 0.0505),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2035, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1980, offset=0.0, linear_portion=0.0),
@@ -704,9 +703,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="34-inch QD-OLED with iCUE integration. Same Samsung panel. Source: Rtings/HUB."
+        notes="34-inch QD-OLED with iCUE integration. Same Samsung panel. Source: Rtings/HUB.",
     )
 
     # Gigabyte AORUS FO32U2P (QD-OLED 4K 32")
@@ -720,7 +719,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6790, 0.3095),
             green=ChromaticityCoord(0.2325, 0.7110),
             blue=ChromaticityCoord(0.1375, 0.0500),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2018, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1988, offset=0.0, linear_portion=0.0),
@@ -734,9 +733,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="32-inch 4K 240Hz QD-OLED. Same Samsung panel as PG32UCDM. Source: Hardware Unboxed."
+        notes="32-inch 4K 240Hz QD-OLED. Same Samsung panel as PG32UCDM. Source: Hardware Unboxed.",
     )
 
     # LG UltraGear OLED 27GR95QE (LG WOLED)
@@ -749,7 +748,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6401, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -763,9 +762,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="LG WOLED panel. Similar to PG27UCDM with LG OSD and features."
+        notes="LG WOLED panel. Similar to PG27UCDM with LG OSD and features.",
     )
 
     # Sony INZONE M9 (IPS with Full-Array Local Dimming)
@@ -778,7 +777,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6465, 0.3340),
             green=ChromaticityCoord(0.2700, 0.6350),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2200, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2200, offset=0.0, linear_portion=0.0),
@@ -793,7 +792,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=True,
             local_dimming=True,
-            local_dimming_zones=96
+            local_dimming_zones=96,
         ),
         ddc=DDCRecommendations(
             picture_mode="Game 1",
@@ -809,16 +808,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Game 1 or Game 2 picture mode for full color control access. "
-                  "Standard mode locks several color controls but has better default white balance. "
-                  "Picture modes: Standard, FPS Game, Cinema, Game 1, Game 2. "
-                  "DDC/CI accessible via OSD Others menu. Sony INZONE Hub app also provides control. "
-                  "Color temperature presets: Warm, Neutral, Cool, Custom. "
-                  "Gamma presets: 1.8, 2.0, 2.2, 2.4. Hue/saturation adjustments available. "
-                  "Local dimming (96 zones FALD) should be set to Off for SDR calibration, "
-                  "as it can cause brightness inconsistencies during measurement. "
-                  "Each unit ships with individual factory calibration report."
+            "Standard mode locks several color controls but has better default white balance. "
+            "Picture modes: Standard, FPS Game, Cinema, Game 1, Game 2. "
+            "DDC/CI accessible via OSD Others menu. Sony INZONE Hub app also provides control. "
+            "Color temperature presets: Warm, Neutral, Cool, Custom. "
+            "Gamma presets: 1.8, 2.0, 2.2, 2.4. Hue/saturation adjustments available. "
+            "Local dimming (96 zones FALD) should be set to Off for SDR calibration, "
+            "as it can cause brightness inconsistencies during measurement. "
+            "Each unit ships with individual factory calibration report.",
         ),
-        notes="IPS with FALD. Requires local dimming consideration for calibration."
+        notes="IPS with FALD. Requires local dimming consideration for calibration.",
     )
 
     # Samsung Odyssey G7 / G5 (VA curved ultrawide - 3440x1440)
@@ -832,7 +831,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3310),
             green=ChromaticityCoord(0.2680, 0.6420),
             blue=ChromaticityCoord(0.1500, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -846,7 +845,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -862,11 +861,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="Mode1",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Disable Adaptive-Sync in OSD before DDC calibration to avoid comm drops. "
-                  "sRGB mode clamps gamut but locks brightness/contrast controls. "
-                  "Dynamic Brightness must be off. Eye Saver Mode must be off."
+            "Disable Adaptive-Sync in OSD before DDC calibration to avoid comm drops. "
+            "sRGB mode clamps gamut but locks brightness/contrast controls. "
+            "Dynamic Brightness must be off. Eye Saver Mode must be off.",
         ),
-        notes="Samsung VA curved ultrawide. 125% sRGB gamut. Good contrast. Source: Rtings/TFTCentral."
+        notes="Samsung VA curved ultrawide. 125% sRGB gamut. Good contrast. Source: Rtings/TFTCentral.",
     )
 
     # Dell U2723QE - 4K 60Hz IPS (sRGB professional)
@@ -880,7 +879,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -894,7 +893,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=False,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -910,11 +909,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for DDC/CI RGB gain access. "
-                  "sRGB mode available but locks brightness/contrast/color controls. "
-                  "ComfortView (low blue light) must be off. "
-                  "Smart HDR not present on this model. USB-C connected - DDC works over USB-C DP Alt."
+            "sRGB mode available but locks brightness/contrast/color controls. "
+            "ComfortView (low blue light) must be off. "
+            "Smart HDR not present on this model. USB-C connected - DDC works over USB-C DP Alt.",
         ),
-        notes="Factory calibrated sRGB IPS. Delta E < 2 out of box. USB-C hub monitor. Source: Rtings/TFTCentral."
+        notes="Factory calibrated sRGB IPS. Delta E < 2 out of box. USB-C hub monitor. Source: Rtings/TFTCentral.",
     )
 
     # BenQ SW271C - 4K 60Hz IPS (Photo editing, 99% AdobeRGB)
@@ -928,7 +927,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -942,7 +941,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -958,16 +957,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Picture modes: Adobe RGB, sRGB, Rec.709, DCI-P3, Display P3, M-book, "
-                  "B+W, HDR, Calibration 1/2/3, Custom, Paper Color Sync, DICOM. "
-                  "Hardware calibration via Palette Master Ultimate is preferred over DDC/CI - "
-                  "writes directly to internal 14-bit 3D LUT for superior accuracy. "
-                  "Calibration 1/2/3 slots store hardware calibration profiles. "
-                  "Color temp presets: 5000K, 6500K, 9300K, Custom, User Defined (100K increments). "
-                  "Hotkey Puck G2 allows fast mode switching. USB-C one-cable calibration supported. "
-                  "DDC/CI works but Palette Master Ultimate is the recommended path."
+            "Picture modes: Adobe RGB, sRGB, Rec.709, DCI-P3, Display P3, M-book, "
+            "B+W, HDR, Calibration 1/2/3, Custom, Paper Color Sync, DICOM. "
+            "Hardware calibration via Palette Master Ultimate is preferred over DDC/CI - "
+            "writes directly to internal 14-bit 3D LUT for superior accuracy. "
+            "Calibration 1/2/3 slots store hardware calibration profiles. "
+            "Color temp presets: 5000K, 6500K, 9300K, Custom, User Defined (100K increments). "
+            "Hotkey Puck G2 allows fast mode switching. USB-C one-cable calibration supported. "
+            "DDC/CI works but Palette Master Ultimate is the recommended path.",
         ),
-        notes="99% AdobeRGB photo editing monitor. Hardware calibration support. Delta E < 2. Source: TFTCentral."
+        notes="99% AdobeRGB photo editing monitor. Hardware calibration support. Delta E < 2. Source: TFTCentral.",
     )
 
     # EIZO CG2700S - 2K 60Hz IPS (Professional reference)
@@ -981,7 +980,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -995,9 +994,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Professional reference monitor. 99% AdobeRGB, built-in colorimeter. Delta E < 1. Source: TFTCentral."
+        notes="Professional reference monitor. 99% AdobeRGB, built-in colorimeter. Delta E < 1. Source: TFTCentral.",
     )
 
     # Dell U3423WE - 3440x1440 60Hz IPS (Ultrawide professional, 98% DCI-P3)
@@ -1011,7 +1010,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1025,9 +1024,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Ultrawide professional IPS. 98% DCI-P3. USB-C hub. Factory calibrated. Source: Rtings."
+        notes="Ultrawide professional IPS. 98% DCI-P3. USB-C hub. Factory calibrated. Source: Rtings.",
     )
 
     # ASUS VG27AQ1A - 2K 170Hz IPS (Gaming, 130% sRGB)
@@ -1041,7 +1040,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -1055,9 +1054,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Gaming IPS with 130% sRGB coverage. ELMB Sync. HDR400. Source: Rtings/Hardware Unboxed."
+        notes="Gaming IPS with 130% sRGB coverage. ELMB Sync. HDR400. Source: Rtings/Hardware Unboxed.",
     )
 
     # Samsung Odyssey G7 27" - 2K 240Hz VA (Gaming, curved)
@@ -1066,12 +1065,12 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
         manufacturer="Samsung",
         model_pattern=r"C27G7|LC27G7|Odyssey.*G7.*27|G7.*27",
         panel_type="VA",
-        display_name="Odyssey G7 27\"",
+        display_name='Odyssey G7 27"',
         native_primaries=PanelPrimaries(
             red=ChromaticityCoord(0.6480, 0.3310),
             green=ChromaticityCoord(0.2680, 0.6420),
             blue=ChromaticityCoord(0.1500, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2120, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2060, offset=0.0, linear_portion=0.0),
@@ -1085,7 +1084,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -1101,11 +1100,11 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="Mode1",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Disable Adaptive-Sync in OSD before DDC calibration to avoid comm drops. "
-                  "sRGB mode available but locks out adjustments. "
-                  "Dynamic Brightness and Eye Saver Mode must be off."
+            "Disable Adaptive-Sync in OSD before DDC calibration to avoid comm drops. "
+            "sRGB mode available but locks out adjustments. "
+            "Dynamic Brightness and Eye Saver Mode must be off.",
         ),
-        notes="VA curved 1000R gaming monitor. 125% sRGB, HDR600. Source: Rtings/TFTCentral."
+        notes="VA curved 1000R gaming monitor. 125% sRGB, HDR600. Source: Rtings/TFTCentral.",
     )
 
     # LG 27GP850-B - 2K 165Hz Nano IPS (Gaming, 98% DCI-P3)
@@ -1119,7 +1118,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -1133,9 +1132,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Nano IPS with 98% DCI-P3. 165Hz gaming. HDR400. Source: Rtings/TFTCentral."
+        notes="Nano IPS with 98% DCI-P3. 165Hz gaming. HDR400. Source: Rtings/TFTCentral.",
     )
 
     # Dell S2722DGM - 2K 165Hz VA (Budget gaming)
@@ -1149,7 +1148,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2150, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
@@ -1163,9 +1162,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=False,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Budget VA gaming monitor. ~99% sRGB. 165Hz curved. Source: Rtings."
+        notes="Budget VA gaming monitor. ~99% sRGB. 165Hz curved. Source: Rtings.",
     )
 
     # Sony A95L - 4K 120Hz QD-OLED TV
@@ -1179,7 +1178,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6795, 0.3095),
             green=ChromaticityCoord(0.2325, 0.7115),
             blue=ChromaticityCoord(0.1375, 0.0495),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2020, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1985, offset=0.0, linear_portion=0.0),
@@ -1193,9 +1192,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Sony QD-OLED TV with Samsung Display panel. Excellent processing. Source: Rtings/HDTVTest."
+        notes="Sony QD-OLED TV with Samsung Display panel. Excellent processing. Source: Rtings/HDTVTest.",
     )
 
     # Samsung S95D - 4K 144Hz QD-OLED TV
@@ -1209,7 +1208,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6792, 0.3098),
             green=ChromaticityCoord(0.2318, 0.7108),
             blue=ChromaticityCoord(0.1372, 0.0498),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1990, offset=0.0, linear_portion=0.0),
@@ -1223,9 +1222,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="2024 Samsung QD-OLED TV with anti-glare. 144Hz VRR. Source: Rtings/HDTVTest."
+        notes="2024 Samsung QD-OLED TV with anti-glare. 144Hz VRR. Source: Rtings/HDTVTest.",
     )
 
     # ASUS PG34WCDM - 3440x1440 240Hz WOLED (Ultrawide)
@@ -1239,7 +1238,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2015, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1990, offset=0.0, linear_portion=0.0),
@@ -1253,7 +1252,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -1269,14 +1268,14 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1 picture mode for unlocked RGB gain controls. "
-                  "LG.Display WOLED panel (NOT QD-OLED). 800R curvature ultrawide. "
-                  "Disable ELMB Sync for stable DDC communication. "
-                  "sRGB emulation available via OSD preset. "
-                  "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
-                  "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off."
+            "LG.Display WOLED panel (NOT QD-OLED). 800R curvature ultrawide. "
+            "Disable ELMB Sync for stable DDC communication. "
+            "sRGB emulation available via OSD preset. "
+            "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
+            "VRR (Adaptive-Sync) can remain on. Uniform Brightness recommended off.",
         ),
-        notes="34-inch 3440x1440 240Hz WOLED ultrawide. LG.Display panel (first 34\" WOLED). "
-              "98% DCI-P3, 95.5% Adobe RGB. 800R curve. Source: TFTCentral."
+        notes='34-inch 3440x1440 240Hz WOLED ultrawide. LG.Display panel (first 34" WOLED). '
+        "98% DCI-P3, 95.5% Adobe RGB. 800R curve. Source: TFTCentral.",
     )
 
     # Gigabyte M28U - 4K 144Hz IPS (Budget 4K gaming)
@@ -1290,7 +1289,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -1304,9 +1303,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Budget 4K 144Hz IPS gaming. 90% DCI-P3. HDMI 2.1. Source: Rtings/Hardware Unboxed."
+        notes="Budget 4K 144Hz IPS gaming. 90% DCI-P3. HDMI 2.1. Source: Rtings/Hardware Unboxed.",
     )
 
     # ViewSonic VP2786-4K - 4K 60Hz IPS (Professional)
@@ -1320,7 +1319,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1334,7 +1333,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -1350,16 +1349,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Picture modes: sRGB, Adobe RGB, DCI-P3, Rec.709, DICOM, Custom, User. "
-                  "Hardware calibration via Colorbration+ software (ViewSonic's calibration tool). "
-                  "Dual color engine allows different presets in PIP/PBP mode. "
-                  "ColorPro Wheel provides integrated color calibration workflow. "
-                  "Color temp: 5000K, 6500K, 7500K, 9300K, User Defined. "
-                  "DDC/CI brightness control confirmed but 1ms Mode disables DDC/CI brightness. "
-                  "Pantone Validated, Fogra certified. USB-C 90W PD. "
-                  "Advanced DCR (dynamic contrast) must be off for calibration."
+            "Picture modes: sRGB, Adobe RGB, DCI-P3, Rec.709, DICOM, Custom, User. "
+            "Hardware calibration via Colorbration+ software (ViewSonic's calibration tool). "
+            "Dual color engine allows different presets in PIP/PBP mode. "
+            "ColorPro Wheel provides integrated color calibration workflow. "
+            "Color temp: 5000K, 6500K, 7500K, 9300K, User Defined. "
+            "DDC/CI brightness control confirmed but 1ms Mode disables DDC/CI brightness. "
+            "Pantone Validated, Fogra certified. USB-C 90W PD. "
+            "Advanced DCR (dynamic contrast) must be off for calibration.",
         ),
-        notes="Professional 4K IPS. 100% sRGB, 98% DCI-P3, factory calibrated Delta E < 2. USB-C. Source: TFTCentral/Rtings."
+        notes="Professional 4K IPS. 100% sRGB, 98% DCI-P3, factory calibrated Delta E < 2. USB-C. Source: TFTCentral/Rtings.",
     )
 
     # LG 32GS95UE - 4K 240Hz WOLED 32"
@@ -1373,7 +1372,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6398, 0.3302),
             green=ChromaticityCoord(0.2999, 0.5997),
             blue=ChromaticityCoord(0.1501, 0.0602),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2008, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -1387,9 +1386,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="32-inch 4K 240Hz WOLED monitor. Similar to LG C4 primaries. Source: Rtings/Hardware Unboxed."
+        notes="32-inch 4K 240Hz WOLED monitor. Similar to LG C4 primaries. Source: Rtings/Hardware Unboxed.",
     )
 
     # MSI MAG 274QRF-QD - 2K 165Hz Quantum Dot IPS
@@ -1403,7 +1402,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2080, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2040, offset=0.0, linear_portion=0.0),
@@ -1417,9 +1416,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="QD-enhanced IPS with ~97% DCI-P3. Excellent color for gaming. Source: Rtings/Hardware Unboxed."
+        notes="QD-enhanced IPS with ~97% DCI-P3. Excellent color for gaming. Source: Rtings/Hardware Unboxed.",
     )
 
     # BenQ PD2706U - 4K 60Hz IPS (Professional, 99% sRGB)
@@ -1433,7 +1432,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1447,7 +1446,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=False,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -1463,12 +1462,12 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1 or Custom 2 picture mode for DDC/CI RGB gain access. "
-                  "sRGB mode locks all controls - avoid for DDC calibration. "
-                  "Disable B.I.+ (Brightness Intelligence Plus) auto-brightness sensor. "
-                  "Disable auto-dimming/eco mode. Display Pilot software can conflict with DDC. "
-                  "Color modes: Custom 1, Custom 2, sRGB, Rec.709, DICOM, Darkroom, M-Book, User."
+            "sRGB mode locks all controls - avoid for DDC calibration. "
+            "Disable B.I.+ (Brightness Intelligence Plus) auto-brightness sensor. "
+            "Disable auto-dimming/eco mode. Display Pilot software can conflict with DDC. "
+            "Color modes: Custom 1, Custom 2, sRGB, Rec.709, DICOM, Darkroom, M-Book, User.",
         ),
-        notes="Professional 4K IPS with 99% sRGB, factory calibrated Delta E < 3. USB-C 90W. Source: TFTCentral/Rtings."
+        notes="Professional 4K IPS with 99% sRGB, factory calibrated Delta E < 3. USB-C 90W. Source: TFTCentral/Rtings.",
     )
 
     # EIZO CS2740 - 4K 60Hz IPS (Professional, hardware calibration via ColorNavigator)
@@ -1482,7 +1481,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1496,7 +1495,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="User",
@@ -1512,12 +1511,12 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use User color mode for DDC/CI access. EIZO supports hardware LUT calibration "
-                  "via ColorNavigator 7 - this is preferred over DDC/CI for this monitor. "
-                  "Built-in calibration sensor (SelfCalibration on schedule) on CG series, not CS. "
-                  "DDC/CI works but ColorNavigator provides direct 16-bit 3D LUT access. "
-                  "Eco mode and Auto EcoView must be disabled for stable brightness."
+            "via ColorNavigator 7 - this is preferred over DDC/CI for this monitor. "
+            "Built-in calibration sensor (SelfCalibration on schedule) on CG series, not CS. "
+            "DDC/CI works but ColorNavigator provides direct 16-bit 3D LUT access. "
+            "Eco mode and Auto EcoView must be disabled for stable brightness.",
         ),
-        notes="Professional 4K IPS. 99% AdobeRGB. Hardware LUT calibration via ColorNavigator. Delta E < 2. Source: TFTCentral."
+        notes="Professional 4K IPS. 99% AdobeRGB. Hardware LUT calibration via ColorNavigator. Delta E < 2. Source: TFTCentral.",
     )
 
     # ASUS ProArt PA279CRV - 4K 60Hz IPS (Professional, 99% DCI-P3)
@@ -1531,7 +1530,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1545,7 +1544,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="User Mode 1",
@@ -1561,16 +1560,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use User Mode 1 or User Mode 2 for DDC/CI RGB gain access. "
-                  "Picture modes: Native, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
-                  "Rec.709, HDR (PQ Optimized/PQ Clip/PQ Basic), User Mode 1, User Mode 2. "
-                  "Color temp presets: 9300K, 6500K, 5500K, 5000K, P3-Theater (DCI-P3 only). "
-                  "Gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
-                  "RGB gain and offset adjustable in most presets. "
-                  "ProArt Calibration software stores profiles to User Mode 1/2. "
-                  "ASUS DisplayWidget Center app provides DDC/CI desktop control. "
-                  "Calman Verified with Delta E < 2 factory calibration."
+            "Picture modes: Native, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
+            "Rec.709, HDR (PQ Optimized/PQ Clip/PQ Basic), User Mode 1, User Mode 2. "
+            "Color temp presets: 9300K, 6500K, 5500K, 5000K, P3-Theater (DCI-P3 only). "
+            "Gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
+            "RGB gain and offset adjustable in most presets. "
+            "ProArt Calibration software stores profiles to User Mode 1/2. "
+            "ASUS DisplayWidget Center app provides DDC/CI desktop control. "
+            "Calman Verified with Delta E < 2 factory calibration.",
         ),
-        notes="Professional 4K IPS. 99% DCI-P3, 99% Adobe RGB, 100% sRGB. Calman Verified. USB-C 96W PD. Source: ASUS/DisplayNinja."
+        notes="Professional 4K IPS. 99% DCI-P3, 99% Adobe RGB, 100% sRGB. Calman Verified. USB-C 96W PD. Source: ASUS/DisplayNinja.",
     )
 
     # MSI MPG 321URX QD-OLED - 4K 240Hz QD-OLED
@@ -1584,7 +1583,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6795, 0.3095),
             green=ChromaticityCoord(0.2325, 0.7115),
             blue=ChromaticityCoord(0.1375, 0.0495),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2020, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1985, offset=0.0, linear_portion=0.0),
@@ -1598,7 +1597,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="User",
@@ -1614,16 +1613,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use User mode for DDC/CI RGB gain access. "
-                  "Default mode is Eco which caps brightness - switch to User for full control. "
-                  "Gaming color modes: 6 modes (less accurate, oversaturated). "
-                  "Professional modes: sRGB (recommended for accurate work), DCI-P3, Adobe RGB. "
-                  "sRGB mode provides excellent out-of-box accuracy (dE ~0.33 after calibration). "
-                  "HDR modes: HDR 400 True Black (450 nits cap), Peak 1000 (full 1000 nits). "
-                  "DDC/CI works via ControlMyMonitor and similar tools. "
-                  "OSD via joystick toggle behind MSI logo. "
-                  "Color temp presets: Warm, Normal, Cool, Custom."
+            "Default mode is Eco which caps brightness - switch to User for full control. "
+            "Gaming color modes: 6 modes (less accurate, oversaturated). "
+            "Professional modes: sRGB (recommended for accurate work), DCI-P3, Adobe RGB. "
+            "sRGB mode provides excellent out-of-box accuracy (dE ~0.33 after calibration). "
+            "HDR modes: HDR 400 True Black (450 nits cap), Peak 1000 (full 1000 nits). "
+            "DDC/CI works via ControlMyMonitor and similar tools. "
+            "OSD via joystick toggle behind MSI logo. "
+            "Color temp presets: Warm, Normal, Cool, Custom.",
         ),
-        notes="32-inch 4K 240Hz QD-OLED. Samsung 2024 panel. 99% DCI-P3. Source: TFTCentral/Rtings/KitGuru."
+        notes="32-inch 4K 240Hz QD-OLED. Samsung 2024 panel. 99% DCI-P3. Source: TFTCentral/Rtings/KitGuru.",
     )
 
     # LG C2 OLED (WOLED TV used as monitor - 42/48/55/65 inch)
@@ -1637,7 +1636,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6399, 0.3301),
             green=ChromaticityCoord(0.2998, 0.5998),
             blue=ChromaticityCoord(0.1502, 0.0601),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1651,7 +1650,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Game Optimizer",
@@ -1667,20 +1666,20 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="BT.1886",
             gamma_vcp_value=0x08,
             notes="WARNING: LG C2 has limited DDC/CI support - brightness control may not work via DDC. "
-                  "Use Game Optimizer or ISF Expert (Dark Room) for calibration. "
-                  "Picture modes: Vivid, Standard, Cinema, Cinema Home, Sports, "
-                  "Game Optimizer, Filmmaker, ISF Expert (Bright), ISF Expert (Dark). "
-                  "Disable AI Brightness (AI Picture Pro) - it overrides DDC brightness. "
-                  "Disable ASBL (Auto Static Brightness Limiter) via service menu if possible. "
-                  "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI input label to PC. "
-                  "Color temp presets: Warm 50 (D65), Warm 30, Medium, Cool. "
-                  "White Balance submenu provides 2-point and 20-point adjustment. "
-                  "Professional calibration via Calman AutoCal requires network connection. "
-                  "For Calman DDC, select '2021 Alpha 9' pattern. "
-                  "OLED Shadow Detail adjustable (start at 23/200). "
-                  "SDR ISF Expert Dark recommended with ALLM Off for movies."
+            "Use Game Optimizer or ISF Expert (Dark Room) for calibration. "
+            "Picture modes: Vivid, Standard, Cinema, Cinema Home, Sports, "
+            "Game Optimizer, Filmmaker, ISF Expert (Bright), ISF Expert (Dark). "
+            "Disable AI Brightness (AI Picture Pro) - it overrides DDC brightness. "
+            "Disable ASBL (Auto Static Brightness Limiter) via service menu if possible. "
+            "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI input label to PC. "
+            "Color temp presets: Warm 50 (D65), Warm 30, Medium, Cool. "
+            "White Balance submenu provides 2-point and 20-point adjustment. "
+            "Professional calibration via Calman AutoCal requires network connection. "
+            "For Calman DDC, select '2021 Alpha 9' pattern. "
+            "OLED Shadow Detail adjustable (start at 23/200). "
+            "SDR ISF Expert Dark recommended with ALLM Off for movies.",
         ),
-        notes="LG WOLED evo panel (2022). ~99% sRGB, ~97% DCI-P3. Excellent for gaming. Source: Rtings/HDTVTest."
+        notes="LG WOLED evo panel (2022). ~99% sRGB, ~97% DCI-P3. Excellent for gaming. Source: Rtings/HDTVTest.",
     )
 
     # Dell S2722QC - 4K 60Hz IPS (Budget USB-C)
@@ -1694,7 +1693,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -1708,7 +1707,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=False,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -1724,16 +1723,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for DDC/CI RGB gain access. "
-                  "Enable DDC/CI in Others menu. Dell Display Manager provides desktop control. "
-                  "Picture modes: Standard, Custom Color, Movie, Game, Warm, Cool, Color Temp. "
-                  "Smart HDR modes (when HDR signal detected): Desktop, Movie HDR, Game HDR. "
-                  "sRGB preset locks brightness/contrast/color controls - avoid for DDC calibration. "
-                  "ComfortView (low blue light) must be off. "
-                  "RGB gain steps are coarse - a change of 1 noticeably shifts color. "
-                  "USB-C connected - DDC works over USB-C DP Alt mode. "
-                  "97% sRGB, 88% DCI-P3 coverage."
+            "Enable DDC/CI in Others menu. Dell Display Manager provides desktop control. "
+            "Picture modes: Standard, Custom Color, Movie, Game, Warm, Cool, Color Temp. "
+            "Smart HDR modes (when HDR signal detected): Desktop, Movie HDR, Game HDR. "
+            "sRGB preset locks brightness/contrast/color controls - avoid for DDC calibration. "
+            "ComfortView (low blue light) must be off. "
+            "RGB gain steps are coarse - a change of 1 noticeably shifts color. "
+            "USB-C connected - DDC works over USB-C DP Alt mode. "
+            "97% sRGB, 88% DCI-P3 coverage.",
         ),
-        notes="Budget 4K IPS USB-C monitor. 97% sRGB, 88% DCI-P3. 65W USB-C PD. Source: Rtings/PC Monitors."
+        notes="Budget 4K IPS USB-C monitor. 97% sRGB, 88% DCI-P3. 65W USB-C PD. Source: Rtings/PC Monitors.",
     )
 
     # Corsair Xeneon 27QHD240 OLED - 1440p 240Hz WOLED
@@ -1747,7 +1746,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6398, 0.3302),
             green=ChromaticityCoord(0.2999, 0.5997),
             blue=ChromaticityCoord(0.1501, 0.0602),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -1761,7 +1760,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Standard",
@@ -1777,17 +1776,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Standard picture mode for full RGB gain/offset access with native gamut. "
-                  "Picture modes: Standard, Movie, Text, sRGB, Creative, Game, HDR. "
-                  "Standard mode is fully adjustable with native wide gamut. "
-                  "sRGB mode clamps gamut but has independent color temp and gamma options. "
-                  "HDR mode is non-adjustable. "
-                  "Color temp and gamma independently adjustable per mode. "
-                  "OSD via joystick press/navigate. iCUE integration available. "
-                  "Orbit pixel-shift (1px/min) always active for burn-in prevention. "
-                  "Image Retention Refresh runs automatically every 8 hours. "
-                  "LG Display 3rd-gen WOLED panel. ~96% DCI-P3, 100% sRGB."
+            "Picture modes: Standard, Movie, Text, sRGB, Creative, Game, HDR. "
+            "Standard mode is fully adjustable with native wide gamut. "
+            "sRGB mode clamps gamut but has independent color temp and gamma options. "
+            "HDR mode is non-adjustable. "
+            "Color temp and gamma independently adjustable per mode. "
+            "OSD via joystick press/navigate. iCUE integration available. "
+            "Orbit pixel-shift (1px/min) always active for burn-in prevention. "
+            "Image Retention Refresh runs automatically every 8 hours. "
+            "LG Display 3rd-gen WOLED panel. ~96% DCI-P3, 100% sRGB.",
         ),
-        notes="27-inch 1440p 240Hz WOLED. LG Display 3rd-gen panel. 96% DCI-P3, 100% sRGB. Source: Tom's HW/Rtings/KitGuru."
+        notes="27-inch 1440p 240Hz WOLED. LG Display 3rd-gen panel. 96% DCI-P3, 100% sRGB. Source: Tom's HW/Rtings/KitGuru.",
     )
 
     # Gigabyte M32U - 4K 144Hz IPS (Gaming)
@@ -1801,7 +1800,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2100, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2050, offset=0.0, linear_portion=0.0),
@@ -1815,7 +1814,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -1831,16 +1830,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1/2/3 picture mode for DDC/CI RGB gain access. "
-                  "Picture modes: Standard, FPS, RTS/RPG, Movie, Reader, sRGB, Custom 1/2/3. "
-                  "sRGB mode locks most settings including gamma, overdrive, and color channels. "
-                  "Custom modes are identical to Standard by default with separate settings memory. "
-                  "Color temp: Warm, Normal, Cool, User Define (RGB gain sliders). "
-                  "Gamma options: 1.8 (Off), 2.0, 2.2, 2.4, 2.6. "
-                  "OSD Sidekick desktop app provides DDC/CI control via Realtek scaler. "
-                  "sRGB mode restricts gamut to ~100% sRGB. Native is ~87-90% DCI-P3. "
-                  "Aim Stabilizer Sync and Smart OD locked in sRGB mode."
+            "Picture modes: Standard, FPS, RTS/RPG, Movie, Reader, sRGB, Custom 1/2/3. "
+            "sRGB mode locks most settings including gamma, overdrive, and color channels. "
+            "Custom modes are identical to Standard by default with separate settings memory. "
+            "Color temp: Warm, Normal, Cool, User Define (RGB gain sliders). "
+            "Gamma options: 1.8 (Off), 2.0, 2.2, 2.4, 2.6. "
+            "OSD Sidekick desktop app provides DDC/CI control via Realtek scaler. "
+            "sRGB mode restricts gamut to ~100% sRGB. Native is ~87-90% DCI-P3. "
+            "Aim Stabilizer Sync and Smart OD locked in sRGB mode.",
         ),
-        notes="32-inch 4K 144Hz IPS gaming. 90% DCI-P3, 100% sRGB. HDMI 2.1. Source: PC Monitors/Rtings/Display Ninja."
+        notes="32-inch 4K 144Hz IPS gaming. 90% DCI-P3, 100% sRGB. HDMI 2.1. Source: PC Monitors/Rtings/Display Ninja.",
     )
 
     # HP Z27k G3 - 4K 60Hz IPS (USB-C Professional)
@@ -1854,7 +1853,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -1868,7 +1867,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=False,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom RGB",
@@ -1884,16 +1883,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom RGB mode for DDC/CI RGB gain access. "
-                  "Picture presets: sRGB, BT.709, P3 D65 (post-Jan 2021 units), Custom RGB. "
-                  "DDC/CI can be toggled on/off in Management menu of OSD. "
-                  "HP Display Center software provides desktop display management. "
-                  "Factory calibrated Delta E <= 2. PANTONE Validated. "
-                  "User-assignable function buttons on OSD. "
-                  "99% sRGB, 85% DCI-P3 coverage. 100W USB-C PD. "
-                  "4-port USB-C hub built in. "
-                  "sRGB and BT.709 modes lock color adjustments - use Custom RGB for calibration."
+            "Picture presets: sRGB, BT.709, P3 D65 (post-Jan 2021 units), Custom RGB. "
+            "DDC/CI can be toggled on/off in Management menu of OSD. "
+            "HP Display Center software provides desktop display management. "
+            "Factory calibrated Delta E <= 2. PANTONE Validated. "
+            "User-assignable function buttons on OSD. "
+            "99% sRGB, 85% DCI-P3 coverage. 100W USB-C PD. "
+            "4-port USB-C hub built in. "
+            "sRGB and BT.709 modes lock color adjustments - use Custom RGB for calibration.",
         ),
-        notes="Professional 4K IPS. 99% sRGB, 85% DCI-P3. PANTONE Validated. 100W USB-C PD. Source: HP/StorageReview."
+        notes="Professional 4K IPS. 99% sRGB, 85% DCI-P3. PANTONE Validated. 100W USB-C PD. Source: HP/StorageReview.",
     )
 
     # Samsung Odyssey OLED G6 G60SD (Samsung QD-OLED 27" 1440p 360Hz - 2024)
@@ -1907,7 +1906,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6790, 0.3095),
             green=ChromaticityCoord(0.2325, 0.7110),
             blue=ChromaticityCoord(0.1375, 0.0498),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2020, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1985, offset=0.0, linear_portion=0.0),
@@ -1921,7 +1920,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -1937,14 +1936,14 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="WARNING: Samsung DDC/CI works over HDMI only - does NOT work over DisplayPort. "
-                  "Use Custom picture mode for RGB gain access. "
-                  "3rd gen Samsung QD-OLED with matte AG coating and heat-pipe cooling. "
-                  "Dynamic Brightness must be off. Eye Saver Mode must be off. "
-                  "Color temp presets: Custom, Warm, Normal, Cool. "
-                  "Game mode and Adaptive-Sync should be disabled during calibration."
+            "Use Custom picture mode for RGB gain access. "
+            "3rd gen Samsung QD-OLED with matte AG coating and heat-pipe cooling. "
+            "Dynamic Brightness must be off. Eye Saver Mode must be off. "
+            "Color temp presets: Custom, Warm, Normal, Cool. "
+            "Game mode and Adaptive-Sync should be disabled during calibration.",
         ),
         notes="27-inch 1440p 360Hz QD-OLED. 3rd gen Samsung panel. 99% DCI-P3. "
-              "Matte AG coating. Source: Rtings/TFTCentral/Tom's Hardware."
+        "Matte AG coating. Source: Rtings/TFTCentral/Tom's Hardware.",
     )
 
     # ASUS ROG Swift PG27AQDP (LG WOLED 27" 1440p 480Hz - 2024)
@@ -1958,7 +1957,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -1972,7 +1971,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom 1",
@@ -1988,14 +1987,14 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom 1 picture mode for unlocked RGB gain controls. "
-                  "LG.Display WOLED panel - NOT QD-OLED. 480Hz native refresh rate. "
-                  "Disable ELMB Sync for stable DDC communication. "
-                  "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
-                  "HDR peak 1300 nits spec, 425 nits measured SDR max variable APL. "
-                  "Custom heatsink cooling (fanless). VRR can remain on."
+            "LG.Display WOLED panel - NOT QD-OLED. 480Hz native refresh rate. "
+            "Disable ELMB Sync for stable DDC communication. "
+            "OSD gamma options: 1.8, 2.0, 2.2, 2.4, 2.6. "
+            "HDR peak 1300 nits spec, 425 nits measured SDR max variable APL. "
+            "Custom heatsink cooling (fanless). VRR can remain on.",
         ),
         notes="27-inch 1440p 480Hz WOLED. LG.Display latest gen panel. ~125% sRGB. "
-              "VESA DisplayHDR True Black 400. Source: TFTCentral."
+        "VESA DisplayHDR True Black 400. Source: TFTCentral.",
     )
 
     # Dell Alienware AW2725DF (Samsung QD-OLED 27" 1440p 360Hz - 2024)
@@ -2009,7 +2008,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6792, 0.3098),
             green=ChromaticityCoord(0.2320, 0.7108),
             blue=ChromaticityCoord(0.1372, 0.0498),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2015, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1990, offset=0.0, linear_portion=0.0),
@@ -2023,7 +2022,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -2039,17 +2038,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for full DDC/CI RGB gain access. "
-                  "3rd gen Samsung QD-OLED panel. First mainstream 27\" QD-OLED from Dell. "
-                  "Enable DDC/CI in Others menu. No hardware calibration support. "
-                  "Gamma options: 2.2, 2.4, sRGB, BT.1886, PQ. "
-                  "Factory calibrated DeltaE <2 for sRGB and DCI-P3. "
-                  "ComfortView Plus (low blue light) must be off. "
-                  "Dark Stabilizer manipulates gamma - disable for calibration. "
-                  "Connectivity: 2x DP 1.4, 1x HDMI (limited bandwidth). "
-                  "Dell Display Manager works over DP and HDMI."
+            '3rd gen Samsung QD-OLED panel. First mainstream 27" QD-OLED from Dell. '
+            "Enable DDC/CI in Others menu. No hardware calibration support. "
+            "Gamma options: 2.2, 2.4, sRGB, BT.1886, PQ. "
+            "Factory calibrated DeltaE <2 for sRGB and DCI-P3. "
+            "ComfortView Plus (low blue light) must be off. "
+            "Dark Stabilizer manipulates gamma - disable for calibration. "
+            "Connectivity: 2x DP 1.4, 1x HDMI (limited bandwidth). "
+            "Dell Display Manager works over DP and HDMI.",
         ),
         notes="27-inch 1440p 360Hz QD-OLED. 3rd gen Samsung panel. 99.3% DCI-P3. "
-              "Factory calibrated. Source: TFTCentral/Rtings."
+        "Factory calibrated. Source: TFTCentral/Rtings.",
     )
 
     # Samsung Odyssey OLED G8 G81SD (Samsung QD-OLED 32" 4K - 2024 variant)
@@ -2063,7 +2062,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6785, 0.3095),
             green=ChromaticityCoord(0.2330, 0.7105),
             blue=ChromaticityCoord(0.1375, 0.0505),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -2077,7 +2076,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -2093,15 +2092,15 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="WARNING: Samsung DDC/CI works over HDMI only - does NOT work over DisplayPort. "
-                  "Use Custom picture mode for DDC/CI RGB gain access. "
-                  "Same Samsung QD-OLED panel as G80SD (regional SKU variant). "
-                  "Disable Game Mode and Adaptive-Sync during calibration for stable DDC. "
-                  "Dynamic Brightness must be off. Core Lighting sync may interfere. "
-                  "Glare Free matte coating. NQ8 AI Gen3 processor (Smart TV features). "
-                  "Color temp presets: Custom, Warm, Normal, Cool."
+            "Use Custom picture mode for DDC/CI RGB gain access. "
+            "Same Samsung QD-OLED panel as G80SD (regional SKU variant). "
+            "Disable Game Mode and Adaptive-Sync during calibration for stable DDC. "
+            "Dynamic Brightness must be off. Core Lighting sync may interfere. "
+            "Glare Free matte coating. NQ8 AI Gen3 processor (Smart TV features). "
+            "Color temp presets: Custom, Warm, Normal, Cool.",
         ),
         notes="32-inch 4K 240Hz QD-OLED. Same panel as G80SD (regional/SKU variant). "
-              "99% DCI-P3. Matte AG coating. Source: Samsung.com/Rtings."
+        "99% DCI-P3. Matte AG coating. Source: Samsung.com/Rtings.",
     )
 
     # LG G4 OLED (2024 WOLED evo with MLA - TV used as monitor)
@@ -2115,7 +2114,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6398, 0.3302),
             green=ChromaticityCoord(0.2999, 0.5997),
             blue=ChromaticityCoord(0.1501, 0.0602),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2005, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1998, offset=0.0, linear_portion=0.0),
@@ -2129,7 +2128,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Filmmaker",
@@ -2145,16 +2144,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="BT.1886",
             gamma_vcp_value=0x08,
             notes="Use Filmmaker or Game Optimizer mode for DDC/CI access. "
-                  "MLA (Micro Lens Array) panel with significantly higher brightness than C4. "
-                  "1489 nits measured at 10% window, 1483 nits at 2% window. "
-                  "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
-                  "Disable ASBL via service menu if possible for stable luminance. "
-                  "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI label to PC. "
-                  "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65. "
-                  "97.4% DCI-P3, 72.9% BT.2020 measured coverage."
+            "MLA (Micro Lens Array) panel with significantly higher brightness than C4. "
+            "1489 nits measured at 10% window, 1483 nits at 2% window. "
+            "Disable AI Brightness (AI Picture Pro) as it overrides DDC brightness. "
+            "Disable ASBL via service menu if possible for stable luminance. "
+            "Enable HDMI ULTRA HD Deep Color for 10-bit. Set HDMI label to PC. "
+            "Color temp presets: Warm 50, Warm 30, Medium, Cool. Use Warm 50 for D65. "
+            "97.4% DCI-P3, 72.9% BT.2020 measured coverage.",
         ),
         notes="2024 LG WOLED evo with MLA for higher brightness. Flagship TV as monitor. "
-              "97.4% DCI-P3, 72.9% BT.2020. Source: Rtings/HDTVTest/FlatpanelsHD."
+        "97.4% DCI-P3, 72.9% BT.2020. Source: Rtings/HDTVTest/FlatpanelsHD.",
     )
 
     # LG UltraGear OLED 34GS95QE (LG WOLED 34" 1440p 240Hz ultrawide)
@@ -2168,7 +2167,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2010, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1995, offset=0.0, linear_portion=0.0),
@@ -2182,7 +2181,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=True,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Gamer 1",
@@ -2198,17 +2197,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="Mode 3",
             gamma_vcp_value=0x04,
             notes="Use Gamer 1 or Gamer 2 for DDC/CI RGB gain access. "
-                  "LG.Display 2nd gen WOLED panel. 800R curvature. "
-                  "Supports hardware calibration (LG unique in OLED monitor market). "
-                  "LG Calibration Studio stores profiles to Calibration 1/2 slots. "
-                  "Gamma modes: Mode 1 (2.0), Mode 2 (2.2), Mode 3 (2.4), Mode 4 (2.6). "
-                  "Color temp: Custom, 6500K, 7500K, 9300K. 6-axis hue/sat available. "
-                  "FreeSync Premium Pro and G-sync Compatible certified. "
-                  "HDR measured: 957 nits (1% window), 886 nits (4%), 778 nits (10%). "
-                  "On-Screen Control app provides DDC/CI access from desktop."
+            "LG.Display 2nd gen WOLED panel. 800R curvature. "
+            "Supports hardware calibration (LG unique in OLED monitor market). "
+            "LG Calibration Studio stores profiles to Calibration 1/2 slots. "
+            "Gamma modes: Mode 1 (2.0), Mode 2 (2.2), Mode 3 (2.4), Mode 4 (2.6). "
+            "Color temp: Custom, 6500K, 7500K, 9300K. 6-axis hue/sat available. "
+            "FreeSync Premium Pro and G-sync Compatible certified. "
+            "HDR measured: 957 nits (1% window), 886 nits (4%), 778 nits (10%). "
+            "On-Screen Control app provides DDC/CI access from desktop.",
         ),
         notes="34-inch 3440x1440 240Hz WOLED ultrawide. LG.Display 2nd gen panel. "
-              "99% DCI-P3. 800R curve. Hardware calibration supported. Source: Rtings/TFTCentral."
+        "99% DCI-P3. 800R curve. Hardware calibration supported. Source: Rtings/TFTCentral.",
     )
 
     # Apple Pro Display XDR (IPS LCD Mini-LED 32" 6K reference monitor)
@@ -2222,7 +2221,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6800, 0.3200),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2237,7 +2236,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=False,
             local_dimming=True,
-            local_dimming_zones=576
+            local_dimming_zones=576,
         ),
         ddc=DDCRecommendations(
             picture_mode="Pro Display XDR (P3-1600 nits)",
@@ -2253,18 +2252,18 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=None,
             notes="WARNING: Apple Pro Display XDR does NOT support standard DDC/CI for calibration. "
-                  "Calibration is done through macOS reference modes and Apple's Pro Display Calibrator. "
-                  "Reference modes: Pro Display XDR (P3-1600 nits), HDR Video, Digital Cinema, "
-                  "Design and Print, sRGB, Photography. "
-                  "Full Calibration requires compatible spectroradiometer. "
-                  "Visual Fine Tune for quick adjustments to match other displays. "
-                  "Apple-designed TCON chip controls 576 FALD zones. "
-                  "6016x3384 resolution (6K) at 218 PPI. Oxide TFT IPS LCD. "
-                  "Standard and Nano-texture glass options. Max 60Hz refresh."
+            "Calibration is done through macOS reference modes and Apple's Pro Display Calibrator. "
+            "Reference modes: Pro Display XDR (P3-1600 nits), HDR Video, Digital Cinema, "
+            "Design and Print, sRGB, Photography. "
+            "Full Calibration requires compatible spectroradiometer. "
+            "Visual Fine Tune for quick adjustments to match other displays. "
+            "Apple-designed TCON chip controls 576 FALD zones. "
+            "6016x3384 resolution (6K) at 218 PPI. Oxide TFT IPS LCD. "
+            "Standard and Nano-texture glass options. Max 60Hz refresh.",
         ),
         notes="Apple reference Mini-LED monitor. 6K resolution. P3 wide color. "
-              "576 FALD zones. 1000 nits sustained, 1600 nits peak HDR. "
-              "No standard DDC/CI - uses macOS reference modes. Source: Apple Support."
+        "576 FALD zones. 1000 nits sustained, 1600 nits peak HDR. "
+        "No standard DDC/CI - uses macOS reference modes. Source: Apple Support.",
     )
 
     # ASUS ProArt PA32UCXR (Mini-LED 32" 4K reference with built-in colorimeter)
@@ -2278,7 +2277,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1380, 0.0520),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2293,7 +2292,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=False,
             local_dimming=True,
-            local_dimming_zones=2304
+            local_dimming_zones=2304,
         ),
         ddc=DDCRecommendations(
             picture_mode="User Mode 1",
@@ -2309,17 +2308,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use User Mode 1 or User Mode 2 for full DDC/CI RGB gain access. "
-                  "Built-in motorized colorimeter for automatic scheduled self-calibration. "
-                  "ProArt Calibration software stores hardware LUT profiles. "
-                  "Also supports Calman and Light Illusion ColourSpace CMS. "
-                  "Picture modes: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
-                  "Rec.709, HDR_PQ DCI, HDR_PQ Rec.2020, HDR_HLG, Dolby Vision, User Mode 1/2. "
-                  "2304 Mini-LED zones. VESA DisplayHDR 1400 certified. "
-                  "Factory calibrated DeltaE <1. Thunderbolt 4 connectivity. "
-                  "Local dimming may affect uniformity - disable for flat-field calibration."
+            "Built-in motorized colorimeter for automatic scheduled self-calibration. "
+            "ProArt Calibration software stores hardware LUT profiles. "
+            "Also supports Calman and Light Illusion ColourSpace CMS. "
+            "Picture modes: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
+            "Rec.709, HDR_PQ DCI, HDR_PQ Rec.2020, HDR_HLG, Dolby Vision, User Mode 1/2. "
+            "2304 Mini-LED zones. VESA DisplayHDR 1400 certified. "
+            "Factory calibrated DeltaE <1. Thunderbolt 4 connectivity. "
+            "Local dimming may affect uniformity - disable for flat-field calibration.",
         ),
         notes="Reference Mini-LED with built-in colorimeter. 97% DCI-P3, 99% Adobe RGB. "
-              "2304 zones FALD. 1600 nits peak HDR. DeltaE <1 factory. Source: Tom's HW/ASUS."
+        "2304 zones FALD. 1600 nits peak HDR. DeltaE <1 factory. Source: Tom's HW/ASUS.",
     )
 
     # NEC MultiSync PA271Q (IPS 27" 1440p professional - NEC/Sharp)
@@ -2333,7 +2332,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2347,7 +2346,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -2363,16 +2362,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="NEC SpectraView Engine provides hardware calibration via 14-bit LUT. "
-                  "Use with SpectraView II or compatible calibration software. "
-                  "98.5% Adobe RGB, 100% sRGB, 81.1% Rec.2020. "
-                  "USB-C with 30W PD. DisplaySync Pro for multi-monitor color matching. "
-                  "RJ-45 port for remote management. Memory port for USB sensor. "
-                  "SpectraView Engine ensures color stability between calibrations. "
-                  "Inputs: DP, Mini DP, HDMI (2x), USB-C. "
-                  "4-year warranty with Advanced Exchange."
+            "Use with SpectraView II or compatible calibration software. "
+            "98.5% Adobe RGB, 100% sRGB, 81.1% Rec.2020. "
+            "USB-C with 30W PD. DisplaySync Pro for multi-monitor color matching. "
+            "RJ-45 port for remote management. Memory port for USB sensor. "
+            "SpectraView Engine ensures color stability between calibrations. "
+            "Inputs: DP, Mini DP, HDMI (2x), USB-C. "
+            "4-year warranty with Advanced Exchange.",
         ),
         notes="Professional 27-inch 1440p IPS. 98.5% Adobe RGB. SpectraView Engine hardware LUT. "
-              "14-bit processing. USB-C 30W PD. Source: NEC/B&H."
+        "14-bit processing. USB-C 30W PD. Source: NEC/B&H.",
     )
 
     # EIZO ColorEdge CG2700X (IPS 27" 4K reference with built-in sensor)
@@ -2386,7 +2385,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2400,7 +2399,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="User",
@@ -2416,18 +2415,18 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="TRUE REFERENCE MONITOR. Built-in swing-out calibration sensor. "
-                  "ColorNavigator 7 software for hardware calibration via 16-bit LUT. "
-                  "Color modes: User, BT.2020, BT.709, DCI-P3, PQ_DCI-P3, HLG_BT.2100, "
-                  "AdobeRGB, sRGB, Calibration (CAL), SYNC_SIGNAL. "
-                  "99% Adobe RGB, 98% DCI-P3. HDR gamma: HLG and PQ curves supported. "
-                  "Digital Uniformity Equalizer (DUE) for screen uniformity. "
-                  "AI-based temperature drift correction in real-time. "
-                  "Sensor can be correlated with external spectroradiometers. "
-                  "Nearest Neighbor interpolation option for pixel-accurate scaling. "
-                  "Schedule automatic recalibration. Calibrate all color modes simultaneously."
+            "ColorNavigator 7 software for hardware calibration via 16-bit LUT. "
+            "Color modes: User, BT.2020, BT.709, DCI-P3, PQ_DCI-P3, HLG_BT.2100, "
+            "AdobeRGB, sRGB, Calibration (CAL), SYNC_SIGNAL. "
+            "99% Adobe RGB, 98% DCI-P3. HDR gamma: HLG and PQ curves supported. "
+            "Digital Uniformity Equalizer (DUE) for screen uniformity. "
+            "AI-based temperature drift correction in real-time. "
+            "Sensor can be correlated with external spectroradiometers. "
+            "Nearest Neighbor interpolation option for pixel-accurate scaling. "
+            "Schedule automatic recalibration. Calibrate all color modes simultaneously.",
         ),
         notes="True reference 27-inch 4K IPS. 99% Adobe RGB, 98% DCI-P3. Built-in sensor. "
-              "16-bit LUT. ColorNavigator 7. DUE uniformity. Source: EIZO."
+        "16-bit LUT. ColorNavigator 7. DUE uniformity. Source: EIZO.",
     )
 
     # BenQ SW272U (IPS 27" 4K photography monitor)
@@ -2441,7 +2440,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2455,7 +2454,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Adobe RGB",
@@ -2471,17 +2470,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Photography-focused monitor with A.R.T. (Advanced Reflectionless Technology) panel. "
-                  "Hardware calibration via Palette Master Ultimate and 16-bit 3D LUT. "
-                  "Also supports Calman, Colorspace, and other 3rd-party calibration. "
-                  "Color modes: sRGB, Rec.709, DCI-P3, Display P3, Adobe RGB, M-Book, Custom 1/2. "
-                  "99% Adobe RGB, 99% DCI-P3, 100% sRGB. "
-                  "Factory calibrated DeltaE <=1.5. Calman Verified. Pantone Validated. "
-                  "Detachable shading hood bridge. VESA DisplayHDR 400. "
-                  "3rd-gen Uniformity and Color Consistency technologies. "
-                  "Paper-like matte finish reduces reflections. 60Hz only."
+            "Hardware calibration via Palette Master Ultimate and 16-bit 3D LUT. "
+            "Also supports Calman, Colorspace, and other 3rd-party calibration. "
+            "Color modes: sRGB, Rec.709, DCI-P3, Display P3, Adobe RGB, M-Book, Custom 1/2. "
+            "99% Adobe RGB, 99% DCI-P3, 100% sRGB. "
+            "Factory calibrated DeltaE <=1.5. Calman Verified. Pantone Validated. "
+            "Detachable shading hood bridge. VESA DisplayHDR 400. "
+            "3rd-gen Uniformity and Color Consistency technologies. "
+            "Paper-like matte finish reduces reflections. 60Hz only.",
         ),
         notes="Photography 27-inch 4K IPS. 99% Adobe RGB, 99% DCI-P3. A.R.T. panel. "
-              "16-bit 3D LUT hardware calibration. DeltaE <=1.5. Source: BenQ/PCWorld."
+        "16-bit 3D LUT hardware calibration. DeltaE <=1.5. Source: BenQ/PCWorld.",
     )
 
     # Dell UltraSharp U3224KB (IPS Black 32" 6K Thunderbolt hub monitor)
@@ -2495,7 +2494,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2510,7 +2509,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=False,
             local_dimming=True,
-            local_dimming_zones=0
+            local_dimming_zones=0,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom Color",
@@ -2526,18 +2525,18 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="Use Custom Color mode for DDC/CI RGB gain access. "
-                  "IPS Black panel with 2000:1 contrast (measured ~1500:1). "
-                  "6K resolution (6144x3456) - world's first 6K monitor. 224 PPI. "
-                  "100% DCI-P3 coverage. VESA DisplayHDR 600 with edge-lit local dimming. "
-                  "Thunderbolt 4, HDMI 2.1, DisplayPort 2.1 connectivity. "
-                  "Built-in 4K HDR webcam with dual 14W speakers. "
-                  "5x USB-C and 5x USB-A ports. Massive hub monitor. "
-                  "No gaming features (60Hz, no VRR). Strictly productivity. "
-                  "Dell Display Manager provides DDC/CI desktop control. "
-                  "ComfortView must be off for accurate white balance."
+            "IPS Black panel with 2000:1 contrast (measured ~1500:1). "
+            "6K resolution (6144x3456) - world's first 6K monitor. 224 PPI. "
+            "100% DCI-P3 coverage. VESA DisplayHDR 600 with edge-lit local dimming. "
+            "Thunderbolt 4, HDMI 2.1, DisplayPort 2.1 connectivity. "
+            "Built-in 4K HDR webcam with dual 14W speakers. "
+            "5x USB-C and 5x USB-A ports. Massive hub monitor. "
+            "No gaming features (60Hz, no VRR). Strictly productivity. "
+            "Dell Display Manager provides DDC/CI desktop control. "
+            "ComfortView must be off for accurate white balance.",
         ),
         notes="6K IPS Black hub monitor. 100% DCI-P3. 2000:1 contrast ratio. "
-              "Thunderbolt 4. 4K webcam. Source: Tom's Hardware/TFTCentral."
+        "Thunderbolt 4. 4K webcam. Source: Tom's Hardware/TFTCentral.",
     )
 
     # ASUS ProArt PA32DC (RGB OLED 32" 4K professional with built-in colorimeter)
@@ -2551,7 +2550,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1380, 0.0520),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2565,7 +2564,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="User Mode 1",
@@ -2581,17 +2580,17 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="RGB OLED panel (not WOLED, not QD-OLED). Self-emissive per-pixel dimming. "
-                  "Built-in motorized RGB colorimeter with ProArt Calibration software. "
-                  "Supports 3D LUT hardware calibration. Also supports Calman and Light Illusion. "
-                  "ProArt Presets: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
-                  "Rec.709, User Mode 1/2, plus HDR variants. "
-                  "Factory calibrated DeltaE <1. 99% DCI-P3, 99% Adobe RGB. "
-                  "Schedule automatic colorimeter calibration (weekly/monthly). "
-                  "Can be as dim as 6 cd/m2 - exceptional for dark room work. "
-                  "HDR peak: 545 nits (small patch), 269 nits sustained full white."
+            "Built-in motorized RGB colorimeter with ProArt Calibration software. "
+            "Supports 3D LUT hardware calibration. Also supports Calman and Light Illusion. "
+            "ProArt Presets: Standard, sRGB, Adobe RGB, DCI-P3, Rec.2020, DICOM, "
+            "Rec.709, User Mode 1/2, plus HDR variants. "
+            "Factory calibrated DeltaE <1. 99% DCI-P3, 99% Adobe RGB. "
+            "Schedule automatic colorimeter calibration (weekly/monthly). "
+            "Can be as dim as 6 cd/m2 - exceptional for dark room work. "
+            "HDR peak: 545 nits (small patch), 269 nits sustained full white.",
         ),
         notes="Professional RGB OLED with built-in colorimeter. 99% DCI-P3, 99% Adobe RGB. "
-              "3D LUT hardware calibration. DeltaE <1 factory. Source: PCMonitors.info."
+        "3D LUT hardware calibration. DeltaE <1 factory. Source: PCMonitors.info.",
     )
 
     # Philips 27E1N8900 (JOLED RGB OLED 27" 4K 60Hz professional)
@@ -2605,7 +2604,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6780, 0.3100),
             green=ChromaticityCoord(0.2650, 0.6900),
             blue=ChromaticityCoord(0.1380, 0.0520),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2619,7 +2618,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=True,
             wide_gamut=True,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         ddc=DDCRecommendations(
             picture_mode="Custom",
@@ -2635,16 +2634,16 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="2.2",
             gamma_vcp_value=0x04,
             notes="JOLED RGB OLED panel (printed OLED technology). "
-                  "NOT QD-OLED or WOLED - true RGB subpixel OLED. "
-                  "Color presets: sRGB (DeltaE <1 specified), DCI-P3, Adobe RGB, User Define. "
-                  "99.7% DCI-P3, 99.6% Adobe RGB, ~150% sRGB relative coverage. "
-                  "Close-to-glossy screen surface with mild AG treatment. "
-                  "VESA DisplayHDR True Black 400. Per-pixel dimming, no blooming. "
-                  "USB-C with power delivery. 60Hz only. "
-                  "Professional-grade OLED at moderate price point (~$1070 USD)."
+            "NOT QD-OLED or WOLED - true RGB subpixel OLED. "
+            "Color presets: sRGB (DeltaE <1 specified), DCI-P3, Adobe RGB, User Define. "
+            "99.7% DCI-P3, 99.6% Adobe RGB, ~150% sRGB relative coverage. "
+            "Close-to-glossy screen surface with mild AG treatment. "
+            "VESA DisplayHDR True Black 400. Per-pixel dimming, no blooming. "
+            "USB-C with power delivery. 60Hz only. "
+            "Professional-grade OLED at moderate price point (~$1070 USD).",
         ),
         notes="JOLED RGB OLED 27-inch 4K. 99.7% DCI-P3, 99.6% Adobe RGB. "
-              "True Black 400. 60Hz professional. Source: TFTCentral/Philips."
+        "True Black 400. 60Hz professional. Source: TFTCentral/Philips.",
     )
 
     # AOC AGON Pro AG274QXM (IPS Mini-LED 27" 1440p 170Hz gaming)
@@ -2658,7 +2657,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6480, 0.3320),
             green=ChromaticityCoord(0.2750, 0.6400),
             blue=ChromaticityCoord(0.1495, 0.0580),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.1500, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.1500, offset=0.0, linear_portion=0.0),
@@ -2673,7 +2672,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             wide_gamut=True,
             vrr_capable=True,
             local_dimming=True,
-            local_dimming_zones=576
+            local_dimming_zones=576,
         ),
         ddc=DDCRecommendations(
             picture_mode="User",
@@ -2689,19 +2688,19 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             gamma_preset="Gamma3",
             gamma_vcp_value=0x04,
             notes="Use User picture mode for DDC/CI RGB gain access. "
-                  "Innolux M270KCJ-Q7E IPS panel with Mini-LED backlight. "
-                  "576 local dimming zones. VESA DisplayHDR 1000 certified. "
-                  "NOTE: Brightness is locked in sRGB mode - use User mode. "
-                  "98% DCI-P3, 97% Adobe RGB, 145% sRGB (oversaturated in native). "
-                  "Measured gamma runs slightly low at 2.15 default. "
-                  "FreeSync Premium Pro (48-170Hz with LFC). "
-                  "Shadow Shield (detachable hood) included. "
-                  "USB-C with DP Alt mode and 65W PD. Built-in KVM. "
-                  "Blue light reduction modes affect color - disable for calibration. "
-                  "1x DP, 2x HDMI 2.0 inputs."
+            "Innolux M270KCJ-Q7E IPS panel with Mini-LED backlight. "
+            "576 local dimming zones. VESA DisplayHDR 1000 certified. "
+            "NOTE: Brightness is locked in sRGB mode - use User mode. "
+            "98% DCI-P3, 97% Adobe RGB, 145% sRGB (oversaturated in native). "
+            "Measured gamma runs slightly low at 2.15 default. "
+            "FreeSync Premium Pro (48-170Hz with LFC). "
+            "Shadow Shield (detachable hood) included. "
+            "USB-C with DP Alt mode and 65W PD. Built-in KVM. "
+            "Blue light reduction modes affect color - disable for calibration. "
+            "1x DP, 2x HDMI 2.0 inputs.",
         ),
         notes="Mini-LED gaming 27-inch 1440p. 576 zones. 98% DCI-P3. HDR 1000. "
-              "Measured gamma ~2.15 default. Source: TFTCentral."
+        "Measured gamma ~2.15 default. Source: TFTCentral.",
     )
 
     # Generic sRGB IPS (fallback for unknown panels)
@@ -2714,7 +2713,7 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             red=ChromaticityCoord(0.6400, 0.3300),
             green=ChromaticityCoord(0.3000, 0.6000),
             blue=ChromaticityCoord(0.1500, 0.0600),
-            white=ChromaticityCoord(0.3127, 0.3290)
+            white=ChromaticityCoord(0.3127, 0.3290),
         ),
         gamma_red=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=2.2000, offset=0.0, linear_portion=0.0),
@@ -2728,9 +2727,9 @@ def get_builtin_panels() -> dict[str, PanelCharacterization]:
             hdr_capable=False,
             wide_gamut=False,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
-        notes="Generic sRGB panel. Used as fallback when no specific profile exists."
+        notes="Generic sRGB panel. Used as fallback when no specific profile exists.",
     )
 
     return panels

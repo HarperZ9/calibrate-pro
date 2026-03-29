@@ -154,6 +154,7 @@ class CalibrationTargetProfile:
     This is the main class users should interact with to specify
     complete calibration targets for professional workflows.
     """
+
     name: str = "Default"
     description: str = ""
 
@@ -175,25 +176,21 @@ class CalibrationTargetProfile:
             "whitepoint": {
                 "preset": self.whitepoint.preset.value,
                 "cct": self.whitepoint.get_cct(),
-                "xy": self.whitepoint.get_xy()
+                "xy": self.whitepoint.get_xy(),
             },
             "luminance": {
                 "preset": self.luminance.standard.value,
                 "peak": self.luminance.get_peak_luminance(),
                 "black": self.luminance.get_black_level(),
                 "contrast": self.luminance.get_contrast_ratio(),
-                "hdr": self.luminance.is_hdr()
+                "hdr": self.luminance.is_hdr(),
             },
-            "gamma": {
-                "preset": self.gamma.preset.value,
-                "value": self.gamma.gamma_value,
-                "hdr": self.gamma.is_hdr()
-            },
+            "gamma": {"preset": self.gamma.preset.value, "value": self.gamma.gamma_value, "hdr": self.gamma.is_hdr()},
             "gamut": {
                 "preset": self.gamut.preset.value,
                 "wide_gamut": self.gamut.is_wide_gamut(),
-                "area": self.gamut.get_gamut_area()
-            }
+                "area": self.gamut.get_gamut_area(),
+            },
         }
 
     def to_dict(self) -> dict:
@@ -204,7 +201,7 @@ class CalibrationTargetProfile:
             "whitepoint": self.whitepoint.to_dict(),
             "luminance": self.luminance.to_dict(),
             "gamma": self.gamma.to_dict(),
-            "gamut": self.gamut.to_dict()
+            "gamut": self.gamut.to_dict(),
         }
 
     @classmethod
@@ -216,7 +213,7 @@ class CalibrationTargetProfile:
             whitepoint=WhitepointTarget.from_dict(data.get("whitepoint", {})),
             luminance=LuminanceTarget.from_dict(data.get("luminance", {})),
             gamma=GammaTarget.from_dict(data.get("gamma", {})),
-            gamut=GamutTarget.from_dict(data.get("gamut", {}))
+            gamut=GamutTarget.from_dict(data.get("gamut", {})),
         )
 
 
@@ -231,7 +228,7 @@ PROFILE_SRGB = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_D65,
     luminance=LUMINANCE_CONSUMER_SDR,
     gamma=GAMMA_SRGB,
-    gamut=GAMUT_SRGB
+    gamut=GAMUT_SRGB,
 )
 
 # Rec.709 Broadcast
@@ -241,7 +238,7 @@ PROFILE_REC709 = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_D65,
     luminance=LUMINANCE_REC709,
     gamma=GAMMA_BT1886,
-    gamut=GAMUT_SRGB
+    gamut=GAMUT_SRGB,
 )
 
 # DCI-P3 Cinema
@@ -251,7 +248,7 @@ PROFILE_DCI_P3 = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_DCI,
     luminance=LUMINANCE_DCI,
     gamma=GammaTarget(preset=GammaPreset.POWER_26),
-    gamut=GAMUT_DCI_P3_THEATER
+    gamut=GAMUT_DCI_P3_THEATER,
 )
 
 # HDR10 Mastering
@@ -261,7 +258,7 @@ PROFILE_HDR10 = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_D65,
     luminance=LUMINANCE_HDR10,
     gamma=GAMMA_PQ,
-    gamut=GAMUT_BT2020
+    gamut=GAMUT_BT2020,
 )
 
 # Photography (Adobe RGB / D50)
@@ -271,7 +268,7 @@ PROFILE_PHOTOGRAPHY = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_D50,
     luminance=LUMINANCE_CONSUMER_SDR,
     gamma=GammaTarget(preset=GammaPreset.ADOBE_RGB),
-    gamut=GAMUT_ADOBE_RGB
+    gamut=GAMUT_ADOBE_RGB,
 )
 
 # Film Grading
@@ -281,7 +278,7 @@ PROFILE_FILM_GRADING = CalibrationTargetProfile(
     whitepoint=WHITEPOINT_D65,
     luminance=LUMINANCE_FILM,
     gamma=GAMMA_24,
-    gamut=GAMUT_DCI_P3
+    gamut=GAMUT_DCI_P3,
 )
 
 
@@ -299,30 +296,64 @@ def get_profile_presets() -> list:
 
 __all__ = [
     # White Point
-    'WhitepointPreset', 'WhitepointTarget',
-    'WHITEPOINT_D50', 'WHITEPOINT_D65', 'WHITEPOINT_DCI', 'WHITEPOINT_ACES',
-    'cct_to_xy', 'xy_to_cct', 'get_whitepoint_presets', 'create_custom_whitepoint',
-
+    "WhitepointPreset",
+    "WhitepointTarget",
+    "WHITEPOINT_D50",
+    "WHITEPOINT_D65",
+    "WHITEPOINT_DCI",
+    "WHITEPOINT_ACES",
+    "cct_to_xy",
+    "xy_to_cct",
+    "get_whitepoint_presets",
+    "create_custom_whitepoint",
     # Luminance
-    'LuminanceStandard', 'LuminanceTarget', 'GrayscaleTarget',
-    'LUMINANCE_REC709', 'LUMINANCE_HDR10', 'LUMINANCE_DOLBY_VISION',
-    'get_luminance_presets', 'create_custom_luminance',
-
+    "LuminanceStandard",
+    "LuminanceTarget",
+    "GrayscaleTarget",
+    "LUMINANCE_REC709",
+    "LUMINANCE_HDR10",
+    "LUMINANCE_DOLBY_VISION",
+    "get_luminance_presets",
+    "create_custom_luminance",
     # Gamma
-    'GammaPreset', 'GammaTarget',
-    'GAMMA_22', 'GAMMA_24', 'GAMMA_SRGB', 'GAMMA_BT1886', 'GAMMA_PQ', 'GAMMA_HLG',
-    'pq_eotf', 'pq_oetf', 'hlg_eotf', 'hlg_oetf', 'bt1886_eotf', 'bt1886_oetf',
-    'get_gamma_presets', 'create_custom_gamma', 'create_bt1886_target',
-
+    "GammaPreset",
+    "GammaTarget",
+    "GAMMA_22",
+    "GAMMA_24",
+    "GAMMA_SRGB",
+    "GAMMA_BT1886",
+    "GAMMA_PQ",
+    "GAMMA_HLG",
+    "pq_eotf",
+    "pq_oetf",
+    "hlg_eotf",
+    "hlg_oetf",
+    "bt1886_eotf",
+    "bt1886_oetf",
+    "get_gamma_presets",
+    "create_custom_gamma",
+    "create_bt1886_target",
     # Gamut
-    'GamutPreset', 'GamutTarget', 'ColorPrimaries',
-    'GAMUT_SRGB', 'GAMUT_DCI_P3', 'GAMUT_BT2020', 'GAMUT_ADOBE_RGB',
-    'PRIMARIES_SRGB', 'PRIMARIES_DCI_P3', 'PRIMARIES_BT2020',
-    'get_gamut_presets', 'create_custom_gamut', 'calculate_gamut_coverage',
-
+    "GamutPreset",
+    "GamutTarget",
+    "ColorPrimaries",
+    "GAMUT_SRGB",
+    "GAMUT_DCI_P3",
+    "GAMUT_BT2020",
+    "GAMUT_ADOBE_RGB",
+    "PRIMARIES_SRGB",
+    "PRIMARIES_DCI_P3",
+    "PRIMARIES_BT2020",
+    "get_gamut_presets",
+    "create_custom_gamut",
+    "calculate_gamut_coverage",
     # Unified Profile
-    'CalibrationTargetProfile',
-    'PROFILE_SRGB', 'PROFILE_REC709', 'PROFILE_DCI_P3', 'PROFILE_HDR10',
-    'PROFILE_PHOTOGRAPHY', 'PROFILE_FILM_GRADING',
-    'get_profile_presets',
+    "CalibrationTargetProfile",
+    "PROFILE_SRGB",
+    "PROFILE_REC709",
+    "PROFILE_DCI_P3",
+    "PROFILE_HDR10",
+    "PROFILE_PHOTOGRAPHY",
+    "PROFILE_FILM_GRADING",
+    "get_profile_presets",
 ]

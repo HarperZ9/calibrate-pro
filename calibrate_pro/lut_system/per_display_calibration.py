@@ -24,29 +24,32 @@ import numpy as np
 
 class CalibrationSource(Enum):
     """Source of calibration data."""
-    PANEL_DATABASE = "panel_database"    # Built-in panel profiles
-    FORUM_DATA = "forum_data"            # TFTCentral, Rtings, etc.
-    ICC_PROFILE = "icc_profile"          # Existing ICC profile
-    COLORIMETER = "colorimeter"          # Hardware measurement
-    SENSORLESS = "sensorless"            # Sensorless calibration
-    CUSTOM = "custom"                    # User-provided settings
+
+    PANEL_DATABASE = "panel_database"  # Built-in panel profiles
+    FORUM_DATA = "forum_data"  # TFTCentral, Rtings, etc.
+    ICC_PROFILE = "icc_profile"  # Existing ICC profile
+    COLORIMETER = "colorimeter"  # Hardware measurement
+    SENSORLESS = "sensorless"  # Sensorless calibration
+    CUSTOM = "custom"  # User-provided settings
 
 
 class CalibrationTarget(Enum):
     """Calibration target preset."""
-    SRGB = "sRGB"                    # sRGB D65, gamma 2.2
-    SRGB_FILM = "sRGB_Film"          # sRGB with 2.4 gamma (cinema-like)
-    DCI_P3 = "DCI-P3"                # DCI-P3 D65
-    ADOBE_RGB = "Adobe RGB"          # Adobe RGB 1998
-    BT709 = "BT.709"                 # HD video
-    BT2020 = "BT.2020"               # HDR video
-    NATIVE = "Native"                # Use panel's native gamut
-    CUSTOM = "Custom"                # Custom target
+
+    SRGB = "sRGB"  # sRGB D65, gamma 2.2
+    SRGB_FILM = "sRGB_Film"  # sRGB with 2.4 gamma (cinema-like)
+    DCI_P3 = "DCI-P3"  # DCI-P3 D65
+    ADOBE_RGB = "Adobe RGB"  # Adobe RGB 1998
+    BT709 = "BT.709"  # HD video
+    BT2020 = "BT.2020"  # HDR video
+    NATIVE = "Native"  # Use panel's native gamut
+    CUSTOM = "Custom"  # Custom target
 
 
 @dataclass
 class DisplayCalibrationProfile:
     """Calibration profile for a single display."""
+
     display_id: int
     display_name: str
     device_name: str
@@ -54,8 +57,8 @@ class DisplayCalibrationProfile:
     # Panel identification
     manufacturer: str = ""
     model: str = ""
-    panel_type: str = ""              # QD-OLED, WOLED, IPS, VA, etc.
-    panel_database_key: str = ""      # Key in panel database
+    panel_type: str = ""  # QD-OLED, WOLED, IPS, VA, etc.
+    panel_database_key: str = ""  # Key in panel database
 
     # Calibration settings
     target: CalibrationTarget = CalibrationTarget.SRGB
@@ -103,6 +106,7 @@ class DisplayCalibrationProfile:
 @dataclass
 class PerDisplayCalibrationConfig:
     """Configuration for per-display calibration."""
+
     auto_detect: bool = True
     auto_calibrate: bool = True
     auto_apply: bool = True
@@ -112,8 +116,8 @@ class PerDisplayCalibrationConfig:
 
     def __post_init__(self):
         if self.profiles_dir is None:
-            app_data = os.environ.get('APPDATA', os.path.expanduser('~'))
-            self.profiles_dir = os.path.join(app_data, 'CalibratePro', 'display_profiles')
+            app_data = os.environ.get("APPDATA", os.path.expanduser("~"))
+            self.profiles_dir = os.path.join(app_data, "CalibratePro", "display_profiles")
 
 
 class PerDisplayCalibrationManager:
@@ -148,6 +152,7 @@ class PerDisplayCalibrationManager:
         """Get LUT manager (lazy load)."""
         if self._lut_manager is None:
             from calibrate_pro.lut_system import LUTManager
+
             self._lut_manager = LUTManager()
         return self._lut_manager
 
@@ -156,6 +161,7 @@ class PerDisplayCalibrationManager:
         """Get panel database (lazy load)."""
         if self._panel_db is None:
             from calibrate_pro.panels.database import PanelDatabase
+
             self._panel_db = PanelDatabase()
         return self._panel_db
 
@@ -185,11 +191,11 @@ class PerDisplayCalibrationManager:
             # Load saved profile if exists
             saved_profile = self._load_profile(profile.display_id)
             if saved_profile:
-                profile.target = CalibrationTarget(saved_profile.get('target', 'sRGB'))
-                profile.target_gamma = saved_profile.get('target_gamma', 2.2)
-                profile.target_brightness = saved_profile.get('target_brightness', 100.0)
-                profile.lut_path = saved_profile.get('lut_path')
-                profile.is_calibrated = saved_profile.get('is_calibrated', False)
+                profile.target = CalibrationTarget(saved_profile.get("target", "sRGB"))
+                profile.target_gamma = saved_profile.get("target_gamma", 2.2)
+                profile.target_brightness = saved_profile.get("target_brightness", 100.0)
+                profile.lut_path = saved_profile.get("lut_path")
+                profile.is_calibrated = saved_profile.get("is_calibrated", False)
 
             self.profiles[profile.display_id] = profile
 
@@ -219,7 +225,7 @@ class PerDisplayCalibrationManager:
         self,
         display_id: int,
         target: CalibrationTarget = CalibrationTarget.SRGB,
-        source: CalibrationSource = CalibrationSource.PANEL_DATABASE
+        source: CalibrationSource = CalibrationSource.PANEL_DATABASE,
     ) -> bool:
         """
         Calibrate a single display.
@@ -279,10 +285,7 @@ class PerDisplayCalibrationManager:
 
         return True
 
-    def calibrate_all(
-        self,
-        target: CalibrationTarget = CalibrationTarget.SRGB
-    ) -> dict[int, bool]:
+    def calibrate_all(self, target: CalibrationTarget = CalibrationTarget.SRGB) -> dict[int, bool]:
         """
         Calibrate all detected displays.
 
@@ -315,6 +318,7 @@ class PerDisplayCalibrationManager:
         lut_data = profile.lut_3d
         if lut_data is None and profile.lut_path:
             from calibrate_pro.lut_system import load_lut
+
             try:
                 lut = load_lut(profile.lut_path)
                 lut_data = lut.data
@@ -346,10 +350,7 @@ class PerDisplayCalibrationManager:
         return results
 
     def _generate_calibration_lut(
-        self,
-        profile: DisplayCalibrationProfile,
-        panel,
-        target: CalibrationTarget
+        self, profile: DisplayCalibrationProfile, panel, target: CalibrationTarget
     ) -> np.ndarray | None:
         """
         Generate calibration 3D LUT for a display.
@@ -372,10 +373,10 @@ class PerDisplayCalibrationManager:
         panel_primaries = None
         if panel:
             panel_primaries = {
-                'red': (panel.native_primaries.red.x, panel.native_primaries.red.y),
-                'green': (panel.native_primaries.green.x, panel.native_primaries.green.y),
-                'blue': (panel.native_primaries.blue.x, panel.native_primaries.blue.y),
-                'white': (panel.native_primaries.white.x, panel.native_primaries.white.y),
+                "red": (panel.native_primaries.red.x, panel.native_primaries.red.y),
+                "green": (panel.native_primaries.green.x, panel.native_primaries.green.y),
+                "blue": (panel.native_primaries.blue.x, panel.native_primaries.blue.y),
+                "white": (panel.native_primaries.white.x, panel.native_primaries.white.y),
             }
 
         # Get color correction matrix
@@ -402,11 +403,7 @@ class PerDisplayCalibrationManager:
 
                     # Apply gamut mapping if needed
                     if target != CalibrationTarget.NATIVE and panel_primaries and target_primaries:
-                        rgb_corrected = self._gamut_map(
-                            rgb_corrected,
-                            panel_primaries,
-                            target_primaries
-                        )
+                        rgb_corrected = self._gamut_map(rgb_corrected, panel_primaries, target_primaries)
 
                     # Apply output gamma
                     target_gamma = profile.target_gamma
@@ -420,44 +417,39 @@ class PerDisplayCalibrationManager:
         """Get primaries for calibration target."""
         primaries = {
             CalibrationTarget.SRGB: {
-                'red': (0.6400, 0.3300),
-                'green': (0.3000, 0.6000),
-                'blue': (0.1500, 0.0600),
-                'white': (0.3127, 0.3290),
+                "red": (0.6400, 0.3300),
+                "green": (0.3000, 0.6000),
+                "blue": (0.1500, 0.0600),
+                "white": (0.3127, 0.3290),
             },
             CalibrationTarget.DCI_P3: {
-                'red': (0.6800, 0.3200),
-                'green': (0.2650, 0.6900),
-                'blue': (0.1500, 0.0600),
-                'white': (0.3127, 0.3290),
+                "red": (0.6800, 0.3200),
+                "green": (0.2650, 0.6900),
+                "blue": (0.1500, 0.0600),
+                "white": (0.3127, 0.3290),
             },
             CalibrationTarget.ADOBE_RGB: {
-                'red': (0.6400, 0.3300),
-                'green': (0.2100, 0.7100),
-                'blue': (0.1500, 0.0600),
-                'white': (0.3127, 0.3290),
+                "red": (0.6400, 0.3300),
+                "green": (0.2100, 0.7100),
+                "blue": (0.1500, 0.0600),
+                "white": (0.3127, 0.3290),
             },
             CalibrationTarget.BT709: {
-                'red': (0.6400, 0.3300),
-                'green': (0.3000, 0.6000),
-                'blue': (0.1500, 0.0600),
-                'white': (0.3127, 0.3290),
+                "red": (0.6400, 0.3300),
+                "green": (0.3000, 0.6000),
+                "blue": (0.1500, 0.0600),
+                "white": (0.3127, 0.3290),
             },
             CalibrationTarget.BT2020: {
-                'red': (0.7080, 0.2920),
-                'green': (0.1700, 0.7970),
-                'blue': (0.1310, 0.0460),
-                'white': (0.3127, 0.3290),
+                "red": (0.7080, 0.2920),
+                "green": (0.1700, 0.7970),
+                "blue": (0.1310, 0.0460),
+                "white": (0.3127, 0.3290),
             },
         }
         return primaries.get(target)
 
-    def _gamut_map(
-        self,
-        rgb: np.ndarray,
-        source_primaries: dict,
-        target_primaries: dict
-    ) -> np.ndarray:
+    def _gamut_map(self, rgb: np.ndarray, source_primaries: dict, target_primaries: dict) -> np.ndarray:
         """
         Map colors from source gamut to target gamut.
 
@@ -546,11 +538,7 @@ def apply_forum_calibration(display_id: int) -> bool:
         True if successful
     """
     manager = get_per_display_manager()
-    return manager.calibrate_display(
-        display_id,
-        target=CalibrationTarget.SRGB,
-        source=CalibrationSource.FORUM_DATA
-    )
+    return manager.calibrate_display(display_id, target=CalibrationTarget.SRGB, source=CalibrationSource.FORUM_DATA)
 
 
 def list_detected_displays() -> list[dict]:

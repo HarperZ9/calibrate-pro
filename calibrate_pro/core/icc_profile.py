@@ -26,30 +26,30 @@ from calibrate_pro.core.color_math import (
 # =============================================================================
 
 # Profile signatures
-ICC_MAGIC = b'acsp'
+ICC_MAGIC = b"acsp"
 PROFILE_VERSION = 0x04400000  # v4.4
 
 # Device classes
-DEVICE_CLASS_INPUT = b'scnr'
-DEVICE_CLASS_DISPLAY = b'mntr'
-DEVICE_CLASS_OUTPUT = b'prtr'
-DEVICE_CLASS_LINK = b'link'
-DEVICE_CLASS_ABSTRACT = b'abst'
-DEVICE_CLASS_COLORSPACE = b'spac'
-DEVICE_CLASS_NAMED = b'nmcl'
+DEVICE_CLASS_INPUT = b"scnr"
+DEVICE_CLASS_DISPLAY = b"mntr"
+DEVICE_CLASS_OUTPUT = b"prtr"
+DEVICE_CLASS_LINK = b"link"
+DEVICE_CLASS_ABSTRACT = b"abst"
+DEVICE_CLASS_COLORSPACE = b"spac"
+DEVICE_CLASS_NAMED = b"nmcl"
 
 # Color spaces
-COLOR_SPACE_XYZ = b'XYZ '
-COLOR_SPACE_LAB = b'Lab '
-COLOR_SPACE_RGB = b'RGB '
-COLOR_SPACE_GRAY = b'GRAY'
-COLOR_SPACE_CMYK = b'CMYK'
+COLOR_SPACE_XYZ = b"XYZ "
+COLOR_SPACE_LAB = b"Lab "
+COLOR_SPACE_RGB = b"RGB "
+COLOR_SPACE_GRAY = b"GRAY"
+COLOR_SPACE_CMYK = b"CMYK"
 
 # Platform signatures
-PLATFORM_MICROSOFT = b'MSFT'
-PLATFORM_APPLE = b'APPL'
-PLATFORM_SGI = b'SGI '
-PLATFORM_SUN = b'SUNW'
+PLATFORM_MICROSOFT = b"MSFT"
+PLATFORM_APPLE = b"APPL"
+PLATFORM_SGI = b"SGI "
+PLATFORM_SUN = b"SUNW"
 
 # Rendering intents
 INTENT_PERCEPTUAL = 0
@@ -58,37 +58,39 @@ INTENT_SATURATION = 2
 INTENT_ABSOLUTE = 3
 
 # Tag signatures
-TAG_DESC = b'desc'
-TAG_CPRT = b'cprt'
-TAG_WTPT = b'wtpt'
-TAG_BKPT = b'bkpt'
-TAG_RXYY = b'rXYZ'
-TAG_GXYY = b'gXYZ'
-TAG_BXYY = b'bXYZ'
-TAG_RTRC = b'rTRC'
-TAG_GTRC = b'gTRC'
-TAG_BTRC = b'bTRC'
-TAG_CHAD = b'chad'
-TAG_VCGT = b'vcgt'
-TAG_MHC2 = b'MHC2'
-TAG_A2B0 = b'A2B0'
-TAG_B2A0 = b'B2A0'
+TAG_DESC = b"desc"
+TAG_CPRT = b"cprt"
+TAG_WTPT = b"wtpt"
+TAG_BKPT = b"bkpt"
+TAG_RXYY = b"rXYZ"
+TAG_GXYY = b"gXYZ"
+TAG_BXYY = b"bXYZ"
+TAG_RTRC = b"rTRC"
+TAG_GTRC = b"gTRC"
+TAG_BTRC = b"bTRC"
+TAG_CHAD = b"chad"
+TAG_VCGT = b"vcgt"
+TAG_MHC2 = b"MHC2"
+TAG_A2B0 = b"A2B0"
+TAG_B2A0 = b"B2A0"
 
 # Type signatures
-TYPE_DESC = b'desc'
-TYPE_MLUC = b'mluc'
-TYPE_TEXT = b'text'
-TYPE_XYZ = b'XYZ '
-TYPE_CURV = b'curv'
-TYPE_PARA = b'para'
-TYPE_S15F16 = b'sf32'
-TYPE_VCGT = b'vcgt'
+TYPE_DESC = b"desc"
+TYPE_MLUC = b"mluc"
+TYPE_TEXT = b"text"
+TYPE_XYZ = b"XYZ "
+TYPE_CURV = b"curv"
+TYPE_PARA = b"para"
+TYPE_S15F16 = b"sf32"
+TYPE_VCGT = b"vcgt"
+
 
 @dataclass
 class ICCHeader:
     """ICC profile header (128 bytes)."""
+
     profile_size: int = 0
-    preferred_cmm: bytes = b'lcms'
+    preferred_cmm: bytes = b"lcms"
     version: int = PROFILE_VERSION
     device_class: bytes = DEVICE_CLASS_DISPLAY
     color_space: bytes = COLOR_SPACE_RGB
@@ -97,14 +99,14 @@ class ICCHeader:
     signature: bytes = ICC_MAGIC
     platform: bytes = PLATFORM_MICROSOFT
     flags: int = 0
-    manufacturer: bytes = b'QNTA'
-    model: bytes = b'CALB'
+    manufacturer: bytes = b"QNTA"
+    model: bytes = b"CALB"
     attributes: int = 0
     intent: int = INTENT_RELATIVE
     illuminant_x: float = 0.96420
     illuminant_y: float = 1.00000
     illuminant_z: float = 0.82491
-    creator: bytes = b'QNTA'
+    creator: bytes = b"QNTA"
 
     def __post_init__(self):
         if self.creation_date is None:
@@ -114,36 +116,38 @@ class ICCHeader:
         """Serialize header to 128 bytes."""
         # Date/time encoding
         dt = self.creation_date
-        date_bytes = struct.pack('>HHHHHH',
-            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+        date_bytes = struct.pack(">HHHHHH", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
 
         # Fixed-point illuminant values (s15Fixed16)
         def to_s15f16(v):
             return int(v * 65536) & 0xFFFFFFFF
 
-        header = struct.pack('>I',  self.profile_size)       # 0-3
-        header += self.preferred_cmm[:4].ljust(4, b'\x00')   # 4-7
-        header += struct.pack('>I', self.version)            # 8-11
-        header += self.device_class[:4].ljust(4, b'\x00')    # 12-15
-        header += self.color_space[:4].ljust(4, b'\x00')     # 16-19
-        header += self.pcs[:4].ljust(4, b'\x00')             # 20-23
-        header += date_bytes                                  # 24-35
-        header += self.signature[:4]                          # 36-39
-        header += self.platform[:4].ljust(4, b'\x00')        # 40-43
-        header += struct.pack('>I', self.flags)              # 44-47
-        header += self.manufacturer[:4].ljust(4, b'\x00')    # 48-51
-        header += self.model[:4].ljust(4, b'\x00')           # 52-55
-        header += struct.pack('>Q', self.attributes)         # 56-63
-        header += struct.pack('>I', self.intent)             # 64-67
-        header += struct.pack('>III',                         # 68-79
+        header = struct.pack(">I", self.profile_size)  # 0-3
+        header += self.preferred_cmm[:4].ljust(4, b"\x00")  # 4-7
+        header += struct.pack(">I", self.version)  # 8-11
+        header += self.device_class[:4].ljust(4, b"\x00")  # 12-15
+        header += self.color_space[:4].ljust(4, b"\x00")  # 16-19
+        header += self.pcs[:4].ljust(4, b"\x00")  # 20-23
+        header += date_bytes  # 24-35
+        header += self.signature[:4]  # 36-39
+        header += self.platform[:4].ljust(4, b"\x00")  # 40-43
+        header += struct.pack(">I", self.flags)  # 44-47
+        header += self.manufacturer[:4].ljust(4, b"\x00")  # 48-51
+        header += self.model[:4].ljust(4, b"\x00")  # 52-55
+        header += struct.pack(">Q", self.attributes)  # 56-63
+        header += struct.pack(">I", self.intent)  # 64-67
+        header += struct.pack(
+            ">III",  # 68-79
             to_s15f16(self.illuminant_x),
             to_s15f16(self.illuminant_y),
-            to_s15f16(self.illuminant_z))
-        header += self.creator[:4].ljust(4, b'\x00')         # 80-83
-        header += b'\x00' * 16                                # 84-99 (MD5)
-        header += b'\x00' * 28                                # 100-127 (reserved)
+            to_s15f16(self.illuminant_z),
+        )
+        header += self.creator[:4].ljust(4, b"\x00")  # 80-83
+        header += b"\x00" * 16  # 84-99 (MD5)
+        header += b"\x00" * 28  # 100-127 (reserved)
 
         return header
+
 
 class ICCProfile:
     """
@@ -157,7 +161,7 @@ class ICCProfile:
         description: str = "Calibrate Pro Display Profile",
         copyright: str = "Copyright Zain Dana Harper 2022-2026",
         manufacturer: str = "QNTA",
-        model: str = "CALB"
+        model: str = "CALB",
     ):
         """
         Initialize ICC profile builder.
@@ -170,10 +174,7 @@ class ICCProfile:
         """
         self.description = description
         self.copyright = copyright
-        self.header = ICCHeader(
-            manufacturer=manufacturer.encode()[:4],
-            model=model.encode()[:4]
-        )
+        self.header = ICCHeader(manufacturer=manufacturer.encode()[:4], model=model.encode()[:4])
         self.tags = {}
 
         # Default to D65 primaries (will be overwritten)
@@ -200,7 +201,7 @@ class ICCProfile:
         red: tuple[float, float],
         green: tuple[float, float],
         blue: tuple[float, float],
-        white: tuple[float, float] = (0.3127, 0.3290)
+        white: tuple[float, float] = (0.3127, 0.3290),
     ):
         """Set display primary chromaticities."""
         self.red_primary = red
@@ -214,12 +215,7 @@ class ICCProfile:
         self.gamma_green = green
         self.gamma_blue = blue
 
-    def set_trc_curves(
-        self,
-        red: np.ndarray,
-        green: np.ndarray,
-        blue: np.ndarray
-    ):
+    def set_trc_curves(self, red: np.ndarray, green: np.ndarray, blue: np.ndarray):
         """
         Set per-channel TRC curves (overrides gamma).
 
@@ -230,12 +226,7 @@ class ICCProfile:
         self.trc_green = np.asarray(green, dtype=np.float64)
         self.trc_blue = np.asarray(blue, dtype=np.float64)
 
-    def set_vcgt(
-        self,
-        red: np.ndarray,
-        green: np.ndarray,
-        blue: np.ndarray
-    ):
+    def set_vcgt(self, red: np.ndarray, green: np.ndarray, blue: np.ndarray):
         """
         Set VCGT (Video Card Gamma Table) for calibration.
 
@@ -245,58 +236,58 @@ class ICCProfile:
         self.vcgt = (
             np.asarray(red, dtype=np.float64),
             np.asarray(green, dtype=np.float64),
-            np.asarray(blue, dtype=np.float64)
+            np.asarray(blue, dtype=np.float64),
         )
 
     def _build_desc_tag(self, text: str) -> bytes:
         """Build multi-localized Unicode description tag (mluc)."""
         # UTF-16BE encoded string
-        text_bytes = text.encode('utf-16-be')
+        text_bytes = text.encode("utf-16-be")
 
         # mluc tag structure
         tag = TYPE_MLUC
-        tag += b'\x00\x00\x00\x00'  # Reserved
-        tag += struct.pack('>I', 1)  # Number of records
-        tag += struct.pack('>I', 12)  # Record size
+        tag += b"\x00\x00\x00\x00"  # Reserved
+        tag += struct.pack(">I", 1)  # Number of records
+        tag += struct.pack(">I", 12)  # Record size
 
         # Language/country record
-        tag += b'enUS'  # Language and country
-        tag += struct.pack('>I', len(text_bytes) + 2)  # String length (with BOM)
-        tag += struct.pack('>I', 28)  # Offset to string
+        tag += b"enUS"  # Language and country
+        tag += struct.pack(">I", len(text_bytes) + 2)  # String length (with BOM)
+        tag += struct.pack(">I", 28)  # Offset to string
 
         # Padding and string
-        tag += b'\xfe\xff'  # UTF-16 BOM
+        tag += b"\xfe\xff"  # UTF-16 BOM
         tag += text_bytes
 
         # Pad to 4-byte boundary
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
 
         return tag
 
     def _build_text_tag(self, text: str) -> bytes:
         """Build simple text tag."""
-        text_bytes = text.encode('ascii', errors='replace') + b'\x00'
+        text_bytes = text.encode("ascii", errors="replace") + b"\x00"
 
         tag = TYPE_TEXT
-        tag += b'\x00\x00\x00\x00'  # Reserved
+        tag += b"\x00\x00\x00\x00"  # Reserved
         tag += text_bytes
 
         # Pad to 4-byte boundary
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
 
         return tag
 
     def _build_xyz_tag(self, x: float, y: float, z: float) -> bytes:
         """Build XYZ tag with single XYZ value."""
+
         def to_s15f16(v):
             return int(v * 65536) & 0xFFFFFFFF
 
         tag = TYPE_XYZ
-        tag += b'\x00\x00\x00\x00'  # Reserved
-        tag += struct.pack('>III',
-            to_s15f16(x), to_s15f16(y), to_s15f16(z))
+        tag += b"\x00\x00\x00\x00"  # Reserved
+        tag += struct.pack(">III", to_s15f16(x), to_s15f16(y), to_s15f16(z))
 
         return tag
 
@@ -312,23 +303,23 @@ class ICCProfile:
             count = 1
             # Store gamma as u8Fixed8 (8.8 fixed point)
             gamma_fixed = int(gamma_or_curve * 256) & 0xFFFF
-            curve_data = struct.pack('>H', gamma_fixed)
+            curve_data = struct.pack(">H", gamma_fixed)
         else:
             # Table-based curve
             curve = np.asarray(gamma_or_curve, dtype=np.float64)
             count = len(curve)
             # Convert to 16-bit values
             values = np.clip(curve * 65535, 0, 65535).astype(np.uint16)
-            curve_data = struct.pack(f'>{count}H', *values)
+            curve_data = struct.pack(f">{count}H", *values)
 
         tag = TYPE_CURV
-        tag += b'\x00\x00\x00\x00'  # Reserved
-        tag += struct.pack('>I', count)
+        tag += b"\x00\x00\x00\x00"  # Reserved
+        tag += struct.pack(">I", count)
         tag += curve_data
 
         # Pad to 4-byte boundary
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
 
         return tag
 
@@ -338,10 +329,10 @@ class ICCProfile:
         matrix = get_adaptation_matrix(D65_WHITE, D50_WHITE)
 
         def to_s15f16(v):
-            return struct.pack('>i', int(v * 65536))
+            return struct.pack(">i", int(v * 65536))
 
         tag = TYPE_S15F16
-        tag += b'\x00\x00\x00\x00'  # Reserved
+        tag += b"\x00\x00\x00\x00"  # Reserved
 
         # Write 3x3 matrix as row-major s15Fixed16 values
         for row in matrix:
@@ -353,37 +344,32 @@ class ICCProfile:
     def _build_vcgt_tag(self) -> bytes:
         """Build VCGT (Video Card Gamma Table) tag."""
         if self.vcgt is None:
-            return b''
+            return b""
 
         red, green, blue = self.vcgt
         count = len(red)
 
         tag = TYPE_VCGT
-        tag += b'\x00\x00\x00\x00'  # Reserved
-        tag += struct.pack('>I', 0)  # Type: table
-        tag += struct.pack('>HHH', count, count, count)  # Table sizes
-        tag += struct.pack('>H', 16)  # Entry size (16-bit)
+        tag += b"\x00\x00\x00\x00"  # Reserved
+        tag += struct.pack(">I", 0)  # Type: table
+        tag += struct.pack(">HHH", count, count, count)  # Table sizes
+        tag += struct.pack(">H", 16)  # Entry size (16-bit)
 
         # Write tables as 16-bit values
         for curve in [red, green, blue]:
             values = np.clip(curve * 65535, 0, 65535).astype(np.uint16)
-            tag += struct.pack(f'>{count}H', *values)
+            tag += struct.pack(f">{count}H", *values)
 
         # Pad to 4-byte boundary
         while len(tag) % 4 != 0:
-            tag += b'\x00'
+            tag += b"\x00"
 
         return tag
 
     def _calculate_xyz_primaries(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate XYZ values for primaries adapted to D50."""
         # Build RGB to XYZ matrix from primaries
-        rgb_to_xyz = primaries_to_xyz_matrix(
-            self.red_primary,
-            self.green_primary,
-            self.blue_primary,
-            self.white_point
-        )
+        rgb_to_xyz = primaries_to_xyz_matrix(self.red_primary, self.green_primary, self.blue_primary, self.white_point)
 
         # Get individual primary XYZ values
         red_xyz = rgb_to_xyz[:, 0]
@@ -409,8 +395,7 @@ class ICCProfile:
         self.tags[TAG_CPRT] = self._build_text_tag(self.copyright)
 
         # White point (D50 for PCS)
-        self.tags[TAG_WTPT] = self._build_xyz_tag(
-            D50_WHITE.X, D50_WHITE.Y, D50_WHITE.Z)
+        self.tags[TAG_WTPT] = self._build_xyz_tag(D50_WHITE.X, D50_WHITE.Y, D50_WHITE.Z)
 
         # Primary XYZ values (adapted to D50)
         red_xyz, green_xyz, blue_xyz = self._calculate_xyz_primaries()
@@ -445,7 +430,7 @@ class ICCProfile:
         # Calculate tag offsets
         current_offset = header_size + tag_table_size
         tag_offsets = {}
-        tag_data = b''
+        tag_data = b""
 
         for sig, data in self.tags.items():
             tag_offsets[sig] = current_offset
@@ -453,10 +438,10 @@ class ICCProfile:
             current_offset += len(data)
 
         # Build tag table
-        tag_table = struct.pack('>I', tag_count)
+        tag_table = struct.pack(">I", tag_count)
         for sig, data in self.tags.items():
             tag_table += sig
-            tag_table += struct.pack('>II', tag_offsets[sig], len(data))
+            tag_table += struct.pack(">II", tag_offsets[sig], len(data))
 
         # Calculate total profile size
         profile_size = header_size + len(tag_table) + len(tag_data)
@@ -471,9 +456,9 @@ class ICCProfile:
         # Calculate and insert MD5 (bytes 84-99)
         # Zero out MD5 area for calculation
         profile_for_hash = bytearray(profile)
-        profile_for_hash[44:48] = b'\x00\x00\x00\x00'  # flags
-        profile_for_hash[64:68] = b'\x00\x00\x00\x00'  # intent
-        profile_for_hash[84:100] = b'\x00' * 16        # MD5
+        profile_for_hash[44:48] = b"\x00\x00\x00\x00"  # flags
+        profile_for_hash[64:68] = b"\x00\x00\x00\x00"  # intent
+        profile_for_hash[84:100] = b"\x00" * 16  # MD5
 
         md5_hash = hashlib.md5(bytes(profile_for_hash)).digest()
 
@@ -495,7 +480,7 @@ class ICCProfile:
         filepath = Path(filepath)
         profile_data = self.build()
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             f.write(profile_data)
 
         return filepath
@@ -510,7 +495,7 @@ def create_display_profile(
     gamma: float | tuple[float, float, float] = 2.2,
     trc_curves: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
     vcgt: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
-    copyright: str = "Copyright Zain Dana Harper 2022-2026 - Calibrate Pro"
+    copyright: str = "Copyright Zain Dana Harper 2022-2026 - Calibrate Pro",
 ) -> ICCProfile:
     """
     Create a display calibration profile.
@@ -537,11 +522,7 @@ def create_display_profile(
     if trc_curves is not None:
         profile.set_trc_curves(*trc_curves)
     elif isinstance(gamma, (tuple, list)):
-        profile.set_trc_curves(
-            generate_trc_curve(gamma[0]),
-            generate_trc_curve(gamma[1]),
-            generate_trc_curve(gamma[2])
-        )
+        profile.set_trc_curves(generate_trc_curve(gamma[0]), generate_trc_curve(gamma[1]), generate_trc_curve(gamma[2]))
     else:
         curve = generate_trc_curve(gamma)
         profile.set_trc_curves(curve, curve, curve)
@@ -553,10 +534,7 @@ def create_display_profile(
 
 
 def generate_trc_curve(
-    gamma: float,
-    points: int = 256,
-    black_offset: float = 0.0,
-    white_offset: float = 0.0
+    gamma: float, points: int = 256, black_offset: float = 0.0, white_offset: float = 0.0
 ) -> np.ndarray:
     """
     Generate a TRC curve with optional offsets.
@@ -592,12 +570,7 @@ def generate_srgb_trc(points: int = 256) -> np.ndarray:
     return curve
 
 
-def generate_bt1886_trc(
-    points: int = 256,
-    gamma: float = 2.4,
-    Lw: float = 1.0,
-    Lb: float = 0.0
-) -> np.ndarray:
+def generate_bt1886_trc(points: int = 256, gamma: float = 2.4, Lw: float = 1.0, Lb: float = 0.0) -> np.ndarray:
     """
     Generate BT.1886 EOTF curve.
 
@@ -609,8 +582,8 @@ def generate_bt1886_trc(
     """
     x = np.linspace(0, 1, points)
 
-    a = (Lw ** (1/gamma) - Lb ** (1/gamma)) ** gamma
-    b = Lb ** (1/gamma) / (Lw ** (1/gamma) - Lb ** (1/gamma))
+    a = (Lw ** (1 / gamma) - Lb ** (1 / gamma)) ** gamma
+    b = Lb ** (1 / gamma) / (Lw ** (1 / gamma) - Lb ** (1 / gamma))
 
     curve = a * np.power(np.maximum(x + b, 0), gamma)
     curve = curve / Lw  # Normalize to [0, 1]

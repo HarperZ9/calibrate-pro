@@ -15,21 +15,22 @@ import numpy as np
 
 # HLG curve parameters
 HLG_A = 0.17883277
-HLG_B = 0.28466892    # 1 - 4*a
-HLG_C = 0.55991073    # 0.5 - a*ln(4*a)
+HLG_B = 0.28466892  # 1 - 4*a
+HLG_C = 0.55991073  # 0.5 - a*ln(4*a)
 
 # Reference luminance
 HLG_REFERENCE_WHITE = 1000.0  # Nominal peak white (cd/m2)
 HLG_BLACK_LEVEL = 0.0
 
 # System gamma values for different viewing environments
-SYSTEM_GAMMA_NOMINAL = 1.2       # Reference viewing
-SYSTEM_GAMMA_BRIGHT = 1.0        # Bright environment
-SYSTEM_GAMMA_DARK = 1.4          # Dark environment
+SYSTEM_GAMMA_NOMINAL = 1.2  # Reference viewing
+SYSTEM_GAMMA_BRIGHT = 1.0  # Bright environment
+SYSTEM_GAMMA_DARK = 1.4  # Dark environment
 
 # =============================================================================
 # HLG Transfer Functions
 # =============================================================================
+
 
 def hlg_oetf(scene_linear: np.ndarray) -> np.ndarray:
     """
@@ -108,10 +109,7 @@ def hlg_eotf(signal: np.ndarray, system_gamma: float = SYSTEM_GAMMA_NOMINAL) -> 
     return display
 
 
-def hlg_eotf_inv(
-    display_linear: np.ndarray,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL
-) -> np.ndarray:
+def hlg_eotf_inv(display_linear: np.ndarray, system_gamma: float = SYSTEM_GAMMA_NOMINAL) -> np.ndarray:
     """
     Inverse HLG EOTF (display light to signal).
 
@@ -133,9 +131,7 @@ def hlg_eotf_inv(
 
 
 def hlg_ootf(
-    scene_linear: np.ndarray,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL,
-    peak_luminance: float = HLG_REFERENCE_WHITE
+    scene_linear: np.ndarray, system_gamma: float = SYSTEM_GAMMA_NOMINAL, peak_luminance: float = HLG_REFERENCE_WHITE
 ) -> np.ndarray:
     """
     HLG Opto-Optical Transfer Function (scene to display light).
@@ -164,13 +160,16 @@ def hlg_ootf(
 
     return display
 
+
 # =============================================================================
 # HLG Calibration
 # =============================================================================
 
+
 @dataclass
 class HLGDisplaySettings:
     """HLG display calibration settings."""
+
     system_gamma: float = SYSTEM_GAMMA_NOMINAL
     peak_luminance: float = HLG_REFERENCE_WHITE
     black_level: float = 0.0
@@ -195,10 +194,7 @@ class HLGDisplaySettings:
 
 
 def generate_hlg_calibration_lut(
-    display_peak: float,
-    display_black: float = 0.0,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL,
-    size: int = 33
+    display_peak: float, display_black: float = 0.0, system_gamma: float = SYSTEM_GAMMA_NOMINAL, size: int = 33
 ) -> np.ndarray:
     """
     Generate HLG calibration 1D LUT.
@@ -231,7 +227,7 @@ def calculate_hlg_eotf_error(
     measured_luminance: np.ndarray,
     signal_levels: np.ndarray,
     display_peak: float,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL
+    system_gamma: float = SYSTEM_GAMMA_NOMINAL,
 ) -> tuple[np.ndarray, float]:
     """
     Calculate EOTF tracking error for HLG.
@@ -259,14 +255,14 @@ def generate_hlg_verification_patches(num_patches: int = 21) -> np.ndarray:
     """Generate HLG signal levels for verification."""
     return np.linspace(0, 1, num_patches)
 
+
 # =============================================================================
 # HLG to PQ Conversion
 # =============================================================================
 
+
 def hlg_to_pq(
-    hlg_signal: np.ndarray,
-    hlg_peak: float = 1000.0,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL
+    hlg_signal: np.ndarray, hlg_peak: float = 1000.0, system_gamma: float = SYSTEM_GAMMA_NOMINAL
 ) -> np.ndarray:
     """
     Convert HLG signal to PQ signal.
@@ -291,9 +287,7 @@ def hlg_to_pq(
 
 
 def pq_to_hlg(
-    pq_signal: np.ndarray,
-    hlg_peak: float = 1000.0,
-    system_gamma: float = SYSTEM_GAMMA_NOMINAL
+    pq_signal: np.ndarray, hlg_peak: float = 1000.0, system_gamma: float = SYSTEM_GAMMA_NOMINAL
 ) -> np.ndarray:
     """
     Convert PQ signal to HLG signal.
@@ -317,15 +311,13 @@ def pq_to_hlg(
     # Display to HLG signal
     return hlg_eotf_inv(display_normalized, system_gamma)
 
+
 # =============================================================================
 # SDR Compatibility
 # =============================================================================
 
-def hlg_to_sdr(
-    hlg_signal: np.ndarray,
-    sdr_gamma: float = 2.2,
-    desaturation: float = 0.0
-) -> np.ndarray:
+
+def hlg_to_sdr(hlg_signal: np.ndarray, sdr_gamma: float = 2.2, desaturation: float = 0.0) -> np.ndarray:
     """
     Convert HLG to SDR for backwards-compatible display.
 

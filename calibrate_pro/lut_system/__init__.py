@@ -54,16 +54,18 @@ from calibrate_pro.lut_system.lut_formats import (
 
 class LUTBackend(Enum):
     """Available LUT application backends."""
-    DWM = "dwm"           # Desktop Window Manager (universal)
-    NVIDIA = "nvidia"     # NVIDIA NVAPI
-    AMD = "amd"           # AMD ADL
-    INTEL = "intel"       # Intel IGCL
+
+    DWM = "dwm"  # Desktop Window Manager (universal)
+    NVIDIA = "nvidia"  # NVIDIA NVAPI
+    AMD = "amd"  # AMD ADL
+    INTEL = "intel"  # Intel IGCL
     GAMMA_RAMP = "gamma"  # Windows gamma ramp (fallback)
 
 
 @dataclass
 class DisplayInfo:
     """Display information for LUT targeting."""
+
     id: int
     name: str
     is_primary: bool
@@ -76,6 +78,7 @@ class DisplayInfo:
 @dataclass
 class BackendStatus:
     """Status of a LUT backend."""
+
     available: bool
     name: str
     vendor: str
@@ -113,6 +116,7 @@ class LUTManager:
         # Try DWM backend (universal, preferred)
         try:
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
             dwm = DwmLutController()
             if dwm.is_available:
                 self._backends[LUTBackend.DWM] = dwm
@@ -122,6 +126,7 @@ class LUTManager:
         # Try NVIDIA backend
         try:
             from calibrate_pro.lut_system.nvidia_api import NvidiaAPI
+
             nvidia = NvidiaAPI()
             if nvidia.is_available:
                 self._backends[LUTBackend.NVIDIA] = nvidia
@@ -131,6 +136,7 @@ class LUTManager:
         # Try AMD backend
         try:
             from calibrate_pro.lut_system.amd_api import AMDAPI
+
             amd = AMDAPI()
             if amd.is_available:
                 self._backends[LUTBackend.AMD] = amd
@@ -140,6 +146,7 @@ class LUTManager:
         # Try Intel backend
         try:
             from calibrate_pro.lut_system.intel_api import IntelAPI
+
             intel = IntelAPI()
             if intel.is_available:
                 self._backends[LUTBackend.INTEL] = intel
@@ -149,6 +156,7 @@ class LUTManager:
         # Fallback: Windows gamma ramp
         try:
             from calibrate_pro.lut_system.dwm_lut import GammaRampController
+
             gamma = GammaRampController()
             self._backends[LUTBackend.GAMMA_RAMP] = gamma
         except Exception:
@@ -192,20 +200,22 @@ class LUTManager:
         if self._active_backend:
             backend = self._backends[self._active_backend]
 
-            if hasattr(backend, 'displays'):
+            if hasattr(backend, "displays"):
                 displays = backend.displays
                 for i, d in enumerate(displays):
-                    display_id = getattr(d, 'display_id', i)
+                    display_id = getattr(d, "display_id", i)
                     if display_id not in seen_displays:
                         seen_displays.add(display_id)
-                        self._displays.append(DisplayInfo(
-                            id=display_id,
-                            name=getattr(d, 'name', f"Display {display_id}"),
-                            is_primary=getattr(d, 'is_primary', i == 0),
-                            gpu_vendor=self._active_backend.value,
-                            resolution=getattr(d, 'resolution', (0, 0)),
-                            hdr_capable=getattr(d, 'is_hdr', False) or getattr(d, 'hdr_supported', False),
-                        ))
+                        self._displays.append(
+                            DisplayInfo(
+                                id=display_id,
+                                name=getattr(d, "name", f"Display {display_id}"),
+                                is_primary=getattr(d, "is_primary", i == 0),
+                                gpu_vendor=self._active_backend.value,
+                                resolution=getattr(d, "resolution", (0, 0)),
+                                hdr_capable=getattr(d, "is_hdr", False) or getattr(d, "hdr_supported", False),
+                            )
+                        )
 
         # If no displays found, try Windows enumeration
         if not self._displays:
@@ -246,14 +256,16 @@ class LUTManager:
                     else:
                         vendor = "unknown"
 
-                    self._displays.append(DisplayInfo(
-                        id=i,
-                        name=device.DeviceString,
-                        is_primary=bool(device.StateFlags & 0x00000004),
-                        gpu_vendor=vendor,
-                        resolution=(0, 0),
-                        hdr_capable=False,
-                    ))
+                    self._displays.append(
+                        DisplayInfo(
+                            id=i,
+                            name=device.DeviceString,
+                            is_primary=bool(device.StateFlags & 0x00000004),
+                            gpu_vendor=vendor,
+                            resolution=(0, 0),
+                            hdr_capable=False,
+                        )
+                    )
                 i += 1
 
         except Exception:
@@ -289,30 +301,18 @@ class LUTManager:
         for backend, name, vendor in backends_info:
             if backend in self._backends:
                 api = self._backends[backend]
-                display_count = len(api.displays) if hasattr(api, 'displays') else 0
+                display_count = len(api.displays) if hasattr(api, "displays") else 0
                 status[backend.value] = BackendStatus(
-                    available=True,
-                    name=name,
-                    vendor=vendor,
-                    message="Available",
-                    display_count=display_count
+                    available=True, name=name, vendor=vendor, message="Available", display_count=display_count
                 )
             else:
                 status[backend.value] = BackendStatus(
-                    available=False,
-                    name=name,
-                    vendor=vendor,
-                    message="Not available"
+                    available=False, name=name, vendor=vendor, message="Not available"
                 )
 
         return status
 
-    def load_lut(
-        self,
-        display_id: int,
-        lut: LUT3D | np.ndarray,
-        persist: bool = False
-    ) -> bool:
+    def load_lut(self, display_id: int, lut: LUT3D | np.ndarray, persist: bool = False) -> bool:
         """
         Load a 3D LUT to a display.
 
@@ -338,7 +338,11 @@ class LUTManager:
             # Different backends have different interfaces
             if self._active_backend == LUTBackend.DWM:
                 return backend.load_lut(display_id, lut.data)
-            elif self._active_backend == LUTBackend.NVIDIA or self._active_backend == LUTBackend.AMD or self._active_backend == LUTBackend.INTEL:
+            elif (
+                self._active_backend == LUTBackend.NVIDIA
+                or self._active_backend == LUTBackend.AMD
+                or self._active_backend == LUTBackend.INTEL
+            ):
                 return backend.load_3d_lut(display_id, lut.data)
             elif self._active_backend == LUTBackend.GAMMA_RAMP:
                 # Convert 3D LUT to 1D approximation for gamma ramp
@@ -353,12 +357,7 @@ class LUTManager:
 
         return False
 
-    def load_lut_file(
-        self,
-        display_id: int,
-        filepath: str | Path,
-        persist: bool = True
-    ) -> bool:
+    def load_lut_file(self, display_id: int, filepath: str | Path, persist: bool = True) -> bool:
         """
         Load a 3D LUT from file to a display.
 
@@ -411,9 +410,9 @@ class LUTManager:
         backend = self._backends[self._active_backend]
 
         try:
-            if hasattr(backend, 'unload_lut'):
+            if hasattr(backend, "unload_lut"):
                 result = backend.unload_lut(display_id)
-            elif hasattr(backend, 'reset_lut'):
+            elif hasattr(backend, "reset_lut"):
                 result = backend.reset_lut(display_id)
             else:
                 # Load identity LUT
@@ -460,7 +459,7 @@ class LUTManager:
                 pass
 
         for backend in self._backends.values():
-            if hasattr(backend, 'cleanup'):
+            if hasattr(backend, "cleanup"):
                 try:
                     backend.cleanup()
                 except Exception:
@@ -469,16 +468,13 @@ class LUTManager:
 
 # Convenience functions
 
+
 def get_lut_manager(preferred_backend: str | None = None) -> LUTManager:
     """Get a LUT manager instance."""
     return LUTManager(preferred_backend)
 
 
-def apply_lut_to_display(
-    display_id: int,
-    lut_path: str | Path,
-    backend: str | None = None
-) -> bool:
+def apply_lut_to_display(display_id: int, lut_path: str | Path, backend: str | None = None) -> bool:
     """
     Quick function to apply a LUT file to a display.
 
