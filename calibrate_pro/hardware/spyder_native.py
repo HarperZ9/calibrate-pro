@@ -173,8 +173,8 @@ class SpyderNative(ColorimeterBase):
             # Turn off LED
             try:
                 self._set_led(0)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[spyder_native] LED off failed during disconnect: {e}")
             self._transport.close()
             self._transport = None
         self.is_connected = False
@@ -201,8 +201,8 @@ class SpyderNative(ColorimeterBase):
         try:
             self._send_command(SpyderCommand.RESET)
             time.sleep(0.2)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[spyder_native] Device reset failed: {e}")
 
         # Read device info
         self._read_device_info()
@@ -240,7 +240,8 @@ class SpyderNative(ColorimeterBase):
                 capabilities=["spot", "ambient", "emission"],
             )
 
-        except Exception:
+        except Exception as e:
+            print(f"[spyder_native] Device info read failed, using USB fallback: {e}")
             if self._usb_info:
                 self.device_info = DeviceInfo(
                     name=self._usb_info.product,
@@ -283,7 +284,8 @@ class SpyderNative(ColorimeterBase):
             else:
                 self._use_default_calibration()
 
-        except Exception:
+        except Exception as e:
+            print(f"[spyder_native] Calibration data read failed, using defaults: {e}")
             self._use_default_calibration()
 
     def _use_default_calibration(self):
@@ -301,8 +303,8 @@ class SpyderNative(ColorimeterBase):
         """Set LED state (0=off, 1=green, 2=red, 3=blue)."""
         try:
             self._send_command(SpyderCommand.SET_LED, bytes([state]))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[spyder_native] LED control failed: {e}")
 
     def calibrate_device(self) -> bool:
         """Perform dark calibration."""
@@ -346,8 +348,8 @@ class SpyderNative(ColorimeterBase):
             try:
                 self._send_command(SpyderCommand.SET_INTEGRATION, data)
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[spyder_native] Set integration time failed: {e}")
         return False
 
     def measure_spot(self) -> ColorMeasurement | None:
@@ -438,8 +440,8 @@ class SpyderNative(ColorimeterBase):
             if len(resp) >= 8:
                 lux = struct.unpack("<f", resp[4:8])[0]
                 return ColorMeasurement(X=0, Y=lux, Z=0, measurement_mode="ambient")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[spyder_native] Ambient measurement failed: {e}")
 
         return None
 
