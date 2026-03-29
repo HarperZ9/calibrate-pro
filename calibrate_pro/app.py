@@ -1,7 +1,7 @@
 """
 Calibrate Pro - Professional Display Calibration Suite
 
-Production-ready application with:
+Display calibration application with:
 - Display calibration (sensorless and hardware)
 - 3D LUT generation and system-wide application
 - ICC profile creation with VCGT
