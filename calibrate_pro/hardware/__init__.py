@@ -345,8 +345,8 @@ def detect_all_devices():
 
         native_devices = detect_colorimeters()
         devices.extend(native_devices)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[hardware] Native device detection failed: {e}")
 
     # If no native devices, try ArgyllCMS
     if not devices:
@@ -356,8 +356,8 @@ def detect_all_devices():
             argyll = ArgyllBackend()
             argyll_devices = argyll.detect_devices()
             devices.extend(argyll_devices)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[hardware] ArgyllCMS detection failed: {e}")
 
     return devices
 
@@ -384,8 +384,8 @@ def auto_connect(prefer_native: bool = True):
             driver = native_auto()
             if driver:
                 return driver
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[hardware] Native auto-connect failed: {e}")
 
     # Fall back to ArgyllCMS
     try:
@@ -394,8 +394,8 @@ def auto_connect(prefer_native: bool = True):
         driver = detect_spectrophotometer()
         if driver:
             return driver
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[hardware] Spectrophotometer detection failed: {e}")
 
     try:
         from calibrate_pro.hardware.i1display import detect_i1display
@@ -403,8 +403,8 @@ def auto_connect(prefer_native: bool = True):
         driver = detect_i1display()
         if driver:
             return driver
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[hardware] i1Display detection failed: {e}")
 
     try:
         from calibrate_pro.hardware.spyder import detect_spyder
@@ -412,8 +412,8 @@ def auto_connect(prefer_native: bool = True):
         driver = detect_spyder()
         if driver:
             return driver
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[hardware] Spyder detection failed: {e}")
 
     return None
 

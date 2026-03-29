@@ -226,8 +226,8 @@ class I1DisplayDriver(ArgyllBackend):
 
         except subprocess.TimeoutExpired:
             pass
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[i1display] Ambient measurement failed: {e}")
 
         return None
 

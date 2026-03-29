@@ -240,8 +240,8 @@ class SpyderDriver(ArgyllBackend):
             if result.returncode == 0:
                 return self._parse_ambient_output(result.stdout)
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[spyder] Ambient measurement failed: {e}")
 
         return None
 

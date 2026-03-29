@@ -290,8 +290,8 @@ class ArgyllBackend(ColorimeterBase):
         if self.temp_dir and self.temp_dir.exists():
             try:
                 shutil.rmtree(self.temp_dir)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[argyll] Failed to clean temp dir {self.temp_dir}: {e}")
             self.temp_dir = None
 
         return True
@@ -379,7 +379,8 @@ class ArgyllBackend(ColorimeterBase):
             result = self._run_tool("spotread", args, timeout=30)
             return self._parse_spotread_output(result.stdout + result.stderr)
 
-        except Exception:
+        except Exception as e:
+            print(f"[argyll] Ambient measurement failed: {e}")
             return None
 
     # =========================================================================
