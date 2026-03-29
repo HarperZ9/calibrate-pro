@@ -1089,8 +1089,8 @@ class LUTGenerator:
                             t = max_vals[near_black_mask] / nb.threshold
                             lift = 1.0 - nb.gamma_lift * (1.0 - t)
                             rgb_corrected[near_black_mask] *= lift[:, np.newaxis]
-            except Exception:
-                pass  # OLED compensation is non-critical
+            except Exception as e:
+                print(f"[lut_engine] OLED compensation skipped: {e}")  # non-critical
 
         # Step 4: Apply per-channel gamma correction
         # Encode for panel: output^panel_gamma should produce the corrected linear

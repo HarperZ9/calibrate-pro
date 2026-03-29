@@ -535,7 +535,8 @@ class SensorlessEngine:
                 ucs_disp = cam16_to_ucs(cam_disp["J"], cam_disp["M"], cam_disp["h"])
 
                 cam16_de = cam16_ucs_delta_e(ucs_ref, ucs_disp)
-            except Exception:
+            except Exception as e:
+                print(f"[neuralux] CAM16 calculation failed, falling back to CIEDE2000: {e}")
                 cam16_de = de  # Fallback to CIEDE2000
 
             results["patches"].append(
@@ -601,8 +602,8 @@ class SensorlessEngine:
                 "lightness_levels": vol.lightness_levels,
                 "gamut_area_per_level": vol.gamut_area_per_level,
             }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[neuralux] Gamut volume calculation failed: {e}")
 
         self.calibration_results = results
         return results

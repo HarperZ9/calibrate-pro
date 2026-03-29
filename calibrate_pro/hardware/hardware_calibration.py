@@ -388,8 +388,8 @@ class HardwareCalibrationEngine:
             state.green_black = settings.green_black_level
             state.blue_black = settings.blue_black_level
             state.color_preset = settings.color_preset
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[hardware_cal] Failed to read DDC/CI state: {e}")
 
         return state
 
@@ -449,8 +449,8 @@ class HardwareCalibrationEngine:
                 result.L, result.a, result.b = xyz_to_lab(measurement.X, measurement.Y, measurement.Z)
 
                 return result
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[hardware_cal] White point measurement failed: {e}")
 
         return None
 

@@ -157,7 +157,8 @@ class MeasurementCoordinator:
             self._tk_canvas.pack(fill=tk.BOTH, expand=True)
             self._tk_root.update()
 
-        except Exception:
+        except Exception as e:
+            print(f"[measurement] Display window creation failed: {e}")
             self._tk_root = None
             self._tk_canvas = None
 
@@ -170,8 +171,8 @@ class MeasurementCoordinator:
             if self.config.display_index < len(displays):
                 d = displays[self.config.display_index]
                 return (d.position_x, d.position_y, d.width, d.height)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[measurement] Display geometry detection failed: {e}")
         return None
 
     def _measure_argyll(self) -> tuple[float, float, float]:
@@ -222,16 +223,16 @@ class MeasurementCoordinator:
         if self._tk_root is not None:
             try:
                 self._tk_root.destroy()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[measurement] Error destroying display window: {e}")
             self._tk_root = None
             self._tk_canvas = None
 
         if self._argyll_backend is not None:
             try:
                 self._argyll_backend.disconnect()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[measurement] Error disconnecting argyll backend: {e}")
 
     def __enter__(self):
         self.initialize()

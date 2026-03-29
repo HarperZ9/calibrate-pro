@@ -216,7 +216,8 @@ class I1DisplayNative(ColorimeterBase):
                 if serial and self.device_info:
                     self.device_info.serial = serial
 
-        except Exception:
+        except Exception as e:
+            print(f"[i1display_native] Device info read failed, using USB fallback: {e}")
             # Use USB info as fallback
             if self._usb_info:
                 self.device_info = DeviceInfo(
@@ -264,7 +265,8 @@ class I1DisplayNative(ColorimeterBase):
                     dark_offsets=np.zeros(3),
                     integration_scale=1.0,
                 )
-        except Exception:
+        except Exception as e:
+            print(f"[i1display_native] Calibration data read failed, using defaults: {e}")
             # Use default calibration
             self._cal_data = I1CalibrationData(
                 serial="",
@@ -315,8 +317,8 @@ class I1DisplayNative(ColorimeterBase):
             try:
                 self._send_command(I1Command.SET_INTEGRATION, data)
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[i1display_native] Set integration time failed: {e}")
         return False
 
     def set_refresh_mode(self, refresh_rate: float) -> bool:
@@ -334,7 +336,8 @@ class I1DisplayNative(ColorimeterBase):
             data = struct.pack("<H", int(refresh_rate))
             self._send_command(I1Command.SET_REFRESH_MODE, data)
             return True
-        except Exception:
+        except Exception as e:
+            print(f"[i1display_native] Set refresh mode failed: {e}")
             return False
 
     def measure_spot(self) -> ColorMeasurement | None:
@@ -439,8 +442,8 @@ class I1DisplayNative(ColorimeterBase):
                     measurement_mode="ambient",
                 )
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[i1display_native] Ambient measurement failed: {e}")
 
         return None
 
@@ -455,8 +458,8 @@ class I1DisplayNative(ColorimeterBase):
                 # Parse refresh rate (Hz)
                 rate = struct.unpack("<H", resp[4:6])[0]
                 return float(rate)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[i1display_native] Refresh rate detection failed: {e}")
 
         return None
 
@@ -466,8 +469,8 @@ class I1DisplayNative(ColorimeterBase):
         code = colors.get(color.lower(), 0)
         try:
             self._send_command(I1Command.SET_LED, bytes([code]))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[i1display_native] LED control failed: {e}")
 
 
 def detect_i1display_native() -> I1DisplayNative | None:
