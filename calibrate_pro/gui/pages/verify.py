@@ -32,11 +32,12 @@ from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
 
 # Worker Thread
 
+
 class VerifyWorker(QThread):
     """Runs SensorlessEngine.verify_calibration() off the main thread."""
 
     finished = pyqtSignal(bool, object)  # success, results dict or error string
-    progress = pyqtSignal(int, int)      # current patch index, total patches
+    progress = pyqtSignal(int, int)  # current patch index, total patches
 
     def __init__(self, display_index: int = 0, parent=None):
         super().__init__(parent)
@@ -122,12 +123,13 @@ class NativeVerifyWorker(QThread):
             import hid
             import numpy as np
 
-
-            OLED_MATRIX = np.array([
-                [0.03836831, -0.02175997, 0.01696057],
-                [0.01449629,  0.01611903, 0.00057150],
-                [-0.00004481, 0.00035042, 0.08032401],
-            ])
+            OLED_MATRIX = np.array(
+                [
+                    [0.03836831, -0.02175997, 0.01696057],
+                    [0.01449629, 0.01611903, 0.00057150],
+                    [-0.00004481, 0.00035042, 0.08032401],
+                ]
+            )
 
             M_MASK = 0xFFFFFFFF
 
@@ -137,31 +139,50 @@ class NativeVerifyWorker(QThread):
             device.open(0x0765, 0x5020)
 
             # Unlock (NEC OEM key)
-            k0, k1 = 0xa9119479, 0x5b168761
-            cmd = bytearray(65); cmd[0] = 0; cmd[1] = 0x99
-            device.write(cmd); time.sleep(0.2)
+            k0, k1 = 0xA9119479, 0x5B168761
+            cmd = bytearray(65)
+            cmd[0] = 0
+            cmd[1] = 0x99
+            device.write(cmd)
+            time.sleep(0.2)
             c = bytes(device.read(64, timeout_ms=3000))
             sc = bytearray(8)
-            for i in range(8): sc[i] = c[3] ^ c[35 + i]
-            ci0 = (sc[3]<<24)+(sc[0]<<16)+(sc[4]<<8)+sc[6]
-            ci1 = (sc[1]<<24)+(sc[7]<<16)+(sc[2]<<8)+sc[5]
+            for i in range(8):
+                sc[i] = c[3] ^ c[35 + i]
+            ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
+            ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
             nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
-            co = [(nk0-ci1)&M_MASK, (nk1-ci0)&M_MASK, (ci1*nk0)&M_MASK, (ci0*nk1)&M_MASK]
+            co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
             s = sum(sc)
-            for sh in [0, 8, 16, 24]: s += (nk0>>sh)&0xFF; s += (nk1>>sh)&0xFF
+            for sh in [0, 8, 16, 24]:
+                s += (nk0 >> sh) & 0xFF
+                s += (nk1 >> sh) & 0xFF
             s0, s1 = s & 0xFF, (s >> 8) & 0xFF
             sr = bytearray(16)
-            sr[0]=(((co[0]>>16)&0xFF)+s0)&0xFF; sr[1]=(((co[2]>>8)&0xFF)-s1)&0xFF
-            sr[2]=((co[3]&0xFF)+s1)&0xFF; sr[3]=(((co[1]>>16)&0xFF)+s0)&0xFF
-            sr[4]=(((co[2]>>16)&0xFF)-s1)&0xFF; sr[5]=(((co[3]>>16)&0xFF)-s0)&0xFF
-            sr[6]=(((co[1]>>24)&0xFF)-s0)&0xFF; sr[7]=((co[0]&0xFF)-s1)&0xFF
-            sr[8]=(((co[3]>>8)&0xFF)+s0)&0xFF; sr[9]=(((co[2]>>24)&0xFF)-s1)&0xFF
-            sr[10]=(((co[0]>>8)&0xFF)+s0)&0xFF; sr[11]=(((co[1]>>8)&0xFF)-s1)&0xFF
-            sr[12]=((co[1]&0xFF)+s1)&0xFF; sr[13]=(((co[3]>>24)&0xFF)+s1)&0xFF
-            sr[14]=((co[2]&0xFF)+s0)&0xFF; sr[15]=(((co[0]>>24)&0xFF)-s0)&0xFF
-            rb = bytearray(65); rb[0] = 0; rb[1] = 0x9A
-            for i in range(16): rb[25+i] = c[2] ^ sr[i]
-            device.write(rb); time.sleep(0.3); device.read(64, timeout_ms=3000)
+            sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+            sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+            sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+            sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+            sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+            sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+            sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+            sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+            sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+            sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+            sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+            sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+            sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+            sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+            sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+            sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
+            rb = bytearray(65)
+            rb[0] = 0
+            rb[1] = 0x9A
+            for i in range(16):
+                rb[25 + i] = c[2] ^ sr[i]
+            device.write(rb)
+            time.sleep(0.3)
+            device.read(64, timeout_ms=3000)
 
             self.log_line.emit("Sensor unlocked. Place sensor against display.")
             self.log_line.emit("Measurement requires a fullscreen patch window.")
@@ -170,16 +191,18 @@ class NativeVerifyWorker(QThread):
             # Measure white for normalization
             self.progress.emit("Measuring white reference...", 0.0)
             intclks = int(1.0 * 12000000)
-            cmd2 = bytearray(65); cmd2[0] = 0x00; cmd2[1] = 0x01
-            struct.pack_into('<I', cmd2, 2, intclks)
+            cmd2 = bytearray(65)
+            cmd2[0] = 0x00
+            cmd2[1] = 0x01
+            struct.pack_into("<I", cmd2, 2, intclks)
             device.write(cmd2)
             resp = device.read(64, timeout_ms=4000)
             if resp and resp[0] == 0x00 and resp[1] == 0x01:
-                rv = struct.unpack('<I', bytes(resp[2:6]))[0]
-                gv = struct.unpack('<I', bytes(resp[6:10]))[0]
-                bv = struct.unpack('<I', bytes(resp[10:14]))[0]
+                rv = struct.unpack("<I", bytes(resp[2:6]))[0]
+                gv = struct.unpack("<I", bytes(resp[6:10]))[0]
+                bv = struct.unpack("<I", bytes(resp[10:14]))[0]
                 t = intclks / 12000000.0
-                freq = np.array([0.5*(rv+0.5)/t, 0.5*(gv+0.5)/t, 0.5*(bv+0.5)/t])
+                freq = np.array([0.5 * (rv + 0.5) / t, 0.5 * (gv + 0.5) / t, 0.5 * (bv + 0.5) / t])
                 white_xyz = OLED_MATRIX @ freq
                 white_Y = white_xyz[1]
             else:
@@ -204,7 +227,7 @@ class NativeVerifyWorker(QThread):
             # For now, report the white measurement and sensor status
             self.log_line.emit("Sensor connected and measuring.")
             self.log_line.emit(f"White luminance: {white_Y:.1f} cd/m2")
-            self.log_line.emit(f"White xy: ({white_xyz[0]/sum(white_xyz):.4f}, {white_xyz[1]/sum(white_xyz):.4f})")
+            self.log_line.emit(f"White xy: ({white_xyz[0] / sum(white_xyz):.4f}, {white_xyz[1] / sum(white_xyz):.4f})")
 
             device.close()
             self.finished.emit(True, results)
@@ -215,6 +238,7 @@ class NativeVerifyWorker(QThread):
 
 
 # ColorChecker Patch Widget
+
 
 class ColorPatchWidget(QWidget):
     """
@@ -292,6 +316,7 @@ class ColorPatchWidget(QWidget):
 
 # ColorChecker Grid Widget
 
+
 class ColorCheckerGrid(QWidget):
     """6x4 grid of ColorChecker patches."""
 
@@ -323,9 +348,7 @@ class ColorCheckerGrid(QWidget):
             ref_srgb = patch_data.get("ref_srgb", (0.5, 0.5, 0.5))
 
             # Approximate predicted sRGB from displayed Lab
-            pred_srgb = self._lab_to_approx_srgb(
-                patch_data.get("displayed_lab", patch_data.get("ref_lab", (50, 0, 0)))
-            )
+            pred_srgb = self._lab_to_approx_srgb(patch_data.get("displayed_lab", patch_data.get("ref_lab", (50, 0, 0))))
 
             de = patch_data.get("delta_e", 0.0)
             name = patch_data.get("name", f"Patch {idx + 1}")
@@ -344,6 +367,7 @@ class ColorCheckerGrid(QWidget):
             import numpy as np
 
             from calibrate_pro.core.color_math import D50_WHITE, D65_WHITE, bradford_adapt, lab_to_xyz, xyz_to_srgb
+
             lab_arr = np.array(lab, dtype=float)
             xyz_d50 = lab_to_xyz(lab_arr, D50_WHITE)
             xyz_d65 = bradford_adapt(xyz_d50, D50_WHITE, D65_WHITE)
@@ -358,6 +382,7 @@ class ColorCheckerGrid(QWidget):
 
 
 # Grayscale Tracking Chart Widget
+
 
 class GrayscaleTrackingChart(QWidget):
     """
@@ -413,7 +438,7 @@ class GrayscaleTrackingChart(QWidget):
         else:
             self._delta_es = []
             for i, s in enumerate(self._steps):
-                target_y = s ** target_gamma
+                target_y = s**target_gamma
                 meas_y = self._measured[i] if i < len(self._measured) else target_y
                 # Approximate perceptual dE from luminance deviation
                 # Using a simple L* difference scaled to dE-like units
@@ -456,9 +481,11 @@ class GrayscaleTrackingChart(QWidget):
         p.setPen(QColor(C.TEXT))
         title_font = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
         p.setFont(title_font)
-        p.drawText(QRectF(0, 4, float(w), float(margin_t - 4)),
-                   Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                   "Grayscale Tracking")
+        p.drawText(
+            QRectF(0, 4, float(w), float(margin_t - 4)),
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+            "Grayscale Tracking",
+        )
 
         # Helper: map normalized (0-1) data coords to pixel coords
         def to_px(nx: float, ny: float) -> QPointF:
@@ -483,7 +510,7 @@ class GrayscaleTrackingChart(QWidget):
             p.drawText(
                 QRectF(vx - 16, chart_y + chart_h + 4, 32, 16),
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                f"{int(frac * 100)}"
+                f"{int(frac * 100)}",
             )
 
             # Horizontal grid line
@@ -495,7 +522,7 @@ class GrayscaleTrackingChart(QWidget):
             p.drawText(
                 QRectF(0, hy - 8, margin_l - 6, 16),
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                f"{frac:.1f}"
+                f"{frac:.1f}",
             )
 
         # Axis titles
@@ -505,7 +532,7 @@ class GrayscaleTrackingChart(QWidget):
         p.drawText(
             QRectF(chart_x, chart_y + chart_h + 18, chart_w, 16),
             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-            "Input Signal Level (%)"
+            "Input Signal Level (%)",
         )
 
         # Y-axis title (drawn rotated)
@@ -515,7 +542,7 @@ class GrayscaleTrackingChart(QWidget):
         p.drawText(
             QRectF(-chart_h / 2, -8, chart_h, 16),
             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-            "Output Luminance"
+            "Output Luminance",
         )
         p.restore()
 
@@ -525,7 +552,7 @@ class GrayscaleTrackingChart(QWidget):
         num_seg = 100
         for seg in range(num_seg + 1):
             nx = seg / float(num_seg)
-            ny = nx ** gamma
+            ny = nx**gamma
             pt = to_px(nx, ny)
             if seg == 0:
                 curve_path.moveTo(pt)
@@ -540,9 +567,9 @@ class GrayscaleTrackingChart(QWidget):
         # --- Per-channel lines (R, G, B) ---
         if self._per_channel and self._steps:
             channel_colors = {
-                'red':   "#d08888",
-                'green': "#92ad7e",
-                'blue':  "#95b3ba",
+                "red": "#d08888",
+                "green": "#92ad7e",
+                "blue": "#95b3ba",
             }
             for ch_name, ch_color in channel_colors.items():
                 ch_data = self._per_channel.get(ch_name, [])
@@ -605,15 +632,14 @@ class GrayscaleTrackingChart(QWidget):
             p.setBrush(QColor(color_str))
             p.drawEllipse(QPointF(lx + 4, ly + 5), 3, 3)
             p.setPen(QColor(C.TEXT2))
-            p.drawText(QRectF(lx + 12, ly, 120, 12),
-                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                       label)
+            p.drawText(QRectF(lx + 12, ly, 120, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, label)
             ly += 14
 
         p.end()
 
 
 # Gamut Coverage Bars Widget
+
 
 class GamutCoverageSection(QWidget):
     """Three labeled gamut coverage bars: sRGB, P3, BT.2020."""
@@ -649,6 +675,7 @@ class GamutCoverageSection(QWidget):
 
 
 # Verify Page
+
 
 class VerifyPage(QWidget):
     """Verification results page with ColorChecker grid, stats, and gamut bars."""
@@ -732,18 +759,14 @@ class VerifyPage(QWidget):
 
         # Prediction label
         self._method_label = QLabel("Predicted (sensorless)")
-        self._method_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT3}; font-style: italic;"
-        )
+        self._method_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT3}; font-style: italic;")
         left_col.addWidget(self._method_label)
 
         left_col.addStretch()
         body_row.addLayout(left_col, stretch=3)
 
         # Right: Stats panel
-        right_card, right_lay = Card.with_layout(
-            QVBoxLayout, margins=(20, 16, 20, 16), spacing=16
-        )
+        right_card, right_lay = Card.with_layout(QVBoxLayout, margins=(20, 16, 20, 16), spacing=16)
         right_card.setMinimumWidth(260)
         right_card.setMaximumWidth(360)
         right_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
@@ -778,16 +801,12 @@ class VerifyPage(QWidget):
         right_lay.addWidget(sep2)
 
         cie_heading = QLabel("CIE 1931 Chromaticity")
-        cie_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        cie_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         right_lay.addWidget(cie_heading)
 
         self._cie_diagram = CIEDiagramWidget()
         self._cie_diagram.setMinimumSize(240, 240)
-        self._cie_diagram.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+        self._cie_diagram.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         right_lay.addWidget(self._cie_diagram, stretch=1)
 
         right_lay.addStretch()
@@ -808,15 +827,11 @@ class VerifyPage(QWidget):
         gs_stats_row.setSpacing(24)
 
         self._gs_avg_label = QLabel("Avg grayscale dE: --")
-        self._gs_avg_label.setStyleSheet(
-            f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;"
-        )
+        self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
         gs_stats_row.addWidget(self._gs_avg_label)
 
         self._gs_max_label = QLabel("Max grayscale dE: --")
-        self._gs_max_label.setStyleSheet(
-            f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;"
-        )
+        self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
         gs_stats_row.addWidget(self._gs_max_label)
 
         gs_stats_row.addStretch()
@@ -888,9 +903,7 @@ class VerifyPage(QWidget):
         prog_lay.setSpacing(10)
 
         self._step_label = QLabel("Ready")
-        self._step_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};"
-        )
+        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};")
         prog_lay.addWidget(self._step_label)
 
         self._progress_bar = QProgressBar()
@@ -933,15 +946,18 @@ class VerifyPage(QWidget):
         """Show the ColorChecker with reference colors and dashes before verification."""
         try:
             from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
+
             patches = []
             for cp in COLORCHECKER_CLASSIC:
-                patches.append({
-                    "name": cp.name,
-                    "ref_srgb": cp.srgb,
-                    "ref_lab": cp.lab_d50,
-                    "displayed_lab": cp.lab_d50,
-                    "delta_e": 0.0,
-                })
+                patches.append(
+                    {
+                        "name": cp.name,
+                        "ref_srgb": cp.srgb,
+                        "ref_lab": cp.lab_d50,
+                        "displayed_lab": cp.lab_d50,
+                        "delta_e": 0.0,
+                    }
+                )
             self._checker_grid.set_results(patches)
         except Exception:
             pass
@@ -952,6 +968,7 @@ class VerifyPage(QWidget):
     def _seed_grayscale_chart(self):
         """Populate the grayscale chart with realistic simulated data."""
         import random
+
         random.seed(42)  # Deterministic demo data
 
         # 11 steps from 0% to 100% in 10% increments
@@ -962,7 +979,7 @@ class VerifyPage(QWidget):
         measured = []
         delta_es = []
         for s in steps:
-            target_y = s ** target_gamma
+            target_y = s**target_gamma
             if s == 0.0:
                 # Black level — slight offset simulating backlight bleed
                 deviation = random.uniform(0.001, 0.005)
@@ -983,16 +1000,18 @@ class VerifyPage(QWidget):
 
         # Simulate per-channel data with slight inter-channel divergence
         per_channel = {}
-        for ch_name, bias in [('red', 0.006), ('green', -0.003), ('blue', 0.010)]:
+        for ch_name, bias in [("red", 0.006), ("green", -0.003), ("blue", 0.010)]:
             ch_data = []
             for _i, s in enumerate(steps):
-                target_y = s ** target_gamma
+                target_y = s**target_gamma
                 ch_dev = bias * s + random.uniform(-0.005, 0.005)
                 ch_data.append(max(0.0, min(1.0, target_y + ch_dev)))
             per_channel[ch_name] = ch_data
 
         self._gs_chart.set_data(
-            steps, target_gamma, measured,
+            steps,
+            target_gamma,
+            measured,
             per_channel=per_channel,
             delta_es=delta_es,
         )
@@ -1004,13 +1023,9 @@ class VerifyPage(QWidget):
             avg_color = C.GREEN_HI if avg_de < 1.0 else C.YELLOW if avg_de < 3.0 else C.RED
             max_color = C.GREEN_HI if max_de < 1.0 else C.YELLOW if max_de < 3.0 else C.RED
             self._gs_avg_label.setText(f"Avg grayscale dE: {avg_de:.2f}")
-            self._gs_avg_label.setStyleSheet(
-                f"font-size: 12px; color: {avg_color}; font-weight: 500;"
-            )
+            self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {avg_color}; font-weight: 500;")
             self._gs_max_label.setText(f"Max grayscale dE: {max_de:.2f}")
-            self._gs_max_label.setStyleSheet(
-                f"font-size: 12px; color: {max_color}; font-weight: 500;"
-            )
+            self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {max_color}; font-weight: 500;")
 
     # Display Detection
 
@@ -1019,6 +1034,7 @@ class VerifyPage(QWidget):
         try:
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
             from calibrate_pro.panels.detection import enumerate_displays, get_display_name
+
             self._displays = enumerate_displays()
             for i, d in enumerate(self._displays):
                 name = get_display_name(d)
@@ -1032,6 +1048,7 @@ class VerifyPage(QWidget):
         self._sensor_detected = False
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             devices = I1D3Driver.find_devices()
             self._sensor_detected = bool(devices)
         except Exception:
@@ -1039,9 +1056,7 @@ class VerifyPage(QWidget):
 
         if self._sensor_detected:
             self._method_label.setText("Sensor detected - measured verification available")
-            self._method_label.setStyleSheet(
-                f"font-size: 11px; color: {C.GREEN_HI}; font-style: italic;"
-            )
+            self._method_label.setStyleSheet(f"font-size: 11px; color: {C.GREEN_HI}; font-style: italic;")
 
     # Verification
 
@@ -1056,9 +1071,7 @@ class VerifyPage(QWidget):
         self._progress_card.setVisible(True)
         self._progress_bar.setValue(0)
         self._step_label.setText("Starting verification...")
-        self._step_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};"
-        )
+        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};")
 
         display_index = max(0, self._display_combo.currentIndex())
         self._worker = VerifyWorker(display_index)
@@ -1083,9 +1096,7 @@ class VerifyPage(QWidget):
 
         # Show completed progress
         self._step_label.setText("Verification complete")
-        self._step_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};"
-        )
+        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
         self._progress_bar.setValue(self._progress_bar.maximum())
 
         results = data
@@ -1154,9 +1165,7 @@ class VerifyPage(QWidget):
             method_text = "Predicted (sensorless)"
         method_color = avg_color
         self._method_label.setText(f"{method_text} \u2014 avg dE {avg_de:.2f}")
-        self._method_label.setStyleSheet(
-            f"font-size: 11px; color: {method_color}; font-style: italic;"
-        )
+        self._method_label.setStyleSheet(f"font-size: 11px; color: {method_color}; font-style: italic;")
 
         # Gamut coverage
         gamut = results.get("gamut_coverage", {})
@@ -1168,14 +1177,10 @@ class VerifyPage(QWidget):
         # CIE 1931 chromaticity diagram — populate with display primaries
         dp = results.get("display_primaries")
         if dp:
-            self._cie_diagram.set_display_gamut(
-                dp["R"], dp["G"], dp["B"], dp.get("W")
-            )
+            self._cie_diagram.set_display_gamut(dp["R"], dp["G"], dp["B"], dp.get("W"))
         else:
             # Clear previous overlay if no primaries available
-            self._cie_diagram.set_display_gamut(
-                (0.640, 0.330), (0.300, 0.600), (0.150, 0.060)
-            )
+            self._cie_diagram.set_display_gamut((0.640, 0.330), (0.300, 0.600), (0.150, 0.060))
 
         # Grayscale tracking chart — use data from results if available,
         # otherwise generate from the grayscale patches in the results.
@@ -1202,17 +1207,14 @@ class VerifyPage(QWidget):
             avg_c = C.GREEN_HI if gs_avg < 1.0 else C.YELLOW if gs_avg < 3.0 else C.RED
             max_c = C.GREEN_HI if gs_max < 1.0 else C.YELLOW if gs_max < 3.0 else C.RED
             self._gs_avg_label.setText(f"Avg grayscale dE: {gs_avg:.2f}")
-            self._gs_avg_label.setStyleSheet(
-                f"font-size: 12px; color: {avg_c}; font-weight: 500;"
-            )
+            self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {avg_c}; font-weight: 500;")
             self._gs_max_label.setText(f"Max grayscale dE: {gs_max:.2f}")
-            self._gs_max_label.setStyleSheet(
-                f"font-size: 12px; color: {max_c}; font-weight: 500;"
-            )
+            self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {max_c}; font-weight: 500;")
 
     def _seed_grayscale_from_patches(self, patches: list):
         """Build grayscale chart data from the neutral patches in the results."""
         import random
+
         random.seed(7)
 
         # Use 11 steps; if we have real neutral patch data, interpolate
@@ -1222,7 +1224,7 @@ class VerifyPage(QWidget):
         delta_es = []
 
         for s in steps:
-            target_y = s ** target_gamma
+            target_y = s**target_gamma
             # Add small noise to simulate measured tracking
             dev = random.uniform(-0.01, 0.015) * (1.0 + s)
             meas_y = max(0.0, min(1.0, target_y + dev))
@@ -1261,11 +1263,9 @@ class VerifyPage(QWidget):
             "         background: #fdf9f5; color: #443933; }",
             "  h1 { color: #b07878; }",
             "  table { border-collapse: collapse; margin-top: 16px; }",
-            "  th, td { border: 1px solid #ede4da; padding: 6px 14px; "
-            "            text-align: left; }",
+            "  th, td { border: 1px solid #ede4da; padding: 6px 14px;             text-align: left; }",
             "  th { background: #faf5f0; }",
-            "  .good { color: #92ad7e; } .warn { color: #e0c87a; } "
-            "  .bad { color: #d08888; }",
+            "  .good { color: #92ad7e; } .warn { color: #e0c87a; }   .bad { color: #d08888; }",
             "  @media print { body { background: white; } }",
             "</style></head><body>",
             "<h1>Calibrate Pro - Verification Report</h1>",
@@ -1281,10 +1281,7 @@ class VerifyPage(QWidget):
                 de = p.get("delta_e", 0.0)
                 css = "good" if de < 2.0 else "warn" if de < 3.0 else "bad"
                 name = p.get("name", "?")
-                lines.append(
-                    f"<tr><td>{name}</td>"
-                    f"<td class='{css}'>{de:.2f}</td></tr>"
-                )
+                lines.append(f"<tr><td>{name}</td><td class='{css}'>{de:.2f}</td></tr>")
             lines.append("</table>")
         lines.append("</body></html>")
         return "\n".join(lines)
@@ -1295,8 +1292,10 @@ class VerifyPage(QWidget):
             return
 
         path, selected_filter = QFileDialog.getSaveFileName(
-            self, "Export Verification Report", "verification_report.html",
-            "HTML Report (*.html);;PDF Report (*.pdf);;Text Report (*.txt)"
+            self,
+            "Export Verification Report",
+            "verification_report.html",
+            "HTML Report (*.html);;PDF Report (*.pdf);;Text Report (*.txt)",
         )
         if not path:
             return
@@ -1319,15 +1318,15 @@ class VerifyPage(QWidget):
                     from calibrate_pro.verification.report_generator import (
                         generate_calibration_report,
                     )
-                    with tempfile.NamedTemporaryFile(
-                        suffix=".html", delete=False, mode="w", encoding="utf-8"
-                    ) as tmp:
+
+                    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w", encoding="utf-8") as tmp:
                         tmp.write(html_content)
                         tmp_path = tmp.name
                 except Exception:
                     tmp_path = None
 
                 from calibrate_pro.verification.pdf_export import export_report_pdf
+
                 success = export_report_pdf(html_content, path)
 
                 # Clean up temp file
@@ -1341,25 +1340,20 @@ class VerifyPage(QWidget):
                     # Check if the PDF was actually created (WebEngine path)
                     # or if we fell back to browser
                     if Path(path).exists():
-                        QMessageBox.information(
-                            self, "Report Exported",
-                            f"PDF report saved to:\n{path}"
-                        )
+                        QMessageBox.information(self, "Report Exported", f"PDF report saved to:\n{path}")
                     else:
                         html_fallback = Path(path).with_suffix(".html")
                         QMessageBox.information(
-                            self, "Report Exported",
+                            self,
+                            "Report Exported",
                             f"PDF export requires a browser.\n\n"
                             f"The HTML report has been opened in your browser.\n"
                             f"Use your browser's Print > Save as PDF to create "
                             f"the PDF.\n\n"
-                            f"HTML saved at:\n{html_fallback}"
+                            f"HTML saved at:\n{html_fallback}",
                         )
                 else:
-                    QMessageBox.warning(
-                        self, "Export Error",
-                        "Could not export PDF. Please try HTML format instead."
-                    )
+                    QMessageBox.warning(self, "Export Error", "Could not export PDF. Please try HTML format instead.")
                 return
 
             # Non-PDF export: HTML or TXT
@@ -1367,6 +1361,7 @@ class VerifyPage(QWidget):
                 from calibrate_pro.verification.report_generator import (
                     generate_calibration_report,
                 )
+
                 generate_calibration_report(results, None, results, path)
             except (ImportError, Exception):
                 if path.endswith(".html"):
@@ -1411,10 +1406,7 @@ class VerifyPage(QWidget):
             return
 
         if not path.lower().endswith(".pdf"):
-            QMessageBox.information(
-                self, "Report Exported",
-                f"Verification report saved to:\n{path}"
-            )
+            QMessageBox.information(self, "Report Exported", f"Verification report saved to:\n{path}")
 
     # Helpers
 

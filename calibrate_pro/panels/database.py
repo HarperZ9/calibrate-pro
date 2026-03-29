@@ -146,6 +146,7 @@ class PanelDatabase:
 # Global database instance
 _database: PanelDatabase | None = None
 
+
 def get_database() -> PanelDatabase:
     """Get the global panel database instance."""
     global _database
@@ -153,13 +154,15 @@ def get_database() -> PanelDatabase:
         _database = PanelDatabase()
     return _database
 
+
 def find_panel_for_display(model_string: str) -> PanelCharacterization | None:
     """Convenience function to find a panel by model string."""
     return get_database().find_panel(model_string)
 
 
-def create_from_edid(edid_chromaticity: dict, monitor_name: str = "Unknown",
-                     manufacturer: str = "Unknown", gamma: float = 2.2) -> PanelCharacterization:
+def create_from_edid(
+    edid_chromaticity: dict, monitor_name: str = "Unknown", manufacturer: str = "Unknown", gamma: float = 2.2
+) -> PanelCharacterization:
     """
     Create a PanelCharacterization from EDID chromaticity data.
 
@@ -210,7 +213,7 @@ def create_from_edid(edid_chromaticity: dict, monitor_name: str = "Unknown",
     ccm = [
         [1.0 + r_shift * 0.5, -g_shift * 0.3, -b_shift * 0.2],
         [-r_shift * 0.1, 1.0 + g_shift * 0.3, -b_shift * 0.15],
-        [r_shift * 0.03, -g_shift * 0.5, 1.0 + b_shift * 0.45]
+        [r_shift * 0.03, -g_shift * 0.5, 1.0 + b_shift * 0.45],
     ]
 
     return PanelCharacterization(
@@ -221,7 +224,7 @@ def create_from_edid(edid_chromaticity: dict, monitor_name: str = "Unknown",
             red=ChromaticityCoord(red[0], red[1]),
             green=ChromaticityCoord(green[0], green[1]),
             blue=ChromaticityCoord(blue[0], blue[1]),
-            white=ChromaticityCoord(white[0], white[1])
+            white=ChromaticityCoord(white[0], white[1]),
         ),
         gamma_red=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
         gamma_green=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
@@ -235,10 +238,10 @@ def create_from_edid(edid_chromaticity: dict, monitor_name: str = "Unknown",
             hdr_capable=is_wide_gamut,
             wide_gamut=is_wide_gamut,
             vrr_capable=False,
-            local_dimming=False
+            local_dimming=False,
         ),
         color_correction_matrix=ccm,
         notes=f"Auto-generated from EDID data. Primaries: R({red[0]:.4f},{red[1]:.4f}) "
-              f"G({green[0]:.4f},{green[1]:.4f}) B({blue[0]:.4f},{blue[1]:.4f}). "
-              f"Gamma assumed {gamma}."
+        f"G({green[0]:.4f},{green[1]:.4f}) B({blue[0]:.4f},{blue[1]:.4f}). "
+        f"Gamma assumed {gamma}.",
     )

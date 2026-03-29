@@ -31,6 +31,7 @@ RESOLVE_LUT_PATHS = {
 def find_resolve_lut_dir() -> Path | None:
     """Find DaVinci Resolve's LUT directory."""
     import sys
+
     platform = sys.platform
 
     for path in RESOLVE_LUT_PATHS.get(platform, []):
@@ -45,10 +46,7 @@ def find_resolve_lut_dir() -> Path | None:
     return None
 
 
-def install_lut_to_resolve(
-    lut_path: str,
-    subfolder: str = "Calibrate Pro"
-) -> Path | None:
+def install_lut_to_resolve(lut_path: str, subfolder: str = "Calibrate Pro") -> Path | None:
     """
     Copy a calibration LUT into Resolve's LUT directory.
 

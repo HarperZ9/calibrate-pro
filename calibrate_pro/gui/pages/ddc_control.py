@@ -82,6 +82,7 @@ BLUE_SLIDER_STYLE = f"""
 
 # Helper: labeled slider row
 
+
 def _make_slider_row(
     label_text: str,
     style: str,
@@ -121,6 +122,7 @@ def _make_slider_row(
 
 # DDC Control Page
 
+
 class DDCControlPage(QWidget):
     """DDC/CI hardware control page."""
 
@@ -150,7 +152,9 @@ class DDCControlPage(QWidget):
 
         # --- Display selector ---
         selector_card, selector_layout = Card.with_layout(
-            QHBoxLayout, margins=(16, 12, 16, 12), spacing=12,
+            QHBoxLayout,
+            margins=(16, 12, 16, 12),
+            spacing=12,
         )
 
         sel_label = QLabel("Display")
@@ -172,19 +176,21 @@ class DDCControlPage(QWidget):
         bc_card, bc_layout = Card.with_layout(spacing=14)
 
         bc_heading = QLabel("Brightness & Contrast")
-        bc_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        bc_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         bc_layout.addWidget(bc_heading)
 
         row, self._brightness_slider, _ = _make_slider_row(
-            "Brightness", SLIDER_STYLE, initial=50,
+            "Brightness",
+            SLIDER_STYLE,
+            initial=50,
         )
         self._brightness_slider.valueChanged.connect(self._set_brightness)
         bc_layout.addLayout(row)
 
         row, self._contrast_slider, _ = _make_slider_row(
-            "Contrast", SLIDER_STYLE, initial=50,
+            "Contrast",
+            SLIDER_STYLE,
+            initial=50,
         )
         self._contrast_slider.valueChanged.connect(self._set_contrast)
         bc_layout.addLayout(row)
@@ -195,33 +201,34 @@ class DDCControlPage(QWidget):
         gain_card, gain_layout = Card.with_layout(spacing=14)
 
         gain_heading = QLabel("RGB Gain (highlights)")
-        gain_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        gain_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         gain_layout.addWidget(gain_heading)
 
         row, self._red_gain_slider, _ = _make_slider_row(
-            "Red", RED_SLIDER_STYLE, initial=50, label_color=C.RED,
+            "Red",
+            RED_SLIDER_STYLE,
+            initial=50,
+            label_color=C.RED,
         )
-        self._red_gain_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("RED_GAIN", v)
-        )
+        self._red_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("RED_GAIN", v))
         gain_layout.addLayout(row)
 
         row, self._green_gain_slider, _ = _make_slider_row(
-            "Green", GREEN_SLIDER_STYLE, initial=50, label_color=C.GREEN,
+            "Green",
+            GREEN_SLIDER_STYLE,
+            initial=50,
+            label_color=C.GREEN,
         )
-        self._green_gain_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("GREEN_GAIN", v)
-        )
+        self._green_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GREEN_GAIN", v))
         gain_layout.addLayout(row)
 
         row, self._blue_gain_slider, _ = _make_slider_row(
-            "Blue", BLUE_SLIDER_STYLE, initial=50, label_color=C.CYAN,
+            "Blue",
+            BLUE_SLIDER_STYLE,
+            initial=50,
+            label_color=C.CYAN,
         )
-        self._blue_gain_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("BLUE_GAIN", v)
-        )
+        self._blue_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("BLUE_GAIN", v))
         gain_layout.addLayout(row)
 
         layout.addWidget(gain_card)
@@ -230,33 +237,34 @@ class DDCControlPage(QWidget):
         offset_card, offset_layout = Card.with_layout(spacing=14)
 
         offset_heading = QLabel("RGB Offset (shadows)")
-        offset_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        offset_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         offset_layout.addWidget(offset_heading)
 
         row, self._red_offset_slider, _ = _make_slider_row(
-            "Red", RED_SLIDER_STYLE, initial=50, label_color=C.RED,
+            "Red",
+            RED_SLIDER_STYLE,
+            initial=50,
+            label_color=C.RED,
         )
-        self._red_offset_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("RED_BLACK_LEVEL", v)
-        )
+        self._red_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("RED_BLACK_LEVEL", v))
         offset_layout.addLayout(row)
 
         row, self._green_offset_slider, _ = _make_slider_row(
-            "Green", GREEN_SLIDER_STYLE, initial=50, label_color=C.GREEN,
+            "Green",
+            GREEN_SLIDER_STYLE,
+            initial=50,
+            label_color=C.GREEN,
         )
-        self._green_offset_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("GREEN_BLACK_LEVEL", v)
-        )
+        self._green_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GREEN_BLACK_LEVEL", v))
         offset_layout.addLayout(row)
 
         row, self._blue_offset_slider, _ = _make_slider_row(
-            "Blue", BLUE_SLIDER_STYLE, initial=50, label_color=C.CYAN,
+            "Blue",
+            BLUE_SLIDER_STYLE,
+            initial=50,
+            label_color=C.CYAN,
         )
-        self._blue_offset_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("BLUE_BLACK_LEVEL", v)
-        )
+        self._blue_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("BLUE_BLACK_LEVEL", v))
         offset_layout.addLayout(row)
 
         layout.addWidget(offset_card)
@@ -265,9 +273,7 @@ class DDCControlPage(QWidget):
         mode_card, mode_layout = Card.with_layout(spacing=14)
 
         mode_heading = QLabel("Display Mode")
-        mode_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        mode_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         mode_layout.addWidget(mode_heading)
 
         combo_style = (
@@ -287,15 +293,25 @@ class DDCControlPage(QWidget):
         pic_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2};")
         pic_row.addWidget(pic_label)
         self._picture_mode_combo = QComboBox()
-        self._picture_mode_combo.addItems([
-            "Standard", "Custom 1", "Custom 2", "Custom 3",
-            "sRGB", "Cinema", "Game", "FPS", "RTS",
-            "Vivid", "Eco", "User", "Filmmaker",
-        ])
-        self._picture_mode_combo.setStyleSheet(combo_style)
-        self._picture_mode_combo.currentIndexChanged.connect(
-            lambda idx: self._set_vcp_safe("IMAGE_MODE", idx)
+        self._picture_mode_combo.addItems(
+            [
+                "Standard",
+                "Custom 1",
+                "Custom 2",
+                "Custom 3",
+                "sRGB",
+                "Cinema",
+                "Game",
+                "FPS",
+                "RTS",
+                "Vivid",
+                "Eco",
+                "User",
+                "Filmmaker",
+            ]
         )
+        self._picture_mode_combo.setStyleSheet(combo_style)
+        self._picture_mode_combo.currentIndexChanged.connect(lambda idx: self._set_vcp_safe("IMAGE_MODE", idx))
         pic_row.addWidget(self._picture_mode_combo, stretch=1)
         mode_layout.addLayout(pic_row)
 
@@ -307,28 +323,39 @@ class DDCControlPage(QWidget):
         color_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2};")
         color_row.addWidget(color_label)
         self._color_preset_combo = QComboBox()
-        self._color_preset_combo.addItems([
-            "Native", "sRGB", "4000K", "5000K", "5500K",
-            "6500K", "7500K", "8200K", "9300K", "11500K",
-            "User 1", "User 2", "User 3",
-        ])
-        self._color_preset_combo.setStyleSheet(combo_style)
-        self._color_preset_combo.currentIndexChanged.connect(
-            lambda idx: self._set_vcp_safe("COLOR_PRESET", idx)
+        self._color_preset_combo.addItems(
+            [
+                "Native",
+                "sRGB",
+                "4000K",
+                "5000K",
+                "5500K",
+                "6500K",
+                "7500K",
+                "8200K",
+                "9300K",
+                "11500K",
+                "User 1",
+                "User 2",
+                "User 3",
+            ]
         )
+        self._color_preset_combo.setStyleSheet(combo_style)
+        self._color_preset_combo.currentIndexChanged.connect(lambda idx: self._set_vcp_safe("COLOR_PRESET", idx))
         color_row.addWidget(self._color_preset_combo, stretch=1)
         mode_layout.addLayout(color_row)
 
         # Gamma slider
         gamma_row, self._gamma_slider, _ = _make_slider_row(
-            "Gamma", SLIDER_STYLE, initial=22, label_color=C.TEXT,
+            "Gamma",
+            SLIDER_STYLE,
+            initial=22,
+            label_color=C.TEXT,
         )
         self._gamma_slider.setRange(10, 30)
         self._gamma_slider.setValue(22)
         self._gamma_slider.setToolTip("Gamma value x10 (22 = gamma 2.2)")
-        self._gamma_slider.valueChanged.connect(
-            lambda v: self._set_vcp_safe("GAMMA", v)
-        )
+        self._gamma_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GAMMA", v))
         mode_layout.addLayout(gamma_row)
 
         # Factory reset button (specific resets)
@@ -341,9 +368,7 @@ class DDCControlPage(QWidget):
             f"QPushButton:hover {{ border-color: {C.ACCENT}; }}"
         )
         reset_color_btn.setToolTip("VCP 0x0A: Restore factory color settings only")
-        reset_color_btn.clicked.connect(
-            lambda: self._set_vcp_safe("RESTORE_FACTORY_COLOR", 1)
-        )
+        reset_color_btn.clicked.connect(lambda: self._set_vcp_safe("RESTORE_FACTORY_COLOR", 1))
         mode_layout.addWidget(reset_color_btn)
 
         layout.addWidget(mode_card)
@@ -387,9 +412,7 @@ class DDCControlPage(QWidget):
         adv_card, adv_layout = Card.with_layout(spacing=14)
 
         adv_heading = QLabel("Advanced \u2014 Raw VCP Read/Write")
-        adv_heading.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {C.TEXT};"
-        )
+        adv_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         adv_layout.addWidget(adv_heading)
 
         adv_desc = QLabel(
@@ -503,6 +526,7 @@ class DDCControlPage(QWidget):
         """Initialize the DDC/CI controller and detect monitors."""
         try:
             from calibrate_pro.hardware.ddc_ci import DDCCIController
+
             self._controller = DDCCIController()
 
             if not self._controller.available:
@@ -549,7 +573,6 @@ class DDCControlPage(QWidget):
             return
 
         try:
-
             settings = self._controller.get_settings(self._current_monitor)
 
             # Block signals while updating sliders to avoid writing back
@@ -570,10 +593,7 @@ class DDCControlPage(QWidget):
             self._status_dot.set_color(C.GREEN)
 
         except Exception as e:
-            QMessageBox.warning(
-                self, "Read Error",
-                f"Failed to read monitor settings:\n{e}"
-            )
+            QMessageBox.warning(self, "Read Error", f"Failed to read monitor settings:\n{e}")
             self._status_dot.set_color(C.RED)
 
     def _set_brightness(self, value: int):
@@ -591,13 +611,15 @@ class DDCControlPage(QWidget):
 
         try:
             from calibrate_pro.hardware.ddc_ci import VCPCode
+
             code = getattr(VCPCode, code_name)
             self._controller.set_vcp(self._current_monitor, code, value)
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).debug("DDC set %s=%d failed: %s", code_name, value, e)
             # Show brief status feedback
-            if hasattr(self, '_status_label'):
+            if hasattr(self, "_status_label"):
                 self._status_label.setText(f"DDC command failed: {code_name}")
                 self._status_label.setStyleSheet("font-size: 11px; color: #d08888;")
 
@@ -615,12 +637,8 @@ class DDCControlPage(QWidget):
 
         code = self._vcp_code_spin.value()
         try:
-            current, maximum = self._controller.get_vcp(
-                self._current_monitor, code
-            )
-            self._vcp_result_label.setText(
-                f"VCP 0x{code:02X}:  current = {current}  |  max = {maximum}"
-            )
+            current, maximum = self._controller.get_vcp(self._current_monitor, code)
+            self._vcp_result_label.setText(f"VCP 0x{code:02X}:  current = {current}  |  max = {maximum}")
             self._vcp_result_label.setStyleSheet(
                 f"font-size: 11px; color: {C.GREEN}; "
                 f"font-family: 'Cascadia Code', 'Consolas', monospace; "
@@ -629,9 +647,7 @@ class DDCControlPage(QWidget):
             # Pre-fill the write value with the current value
             self._vcp_value_spin.setValue(current)
         except Exception as e:
-            self._vcp_result_label.setText(
-                f"Read VCP 0x{code:02X} failed: {e}"
-            )
+            self._vcp_result_label.setText(f"Read VCP 0x{code:02X} failed: {e}")
             self._vcp_result_label.setStyleSheet(
                 f"font-size: 11px; color: {C.RED}; "
                 f"font-family: 'Cascadia Code', 'Consolas', monospace; "
@@ -655,18 +671,14 @@ class DDCControlPage(QWidget):
         value = self._vcp_value_spin.value()
         try:
             self._controller.set_vcp(self._current_monitor, code, value)
-            self._vcp_result_label.setText(
-                f"VCP 0x{code:02X} set to {value}  \u2714"
-            )
+            self._vcp_result_label.setText(f"VCP 0x{code:02X} set to {value}  \u2714")
             self._vcp_result_label.setStyleSheet(
                 f"font-size: 11px; color: {C.GREEN}; "
                 f"font-family: 'Cascadia Code', 'Consolas', monospace; "
                 f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
             )
         except Exception as e:
-            self._vcp_result_label.setText(
-                f"Write VCP 0x{code:02X} = {value} failed: {e}"
-            )
+            self._vcp_result_label.setText(f"Write VCP 0x{code:02X} = {value} failed: {e}")
             self._vcp_result_label.setStyleSheet(
                 f"font-size: 11px; color: {C.RED}; "
                 f"font-family: 'Cascadia Code', 'Consolas', monospace; "
@@ -677,16 +689,13 @@ class DDCControlPage(QWidget):
     def _reset_defaults(self):
         """Reset all controls to factory defaults."""
         if not self._controller or not self._current_monitor:
-            QMessageBox.information(
-                self, "No Monitor",
-                "No DDC/CI monitor is selected."
-            )
+            QMessageBox.information(self, "No Monitor", "No DDC/CI monitor is selected.")
             return
 
         reply = QMessageBox.question(
-            self, "Reset to Default",
-            "Reset all monitor settings to factory defaults?\n\n"
-            "This sends the DDC/CI factory-reset command.",
+            self,
+            "Reset to Default",
+            "Reset all monitor settings to factory defaults?\n\nThis sends the DDC/CI factory-reset command.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -694,6 +703,7 @@ class DDCControlPage(QWidget):
 
         try:
             from calibrate_pro.hardware.ddc_ci import VCPCode
+
             self._controller.set_vcp(
                 self._current_monitor,
                 VCPCode.RESTORE_FACTORY_DEFAULTS,
@@ -702,7 +712,4 @@ class DDCControlPage(QWidget):
             # Re-read after reset
             self._read_current()
         except Exception as e:
-            QMessageBox.warning(
-                self, "Reset Error",
-                f"Factory reset failed:\n{e}"
-            )
+            QMessageBox.warning(self, "Reset Error", f"Factory reset failed:\n{e}")

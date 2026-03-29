@@ -2,7 +2,6 @@
 Dashboard Page - Connected displays and calibration status overview.
 """
 
-
 from PyQt6.QtCore import QSettings, Qt
 from PyQt6.QtGui import QGuiApplication, QScreen
 from PyQt6.QtWidgets import (
@@ -77,10 +76,10 @@ class DashboardPage(QWidget):
         stats_layout = QGridLayout(stats_group)
         stats_layout.setSpacing(12)
 
-        self.avg_delta_e = self._create_stat_widget("Avg Delta E", "0.65", COLORS['success'])
-        self.max_delta_e = self._create_stat_widget("Max Delta E", "2.93", COLORS['warning'])
-        self.profiles_count = self._create_stat_widget("ICC Profiles", "3", COLORS['accent'])
-        self.luts_count = self._create_stat_widget("3D LUTs", "2", COLORS['accent'])
+        self.avg_delta_e = self._create_stat_widget("Avg Delta E", "0.65", COLORS["success"])
+        self.max_delta_e = self._create_stat_widget("Max Delta E", "2.93", COLORS["warning"])
+        self.profiles_count = self._create_stat_widget("ICC Profiles", "3", COLORS["accent"])
+        self.luts_count = self._create_stat_widget("3D LUTs", "2", COLORS["accent"])
 
         stats_layout.addWidget(self.avg_delta_e, 0, 0)
         stats_layout.addWidget(self.max_delta_e, 0, 1)
@@ -131,8 +130,8 @@ class DashboardPage(QWidget):
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
                 padding: 8px;
             }}
@@ -164,9 +163,9 @@ class DashboardPage(QWidget):
     def _update_cm_indicator(self):
         """Update the color management status indicator."""
         if self.cm_status.is_active():
-            color = COLORS['success']
+            color = COLORS["success"]
         else:
-            color = COLORS['text_disabled']
+            color = COLORS["text_disabled"]
         self.cm_indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
 
     def update_cm_status(self):
@@ -196,13 +195,14 @@ class DashboardPage(QWidget):
 
         return frame
 
-    def _create_display_card(self, name: str, resolution: str, panel_type: str,
-                              delta_e: float, calibrated: bool) -> QFrame:
+    def _create_display_card(
+        self, name: str, resolution: str, panel_type: str, delta_e: float, calibrated: bool
+    ) -> QFrame:
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 10px;
             }}
         """)
@@ -214,7 +214,7 @@ class DashboardPage(QWidget):
         # Display icon/indicator
         indicator = QLabel()
         indicator.setFixedSize(48, 48)
-        color = COLORS['success'] if calibrated else COLORS['text_disabled']
+        color = COLORS["success"] if calibrated else COLORS["text_disabled"]
         indicator.setStyleSheet(f"""
             background-color: {color};
             border-radius: 8px;
@@ -240,7 +240,7 @@ class DashboardPage(QWidget):
 
         # Delta E display
         if calibrated:
-            de_color = COLORS['success'] if delta_e < 1 else COLORS['warning'] if delta_e < 2 else COLORS['error']
+            de_color = COLORS["success"] if delta_e < 1 else COLORS["warning"] if delta_e < 2 else COLORS["error"]
             de_frame = QFrame()
             de_frame.setStyleSheet(f"background-color: {COLORS['surface_alt']}; border-radius: 6px;")
             de_layout = QVBoxLayout(de_frame)
@@ -284,19 +284,18 @@ class DashboardPage(QWidget):
         try:
             from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
             from calibrate_pro.panels.database import PanelDatabase
+
             manager = PerDisplayCalibrationManager()
             db = PanelDatabase()
 
             for profile_data in manager.list_displays():
-                display_id = profile_data['id']
+                display_id = profile_data["id"]
                 profile = manager.get_display_profile(display_id)
-                panel = db.get_panel(profile_data.get('database_match', '')) if profile_data.get('database_match') else None
+                panel = (
+                    db.get_panel(profile_data.get("database_match", "")) if profile_data.get("database_match") else None
+                )
 
-                calibration_profiles[display_id] = {
-                    'profile': profile,
-                    'panel': panel,
-                    'data': profile_data
-                }
+                calibration_profiles[display_id] = {"profile": profile, "panel": panel, "data": profile_data}
         except Exception:
             pass
 
@@ -307,13 +306,13 @@ class DashboardPage(QWidget):
             geometry = screen.geometry()
             refresh = screen.refreshRate()
             screen.name() or f"Display {i + 1}"
-            is_primary = (screen == QGuiApplication.primaryScreen())
+            is_primary = screen == QGuiApplication.primaryScreen()
 
             # Check for real calibration data
             cal_data = calibration_profiles.get(display_id, {})
-            profile = cal_data.get('profile')
-            panel = cal_data.get('panel')
-            profile_data = cal_data.get('data', {})
+            profile = cal_data.get("profile")
+            panel = cal_data.get("panel")
+            profile_data = cal_data.get("data", {})
 
             # Build display name with manufacturer
             display_name = f"Display {display_id}"
@@ -328,8 +327,8 @@ class DashboardPage(QWidget):
             # Panel type from calibration profile or detection
             if profile and profile.panel_type:
                 panel_type = profile.panel_type
-            elif profile_data.get('panel_type'):
-                panel_type = profile_data['panel_type']
+            elif profile_data.get("panel_type"):
+                panel_type = profile_data["panel_type"]
             else:
                 panel_type = self._detect_panel_type(screen, i)
 
@@ -347,8 +346,7 @@ class DashboardPage(QWidget):
 
             # Create enhanced card with profile details
             card = self._create_display_card_enhanced(
-                display_name, res_str, panel_type, delta_e, is_calibrated,
-                profile, panel, profile_data
+                display_name, res_str, panel_type, delta_e, is_calibrated, profile, panel, profile_data
             )
             self.displays_container.addWidget(card)
 
@@ -358,15 +356,23 @@ class DashboardPage(QWidget):
             placeholder.setStyleSheet(f"color: {COLORS['text_disabled']}; padding: 20px;")
             self.displays_container.addWidget(placeholder)
 
-    def _create_display_card_enhanced(self, name: str, resolution: str, panel_type: str,
-                                       delta_e: float, calibrated: bool,
-                                       profile=None, panel=None, profile_data=None) -> QFrame:
+    def _create_display_card_enhanced(
+        self,
+        name: str,
+        resolution: str,
+        panel_type: str,
+        delta_e: float,
+        calibrated: bool,
+        profile=None,
+        panel=None,
+        profile_data=None,
+    ) -> QFrame:
         """Create an enhanced display card with calibration profile details."""
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
             }}
         """)
@@ -382,7 +388,7 @@ class DashboardPage(QWidget):
         # Display icon/indicator
         indicator = QLabel()
         indicator.setFixedSize(48, 48)
-        color = COLORS['success'] if calibrated else COLORS['text_disabled']
+        color = COLORS["success"] if calibrated else COLORS["text_disabled"]
         indicator.setStyleSheet(f"""
             background-color: {color};
             border-radius: 8px;
@@ -410,7 +416,7 @@ class DashboardPage(QWidget):
 
         # Delta E display
         if calibrated:
-            de_color = COLORS['success'] if delta_e < 1 else COLORS['warning'] if delta_e < 2 else COLORS['error']
+            de_color = COLORS["success"] if delta_e < 1 else COLORS["warning"] if delta_e < 2 else COLORS["error"]
             de_frame = QFrame()
             de_frame.setStyleSheet(f"background-color: {COLORS['surface_alt']}; border-radius: 6px;")
             de_layout = QVBoxLayout(de_frame)
@@ -439,7 +445,7 @@ class DashboardPage(QWidget):
         if calibrated and (profile or panel):
             details_frame = QFrame()
             details_frame.setStyleSheet(f"""
-                background-color: {COLORS['surface_alt']};
+                background-color: {COLORS["surface_alt"]};
                 border-radius: 6px;
                 padding: 8px;
             """)
@@ -463,6 +469,7 @@ class DashboardPage(QWidget):
                 # LUT status
                 if profile.lut_path:
                     import os
+
                     lut_name = os.path.basename(profile.lut_path)
                     self._add_detail_row(details_layout, row, "LUT:", lut_name)
                     row += 1
@@ -496,6 +503,7 @@ class DashboardPage(QWidget):
         # Try to get from panel database
         try:
             from calibrate_pro.panels.database import get_database
+
             db = get_database()
             panel = db.detect_panel(index)
             if panel:
@@ -505,7 +513,7 @@ class DashboardPage(QWidget):
 
         # Try to detect from screen name (common patterns)
         name = (screen.name() or "").upper()
-        model = (screen.model() or "").upper() if hasattr(screen, 'model') else ""
+        model = (screen.model() or "").upper() if hasattr(screen, "model") else ""
 
         if any(x in name + model for x in ["OLED", "QD-OLED", "WOLED"]):
             return "OLED"

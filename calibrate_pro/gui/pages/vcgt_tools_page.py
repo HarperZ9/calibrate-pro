@@ -84,12 +84,14 @@ class VCGTToolsPage(QWidget):
         settings_layout = QFormLayout(settings_group)
 
         self.method_combo = QComboBox()
-        self.method_combo.addItems([
-            "Neutral Axis (grayscale extraction)",
-            "Channel Maximum (preserve saturation)",
-            "Luminance Weighted (perceptual)",
-            "Diagonal Average"
-        ])
+        self.method_combo.addItems(
+            [
+                "Neutral Axis (grayscale extraction)",
+                "Channel Maximum (preserve saturation)",
+                "Luminance Weighted (perceptual)",
+                "Diagonal Average",
+            ]
+        )
         settings_layout.addRow("Extraction Method:", self.method_combo)
 
         self.output_size = QComboBox()
@@ -155,14 +157,16 @@ class VCGTToolsPage(QWidget):
         curve_preview = QFrame()
         curve_preview.setMinimumHeight(300)
         curve_preview.setStyleSheet(f"""
-            background-color: {COLORS['surface_alt']};
+            background-color: {COLORS["surface_alt"]};
             border-radius: 8px;
-            border: 1px solid {COLORS['border']};
+            border: 1px solid {COLORS["border"]};
         """)
 
-        curve_info = QLabel("Load a LUT file to preview the VCGT curves.\n\n"
-                           "Red = Red channel\nGreen = Green channel\nBlue = Blue channel\n"
-                           "Gray = Neutral diagonal")
+        curve_info = QLabel(
+            "Load a LUT file to preview the VCGT curves.\n\n"
+            "Red = Red channel\nGreen = Green channel\nBlue = Blue channel\n"
+            "Gray = Neutral diagonal"
+        )
         curve_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 16px;")
         curve_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -197,10 +201,7 @@ class VCGTToolsPage(QWidget):
     def _browse_lut(self):
         """Browse for a LUT file."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select 3D LUT File",
-            "",
-            "LUT Files (*.cube *.3dl *.mga);;All Files (*.*)"
+            self, "Select 3D LUT File", "", "LUT Files (*.cube *.3dl *.mga);;All Files (*.*)"
         )
         if file_path:
             self.lut_path.setText(file_path)
@@ -210,9 +211,10 @@ class VCGTToolsPage(QWidget):
         """Load and display LUT information."""
         try:
             from pathlib import Path
+
             path = Path(file_path)
 
-            if path.suffix.lower() == '.cube':
+            if path.suffix.lower() == ".cube":
                 # Parse CUBE file header
                 with open(path) as f:
                     lines = f.readlines()[:20]
@@ -260,7 +262,7 @@ class VCGTToolsPage(QWidget):
                 "Neutral Axis (grayscale extraction)": "neutral_axis",
                 "Channel Maximum (preserve saturation)": "channel_max",
                 "Luminance Weighted (perceptual)": "luminance",
-                "Diagonal Average": "diagonal"
+                "Diagonal Average": "diagonal",
             }
             method = method_map.get(self.method_combo.currentText(), "neutral_axis")
 
@@ -288,19 +290,21 @@ class VCGTToolsPage(QWidget):
 
             # Update stats
             import numpy as np
+
             linear = np.linspace(0, 1, vcgt.size)
             self.stats_max_r.setText(f"{np.max(np.abs(vcgt.red - linear)):.4f}")
             self.stats_max_g.setText(f"{np.max(np.abs(vcgt.green - linear)):.4f}")
             self.stats_max_b.setText(f"{np.max(np.abs(vcgt.blue - linear)):.4f}")
-            avg_dev = np.mean([np.mean(np.abs(vcgt.red - linear)),
-                              np.mean(np.abs(vcgt.green - linear)),
-                              np.mean(np.abs(vcgt.blue - linear))])
+            avg_dev = np.mean(
+                [
+                    np.mean(np.abs(vcgt.red - linear)),
+                    np.mean(np.abs(vcgt.green - linear)),
+                    np.mean(np.abs(vcgt.blue - linear)),
+                ]
+            )
             self.stats_avg.setText(f"{avg_dev:.4f}")
 
-            QMessageBox.information(
-                self, "Conversion Complete",
-                "VCGT curves exported to:\n\n" + "\n".join(exported)
-            )
+            QMessageBox.information(self, "Conversion Complete", "VCGT curves exported to:\n\n" + "\n".join(exported))
 
         except Exception as e:
             QMessageBox.critical(self, "Conversion Error", str(e))
@@ -309,28 +313,25 @@ class VCGTToolsPage(QWidget):
         """Apply VCGT to current display via Windows gamma ramp API."""
         lut_path = self.lut_path.text()
         if not lut_path:
-            QMessageBox.warning(
-                self, "No LUT",
-                "Please select and convert a 3D LUT file first."
-            )
+            QMessageBox.warning(self, "No LUT", "Please select and convert a 3D LUT file first.")
             return
 
         # Confirm with user
         reply = QMessageBox.question(
-            self, "Apply VCGT",
+            self,
+            "Apply VCGT",
             "This will apply the VCGT gamma correction to your primary display.\n\n"
             "The changes modify the Windows gamma ramp and will remain active "
             "until system restart or manual reset.\n\n"
             "Do you want to continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
+            QMessageBox.StandardButton.Yes,
         )
 
         if reply != QMessageBox.StandardButton.Yes:
             return
 
         try:
-
             from calibrate_pro.core.lut_engine import LUT3D
             from calibrate_pro.core.vcgt import apply_vcgt_windows, lut3d_to_vcgt
 
@@ -342,7 +343,7 @@ class VCGTToolsPage(QWidget):
                 "Neutral Axis (grayscale extraction)": "neutral_axis",
                 "Channel Maximum (preserve saturation)": "channel_max",
                 "Luminance Weighted (perceptual)": "luminance",
-                "Diagonal Average": "diagonal"
+                "Diagonal Average": "diagonal",
             }
             method = method_map.get(self.method_combo.currentText(), "neutral_axis")
 
@@ -354,27 +355,26 @@ class VCGTToolsPage(QWidget):
 
             if success:
                 QMessageBox.information(
-                    self, "VCGT Applied",
+                    self,
+                    "VCGT Applied",
                     "VCGT gamma correction has been applied to the primary display.\n\n"
                     "The correction is now active. To remove it:\n"
                     "- Use the 'Reset Gamma' button below, or\n"
-                    "- Restart your computer"
+                    "- Restart your computer",
                 )
             else:
                 QMessageBox.warning(
-                    self, "Application Failed",
+                    self,
+                    "Application Failed",
                     "Failed to apply VCGT. This may be due to:\n"
                     "- Insufficient permissions\n"
                     "- Display driver limitations\n"
                     "- Windows color management restrictions\n\n"
-                    "Try running as Administrator."
+                    "Try running as Administrator.",
                 )
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error",
-                f"Failed to apply VCGT:\n\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to apply VCGT:\n\n{str(e)}")
 
     def _reset_vcgt(self):
         """Reset display gamma to linear (remove VCGT correction)."""
@@ -385,13 +385,9 @@ class VCGTToolsPage(QWidget):
 
             if success:
                 QMessageBox.information(
-                    self, "Reset Complete",
-                    "Display gamma has been reset to linear (no correction)."
+                    self, "Reset Complete", "Display gamma has been reset to linear (no correction)."
                 )
             else:
-                QMessageBox.warning(
-                    self, "Reset Failed",
-                    "Failed to reset gamma ramp."
-                )
+                QMessageBox.warning(self, "Reset Failed", "Failed to reset gamma ramp.")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))

@@ -198,6 +198,7 @@ delta_e_2000 = cc_delta_e_2000
 # Common xyz_to_lab function
 xyz_to_lab = cc_xyz_to_lab
 
+
 # Common grade_to_string (returns verification grade string)
 def grade_to_string(grade) -> str:
     """Convert any verification grade to string."""
@@ -238,7 +239,6 @@ __all__ = [
     "cc_xyz_to_lab",
     "create_cc_test_measurements",
     "print_cc_summary",
-
     # -------------------------------------------------------------------------
     # Grayscale Verification
     # -------------------------------------------------------------------------
@@ -265,7 +265,6 @@ __all__ = [
     "generate_grayscale_levels",
     "create_gs_test_measurements",
     "print_gs_summary",
-
     # -------------------------------------------------------------------------
     # Gamut Volume Analysis
     # -------------------------------------------------------------------------
@@ -297,7 +296,6 @@ __all__ = [
     "gv_grade_to_string",
     "create_test_primaries",
     "print_gamut_summary",
-
     # -------------------------------------------------------------------------
     # Report Generation
     # -------------------------------------------------------------------------
@@ -311,7 +309,6 @@ __all__ = [
     "generate_recommendations",
     "create_verification_summary",
     "REPORTLAB_AVAILABLE",
-
     # -------------------------------------------------------------------------
     # Common/Convenience
     # -------------------------------------------------------------------------

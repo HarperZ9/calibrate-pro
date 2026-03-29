@@ -159,7 +159,9 @@ class SettingsPage(QWidget):
 
         # Colorimeter
         colorimeter_combo = QComboBox()
-        colorimeter_combo.addItems(["Auto-detect", "i1Display Pro", "Spyder X", "ColorChecker Display", "None (Sensorless only)"])
+        colorimeter_combo.addItems(
+            ["Auto-detect", "i1Display Pro", "Spyder X", "ColorChecker Display", "None (Sensorless only)"]
+        )
         layout.addRow("Colorimeter:", colorimeter_combo)
 
         # Correction matrix

@@ -35,64 +35,65 @@ import numpy as np
 # =============================================================================
 
 COLORCHECKER_SRGB_PATCHES = [
-    ("Dark Skin",       (0.453, 0.317, 0.264)),
-    ("Light Skin",      (0.779, 0.577, 0.505)),
-    ("Blue Sky",        (0.355, 0.480, 0.611)),
-    ("Foliage",         (0.352, 0.422, 0.253)),
-    ("Blue Flower",     (0.508, 0.502, 0.691)),
-    ("Bluish Green",    (0.362, 0.745, 0.675)),
-    ("Orange",          (0.879, 0.485, 0.183)),
-    ("Purplish Blue",   (0.266, 0.358, 0.667)),
-    ("Moderate Red",    (0.778, 0.321, 0.381)),
-    ("Purple",          (0.367, 0.227, 0.414)),
-    ("Yellow Green",    (0.623, 0.741, 0.246)),
-    ("Orange Yellow",   (0.904, 0.634, 0.154)),
-    ("Blue",            (0.139, 0.248, 0.577)),
-    ("Green",           (0.262, 0.584, 0.291)),
-    ("Red",             (0.752, 0.197, 0.178)),
-    ("Yellow",          (0.938, 0.857, 0.159)),
-    ("Magenta",         (0.752, 0.313, 0.577)),
-    ("Cyan",            (0.121, 0.544, 0.659)),
-    ("White",           (0.961, 0.961, 0.961)),
-    ("Neutral 8",       (0.784, 0.784, 0.784)),
-    ("Neutral 6.5",     (0.584, 0.584, 0.584)),
-    ("Neutral 5",       (0.420, 0.420, 0.420)),
-    ("Neutral 3.5",     (0.258, 0.258, 0.258)),
-    ("Black",           (0.085, 0.085, 0.085)),
+    ("Dark Skin", (0.453, 0.317, 0.264)),
+    ("Light Skin", (0.779, 0.577, 0.505)),
+    ("Blue Sky", (0.355, 0.480, 0.611)),
+    ("Foliage", (0.352, 0.422, 0.253)),
+    ("Blue Flower", (0.508, 0.502, 0.691)),
+    ("Bluish Green", (0.362, 0.745, 0.675)),
+    ("Orange", (0.879, 0.485, 0.183)),
+    ("Purplish Blue", (0.266, 0.358, 0.667)),
+    ("Moderate Red", (0.778, 0.321, 0.381)),
+    ("Purple", (0.367, 0.227, 0.414)),
+    ("Yellow Green", (0.623, 0.741, 0.246)),
+    ("Orange Yellow", (0.904, 0.634, 0.154)),
+    ("Blue", (0.139, 0.248, 0.577)),
+    ("Green", (0.262, 0.584, 0.291)),
+    ("Red", (0.752, 0.197, 0.178)),
+    ("Yellow", (0.938, 0.857, 0.159)),
+    ("Magenta", (0.752, 0.313, 0.577)),
+    ("Cyan", (0.121, 0.544, 0.659)),
+    ("White", (0.961, 0.961, 0.961)),
+    ("Neutral 8", (0.784, 0.784, 0.784)),
+    ("Neutral 6.5", (0.584, 0.584, 0.584)),
+    ("Neutral 5", (0.420, 0.420, 0.420)),
+    ("Neutral 3.5", (0.258, 0.258, 0.258)),
+    ("Black", (0.085, 0.085, 0.085)),
 ]
 
 # ColorChecker Classic D50 Lab reference values (for Delta E computation)
 COLORCHECKER_REFERENCE_LAB_D50 = {
-    "Dark Skin":       (37.986, 13.555, 14.059),
-    "Light Skin":      (65.711, 18.130, 17.810),
-    "Blue Sky":        (49.927, -4.880, -21.925),
-    "Foliage":         (43.139, -13.095, 21.905),
-    "Blue Flower":     (55.112, 8.844, -25.399),
-    "Bluish Green":    (70.719, -33.397, -0.199),
-    "Orange":          (62.661, 36.067, 57.096),
-    "Purplish Blue":   (40.020, 10.410, -45.964),
-    "Moderate Red":    (51.124, 48.239, 16.248),
-    "Purple":          (30.325, 22.976, -21.587),
-    "Yellow Green":    (72.532, -23.709, 57.255),
-    "Orange Yellow":   (71.941, 19.363, 67.857),
-    "Blue":            (28.778, 14.179, -50.297),
-    "Green":           (55.261, -38.342, 31.370),
-    "Red":             (42.101, 53.378, 28.190),
-    "Yellow":          (81.733, 4.039, 79.819),
-    "Magenta":         (51.935, 49.986, -14.574),
-    "Cyan":            (51.038, -28.631, -28.638),
-    "White":           (96.539, -0.425, 1.186),
-    "Neutral 8":       (81.257, -0.638, -0.335),
-    "Neutral 6.5":     (66.766, -0.734, -0.504),
-    "Neutral 5":       (50.867, -0.153, -0.270),
-    "Neutral 3.5":     (35.656, -0.421, -1.231),
-    "Black":           (20.461, -0.079, -0.973),
+    "Dark Skin": (37.986, 13.555, 14.059),
+    "Light Skin": (65.711, 18.130, 17.810),
+    "Blue Sky": (49.927, -4.880, -21.925),
+    "Foliage": (43.139, -13.095, 21.905),
+    "Blue Flower": (55.112, 8.844, -25.399),
+    "Bluish Green": (70.719, -33.397, -0.199),
+    "Orange": (62.661, 36.067, 57.096),
+    "Purplish Blue": (40.020, 10.410, -45.964),
+    "Moderate Red": (51.124, 48.239, 16.248),
+    "Purple": (30.325, 22.976, -21.587),
+    "Yellow Green": (72.532, -23.709, 57.255),
+    "Orange Yellow": (71.941, 19.363, 67.857),
+    "Blue": (28.778, 14.179, -50.297),
+    "Green": (55.261, -38.342, 31.370),
+    "Red": (42.101, 53.378, 28.190),
+    "Yellow": (81.733, 4.039, 79.819),
+    "Magenta": (51.935, 49.986, -14.574),
+    "Cyan": (51.038, -28.631, -28.638),
+    "White": (96.539, -0.425, 1.186),
+    "Neutral 8": (81.257, -0.638, -0.335),
+    "Neutral 6.5": (66.766, -0.734, -0.504),
+    "Neutral 5": (50.867, -0.153, -0.270),
+    "Neutral 3.5": (35.656, -0.421, -1.231),
+    "Black": (20.461, -0.079, -0.973),
 }
 
 
 # =============================================================================
 # Color math helpers (self-contained to avoid circular imports)
 # =============================================================================
+
 
 def _xyz_to_lab(
     xyz: tuple[float, float, float],
@@ -112,10 +113,10 @@ def _xyz_to_lab(
 
     def f(t: float) -> float:
         delta = 6.0 / 29.0
-        if t > delta ** 3:
+        if t > delta**3:
             return t ** (1.0 / 3.0)
         else:
-            return t / (3.0 * delta ** 2) + 4.0 / 29.0
+            return t / (3.0 * delta**2) + 4.0 / 29.0
 
     L = 116.0 * f(y) - 16.0
     a = 500.0 * (f(x) - f(y))
@@ -132,17 +133,17 @@ def _delta_e_2000(
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
 
-    C1 = np.sqrt(a1 ** 2 + b1 ** 2)
-    C2 = np.sqrt(a2 ** 2 + b2 ** 2)
+    C1 = np.sqrt(a1**2 + b1**2)
+    C2 = np.sqrt(a2**2 + b2**2)
     C_avg = (C1 + C2) / 2.0
 
-    G = 0.5 * (1.0 - np.sqrt(C_avg ** 7 / (C_avg ** 7 + 25.0 ** 7)))
+    G = 0.5 * (1.0 - np.sqrt(C_avg**7 / (C_avg**7 + 25.0**7)))
 
     a1p = a1 * (1.0 + G)
     a2p = a2 * (1.0 + G)
 
-    C1p = np.sqrt(a1p ** 2 + b1 ** 2)
-    C2p = np.sqrt(a2p ** 2 + b2 ** 2)
+    C1p = np.sqrt(a1p**2 + b1**2)
+    C2p = np.sqrt(a2p**2 + b2**2)
 
     h1p = np.degrees(np.arctan2(b1, a1p)) % 360.0
     h2p = np.degrees(np.arctan2(b2, a2p)) % 360.0
@@ -167,26 +168,23 @@ def _delta_e_2000(
         hp_sum += 360.0
     hp_avg = hp_sum / 2.0
 
-    T = (1.0
-         - 0.17 * np.cos(np.radians(hp_avg - 30.0))
-         + 0.24 * np.cos(np.radians(2.0 * hp_avg))
-         + 0.32 * np.cos(np.radians(3.0 * hp_avg + 6.0))
-         - 0.20 * np.cos(np.radians(4.0 * hp_avg - 63.0)))
+    T = (
+        1.0
+        - 0.17 * np.cos(np.radians(hp_avg - 30.0))
+        + 0.24 * np.cos(np.radians(2.0 * hp_avg))
+        + 0.32 * np.cos(np.radians(3.0 * hp_avg + 6.0))
+        - 0.20 * np.cos(np.radians(4.0 * hp_avg - 63.0))
+    )
 
-    d_theta = 30.0 * np.exp(-((hp_avg - 275.0) / 25.0) ** 2)
-    R_C = 2.0 * np.sqrt(Cp_avg ** 7 / (Cp_avg ** 7 + 25.0 ** 7))
+    d_theta = 30.0 * np.exp(-(((hp_avg - 275.0) / 25.0) ** 2))
+    R_C = 2.0 * np.sqrt(Cp_avg**7 / (Cp_avg**7 + 25.0**7))
 
     S_L = 1.0 + (0.015 * (Lp_avg - 50.0) ** 2) / np.sqrt(20.0 + (Lp_avg - 50.0) ** 2)
     S_C = 1.0 + 0.045 * Cp_avg
     S_H = 1.0 + 0.015 * Cp_avg * T
     R_T = -np.sin(np.radians(2.0 * d_theta)) * R_C
 
-    val = (
-        (dLp / S_L) ** 2
-        + (dCp / S_C) ** 2
-        + (dHp / S_H) ** 2
-        + R_T * (dCp / S_C) * (dHp / S_H)
-    )
+    val = (dLp / S_L) ** 2 + (dCp / S_C) ** 2 + (dHp / S_H) ** 2 + R_T * (dCp / S_C) * (dHp / S_H)
 
     return float(np.sqrt(max(0.0, val)))
 
@@ -194,6 +192,7 @@ def _delta_e_2000(
 # =============================================================================
 # ArgyllCMS backend helper
 # =============================================================================
+
 
 def _find_argyll_spotread() -> str | None:
     """Locate the ArgyllCMS ``spotread`` binary using the shared ArgyllConfig."""
@@ -203,9 +202,10 @@ def _find_argyll_spotread() -> str | None:
     # Use the project's ArgyllConfig which knows about DisplayCAL's bundled install
     try:
         from calibrate_pro.hardware.argyll_backend import ArgyllConfig
+
         config = ArgyllConfig()
         if config.find_argyll():
-            exe = "spotread.exe" if os.name == 'nt' else "spotread"
+            exe = "spotread.exe" if os.name == "nt" else "spotread"
             spotread = config.bin_path / exe
             if spotread.exists():
                 return str(spotread)
@@ -214,6 +214,7 @@ def _find_argyll_spotread() -> str | None:
 
     # Fallback: check PATH
     import shutil
+
     found = shutil.which("spotread")
     if found:
         return found
@@ -247,7 +248,7 @@ def _argyll_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, flo
 
     # Use a module-level cached backend to avoid re-initializing for each patch
     global _argyll_backend_cache
-    if '_argyll_backend_cache' not in globals() or _argyll_backend_cache is None:
+    if "_argyll_backend_cache" not in globals() or _argyll_backend_cache is None:
         config = ArgyllConfig()
         if not config.find_argyll():
             raise RuntimeError("ArgyllCMS not found")
@@ -294,6 +295,7 @@ def _manual_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, flo
 # =============================================================================
 # MeasuredVerification
 # =============================================================================
+
 
 class MeasuredVerification:
     """
@@ -381,6 +383,7 @@ class MeasuredVerification:
 
             try:
                 from calibrate_pro.panels.detection import enumerate_displays
+
                 displays = enumerate_displays()
                 if display_index < len(displays):
                     d = displays[display_index]
@@ -397,9 +400,7 @@ class MeasuredVerification:
 
             root.geometry(f"{screen_w}x{screen_h}+{screen_x}+{screen_y}")
         except Exception:
-            root.geometry(
-                f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0"
-            )
+            root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
 
         root.configure(background=hex_color)
         root.update()
@@ -460,13 +461,15 @@ class MeasuredVerification:
             status = "PASS" if de < 2.0 else ("WARN" if de < 3.0 else "FAIL")
             print(f"           dE={de:.2f} [{status}]")
 
-            patches_result.append({
-                "name": name,
-                "delta_e": de,
-                "measured_lab": measured_lab,
-                "reference_lab": ref_lab,
-                "measured_xyz": (X, Y, Z),
-            })
+            patches_result.append(
+                {
+                    "name": name,
+                    "delta_e": de,
+                    "measured_lab": measured_lab,
+                    "reference_lab": ref_lab,
+                    "measured_xyz": (X, Y, Z),
+                }
+            )
 
         de_arr = np.array(delta_e_values) if delta_e_values else np.array([0.0])
         avg_de = float(np.mean(de_arr))
@@ -554,7 +557,7 @@ class MeasuredVerification:
                 measured_gamma = 0.0
 
             # Target luminance at this step
-            target_lum = level ** target_gamma if level > 0 else 0.0
+            target_lum = level**target_gamma if level > 0 else 0.0
 
             gamma_err = abs(measured_gamma - target_gamma) if level > 0.01 else 0.0
             gamma_errors.append(gamma_err)
@@ -578,17 +581,19 @@ class MeasuredVerification:
             de = _delta_e_2000(target_lab, measured_lab)
             delta_e_values.append(de)
 
-            step_results.append({
-                "level": float(level),
-                "target_luminance": float(target_lum),
-                "measured_xyz": (X, Y, Z),
-                "measured_luminance": float(Y),
-                "relative_luminance": float(rel_lum),
-                "measured_gamma": float(measured_gamma),
-                "target_gamma": float(target_gamma),
-                "gamma_error": float(gamma_err),
-                "delta_e": float(de),
-            })
+            step_results.append(
+                {
+                    "level": float(level),
+                    "target_luminance": float(target_lum),
+                    "measured_xyz": (X, Y, Z),
+                    "measured_luminance": float(Y),
+                    "relative_luminance": float(rel_lum),
+                    "measured_gamma": float(measured_gamma),
+                    "target_gamma": float(target_gamma),
+                    "gamma_error": float(gamma_err),
+                    "delta_e": float(de),
+                }
+            )
 
         ge_arr = np.array(gamma_errors)
         de_arr = np.array(delta_e_values) if delta_e_values else np.array([0.0])

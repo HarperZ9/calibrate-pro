@@ -32,8 +32,10 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayou
 # Pattern Types
 # =============================================================================
 
+
 class PatternType(Enum):
     """Available test pattern types."""
+
     SOLID_COLOR = auto()
     GRAYSCALE_RAMP = auto()
     RGB_PRIMARIES = auto()
@@ -57,6 +59,7 @@ class PatternType(Enum):
 @dataclass
 class PatternConfig:
     """Configuration for a test pattern."""
+
     pattern_type: PatternType
     color: tuple[int, int, int] = (128, 128, 128)  # For solid color
     steps: int = 21  # For ramps
@@ -69,57 +72,58 @@ class PatternConfig:
 # Pattern Renderer
 # =============================================================================
 
+
 class PatternRenderer:
     """Renders various test patterns."""
 
     # Standard color values
     SMPTE_COLORS = [
         (192, 192, 192),  # 75% White
-        (192, 192, 0),    # 75% Yellow
-        (0, 192, 192),    # 75% Cyan
-        (0, 192, 0),      # 75% Green
-        (192, 0, 192),    # 75% Magenta
-        (192, 0, 0),      # 75% Red
-        (0, 0, 192),      # 75% Blue
+        (192, 192, 0),  # 75% Yellow
+        (0, 192, 192),  # 75% Cyan
+        (0, 192, 0),  # 75% Green
+        (192, 0, 192),  # 75% Magenta
+        (192, 0, 0),  # 75% Red
+        (0, 0, 192),  # 75% Blue
     ]
 
     EBU_COLORS = [
         (255, 255, 255),  # White
-        (255, 255, 0),    # Yellow
-        (0, 255, 255),    # Cyan
-        (0, 255, 0),      # Green
-        (255, 0, 255),    # Magenta
-        (255, 0, 0),      # Red
-        (0, 0, 255),      # Blue
-        (0, 0, 0),        # Black
+        (255, 255, 0),  # Yellow
+        (0, 255, 255),  # Cyan
+        (0, 255, 0),  # Green
+        (255, 0, 255),  # Magenta
+        (255, 0, 0),  # Red
+        (0, 0, 255),  # Blue
+        (0, 0, 0),  # Black
     ]
 
     # ColorChecker 24-patch values (sRGB approximations)
     COLORCHECKER = [
-        (115, 82, 68),    # Dark skin
+        (115, 82, 68),  # Dark skin
         (194, 150, 130),  # Light skin
-        (98, 122, 157),   # Blue sky
-        (87, 108, 67),    # Foliage
+        (98, 122, 157),  # Blue sky
+        (87, 108, 67),  # Foliage
         (133, 128, 177),  # Blue flower
         (103, 189, 170),  # Bluish green
-        (214, 126, 44),   # Orange
-        (80, 91, 166),    # Purplish blue
-        (193, 90, 99),    # Moderate red
-        (94, 60, 108),    # Purple
-        (157, 188, 64),   # Yellow green
-        (224, 163, 46),   # Orange yellow
-        (56, 61, 150),    # Blue
-        (70, 148, 73),    # Green
-        (175, 54, 60),    # Red
-        (231, 199, 31),   # Yellow
-        (187, 86, 149),   # Magenta
-        (8, 133, 161),    # Cyan
+        (214, 126, 44),  # Orange
+        (80, 91, 166),  # Purplish blue
+        (193, 90, 99),  # Moderate red
+        (94, 60, 108),  # Purple
+        (157, 188, 64),  # Yellow green
+        (224, 163, 46),  # Orange yellow
+        (56, 61, 150),  # Blue
+        (70, 148, 73),  # Green
+        (175, 54, 60),  # Red
+        (231, 199, 31),  # Yellow
+        (187, 86, 149),  # Magenta
+        (8, 133, 161),  # Cyan
         (243, 243, 242),  # White
         (200, 200, 200),  # Neutral 8
         (160, 160, 160),  # Neutral 6.5
         (122, 122, 121),  # Neutral 5
-        (85, 85, 85),     # Neutral 3.5
-        (52, 52, 52),     # Black
+        (85, 85, 85),  # Neutral 3.5
+        (52, 52, 52),  # Black
     ]
 
     @classmethod
@@ -174,14 +178,14 @@ class PatternRenderer:
     def _render_rgb_primaries(cls, painter: QPainter, rect: QRect, config: PatternConfig):
         """Render RGB primary colors with secondaries."""
         colors = [
-            (255, 0, 0),    # Red
-            (0, 255, 0),    # Green
-            (0, 0, 255),    # Blue
+            (255, 0, 0),  # Red
+            (0, 255, 0),  # Green
+            (0, 0, 255),  # Blue
             (255, 255, 0),  # Yellow
             (0, 255, 255),  # Cyan
             (255, 0, 255),  # Magenta
             (255, 255, 255),  # White
-            (0, 0, 0),      # Black
+            (0, 0, 0),  # Black
         ]
 
         cols = 4
@@ -213,10 +217,7 @@ class PatternRenderer:
         bottom_h = rect.height() - bar_height
 
         # Mini bars section
-        mini_colors = [
-            (0, 0, 192), (0, 0, 0), (192, 0, 192), (0, 0, 0),
-            (0, 192, 192), (0, 0, 0), (192, 192, 192)
-        ]
+        mini_colors = [(0, 0, 192), (0, 0, 0), (192, 0, 192), (0, 0, 0), (0, 192, 192), (0, 0, 0), (192, 192, 192)]
         for i, (r, g, b) in enumerate(mini_colors):
             x = rect.x() + i * bar_width
             w = bar_width if i < 6 else rect.width() - 6 * bar_width
@@ -352,20 +353,16 @@ class PatternRenderer:
         painter.fillRect(center_x, rect.y(), center_w // 5, rect.height(), QColor(3, 3, 3))
 
         # 0% (black)
-        painter.fillRect(center_x + center_w // 5, rect.y(), center_w // 5, rect.height(),
-                        QColor(0, 0, 0))
+        painter.fillRect(center_x + center_w // 5, rect.y(), center_w // 5, rect.height(), QColor(0, 0, 0))
 
         # +4% (just above black)
-        painter.fillRect(center_x + 2 * center_w // 5, rect.y(), center_w // 5, rect.height(),
-                        QColor(11, 11, 11))
+        painter.fillRect(center_x + 2 * center_w // 5, rect.y(), center_w // 5, rect.height(), QColor(11, 11, 11))
 
         # 7.5% (background reference)
-        painter.fillRect(center_x + 3 * center_w // 5, rect.y(), center_w // 5, rect.height(),
-                        QColor(19, 19, 19))
+        painter.fillRect(center_x + 3 * center_w // 5, rect.y(), center_w // 5, rect.height(), QColor(19, 19, 19))
 
         # 11.5% (above background)
-        painter.fillRect(center_x + 4 * center_w // 5, rect.y(), center_w // 5, rect.height(),
-                        QColor(29, 29, 29))
+        painter.fillRect(center_x + 4 * center_w // 5, rect.y(), center_w // 5, rect.height(), QColor(29, 29, 29))
 
         # Labels
         if config.show_labels:
@@ -404,7 +401,7 @@ class PatternRenderer:
             (rect.x() + corner_r + 10, rect.bottom() - corner_r - 10),
             (rect.right() - corner_r - 10, rect.bottom() - corner_r - 10),
         ]
-        for (x, y) in corners:
+        for x, y in corners:
             painter.drawEllipse(QPointF(x, y), corner_r, corner_r)
 
     @classmethod
@@ -417,8 +414,7 @@ class PatternRenderer:
         patch_size = min(rect.width(), rect.height()) // 3
         cx = rect.center().x()
         cy = rect.center().y()
-        painter.fillRect(cx - patch_size // 2, cy - patch_size // 2,
-                        patch_size, patch_size, QColor(*config.color))
+        painter.fillRect(cx - patch_size // 2, cy - patch_size // 2, patch_size, patch_size, QColor(*config.color))
 
     @classmethod
     def _render_black_level(cls, painter: QPainter, rect: QRect, config: PatternConfig):
@@ -474,6 +470,7 @@ class PatternRenderer:
 # =============================================================================
 # Pattern Window Widget
 # =============================================================================
+
 
 class PatternCanvas(QWidget):
     """Canvas widget that displays test patterns."""
@@ -679,6 +676,7 @@ class PatternWindow(QWidget):
 # Pattern Sequence Player
 # =============================================================================
 
+
 class PatternSequencer:
     """Plays sequences of patterns for automated calibration."""
 
@@ -736,10 +734,7 @@ class PatternSequencer:
         sequence = []
         for i in range(steps):
             gray = int((i / (steps - 1)) * 255) if steps > 1 else 128
-            config = PatternConfig(
-                pattern_type=PatternType.SOLID_COLOR,
-                color=(gray, gray, gray)
-            )
+            config = PatternConfig(pattern_type=PatternType.SOLID_COLOR, color=(gray, gray, gray))
             sequence.append(config)
         return sequence
 
@@ -748,10 +743,7 @@ class PatternSequencer:
         """Create ColorChecker measurement sequence."""
         sequence = []
         for r, g, b in PatternRenderer.COLORCHECKER:
-            config = PatternConfig(
-                pattern_type=PatternType.SOLID_COLOR,
-                color=(r, g, b)
-            )
+            config = PatternConfig(pattern_type=PatternType.SOLID_COLOR, color=(r, g, b))
             sequence.append(config)
         return sequence
 
@@ -760,12 +752,12 @@ class PatternSequencer:
         """Create primary/secondary color sequence."""
         colors = [
             (255, 255, 255),  # White
-            (255, 0, 0),      # Red
-            (0, 255, 0),      # Green
-            (0, 0, 255),      # Blue
-            (255, 255, 0),    # Yellow
-            (0, 255, 255),    # Cyan
-            (255, 0, 255),    # Magenta
-            (0, 0, 0),        # Black
+            (255, 0, 0),  # Red
+            (0, 255, 0),  # Green
+            (0, 0, 255),  # Blue
+            (255, 255, 0),  # Yellow
+            (0, 255, 255),  # Cyan
+            (255, 0, 255),  # Magenta
+            (0, 0, 0),  # Black
         ]
         return [PatternConfig(PatternType.SOLID_COLOR, color=c) for c in colors]

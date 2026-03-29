@@ -18,14 +18,16 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QToolTip, 
 # Delta E Classifications
 # =============================================================================
 
+
 class DeltaEQuality(Enum):
     """Quality classification based on Delta E value."""
-    IMPERCEPTIBLE = auto()   # < 1.0
-    EXCELLENT = auto()       # < 2.0
-    GOOD = auto()            # < 3.0
-    ACCEPTABLE = auto()      # < 5.0
-    NOTICEABLE = auto()      # < 10.0
-    POOR = auto()            # >= 10.0
+
+    IMPERCEPTIBLE = auto()  # < 1.0
+    EXCELLENT = auto()  # < 2.0
+    GOOD = auto()  # < 3.0
+    ACCEPTABLE = auto()  # < 5.0
+    NOTICEABLE = auto()  # < 10.0
+    POOR = auto()  # >= 10.0
 
 
 def classify_delta_e(value: float) -> DeltaEQuality:
@@ -61,6 +63,7 @@ def get_delta_e_color(value: float) -> QColor:
 @dataclass
 class DeltaEMeasurement:
     """A single Delta E measurement."""
+
     label: str
     value: float
     target_color: tuple[int, int, int] = (128, 128, 128)  # RGB
@@ -70,6 +73,7 @@ class DeltaEMeasurement:
 # =============================================================================
 # Delta E Bar Chart
 # =============================================================================
+
 
 class DeltaEBarChart(QWidget):
     """Bar chart showing Delta E values for multiple patches."""
@@ -121,15 +125,19 @@ class DeltaEBarChart(QWidget):
 
         self.update()
 
-    def add_measurement(self, label: str, value: float,
-                       target_rgb: tuple[int, int, int] = None,
-                       measured_rgb: tuple[int, int, int] = None):
+    def add_measurement(
+        self,
+        label: str,
+        value: float,
+        target_rgb: tuple[int, int, int] = None,
+        measured_rgb: tuple[int, int, int] = None,
+    ):
         """Add a single measurement."""
         m = DeltaEMeasurement(
             label=label,
             value=value,
             target_color=target_rgb or (128, 128, 128),
-            measured_color=measured_rgb or (128, 128, 128)
+            measured_color=measured_rgb or (128, 128, 128),
         )
         self.measurements.append(m)
         self.update()
@@ -270,15 +278,14 @@ class DeltaEBarChart(QWidget):
         """Draw axes and labels."""
         # Y axis
         painter.setPen(QPen(QColor("#505050"), 2))
-        painter.drawLine(
-            self.margin_left, self.margin_top,
-            self.margin_left, self.height() - self.margin_bottom
-        )
+        painter.drawLine(self.margin_left, self.margin_top, self.margin_left, self.height() - self.margin_bottom)
 
         # X axis
         painter.drawLine(
-            self.margin_left, self.height() - self.margin_bottom,
-            self.width() - self.margin_right, self.height() - self.margin_bottom
+            self.margin_left,
+            self.height() - self.margin_bottom,
+            self.width() - self.margin_right,
+            self.height() - self.margin_bottom,
         )
 
         # Y axis labels
@@ -312,9 +319,7 @@ class DeltaEBarChart(QWidget):
                     painter.restore()
                 else:
                     painter.drawText(
-                        int(rect.center().x() - 15),
-                        self.height() - self.margin_bottom + 15,
-                        measurement.label[:6]
+                        int(rect.center().x() - 15), self.height() - self.margin_bottom + 15, measurement.label[:6]
                     )
 
     def mouseMoveEvent(self, event):
@@ -353,6 +358,7 @@ class DeltaEBarChart(QWidget):
 # =============================================================================
 # Delta E Statistics Panel
 # =============================================================================
+
 
 class DeltaEStatsPanel(QWidget):
     """Statistics summary for Delta E measurements."""

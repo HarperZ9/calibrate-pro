@@ -23,20 +23,22 @@ import numpy as np
 
 class LUTType(Enum):
     """LUT type enumeration."""
+
     LUT_1D = "1d"
     LUT_3D = "3d"
 
 
 class LUTFormat(Enum):
     """Supported LUT file formats."""
-    CUBE = "cube"       # DaVinci Resolve / Adobe
-    DL3 = "3dl"         # Autodesk Lustre / Flame
-    MGA = "mga"         # Pandora
-    CAL = "cal"         # ArgyllCMS calibration
-    CSP = "csp"         # Cinespace
-    SPI3D = "spi3d"     # Sony Imageworks
-    CLF = "clf"         # ACES Common LUT Format
-    ICC = "icc"         # Embedded in ICC profile
+
+    CUBE = "cube"  # DaVinci Resolve / Adobe
+    DL3 = "3dl"  # Autodesk Lustre / Flame
+    MGA = "mga"  # Pandora
+    CAL = "cal"  # ArgyllCMS calibration
+    CSP = "csp"  # Cinespace
+    SPI3D = "spi3d"  # Sony Imageworks
+    CLF = "clf"  # ACES Common LUT Format
+    ICC = "icc"  # Embedded in ICC profile
 
 
 @dataclass
@@ -46,6 +48,7 @@ class LUT1D:
 
     Used for gamma/transfer function correction.
     """
+
     size: int
     data: np.ndarray  # Shape: (size, 3) for RGB or (size,) for single channel
     title: str = "1D LUT"
@@ -79,11 +82,11 @@ class LUT1D:
         x = np.linspace(self.input_range[0], self.input_range[1], self.size)
 
         if self.data.ndim == 1:
-            interp = interp1d(x, self.data, kind='linear', bounds_error=False, fill_value='extrapolate')
+            interp = interp1d(x, self.data, kind="linear", bounds_error=False, fill_value="extrapolate")
             result = interp(values)
         else:
             for c in range(min(3, values.shape[-1] if values.ndim > 1 else 1)):
-                interp = interp1d(x, self.data[:, c], kind='linear', bounds_error=False, fill_value='extrapolate')
+                interp = interp1d(x, self.data[:, c], kind="linear", bounds_error=False, fill_value="extrapolate")
                 if values.ndim == 1:
                     result = interp(values)
                 else:
@@ -99,6 +102,7 @@ class LUT3D:
 
     Stores RGB-to-RGB color transformation as a 3D grid.
     """
+
     size: int
     data: np.ndarray  # Shape: (size, size, size, 3)
     title: str = "3D LUT"
@@ -110,7 +114,7 @@ class LUT3D:
     def create_identity(cls, size: int = 33) -> "LUT3D":
         """Create an identity (no-op) 3D LUT."""
         coords = np.linspace(0, 1, size)
-        r, g, b = np.meshgrid(coords, coords, coords, indexing='ij')
+        r, g, b = np.meshgrid(coords, coords, coords, indexing="ij")
         data = np.stack([r, g, b], axis=-1).astype(np.float64)
         return cls(size=size, data=data)
 
@@ -132,12 +136,7 @@ class LUT3D:
 
         result = np.zeros_like(rgb)
         for c in range(3):
-            result[:, c] = map_coordinates(
-                self.data[:, :, :, c],
-                coords.T,
-                order=1,
-                mode='nearest'
-            )
+            result[:, c] = map_coordinates(self.data[:, :, :, c], coords.T, order=1, mode="nearest")
 
         if len(original_shape) == 1:
             return result[0]
@@ -157,8 +156,9 @@ class LUT3D:
             frac = idx - idx_floor
 
             # Interpolate along diagonal
-            val = (1 - frac) * self.data[idx_floor, idx_floor, idx_floor] + \
-                  frac * self.data[idx_ceil, idx_ceil, idx_ceil]
+            val = (1 - frac) * self.data[idx_floor, idx_floor, idx_floor] + frac * self.data[
+                idx_ceil, idx_ceil, idx_ceil
+            ]
             lut1d.data[i] = val
 
         lut1d.title = f"{self.title} (1D approx)"
@@ -178,13 +178,13 @@ class LUTReader:
         suffix = filepath.suffix.lower()
 
         format_map = {
-            '.cube': LUTFormat.CUBE,
-            '.3dl': LUTFormat.DL3,
-            '.mga': LUTFormat.MGA,
-            '.cal': LUTFormat.CAL,
-            '.csp': LUTFormat.CSP,
-            '.spi3d': LUTFormat.SPI3D,
-            '.clf': LUTFormat.CLF,
+            ".cube": LUTFormat.CUBE,
+            ".3dl": LUTFormat.DL3,
+            ".mga": LUTFormat.MGA,
+            ".cal": LUTFormat.CAL,
+            ".csp": LUTFormat.CSP,
+            ".spi3d": LUTFormat.SPI3D,
+            ".clf": LUTFormat.CLF,
         }
 
         return format_map.get(suffix)
@@ -231,40 +231,40 @@ class LUTReader:
         values = []
         comments = []
 
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 line = line.strip()
 
                 if not line:
                     continue
-                if line.startswith('#'):
+                if line.startswith("#"):
                     comments.append(line[1:].strip())
                     continue
 
                 upper = line.upper()
 
-                if upper.startswith('TITLE'):
+                if upper.startswith("TITLE"):
                     # Extract title from quotes or after space
                     if '"' in line:
                         title = line.split('"')[1]
                     else:
-                        title = line.split(maxsplit=1)[1] if ' ' in line else ""
+                        title = line.split(maxsplit=1)[1] if " " in line else ""
 
-                elif upper.startswith('LUT_1D_SIZE'):
+                elif upper.startswith("LUT_1D_SIZE"):
                     size_1d = int(line.split()[1])
 
-                elif upper.startswith('LUT_3D_SIZE'):
+                elif upper.startswith("LUT_3D_SIZE"):
                     size_3d = int(line.split()[1])
 
-                elif upper.startswith('DOMAIN_MIN'):
+                elif upper.startswith("DOMAIN_MIN"):
                     parts = line.split()[1:]
                     domain_min = tuple(float(p) for p in parts[:3])
 
-                elif upper.startswith('DOMAIN_MAX'):
+                elif upper.startswith("DOMAIN_MAX"):
                     parts = line.split()[1:]
                     domain_max = tuple(float(p) for p in parts[:3])
 
-                elif line[0].lstrip('-').replace('.', '').isdigit():
+                elif line[0].lstrip("-").replace(".", "").isdigit():
                     # Data line
                     parts = line.split()
                     if len(parts) >= 3:
@@ -279,21 +279,18 @@ class LUTReader:
             return LUT1D(size=size_1d, data=data, title=title)
 
         elif size_3d:
-            data = np.array(values[:size_3d**3]).reshape(size_3d, size_3d, size_3d, 3)
+            data = np.array(values[: size_3d**3]).reshape(size_3d, size_3d, size_3d, 3)
             return LUT3D(
-                size=size_3d, data=data, title=title,
-                domain_min=domain_min, domain_max=domain_max,
-                comments=comments
+                size=size_3d, data=data, title=title, domain_min=domain_min, domain_max=domain_max, comments=comments
             )
 
         else:
             # Infer size from data
             n = len(values)
-            size = int(round(n ** (1/3)))
-            if size ** 3 == n:
+            size = int(round(n ** (1 / 3)))
+            if size**3 == n:
                 data = np.array(values).reshape(size, size, size, 3)
-                return LUT3D(size=size, data=data, title=title,
-                            domain_min=domain_min, domain_max=domain_max)
+                return LUT3D(size=size, data=data, title=title, domain_min=domain_min, domain_max=domain_max)
             else:
                 data = np.array(values, dtype=np.float64)
                 if data.ndim == 1:
@@ -304,10 +301,10 @@ class LUTReader:
     def _read_3dl(filepath: Path) -> LUT3D:
         """Read .3dl format (Autodesk Lustre/Flame)."""
         lines = []
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#'):
+                if line and not line.startswith("#"):
                     lines.append(line)
 
         if not lines:
@@ -351,10 +348,10 @@ class LUTReader:
     def _read_mga(filepath: Path) -> LUT3D:
         """Read .mga format (Pandora)."""
         lines = []
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#'):
+                if line and not line.startswith("#"):
                     lines.append(line)
 
         if not lines:
@@ -383,12 +380,12 @@ class LUTReader:
     @staticmethod
     def _read_cal(filepath: Path) -> LUT1D:
         """Read .cal format (ArgyllCMS calibration curves)."""
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         # Parse CAL format
         # Format: keyword value pairs and data section
-        lines = content.strip().split('\n')
+        lines = content.strip().split("\n")
 
         title = "ArgyllCMS Calibration"
         data = []
@@ -397,20 +394,20 @@ class LUTReader:
         for line in lines:
             line = line.strip()
 
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
 
-            if line.upper().startswith('DESCRIPTOR'):
+            if line.upper().startswith("DESCRIPTOR"):
                 title = line.split('"')[1] if '"' in line else "CAL LUT"
 
-            elif line.upper().startswith('NUMBER_OF_SETS') or line.upper().startswith('NUMBER_OF_FIELDS'):
+            elif line.upper().startswith("NUMBER_OF_SETS") or line.upper().startswith("NUMBER_OF_FIELDS"):
                 int(line.split()[1])
 
-            elif line.upper() == 'BEGIN_DATA':
+            elif line.upper() == "BEGIN_DATA":
                 in_data = True
                 continue
 
-            elif line.upper() == 'END_DATA':
+            elif line.upper() == "END_DATA":
                 in_data = False
                 continue
 
@@ -437,7 +434,7 @@ class LUTReader:
     @staticmethod
     def _read_csp(filepath: Path) -> LUT3D:
         """Read .csp format (Cinespace)."""
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             lines = [line.strip() for line in f if line.strip()]
 
         idx = 0
@@ -448,17 +445,17 @@ class LUTReader:
         # Skip header
         while idx < len(lines):
             line = lines[idx]
-            if line.upper() == 'CSPLUTV100':
+            if line.upper() == "CSPLUTV100":
                 idx += 1
                 continue
-            elif line.upper() in ('1D', '3D'):
+            elif line.upper() in ("1D", "3D"):
                 line.upper()
                 idx += 1
                 continue
-            elif line.upper().startswith('BEGIN METADATA'):
+            elif line.upper().startswith("BEGIN METADATA"):
                 idx += 1
-                while idx < len(lines) and not lines[idx].upper().startswith('END METADATA'):
-                    if 'TITLE' in lines[idx].upper():
+                while idx < len(lines) and not lines[idx].upper().startswith("END METADATA"):
+                    if "TITLE" in lines[idx].upper():
                         title = lines[idx].split('"')[1] if '"' in lines[idx] else ""
                     idx += 1
                 idx += 1
@@ -469,7 +466,7 @@ class LUTReader:
                     int(lines[idx])
                     idx += 1
                     # Skip shaper lines
-                    while idx < len(lines) and lines[idx] and lines[idx][0] != '\n':
+                    while idx < len(lines) and lines[idx] and lines[idx][0] != "\n":
                         parts = lines[idx].split()
                         if len(parts) == 2:
                             idx += 1
@@ -500,8 +497,8 @@ class LUTReader:
     @staticmethod
     def _read_spi3d(filepath: Path) -> LUT3D:
         """Read .spi3d format (Sony Imageworks)."""
-        with open(filepath, encoding='utf-8', errors='ignore') as f:
-            lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
+            lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
         # First line: "SPILUT 1.0"
         # Second line: "3 3" (dimensions)
@@ -540,38 +537,38 @@ class LUTReader:
         root = tree.getroot()
 
         # Handle namespace
-        ns = {'clf': 'urn:AMPAS:CLF:v3.0'}
-        if root.tag.startswith('{'):
-            ns_uri = root.tag.split('}')[0][1:]
-            ns = {'clf': ns_uri}
+        ns = {"clf": "urn:AMPAS:CLF:v3.0"}
+        if root.tag.startswith("{"):
+            ns_uri = root.tag.split("}")[0][1:]
+            ns = {"clf": ns_uri}
 
         title = "CLF LUT"
 
         # Find ProcessList
-        process_list = root.find('.//clf:ProcessList', ns) or root.find('.//ProcessList')
+        process_list = root.find(".//clf:ProcessList", ns) or root.find(".//ProcessList")
 
         if process_list is None:
             # Try without namespace
-            process_list = root.find('.//ProcessList')
+            process_list = root.find(".//ProcessList")
 
         if process_list is None:
             raise ValueError("No ProcessList found in CLF file")
 
         # Find LUT3D element
-        lut3d_elem = process_list.find('.//clf:LUT3D', ns)
+        lut3d_elem = process_list.find(".//clf:LUT3D", ns)
         if lut3d_elem is None:
-            lut3d_elem = process_list.find('.//LUT3D')
+            lut3d_elem = process_list.find(".//LUT3D")
 
         if lut3d_elem is None:
             raise ValueError("No LUT3D found in CLF file")
 
         # Get dimensions
-        grid_size = lut3d_elem.get('gridSize', '33 33 33')
+        grid_size = lut3d_elem.get("gridSize", "33 33 33")
         sizes = [int(x) for x in grid_size.split()]
         size = sizes[0]
 
         # Get array data
-        array_elem = lut3d_elem.find('.//clf:Array', ns) or lut3d_elem.find('.//Array')
+        array_elem = lut3d_elem.find(".//clf:Array", ns) or lut3d_elem.find(".//Array")
 
         if array_elem is not None:
             text = array_elem.text.strip()
@@ -589,12 +586,7 @@ class LUTWriter:
     """
 
     @classmethod
-    def write(
-        cls,
-        lut: LUT1D | LUT3D,
-        filepath: str | Path,
-        fmt: LUTFormat | None = None
-    ):
+    def write(cls, lut: LUT1D | LUT3D, filepath: str | Path, fmt: LUTFormat | None = None):
         """
         Write LUT to file.
 
@@ -633,52 +625,52 @@ class LUTWriter:
     @staticmethod
     def _write_cube_1d(lut: LUT1D, filepath: Path):
         """Write 1D LUT in .cube format."""
-        with open(filepath, 'w') as f:
-            f.write('# Calibrate Pro 1D LUT\n')
+        with open(filepath, "w") as f:
+            f.write("# Calibrate Pro 1D LUT\n")
             f.write(f'TITLE "{lut.title}"\n')
-            f.write(f'LUT_1D_SIZE {lut.size}\n')
-            f.write(f'DOMAIN_MIN {lut.input_range[0]:.6f} {lut.input_range[0]:.6f} {lut.input_range[0]:.6f}\n')
-            f.write(f'DOMAIN_MAX {lut.input_range[1]:.6f} {lut.input_range[1]:.6f} {lut.input_range[1]:.6f}\n')
-            f.write('\n')
+            f.write(f"LUT_1D_SIZE {lut.size}\n")
+            f.write(f"DOMAIN_MIN {lut.input_range[0]:.6f} {lut.input_range[0]:.6f} {lut.input_range[0]:.6f}\n")
+            f.write(f"DOMAIN_MAX {lut.input_range[1]:.6f} {lut.input_range[1]:.6f} {lut.input_range[1]:.6f}\n")
+            f.write("\n")
 
             for i in range(lut.size):
                 if lut.data.ndim == 1:
                     val = lut.data[i]
-                    f.write(f'{val:.6f} {val:.6f} {val:.6f}\n')
+                    f.write(f"{val:.6f} {val:.6f} {val:.6f}\n")
                 else:
-                    f.write(f'{lut.data[i, 0]:.6f} {lut.data[i, 1]:.6f} {lut.data[i, 2]:.6f}\n')
+                    f.write(f"{lut.data[i, 0]:.6f} {lut.data[i, 1]:.6f} {lut.data[i, 2]:.6f}\n")
 
     @staticmethod
     def _write_cube_3d(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .cube format."""
-        with open(filepath, 'w') as f:
-            f.write('# Calibrate Pro 3D LUT\n')
+        with open(filepath, "w") as f:
+            f.write("# Calibrate Pro 3D LUT\n")
             for comment in lut.comments:
-                f.write(f'# {comment}\n')
+                f.write(f"# {comment}\n")
             f.write(f'TITLE "{lut.title}"\n')
-            f.write(f'LUT_3D_SIZE {lut.size}\n')
-            f.write(f'DOMAIN_MIN {lut.domain_min[0]:.6f} {lut.domain_min[1]:.6f} {lut.domain_min[2]:.6f}\n')
-            f.write(f'DOMAIN_MAX {lut.domain_max[0]:.6f} {lut.domain_max[1]:.6f} {lut.domain_max[2]:.6f}\n')
-            f.write('\n')
+            f.write(f"LUT_3D_SIZE {lut.size}\n")
+            f.write(f"DOMAIN_MIN {lut.domain_min[0]:.6f} {lut.domain_min[1]:.6f} {lut.domain_min[2]:.6f}\n")
+            f.write(f"DOMAIN_MAX {lut.domain_max[0]:.6f} {lut.domain_max[1]:.6f} {lut.domain_max[2]:.6f}\n")
+            f.write("\n")
 
             # Write in standard order (B changes fastest, then G, then R)
             for r in range(lut.size):
                 for g in range(lut.size):
                     for b in range(lut.size):
                         val = lut.data[r, g, b]
-                        f.write(f'{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n')
+                        f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
     @staticmethod
     def _write_3dl(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .3dl format (12-bit integers)."""
         max_val = 4095  # 12-bit
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             # Write input shaper
             for i in range(lut.size):
                 val = int(i / (lut.size - 1) * max_val)
-                f.write(f'{val} ')
-            f.write('\n')
+                f.write(f"{val} ")
+            f.write("\n")
 
             # Write LUT data (BGR order)
             for b in range(lut.size):
@@ -688,37 +680,37 @@ class LUTWriter:
                         r_int = int(np.clip(val[0], 0, 1) * max_val)
                         g_int = int(np.clip(val[1], 0, 1) * max_val)
                         b_int = int(np.clip(val[2], 0, 1) * max_val)
-                        f.write(f' {r_int} {g_int} {b_int}\n')
+                        f.write(f" {r_int} {g_int} {b_int}\n")
 
     @staticmethod
     def _write_mga(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .mga format (Pandora)."""
-        with open(filepath, 'w') as f:
-            f.write('LUT8\n')
-            f.write(f'{lut.size}\n')
+        with open(filepath, "w") as f:
+            f.write("LUT8\n")
+            f.write(f"{lut.size}\n")
 
             # BGR order
             for b in range(lut.size):
                 for g in range(lut.size):
                     for r in range(lut.size):
                         val = lut.data[r, g, b]
-                        f.write(f'{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n')
+                        f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
     @staticmethod
     def _write_cal(lut: LUT1D, filepath: Path):
         """Write 1D LUT in .cal format (ArgyllCMS)."""
-        with open(filepath, 'w') as f:
-            f.write('CAL\n\n')
+        with open(filepath, "w") as f:
+            f.write("CAL\n\n")
             f.write(f'DESCRIPTOR "{lut.title}"\n')
             f.write('ORIGINATOR "Calibrate Pro"\n')
             f.write('DEVICE_CLASS "DISPLAY"\n')
             f.write('COLOR_REP "RGB"\n\n')
-            f.write('NUMBER_OF_FIELDS 4\n')
-            f.write('BEGIN_DATA_FORMAT\n')
-            f.write('RGB_I RGB_R RGB_G RGB_B\n')
-            f.write('END_DATA_FORMAT\n\n')
-            f.write(f'NUMBER_OF_SETS {lut.size}\n')
-            f.write('BEGIN_DATA\n')
+            f.write("NUMBER_OF_FIELDS 4\n")
+            f.write("BEGIN_DATA_FORMAT\n")
+            f.write("RGB_I RGB_R RGB_G RGB_B\n")
+            f.write("END_DATA_FORMAT\n\n")
+            f.write(f"NUMBER_OF_SETS {lut.size}\n")
+            f.write("BEGIN_DATA\n")
 
             for i in range(lut.size):
                 t = i / (lut.size - 1)
@@ -726,42 +718,42 @@ class LUTWriter:
                     r = g = b = lut.data[i]
                 else:
                     r, g, b = lut.data[i]
-                f.write(f'{t:.6f} {r:.6f} {g:.6f} {b:.6f}\n')
+                f.write(f"{t:.6f} {r:.6f} {g:.6f} {b:.6f}\n")
 
-            f.write('END_DATA\n')
+            f.write("END_DATA\n")
 
     @staticmethod
     def _write_csp(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .csp format (Cinespace)."""
-        with open(filepath, 'w') as f:
-            f.write('CSPLUTV100\n')
-            f.write('3D\n\n')
+        with open(filepath, "w") as f:
+            f.write("CSPLUTV100\n")
+            f.write("3D\n\n")
 
-            f.write('BEGIN METADATA\n')
+            f.write("BEGIN METADATA\n")
             f.write(f'TITLE "{lut.title}"\n')
-            f.write('END METADATA\n\n')
+            f.write("END METADATA\n\n")
 
             # Identity shapers for RGB
             for _ in range(3):
-                f.write('2\n')
-                f.write('0.0 1.0\n')
-                f.write('0.0 1.0\n\n')
+                f.write("2\n")
+                f.write("0.0 1.0\n")
+                f.write("0.0 1.0\n\n")
 
-            f.write(f'{lut.size} {lut.size} {lut.size}\n')
+            f.write(f"{lut.size} {lut.size} {lut.size}\n")
 
             for b in range(lut.size):
                 for g in range(lut.size):
                     for r in range(lut.size):
                         val = lut.data[r, g, b]
-                        f.write(f'{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n')
+                        f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
     @staticmethod
     def _write_spi3d(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .spi3d format (Sony Imageworks)."""
-        with open(filepath, 'w') as f:
-            f.write('SPILUT 1.0\n')
-            f.write('3 3\n')
-            f.write(f'{lut.size} {lut.size} {lut.size}\n')
+        with open(filepath, "w") as f:
+            f.write("SPILUT 1.0\n")
+            f.write("3 3\n")
+            f.write(f"{lut.size} {lut.size} {lut.size}\n")
 
             for r in range(lut.size):
                 for g in range(lut.size):
@@ -770,70 +762,57 @@ class LUTWriter:
                         g_in = g / (lut.size - 1)
                         b_in = b / (lut.size - 1)
                         val = lut.data[r, g, b]
-                        f.write(f'{r_in:.6f} {g_in:.6f} {b_in:.6f} {val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n')
+                        f.write(f"{r_in:.6f} {g_in:.6f} {b_in:.6f} {val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
     @staticmethod
     def _write_clf(lut: LUT3D, filepath: Path):
         """Write 3D LUT in .clf format (ACES Common LUT Format)."""
-        ns = 'urn:AMPAS:CLF:v3.0'
+        ns = "urn:AMPAS:CLF:v3.0"
 
-        root = ET.Element('ProcessList', {
-            'xmlns': ns,
-            'id': lut.title.replace(' ', '_'),
-            'compCLFversion': '3.0'
-        })
+        root = ET.Element("ProcessList", {"xmlns": ns, "id": lut.title.replace(" ", "_"), "compCLFversion": "3.0"})
 
         # Description
-        desc = ET.SubElement(root, 'Description')
+        desc = ET.SubElement(root, "Description")
         desc.text = lut.title
 
         # LUT3D element
-        lut3d = ET.SubElement(root, 'LUT3D', {
-            'id': 'lut3d',
-            'interpolation': 'trilinear',
-            'gridSize': f'{lut.size} {lut.size} {lut.size}'
-        })
+        lut3d = ET.SubElement(
+            root,
+            "LUT3D",
+            {"id": "lut3d", "interpolation": "trilinear", "gridSize": f"{lut.size} {lut.size} {lut.size}"},
+        )
 
         # Array data
-        array = ET.SubElement(lut3d, 'Array', {
-            'dim': f'{lut.size} {lut.size} {lut.size} 3'
-        })
+        array = ET.SubElement(lut3d, "Array", {"dim": f"{lut.size} {lut.size} {lut.size} 3"})
 
         values = []
         for r in range(lut.size):
             for g in range(lut.size):
                 for b in range(lut.size):
                     val = lut.data[r, g, b]
-                    values.extend([f'{val[0]:.6f}', f'{val[1]:.6f}', f'{val[2]:.6f}'])
+                    values.extend([f"{val[0]:.6f}", f"{val[1]:.6f}", f"{val[2]:.6f}"])
 
-        array.text = '\n' + ' '.join(values) + '\n'
+        array.text = "\n" + " ".join(values) + "\n"
 
         tree = ET.ElementTree(root)
-        ET.indent(tree, space='  ')
-        tree.write(filepath, encoding='utf-8', xml_declaration=True)
+        ET.indent(tree, space="  ")
+        tree.write(filepath, encoding="utf-8", xml_declaration=True)
 
 
 # Convenience functions
+
 
 def load_lut(filepath: str | Path) -> LUT1D | LUT3D:
     """Load a LUT file (auto-detect format)."""
     return LUTReader.read(filepath)
 
 
-def save_lut(
-    lut: LUT1D | LUT3D,
-    filepath: str | Path,
-    fmt: LUTFormat | None = None
-):
+def save_lut(lut: LUT1D | LUT3D, filepath: str | Path, fmt: LUTFormat | None = None):
     """Save a LUT to file."""
     LUTWriter.write(lut, filepath, fmt)
 
 
-def convert_lut(
-    input_path: str | Path,
-    output_path: str | Path,
-    output_format: LUTFormat | None = None
-):
+def convert_lut(input_path: str | Path, output_path: str | Path, output_format: LUTFormat | None = None):
     """Convert LUT between formats."""
     lut = load_lut(input_path)
     save_lut(lut, output_path, output_format)

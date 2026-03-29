@@ -26,8 +26,10 @@ import numpy as np
 # ADL Constants and Types
 # =============================================================================
 
+
 class ADLStatus(IntEnum):
     """ADL return status codes."""
+
     OK = 0
     ERR = -1
     ERR_NOT_INIT = -2
@@ -47,6 +49,7 @@ class ADLStatus(IntEnum):
 
 class ADLColorType(IntEnum):
     """ADL color control types."""
+
     BRIGHTNESS = 1
     CONTRAST = 2
     SATURATION = 3
@@ -59,6 +62,7 @@ class ADLColorType(IntEnum):
 
 class ADLColorDepth(IntEnum):
     """Color depth options."""
+
     BPC_6 = 6
     BPC_8 = 8
     BPC_10 = 10
@@ -68,6 +72,7 @@ class ADLColorDepth(IntEnum):
 
 class ADLPixelFormat(IntEnum):
     """Pixel format options."""
+
     RGB = 0
     YCRCB444 = 1
     YCRCB422 = 2
@@ -82,91 +87,99 @@ ADL_MAIN_MALLOC_CALLBACK = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_int)
 # ADL Structures
 # =============================================================================
 
+
 class ADLAdapterInfo(Structure):
     """ADL adapter information structure."""
+
     _fields_ = [
-        ('iSize', c_int),
-        ('iAdapterIndex', c_int),
-        ('strUDID', c_char * 256),
-        ('iBusNumber', c_int),
-        ('iDeviceNumber', c_int),
-        ('iFunctionNumber', c_int),
-        ('iVendorID', c_int),
-        ('strAdapterName', c_char * 256),
-        ('strDisplayName', c_char * 256),
-        ('iPresent', c_int),
-        ('iExist', c_int),
-        ('strDriverPath', c_char * 256),
-        ('strDriverPathExt', c_char * 256),
-        ('strPNPString', c_char * 256),
-        ('iOSDisplayIndex', c_int),
+        ("iSize", c_int),
+        ("iAdapterIndex", c_int),
+        ("strUDID", c_char * 256),
+        ("iBusNumber", c_int),
+        ("iDeviceNumber", c_int),
+        ("iFunctionNumber", c_int),
+        ("iVendorID", c_int),
+        ("strAdapterName", c_char * 256),
+        ("strDisplayName", c_char * 256),
+        ("iPresent", c_int),
+        ("iExist", c_int),
+        ("strDriverPath", c_char * 256),
+        ("strDriverPathExt", c_char * 256),
+        ("strPNPString", c_char * 256),
+        ("iOSDisplayIndex", c_int),
     ]
 
 
 class ADLDisplayInfo(Structure):
     """ADL display information structure."""
+
     _fields_ = [
-        ('displayID', c_int * 2),  # ADLDisplayID
-        ('iDisplayControllerIndex', c_int),
-        ('strDisplayName', c_char * 256),
-        ('strDisplayManufacturerName', c_char * 256),
-        ('iDisplayType', c_int),
-        ('iDisplayOutputType', c_int),
-        ('iDisplayConnector', c_int),
-        ('iDisplayInfoMask', c_int),
-        ('iDisplayInfoValue', c_int),
+        ("displayID", c_int * 2),  # ADLDisplayID
+        ("iDisplayControllerIndex", c_int),
+        ("strDisplayName", c_char * 256),
+        ("strDisplayManufacturerName", c_char * 256),
+        ("iDisplayType", c_int),
+        ("iDisplayOutputType", c_int),
+        ("iDisplayConnector", c_int),
+        ("iDisplayInfoMask", c_int),
+        ("iDisplayInfoValue", c_int),
     ]
 
 
 class ADLDisplayID(Structure):
     """ADL display ID structure."""
+
     _fields_ = [
-        ('iDisplayLogicalIndex', c_int),
-        ('iDisplayPhysicalIndex', c_int),
-        ('iDisplayLogicalAdapterIndex', c_int),
-        ('iDisplayPhysicalAdapterIndex', c_int),
+        ("iDisplayLogicalIndex", c_int),
+        ("iDisplayPhysicalIndex", c_int),
+        ("iDisplayLogicalAdapterIndex", c_int),
+        ("iDisplayPhysicalAdapterIndex", c_int),
     ]
 
 
 class ADLGamma(Structure):
     """ADL gamma structure."""
+
     _fields_ = [
-        ('fRed', c_float),
-        ('fGreen', c_float),
-        ('fBlue', c_float),
+        ("fRed", c_float),
+        ("fGreen", c_float),
+        ("fBlue", c_float),
     ]
 
 
 class ADLColorValue(Structure):
     """ADL color value structure (for brightness, contrast, saturation, hue)."""
+
     _fields_ = [
-        ('iCurrent', c_int),
-        ('iDefault', c_int),
-        ('iMin', c_int),
-        ('iMax', c_int),
-        ('iStep', c_int),
+        ("iCurrent", c_int),
+        ("iDefault", c_int),
+        ("iMin", c_int),
+        ("iMax", c_int),
+        ("iStep", c_int),
     ]
 
 
 class ADLDisplayColorCaps(Structure):
     """ADL display color capabilities."""
+
     _fields_ = [
-        ('iColorType', c_int),  # Type of color setting
-        ('iExpColorCaps', c_int),  # Extended capabilities
-        ('iReserved1', c_int),
-        ('iReserved2', c_int),
+        ("iColorType", c_int),  # Type of color setting
+        ("iExpColorCaps", c_int),  # Extended capabilities
+        ("iReserved1", c_int),
+        ("iReserved2", c_int),
     ]
 
 
 class ADLCustomMode(Structure):
     """ADL custom color mode structure."""
+
     _fields_ = [
-        ('iFlags', c_int),
-        ('iModeWidth', c_int),
-        ('iModeHeight', c_int),
-        ('iBaseModeWidth', c_int),
-        ('iBaseModeHeight', c_int),
-        ('iRefreshRate', c_int),
+        ("iFlags", c_int),
+        ("iModeWidth", c_int),
+        ("iModeHeight", c_int),
+        ("iBaseModeWidth", c_int),
+        ("iBaseModeHeight", c_int),
+        ("iRefreshRate", c_int),
     ]
 
 
@@ -174,9 +187,11 @@ class ADLCustomMode(Structure):
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class AMDDisplay:
     """AMD display information."""
+
     adapter_index: int
     display_index: int
     logical_index: int
@@ -196,6 +211,7 @@ class AMDDisplay:
 @dataclass
 class AMDAdapter:
     """AMD adapter (GPU) information."""
+
     index: int
     name: str
     display_name: str
@@ -208,16 +224,18 @@ class AMDAdapter:
 @dataclass
 class ColorSettings:
     """Display color settings."""
-    brightness: int = 50   # 0 to 100
-    contrast: int = 50     # 0 to 100
+
+    brightness: int = 50  # 0 to 100
+    contrast: int = 50  # 0 to 100
     saturation: int = 100  # 0 to 200
-    hue: int = 0           # 0 to 360
-    color_temp: int = 6500 # Color temperature in Kelvin
-    gamma: float = 1.0     # 0.4 to 2.8
+    hue: int = 0  # 0 to 360
+    color_temp: int = 6500  # Color temperature in Kelvin
+    gamma: float = 1.0  # 0.4 to 2.8
 
 
 class AMDAPIError(Exception):
     """AMD API error."""
+
     pass
 
 
@@ -239,6 +257,7 @@ def _adl_malloc(size: int) -> int:
 # =============================================================================
 # Main AMD API Class
 # =============================================================================
+
 
 class AMDAPI:
     """
@@ -304,22 +323,18 @@ class AMDAPI:
     def _try_init_adl2(self) -> bool:
         """Try to initialize ADL version 2."""
         try:
-            if not hasattr(self._adl, 'ADL2_Main_Control_Create'):
+            if not hasattr(self._adl, "ADL2_Main_Control_Create"):
                 return False
 
             ADL2_Main_Control_Create = self._adl.ADL2_Main_Control_Create
             ADL2_Main_Control_Create.restype = c_int
-            ADL2_Main_Control_Create.argtypes = [
-                ADL_MAIN_MALLOC_CALLBACK,
-                c_int,
-                POINTER(c_void_p)
-            ]
+            ADL2_Main_Control_Create.argtypes = [ADL_MAIN_MALLOC_CALLBACK, c_int, POINTER(c_void_p)]
 
             context = c_void_p()
             status = ADL2_Main_Control_Create(
                 self._malloc_callback,
                 1,  # Retrieve adapter information for all adapters
-                byref(context)
+                byref(context),
             )
 
             if status == ADLStatus.OK:
@@ -335,7 +350,7 @@ class AMDAPI:
     def _try_init_adl1(self) -> bool:
         """Try to initialize ADL version 1."""
         try:
-            if not hasattr(self._adl, 'ADL_Main_Control_Create'):
+            if not hasattr(self._adl, "ADL_Main_Control_Create"):
                 return False
 
             ADL_Main_Control_Create = self._adl.ADL_Main_Control_Create
@@ -357,7 +372,7 @@ class AMDAPI:
             # Get number of adapters
             num_adapters = c_int(0)
 
-            if hasattr(self._adl, 'ADL_Adapter_NumberOfAdapters_Get'):
+            if hasattr(self._adl, "ADL_Adapter_NumberOfAdapters_Get"):
                 self._adl.ADL_Adapter_NumberOfAdapters_Get.restype = c_int
                 self._adl.ADL_Adapter_NumberOfAdapters_Get.argtypes = [POINTER(c_int)]
                 self._adl.ADL_Adapter_NumberOfAdapters_Get(byref(num_adapters))
@@ -368,16 +383,10 @@ class AMDAPI:
             # Get adapter info
             adapter_info_array = (ADLAdapterInfo * num_adapters.value)()
 
-            if hasattr(self._adl, 'ADL_Adapter_AdapterInfo_Get'):
+            if hasattr(self._adl, "ADL_Adapter_AdapterInfo_Get"):
                 self._adl.ADL_Adapter_AdapterInfo_Get.restype = c_int
-                self._adl.ADL_Adapter_AdapterInfo_Get.argtypes = [
-                    POINTER(ADLAdapterInfo * num_adapters.value),
-                    c_int
-                ]
-                status = self._adl.ADL_Adapter_AdapterInfo_Get(
-                    byref(adapter_info_array),
-                    sizeof(adapter_info_array)
-                )
+                self._adl.ADL_Adapter_AdapterInfo_Get.argtypes = [POINTER(ADLAdapterInfo * num_adapters.value), c_int]
+                status = self._adl.ADL_Adapter_AdapterInfo_Get(byref(adapter_info_array), sizeof(adapter_info_array))
 
                 if status == ADLStatus.OK:
                     for i in range(num_adapters.value):
@@ -385,7 +394,7 @@ class AMDAPI:
 
                         # Check if adapter is active
                         is_active = False
-                        if hasattr(self._adl, 'ADL_Adapter_Active_Get'):
+                        if hasattr(self._adl, "ADL_Adapter_Active_Get"):
                             active = c_int(0)
                             self._adl.ADL_Adapter_Active_Get.restype = c_int
                             self._adl.ADL_Adapter_Active_Get.argtypes = [c_int, POINTER(c_int)]
@@ -393,15 +402,17 @@ class AMDAPI:
                                 is_active = bool(active.value)
 
                         if info.iPresent or is_active:
-                            self._adapters.append(AMDAdapter(
-                                index=info.iAdapterIndex,
-                                name=info.strAdapterName.decode('utf-8', errors='ignore').strip(),
-                                display_name=info.strDisplayName.decode('utf-8', errors='ignore').strip(),
-                                is_present=bool(info.iPresent),
-                                is_active=is_active,
-                                vendor_id=info.iVendorID,
-                                bus_number=info.iBusNumber
-                            ))
+                            self._adapters.append(
+                                AMDAdapter(
+                                    index=info.iAdapterIndex,
+                                    name=info.strAdapterName.decode("utf-8", errors="ignore").strip(),
+                                    display_name=info.strDisplayName.decode("utf-8", errors="ignore").strip(),
+                                    is_present=bool(info.iPresent),
+                                    is_active=is_active,
+                                    vendor_id=info.iVendorID,
+                                    bus_number=info.iBusNumber,
+                                )
+                            )
 
         except (OSError, ctypes.ArgumentError):
             pass
@@ -420,7 +431,7 @@ class AMDAPI:
                 # Get number of displays for this adapter
                 num_displays = c_int(0)
 
-                if hasattr(self._adl, 'ADL_Display_NumberOfDisplays_Get'):
+                if hasattr(self._adl, "ADL_Display_NumberOfDisplays_Get"):
                     self._adl.ADL_Display_NumberOfDisplays_Get.restype = c_int
                     self._adl.ADL_Display_NumberOfDisplays_Get.argtypes = [c_int, POINTER(c_int)]
                     self._adl.ADL_Display_NumberOfDisplays_Get(adapter.index, byref(num_displays))
@@ -432,16 +443,19 @@ class AMDAPI:
                 display_info_array = (ADLDisplayInfo * num_displays.value)()
                 actual_displays = c_int(0)
 
-                if hasattr(self._adl, 'ADL_Display_DisplayInfo_Get'):
+                if hasattr(self._adl, "ADL_Display_DisplayInfo_Get"):
                     self._adl.ADL_Display_DisplayInfo_Get.restype = c_int
                     self._adl.ADL_Display_DisplayInfo_Get.argtypes = [
-                        c_int, POINTER(c_int), POINTER(ADLDisplayInfo * num_displays.value), c_int
+                        c_int,
+                        POINTER(c_int),
+                        POINTER(ADLDisplayInfo * num_displays.value),
+                        c_int,
                     ]
                     status = self._adl.ADL_Display_DisplayInfo_Get(
                         adapter.index,
                         byref(actual_displays),
                         byref(display_info_array),
-                        0  # Force refresh
+                        0,  # Force refresh
                     )
 
                     if status == ADLStatus.OK:
@@ -451,25 +465,29 @@ class AMDAPI:
                             # Check if display is connected and active
                             is_connected = bool(info.iDisplayInfoValue & 0x01)
                             is_active = bool(info.iDisplayInfoValue & 0x02)
-                            is_primary = (adapter.index == 0 and j == 0)
+                            is_primary = adapter.index == 0 and j == 0
 
                             if is_connected:
-                                self._displays.append(AMDDisplay(
-                                    adapter_index=adapter.index,
-                                    display_index=j,
-                                    logical_index=info.displayID[0],
-                                    name=info.strDisplayName.decode('utf-8', errors='ignore').strip(),
-                                    manufacturer=info.strDisplayManufacturerName.decode('utf-8', errors='ignore').strip(),
-                                    is_primary=is_primary,
-                                    is_connected=is_connected,
-                                    is_active=is_active,
-                                    resolution=(0, 0),
-                                    refresh_rate=60.0,
-                                    color_depth=8,
-                                    display_type=self._get_display_type(info.iDisplayType),
-                                    connector_type=self._get_connector_type(info.iDisplayConnector),
-                                    hdr_supported=False
-                                ))
+                                self._displays.append(
+                                    AMDDisplay(
+                                        adapter_index=adapter.index,
+                                        display_index=j,
+                                        logical_index=info.displayID[0],
+                                        name=info.strDisplayName.decode("utf-8", errors="ignore").strip(),
+                                        manufacturer=info.strDisplayManufacturerName.decode(
+                                            "utf-8", errors="ignore"
+                                        ).strip(),
+                                        is_primary=is_primary,
+                                        is_connected=is_connected,
+                                        is_active=is_active,
+                                        resolution=(0, 0),
+                                        refresh_rate=60.0,
+                                        color_depth=8,
+                                        display_type=self._get_display_type(info.iDisplayType),
+                                        connector_type=self._get_connector_type(info.iDisplayConnector),
+                                        hdr_supported=False,
+                                    )
+                                )
 
         except (OSError, ctypes.ArgumentError):
             # Fall back to Windows enumeration
@@ -498,22 +516,24 @@ class AMDAPI:
                 if device.StateFlags & 0x00000001:  # ACTIVE
                     is_amd = any(x in device.DeviceID.lower() for x in ["amd", "ati", "radeon", "advanced micro"])
                     if is_amd:
-                        self._displays.append(AMDDisplay(
-                            adapter_index=0,
-                            display_index=i,
-                            logical_index=i,
-                            name=device.DeviceString,
-                            manufacturer="AMD",
-                            is_primary=bool(device.StateFlags & 0x00000004),
-                            is_connected=True,
-                            is_active=True,
-                            resolution=(0, 0),
-                            refresh_rate=60.0,
-                            color_depth=8,
-                            display_type="Unknown",
-                            connector_type="Unknown",
-                            hdr_supported=False
-                        ))
+                        self._displays.append(
+                            AMDDisplay(
+                                adapter_index=0,
+                                display_index=i,
+                                logical_index=i,
+                                name=device.DeviceString,
+                                manufacturer="AMD",
+                                is_primary=bool(device.StateFlags & 0x00000004),
+                                is_connected=True,
+                                is_active=True,
+                                resolution=(0, 0),
+                                refresh_rate=60.0,
+                                color_depth=8,
+                                display_type="Unknown",
+                                connector_type="Unknown",
+                                hdr_supported=False,
+                            )
+                        )
                 i += 1
 
         except OSError:
@@ -600,11 +620,17 @@ class AMDAPI:
 
         try:
             # Get brightness
-            if hasattr(self._adl, 'ADL_Display_Color_Get'):
+            if hasattr(self._adl, "ADL_Display_Color_Get"):
                 self._adl.ADL_Display_Color_Get.restype = c_int
                 self._adl.ADL_Display_Color_Get.argtypes = [
-                    c_int, c_int, c_int,
-                    POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int), POINTER(c_int)
+                    c_int,
+                    c_int,
+                    c_int,
+                    POINTER(c_int),
+                    POINTER(c_int),
+                    POINTER(c_int),
+                    POINTER(c_int),
+                    POINTER(c_int),
                 ]
 
                 current = c_int(0)
@@ -615,55 +641,81 @@ class AMDAPI:
 
                 # Brightness
                 status = self._adl.ADL_Display_Color_Get(
-                    display.adapter_index, display.logical_index, ADLColorType.BRIGHTNESS,
-                    byref(current), byref(default), byref(min_val), byref(max_val), byref(step)
+                    display.adapter_index,
+                    display.logical_index,
+                    ADLColorType.BRIGHTNESS,
+                    byref(current),
+                    byref(default),
+                    byref(min_val),
+                    byref(max_val),
+                    byref(step),
                 )
                 if status == ADLStatus.OK:
                     settings.brightness = current.value
 
                 # Contrast
                 status = self._adl.ADL_Display_Color_Get(
-                    display.adapter_index, display.logical_index, ADLColorType.CONTRAST,
-                    byref(current), byref(default), byref(min_val), byref(max_val), byref(step)
+                    display.adapter_index,
+                    display.logical_index,
+                    ADLColorType.CONTRAST,
+                    byref(current),
+                    byref(default),
+                    byref(min_val),
+                    byref(max_val),
+                    byref(step),
                 )
                 if status == ADLStatus.OK:
                     settings.contrast = current.value
 
                 # Saturation
                 status = self._adl.ADL_Display_Color_Get(
-                    display.adapter_index, display.logical_index, ADLColorType.SATURATION,
-                    byref(current), byref(default), byref(min_val), byref(max_val), byref(step)
+                    display.adapter_index,
+                    display.logical_index,
+                    ADLColorType.SATURATION,
+                    byref(current),
+                    byref(default),
+                    byref(min_val),
+                    byref(max_val),
+                    byref(step),
                 )
                 if status == ADLStatus.OK:
                     settings.saturation = current.value
 
                 # Hue
                 status = self._adl.ADL_Display_Color_Get(
-                    display.adapter_index, display.logical_index, ADLColorType.HUE,
-                    byref(current), byref(default), byref(min_val), byref(max_val), byref(step)
+                    display.adapter_index,
+                    display.logical_index,
+                    ADLColorType.HUE,
+                    byref(current),
+                    byref(default),
+                    byref(min_val),
+                    byref(max_val),
+                    byref(step),
                 )
                 if status == ADLStatus.OK:
                     settings.hue = current.value
 
                 # Color Temperature
                 status = self._adl.ADL_Display_Color_Get(
-                    display.adapter_index, display.logical_index, ADLColorType.COLORTEMP,
-                    byref(current), byref(default), byref(min_val), byref(max_val), byref(step)
+                    display.adapter_index,
+                    display.logical_index,
+                    ADLColorType.COLORTEMP,
+                    byref(current),
+                    byref(default),
+                    byref(min_val),
+                    byref(max_val),
+                    byref(step),
                 )
                 if status == ADLStatus.OK:
                     settings.color_temp = current.value
 
             # Get gamma
-            if hasattr(self._adl, 'ADL_Display_Gamma_Get'):
+            if hasattr(self._adl, "ADL_Display_Gamma_Get"):
                 self._adl.ADL_Display_Gamma_Get.restype = c_int
-                self._adl.ADL_Display_Gamma_Get.argtypes = [
-                    c_int, c_int, POINTER(ADLGamma)
-                ]
+                self._adl.ADL_Display_Gamma_Get.argtypes = [c_int, c_int, POINTER(ADLGamma)]
 
                 gamma = ADLGamma()
-                status = self._adl.ADL_Display_Gamma_Get(
-                    display.adapter_index, display.logical_index, byref(gamma)
-                )
+                status = self._adl.ADL_Display_Gamma_Get(display.adapter_index, display.logical_index, byref(gamma))
                 if status == ADLStatus.OK:
                     # Average the RGB gamma values
                     settings.gamma = (gamma.fRed + gamma.fGreen + gamma.fBlue) / 3.0
@@ -720,7 +772,7 @@ class AMDAPI:
         saturation: int | None = None,
         hue: int | None = None,
         color_temp: int | None = None,
-        gamma: float | None = None
+        gamma: float | None = None,
     ) -> bool:
         """
         Set color settings for a display.
@@ -738,14 +790,10 @@ class AMDAPI:
             True if any setting was applied
         """
         # Try ADL first
-        adl_success = self._set_color_via_adl(
-            display_id, brightness, contrast, saturation, hue, color_temp, gamma
-        )
+        adl_success = self._set_color_via_adl(display_id, brightness, contrast, saturation, hue, color_temp, gamma)
 
         # Also try registry for persistence
-        registry_success = self._set_color_via_registry(
-            display_id, brightness, contrast, saturation
-        )
+        registry_success = self._set_color_via_registry(display_id, brightness, contrast, saturation)
 
         return adl_success or registry_success
 
@@ -757,7 +805,7 @@ class AMDAPI:
         saturation: int | None,
         hue: int | None,
         color_temp: int | None,
-        gamma: float | None
+        gamma: float | None,
     ) -> bool:
         """Set color via ADL."""
         if not self._initialized:
@@ -770,52 +818,53 @@ class AMDAPI:
         success = False
 
         try:
-            if hasattr(self._adl, 'ADL_Display_Color_Set'):
+            if hasattr(self._adl, "ADL_Display_Color_Set"):
                 self._adl.ADL_Display_Color_Set.restype = c_int
                 self._adl.ADL_Display_Color_Set.argtypes = [c_int, c_int, c_int, c_int]
 
                 if brightness is not None:
                     status = self._adl.ADL_Display_Color_Set(
-                        display.adapter_index, display.logical_index,
-                        ADLColorType.BRIGHTNESS, max(0, min(100, brightness))
+                        display.adapter_index,
+                        display.logical_index,
+                        ADLColorType.BRIGHTNESS,
+                        max(0, min(100, brightness)),
                     )
                     if status == ADLStatus.OK:
                         success = True
 
                 if contrast is not None:
                     status = self._adl.ADL_Display_Color_Set(
-                        display.adapter_index, display.logical_index,
-                        ADLColorType.CONTRAST, max(0, min(100, contrast))
+                        display.adapter_index, display.logical_index, ADLColorType.CONTRAST, max(0, min(100, contrast))
                     )
                     if status == ADLStatus.OK:
                         success = True
 
                 if saturation is not None:
                     status = self._adl.ADL_Display_Color_Set(
-                        display.adapter_index, display.logical_index,
-                        ADLColorType.SATURATION, max(0, min(200, saturation))
+                        display.adapter_index,
+                        display.logical_index,
+                        ADLColorType.SATURATION,
+                        max(0, min(200, saturation)),
                     )
                     if status == ADLStatus.OK:
                         success = True
 
                 if hue is not None:
                     status = self._adl.ADL_Display_Color_Set(
-                        display.adapter_index, display.logical_index,
-                        ADLColorType.HUE, hue % 360
+                        display.adapter_index, display.logical_index, ADLColorType.HUE, hue % 360
                     )
                     if status == ADLStatus.OK:
                         success = True
 
                 if color_temp is not None:
                     status = self._adl.ADL_Display_Color_Set(
-                        display.adapter_index, display.logical_index,
-                        ADLColorType.COLORTEMP, color_temp
+                        display.adapter_index, display.logical_index, ADLColorType.COLORTEMP, color_temp
                     )
                     if status == ADLStatus.OK:
                         success = True
 
             # Set gamma separately
-            if gamma is not None and hasattr(self._adl, 'ADL_Display_Gamma_Set'):
+            if gamma is not None and hasattr(self._adl, "ADL_Display_Gamma_Set"):
                 self._adl.ADL_Display_Gamma_Set.restype = c_int
                 self._adl.ADL_Display_Gamma_Set.argtypes = [c_int, c_int, POINTER(ADLGamma)]
 
@@ -837,11 +886,7 @@ class AMDAPI:
             return False
 
     def _set_color_via_registry(
-        self,
-        display_id: int,
-        brightness: int | None,
-        contrast: int | None,
-        saturation: int | None
+        self, display_id: int, brightness: int | None, contrast: int | None, saturation: int | None
     ) -> bool:
         """Set color via Radeon Software registry (for persistence)."""
         try:
@@ -849,8 +894,7 @@ class AMDAPI:
 
             try:
                 with winreg.OpenKey(
-                    winreg.HKEY_LOCAL_MACHINE, key_path, 0,
-                    winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY
+                    winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY
                 ) as key:
                     if brightness is not None:
                         winreg.SetValueEx(key, "Brightness", 0, winreg.REG_DWORD, brightness)
@@ -876,26 +920,14 @@ class AMDAPI:
     def reset_color_settings(self, display_id: int = 0) -> bool:
         """Reset color settings to defaults."""
         return self.set_color_settings(
-            display_id,
-            brightness=50,
-            contrast=50,
-            saturation=100,
-            hue=0,
-            color_temp=6500,
-            gamma=1.0
+            display_id, brightness=50, contrast=50, saturation=100, hue=0, color_temp=6500, gamma=1.0
         )
 
     # =========================================================================
     # Gamma Ramp Methods
     # =========================================================================
 
-    def load_gamma_ramp(
-        self,
-        display_id: int,
-        red: np.ndarray,
-        green: np.ndarray,
-        blue: np.ndarray
-    ) -> bool:
+    def load_gamma_ramp(self, display_id: int, red: np.ndarray, green: np.ndarray, blue: np.ndarray) -> bool:
         """
         Load gamma ramp (1D LUT) via Windows API.
 
@@ -925,12 +957,7 @@ class AMDAPI:
     # 3D LUT Methods
     # =========================================================================
 
-    def load_3d_lut(
-        self,
-        display_id: int,
-        lut_data: np.ndarray,
-        interpolation: str = "tetrahedral"
-    ) -> bool:
+    def load_3d_lut(self, display_id: int, lut_data: np.ndarray, interpolation: str = "tetrahedral") -> bool:
         """
         Load 3D LUT to GPU.
 
@@ -967,10 +994,10 @@ class AMDAPI:
 
             adl_success = self.set_color_settings(
                 display_id,
-                brightness=adjustments.get('brightness'),
-                contrast=adjustments.get('contrast'),
-                saturation=adjustments.get('saturation'),
-                gamma=adjustments.get('gamma')
+                brightness=adjustments.get("brightness"),
+                contrast=adjustments.get("contrast"),
+                saturation=adjustments.get("saturation"),
+                gamma=adjustments.get("gamma"),
             )
 
             if adl_success:
@@ -1022,12 +1049,12 @@ class AMDAPI:
         # Estimate brightness (offset at black point)
         black_offset = avg_response[0]
         brightness = int(50 + black_offset * 50)  # ADL uses 0-100 range
-        adjustments['brightness'] = max(0, min(100, brightness))
+        adjustments["brightness"] = max(0, min(100, brightness))
 
         # Estimate contrast
         actual_range = avg_response[-1] - avg_response[0]
         contrast = int(50 * actual_range / 0.5) if actual_range < 1 else 50
-        adjustments['contrast'] = max(0, min(100, contrast))
+        adjustments["contrast"] = max(0, min(100, contrast))
 
         # Estimate gamma
         mid_idx = size // 2
@@ -1035,9 +1062,9 @@ class AMDAPI:
         mid_expected = expected[mid_idx]
         if mid_expected > 0 and mid_actual > 0:
             gamma_ratio = np.log(mid_actual) / np.log(mid_expected) if mid_expected < 1 else 1.0
-            adjustments['gamma'] = max(0.4, min(2.8, gamma_ratio))
+            adjustments["gamma"] = max(0.4, min(2.8, gamma_ratio))
         else:
-            adjustments['gamma'] = 1.0
+            adjustments["gamma"] = 1.0
 
         # Estimate saturation
         # Check color separation at saturated points
@@ -1047,15 +1074,11 @@ class AMDAPI:
 
         avg_sat = (np.max(red_sat) + np.max(green_sat) + np.max(blue_sat)) / 3
         saturation = int(100 * (avg_sat + 1))
-        adjustments['saturation'] = max(0, min(200, saturation))
+        adjustments["saturation"] = max(0, min(200, saturation))
 
         return adjustments
 
-    def load_lut_file(
-        self,
-        display_id: int,
-        lut_path: str | Path
-    ) -> bool:
+    def load_lut_file(self, display_id: int, lut_path: str | Path) -> bool:
         """
         Load 3D LUT from file.
 
@@ -1094,11 +1117,7 @@ class AMDAPI:
     # Color Depth and Format
     # =========================================================================
 
-    def set_color_depth(
-        self,
-        display_id: int,
-        depth: ADLColorDepth
-    ) -> bool:
+    def set_color_depth(self, display_id: int, depth: ADLColorDepth) -> bool:
         """
         Set display color depth.
 
@@ -1118,13 +1137,11 @@ class AMDAPI:
         display = self._displays[display_id]
 
         try:
-            if hasattr(self._adl, 'ADL_Display_ColorDepth_Set'):
+            if hasattr(self._adl, "ADL_Display_ColorDepth_Set"):
                 self._adl.ADL_Display_ColorDepth_Set.restype = c_int
                 self._adl.ADL_Display_ColorDepth_Set.argtypes = [c_int, c_int, c_int]
 
-                status = self._adl.ADL_Display_ColorDepth_Set(
-                    display.adapter_index, display.logical_index, depth.value
-                )
+                status = self._adl.ADL_Display_ColorDepth_Set(display.adapter_index, display.logical_index, depth.value)
                 return status == ADLStatus.OK
 
         except (OSError, ctypes.ArgumentError):
@@ -1143,10 +1160,14 @@ class AMDAPI:
         display = self._displays[display_id]
 
         try:
-            if hasattr(self._adl, 'ADL_Display_ColorDepth_Get'):
+            if hasattr(self._adl, "ADL_Display_ColorDepth_Get"):
                 self._adl.ADL_Display_ColorDepth_Get.restype = c_int
                 self._adl.ADL_Display_ColorDepth_Get.argtypes = [
-                    c_int, c_int, POINTER(c_int), POINTER(c_int), POINTER(c_int)
+                    c_int,
+                    c_int,
+                    POINTER(c_int),
+                    POINTER(c_int),
+                    POINTER(c_int),
                 ]
 
                 current = c_int(0)
@@ -1154,8 +1175,7 @@ class AMDAPI:
                 supported = c_int(0)
 
                 status = self._adl.ADL_Display_ColorDepth_Get(
-                    display.adapter_index, display.logical_index,
-                    byref(current), byref(default), byref(supported)
+                    display.adapter_index, display.logical_index, byref(current), byref(default), byref(supported)
                 )
 
                 if status == ADLStatus.OK:
@@ -1173,34 +1193,34 @@ class AMDAPI:
     def get_info(self) -> dict:
         """Get AMD API information."""
         return {
-            'available': self._initialized,
-            'adapter_count': len(self._adapters),
-            'display_count': len(self._displays),
-            'adapters': [
+            "available": self._initialized,
+            "adapter_count": len(self._adapters),
+            "display_count": len(self._displays),
+            "adapters": [
                 {
-                    'index': a.index,
-                    'name': a.name,
-                    'active': a.is_active,
+                    "index": a.index,
+                    "name": a.name,
+                    "active": a.is_active,
                 }
                 for a in self._adapters
             ],
-            'displays': [
+            "displays": [
                 {
-                    'id': d.display_index,
-                    'name': d.name,
-                    'manufacturer': d.manufacturer,
-                    'primary': d.is_primary,
-                    'active': d.is_active,
-                    'connector': d.connector_type,
-                    'hdr': d.hdr_supported,
+                    "id": d.display_index,
+                    "name": d.name,
+                    "manufacturer": d.manufacturer,
+                    "primary": d.is_primary,
+                    "active": d.is_active,
+                    "connector": d.connector_type,
+                    "hdr": d.hdr_supported,
                 }
                 for d in self._displays
             ],
-            'features': {
-                'color_control': self._initialized and hasattr(self._adl, 'ADL_Display_Color_Set'),
-                'gamma_control': self._initialized and hasattr(self._adl, 'ADL_Display_Gamma_Set'),
-                'color_depth': self._initialized and hasattr(self._adl, 'ADL_Display_ColorDepth_Set'),
-            }
+            "features": {
+                "color_control": self._initialized and hasattr(self._adl, "ADL_Display_Color_Set"),
+                "gamma_control": self._initialized and hasattr(self._adl, "ADL_Display_Gamma_Set"),
+                "color_depth": self._initialized and hasattr(self._adl, "ADL_Display_ColorDepth_Set"),
+            },
         }
 
     def cleanup(self):
@@ -1208,10 +1228,10 @@ class AMDAPI:
         if self._initialized:
             try:
                 if self._adl2 and self._context:
-                    if hasattr(self._adl, 'ADL2_Main_Control_Destroy'):
+                    if hasattr(self._adl, "ADL2_Main_Control_Destroy"):
                         self._adl.ADL2_Main_Control_Destroy(self._context)
                 elif self._adl:
-                    if hasattr(self._adl, 'ADL_Main_Control_Destroy'):
+                    if hasattr(self._adl, "ADL_Main_Control_Destroy"):
                         self._adl.ADL_Main_Control_Destroy()
             except (OSError, ctypes.ArgumentError):
                 pass
@@ -1226,6 +1246,7 @@ class AMDAPI:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def check_amd_available() -> bool:
     """Check if AMD GPU is available."""
@@ -1243,10 +1264,7 @@ def get_amd_info() -> dict:
     return info
 
 
-def apply_amd_lut(
-    lut_data: np.ndarray,
-    display_id: int = 0
-) -> tuple[bool, str]:
+def apply_amd_lut(lut_data: np.ndarray, display_id: int = 0) -> tuple[bool, str]:
     """
     Apply 3D LUT via AMD API.
 
@@ -1274,10 +1292,7 @@ def apply_amd_lut(
         return False, f"Error: {e}"
 
 
-def apply_amd_lut_file(
-    lut_path: str | Path,
-    display_id: int = 0
-) -> tuple[bool, str]:
+def apply_amd_lut_file(lut_path: str | Path, display_id: int = 0) -> tuple[bool, str]:
     """
     Apply 3D LUT file via AMD API.
 
@@ -1310,7 +1325,7 @@ def set_amd_color(
     brightness: int | None = None,
     contrast: int | None = None,
     saturation: int | None = None,
-    gamma: float | None = None
+    gamma: float | None = None,
 ) -> tuple[bool, str]:
     """
     Set AMD display color settings.
@@ -1332,11 +1347,7 @@ def set_amd_color(
 
     try:
         success = api.set_color_settings(
-            display_id,
-            brightness=brightness,
-            contrast=contrast,
-            saturation=saturation,
-            gamma=gamma
+            display_id, brightness=brightness, contrast=contrast, saturation=saturation, gamma=gamma
         )
         if success:
             return True, "Color settings applied"

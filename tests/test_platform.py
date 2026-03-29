@@ -28,6 +28,7 @@ from calibrate_pro.platform.base import DisplayInfo, PlatformBackend
 # Fixtures
 # =====================================================================
 
+
 @pytest.fixture
 def linear_ramp_256():
     """A linear identity ramp: 256 entries, 0 to 65535."""
@@ -38,7 +39,7 @@ def linear_ramp_256():
 def gamma_22_ramp_256():
     """A gamma-2.2 ramp: 256 entries, 0 to 65535."""
     t = np.linspace(0, 1, 256)
-    return list((t ** 2.2 * 65535).astype(np.uint16))
+    return list((t**2.2 * 65535).astype(np.uint16))
 
 
 @pytest.fixture
@@ -66,13 +67,19 @@ def mock_display_info():
 # DisplayInfo dataclass
 # =====================================================================
 
+
 class TestDisplayInfo:
     """Tests for the DisplayInfo dataclass."""
 
     def test_required_fields(self):
         info = DisplayInfo(
-            index=0, name="Monitor", device_path="/dev/0",
-            is_primary=True, width=1920, height=1080, refresh_rate=60,
+            index=0,
+            name="Monitor",
+            device_path="/dev/0",
+            is_primary=True,
+            width=1920,
+            height=1080,
+            refresh_rate=60,
         )
         assert info.index == 0
         assert info.name == "Monitor"
@@ -83,8 +90,13 @@ class TestDisplayInfo:
 
     def test_default_fields(self):
         info = DisplayInfo(
-            index=0, name="Monitor", device_path="/dev/0",
-            is_primary=False, width=3840, height=2160, refresh_rate=120,
+            index=0,
+            name="Monitor",
+            device_path="/dev/0",
+            is_primary=False,
+            width=3840,
+            height=2160,
+            refresh_rate=120,
         )
         assert info.bit_depth == 8
         assert info.position_x == 0
@@ -107,42 +119,55 @@ class TestDisplayInfo:
 # Platform selection
 # =====================================================================
 
+
 class TestPlatformSelection:
     """Test that get_platform_backend() returns the correct class."""
 
     def test_windows_selection(self):
-        with mock.patch.object(sys, "platform", "win32"), mock.patch(
-            "calibrate_pro.platform.windows.WindowsBackend",
-            create=True,
-        ) as mock_cls:
+        with (
+            mock.patch.object(sys, "platform", "win32"),
+            mock.patch(
+                "calibrate_pro.platform.windows.WindowsBackend",
+                create=True,
+            ) as mock_cls,
+        ):
             mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
             get_platform_backend()
             mock_cls.assert_called_once()
 
     def test_darwin_selection(self):
-        with mock.patch.object(sys, "platform", "darwin"), mock.patch(
-            "calibrate_pro.platform.macos.MacOSBackend",
-            create=True,
-        ) as mock_cls:
+        with (
+            mock.patch.object(sys, "platform", "darwin"),
+            mock.patch(
+                "calibrate_pro.platform.macos.MacOSBackend",
+                create=True,
+            ) as mock_cls,
+        ):
             mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
             get_platform_backend()
             mock_cls.assert_called_once()
 
     def test_linux_selection(self):
-        with mock.patch.object(sys, "platform", "linux"), mock.patch(
-            "calibrate_pro.platform.linux.LinuxBackend",
-            create=True,
-        ) as mock_cls:
+        with (
+            mock.patch.object(sys, "platform", "linux"),
+            mock.patch(
+                "calibrate_pro.platform.linux.LinuxBackend",
+                create=True,
+            ) as mock_cls,
+        ):
             mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
             get_platform_backend()
             mock_cls.assert_called_once()
 
     def test_linux_variant_selection(self):
         """linux2, linux-armv7l, etc. should all resolve to LinuxBackend."""
-        with mock.patch.object(sys, "platform", "linux-armv7l"), mock.patch(
-            "calibrate_pro.platform.linux.LinuxBackend",
-            create=True,
-        ) as mock_cls:
+        with (
+            mock.patch.object(sys, "platform", "linux-armv7l"),
+            mock.patch(
+                "calibrate_pro.platform.linux.LinuxBackend",
+                create=True,
+            ) as mock_cls,
+        ):
             mock_cls.return_value = mock.MagicMock(spec=PlatformBackend)
             get_platform_backend()
             mock_cls.assert_called_once()
@@ -162,6 +187,7 @@ class TestPlatformSelection:
 # Abstract base class enforcement
 # =====================================================================
 
+
 class TestBaseClassContract:
     """Verify that PlatformBackend enforces the abstract interface."""
 
@@ -173,6 +199,7 @@ class TestBaseClassContract:
         class IncompleteBackend(PlatformBackend):
             def enumerate_displays(self):
                 return []
+
             # Missing: apply_gamma_ramp, reset_gamma_ramp,
             #          install_icc_profile, get_icc_profile
 
@@ -183,12 +210,16 @@ class TestBaseClassContract:
         class CompleteBackend(PlatformBackend):
             def enumerate_displays(self) -> list[DisplayInfo]:
                 return []
+
             def apply_gamma_ramp(self, di, r, g, b) -> bool:
                 return True
+
             def reset_gamma_ramp(self, di) -> bool:
                 return True
+
             def install_icc_profile(self, pp, di) -> bool:
                 return True
+
             def get_icc_profile(self, di) -> str | None:
                 return None
 
@@ -203,6 +234,7 @@ class TestBaseClassContract:
 # =====================================================================
 # Gamma ramp validation
 # =====================================================================
+
 
 class TestGammaRampFormat:
     """Validate gamma ramp data format requirements."""
@@ -255,21 +287,25 @@ class TestGammaRampFormat:
 # macOS backend tests
 # =====================================================================
 
+
 class TestMacOSBackend:
     """Tests for macOS backend (importable on any platform)."""
 
     def test_import_succeeds(self):
         from calibrate_pro.platform.macos import MacOSBackend
+
         assert MacOSBackend is not None
 
     def test_instantiation(self):
         from calibrate_pro.platform.macos import MacOSBackend
+
         backend = MacOSBackend()
         assert isinstance(backend, PlatformBackend)
 
     def test_enumerate_without_quartz_returns_empty(self):
         """When pyobjc is missing, enumerate_displays returns []."""
         from calibrate_pro.platform.macos import MacOSBackend
+
         backend = MacOSBackend()
 
         with mock.patch.dict(sys.modules, {"Quartz": None}):
@@ -280,15 +316,17 @@ class TestMacOSBackend:
     def test_apply_gamma_without_quartz_returns_false(self):
         """When pyobjc is missing, apply_gamma_ramp returns False."""
         from calibrate_pro.platform.macos import MacOSBackend
+
         backend = MacOSBackend()
 
         with mock.patch.dict(sys.modules, {"Quartz": None}):
             with mock.patch("builtins.__import__", side_effect=_import_blocker("Quartz")):
-                result = backend.apply_gamma_ramp(0, [0]*256, [0]*256, [0]*256)
+                result = backend.apply_gamma_ramp(0, [0] * 256, [0] * 256, [0] * 256)
                 assert result is False
 
     def test_reset_gamma_without_quartz_returns_false(self):
         from calibrate_pro.platform.macos import MacOSBackend
+
         backend = MacOSBackend()
 
         with mock.patch.dict(sys.modules, {"Quartz": None}):
@@ -298,6 +336,7 @@ class TestMacOSBackend:
 
     def test_get_icc_without_quartz_returns_none(self):
         from calibrate_pro.platform.macos import MacOSBackend
+
         backend = MacOSBackend()
 
         # _get_display_id will fail without Quartz, returning None
@@ -312,6 +351,7 @@ class TestMacOSBackend:
             enable_macos_startup,
             is_macos_startup_enabled,
         )
+
         assert callable(enable_macos_startup)
         assert callable(disable_macos_startup)
         assert callable(is_macos_startup_enabled)
@@ -321,21 +361,25 @@ class TestMacOSBackend:
 # Linux backend tests
 # =====================================================================
 
+
 class TestLinuxBackend:
     """Tests for Linux backend (importable on any platform)."""
 
     def test_import_succeeds(self):
         from calibrate_pro.platform.linux import LinuxBackend
+
         assert LinuxBackend is not None
 
     def test_instantiation(self):
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
         assert isinstance(backend, PlatformBackend)
 
     def test_enumerate_without_xrandr_returns_empty(self):
         """When xrandr is unavailable, enumerate should fall back gracefully."""
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         with mock.patch("calibrate_pro.platform.linux._run_cmd", return_value=None):
@@ -346,6 +390,7 @@ class TestLinuxBackend:
     def test_enumerate_xrandr_parses_output(self):
         """Test xrandr output parsing with mock data."""
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         xrandr_output = (
@@ -382,6 +427,7 @@ class TestLinuxBackend:
     def test_apply_gamma_without_tools_returns_false(self):
         """When both python-xlib and xrandr are missing, returns False."""
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         ramp = list(range(0, 65536, 256))[:256]
@@ -393,6 +439,7 @@ class TestLinuxBackend:
 
     def test_reset_gamma_without_tools_returns_false(self):
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         with mock.patch("calibrate_pro.platform.linux._run_cmd", return_value=None):
@@ -402,6 +449,7 @@ class TestLinuxBackend:
 
     def test_get_icc_without_colord_returns_none(self):
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         with mock.patch("calibrate_pro.platform.linux._run_cmd", return_value=None):
@@ -410,6 +458,7 @@ class TestLinuxBackend:
 
     def test_install_icc_nonexistent_file_returns_false(self):
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         result = backend.install_icc_profile("/nonexistent/profile.icc", 0)
@@ -418,6 +467,7 @@ class TestLinuxBackend:
     def test_install_icc_copies_to_user_dir(self, tmp_path):
         """ICC profile install should copy to ~/.local/share/icc/."""
         from calibrate_pro.platform.linux import LinuxBackend
+
         backend = LinuxBackend()
 
         # Create a fake profile
@@ -441,6 +491,7 @@ class TestLinuxBackend:
             enable_linux_startup,
             is_linux_startup_enabled,
         )
+
         assert callable(enable_linux_startup)
         assert callable(disable_linux_startup)
         assert callable(is_linux_startup_enabled)
@@ -449,6 +500,7 @@ class TestLinuxBackend:
 # =====================================================================
 # EDID parsing (Linux helper)
 # =====================================================================
+
 
 class TestLinuxEdidParsing:
     """Test the EDID parser used by the Linux backend."""
@@ -459,7 +511,7 @@ class TestLinuxEdidParsing:
         # Construct a minimal valid EDID block (128 bytes)
         edid = bytearray(128)
         # EDID header
-        edid[0:8] = b'\x00\xff\xff\xff\xff\xff\xff\x00'
+        edid[0:8] = b"\x00\xff\xff\xff\xff\xff\xff\x00"
         # Manufacturer ID "TST" -> T=0x14, S=0x13, T=0x14
         # Compressed: ((0x14 << 10) | (0x13 << 5) | 0x14) = 0x5274
         edid[8] = 0x52
@@ -471,8 +523,8 @@ class TestLinuxEdidParsing:
         edid[56] = 0x00
         edid[57] = 0xFC  # Monitor name tag
         edid[58] = 0x00
-        name_bytes = b'Test Monitor\n'
-        edid[59:59 + len(name_bytes)] = name_bytes
+        name_bytes = b"Test Monitor\n"
+        edid[59 : 59 + len(name_bytes)] = name_bytes
 
         # Descriptor block 2 (offset 72): serial string (tag 0xFF)
         edid[72] = 0x00
@@ -480,8 +532,8 @@ class TestLinuxEdidParsing:
         edid[74] = 0x00
         edid[75] = 0xFF  # Serial string tag
         edid[76] = 0x00
-        serial_bytes = b'SN00001\n'
-        edid[77:77 + len(serial_bytes)] = serial_bytes
+        serial_bytes = b"SN00001\n"
+        edid[77 : 77 + len(serial_bytes)] = serial_bytes
 
         manufacturer, model, serial = _parse_edid_name(bytes(edid))
         assert manufacturer == "TST"
@@ -490,14 +542,16 @@ class TestLinuxEdidParsing:
 
     def test_parse_short_edid_returns_empty(self):
         from calibrate_pro.platform.linux import _parse_edid_name
-        manufacturer, model, serial = _parse_edid_name(b'\x00' * 64)
+
+        manufacturer, model, serial = _parse_edid_name(b"\x00" * 64)
         assert manufacturer == ""
         assert model == ""
         assert serial == ""
 
     def test_parse_empty_edid_returns_empty(self):
         from calibrate_pro.platform.linux import _parse_edid_name
-        manufacturer, model, serial = _parse_edid_name(b'')
+
+        manufacturer, model, serial = _parse_edid_name(b"")
         assert manufacturer == ""
         assert model == ""
         assert serial == ""
@@ -506,6 +560,7 @@ class TestLinuxEdidParsing:
 # =====================================================================
 # xrandr output parser (Linux helper)
 # =====================================================================
+
 
 class TestXrandrParser:
     """Test the xrandr --query output parser."""
@@ -522,11 +577,11 @@ class TestXrandrParser:
 
         result = _parse_xrandr_output(text)
         assert len(result) == 1
-        assert result[0]['name'] == "DP-1"
-        assert result[0]['primary'] is True
-        assert result[0]['width'] == 2560
-        assert result[0]['height'] == 1440
-        assert result[0]['refresh'] == 143
+        assert result[0]["name"] == "DP-1"
+        assert result[0]["primary"] is True
+        assert result[0]["width"] == 2560
+        assert result[0]["height"] == 1440
+        assert result[0]["refresh"] == 143
 
     def test_multiple_displays(self):
         from calibrate_pro.platform.linux import _parse_xrandr_output
@@ -542,28 +597,25 @@ class TestXrandrParser:
 
         result = _parse_xrandr_output(text)
         assert len(result) == 2
-        assert result[0]['name'] == "eDP-1"
-        assert result[0]['primary'] is True
-        assert result[0]['width'] == 1920
-        assert result[1]['name'] == "HDMI-1"
-        assert result[1]['primary'] is False
-        assert result[1]['width'] == 3840
-        assert result[1]['pos_x'] == 1920
+        assert result[0]["name"] == "eDP-1"
+        assert result[0]["primary"] is True
+        assert result[0]["width"] == 1920
+        assert result[1]["name"] == "HDMI-1"
+        assert result[1]["primary"] is False
+        assert result[1]["width"] == 3840
+        assert result[1]["pos_x"] == 1920
 
     def test_no_connected_displays(self):
         from calibrate_pro.platform.linux import _parse_xrandr_output
 
-        text = (
-            "Screen 0: minimum 8 x 8, current 0 x 0\n"
-            "DP-1 disconnected\n"
-            "HDMI-1 disconnected\n"
-        )
+        text = "Screen 0: minimum 8 x 8, current 0 x 0\nDP-1 disconnected\nHDMI-1 disconnected\n"
 
         result = _parse_xrandr_output(text)
         assert len(result) == 0
 
     def test_empty_input(self):
         from calibrate_pro.platform.linux import _parse_xrandr_output
+
         assert _parse_xrandr_output("") == []
 
 
@@ -571,16 +623,19 @@ class TestXrandrParser:
 # Windows backend tests (smoke)
 # =====================================================================
 
+
 class TestWindowsBackend:
     """Basic import/instantiation tests for Windows backend."""
 
     def test_import_succeeds(self):
         from calibrate_pro.platform.windows import WindowsBackend
+
         assert WindowsBackend is not None
 
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_enumerate_on_windows(self):
         from calibrate_pro.platform.windows import WindowsBackend
+
         backend = WindowsBackend()
         displays = backend.enumerate_displays()
         assert isinstance(displays, list)
@@ -590,6 +645,7 @@ class TestWindowsBackend:
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_display_fields_valid(self):
         from calibrate_pro.platform.windows import WindowsBackend
+
         backend = WindowsBackend()
         displays = backend.enumerate_displays()
         for d in displays:
@@ -603,6 +659,7 @@ class TestWindowsBackend:
 # =====================================================================
 # Integration: current platform backend
 # =====================================================================
+
 
 class TestCurrentPlatformIntegration:
     """Integration tests that run on whatever platform we're on."""
@@ -641,9 +698,10 @@ class TestCurrentPlatformIntegration:
 # Helpers
 # =====================================================================
 
+
 def _import_blocker(blocked_module: str):
     """Return a side_effect for builtins.__import__ that blocks one module."""
-    real_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+    real_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
 
     def blocker(name, *args, **kwargs):
         if name == blocked_module or name.startswith(blocked_module + "."):

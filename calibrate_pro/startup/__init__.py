@@ -17,11 +17,11 @@ from .lut_autoload import (
 )
 
 __all__ = [
-    'load_calibration_luts',
-    'create_startup_shortcut',
-    'remove_startup',
-    'check_startup_enabled',
-    'run_service',
-    'apply_saved_calibrations',
-    'start_service_command',
+    "load_calibration_luts",
+    "create_startup_shortcut",
+    "remove_startup",
+    "check_startup_enabled",
+    "run_service",
+    "apply_saved_calibrations",
+    "start_service_command",
 ]

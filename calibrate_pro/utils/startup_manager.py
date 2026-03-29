@@ -27,6 +27,7 @@ APP_NAME = "CalibratePro"
 @dataclass
 class DisplayCalibrationState:
     """Saved calibration state for a display."""
+
     display_id: int
     display_name: str
     model: str
@@ -41,6 +42,7 @@ class DisplayCalibrationState:
 @dataclass
 class CalibrationConfig:
     """Complete calibration configuration."""
+
     version: str = "1.0"
     auto_start: bool = False
     auto_apply: bool = True
@@ -62,19 +64,19 @@ class StartupManager:
 
     def _get_config_dir(self) -> Path:
         """Get application configuration directory."""
-        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
         config_dir = Path(appdata) / "CalibratePro"
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir
 
     def _get_executable_path(self) -> str:
         """Get path to the executable."""
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # Running as compiled executable
             return sys.executable
         else:
             # Running as script - use pythonw to avoid console
-            return 'pythonw -m calibrate_pro.app startup-service'
+            return "pythonw -m calibrate_pro.app startup-service"
 
     def _load_config(self) -> CalibrationConfig:
         """Load configuration from file."""
@@ -85,15 +87,15 @@ class StartupManager:
 
                 # Reconstruct display states
                 displays = {}
-                for key, val in data.get('displays', {}).items():
+                for key, val in data.get("displays", {}).items():
                     displays[key] = DisplayCalibrationState(**val)
 
                 return CalibrationConfig(
-                    version=data.get('version', '1.0'),
-                    auto_start=data.get('auto_start', False),
-                    auto_apply=data.get('auto_apply', True),
-                    refresh_interval=data.get('refresh_interval', 300),
-                    displays=displays
+                    version=data.get("version", "1.0"),
+                    auto_start=data.get("auto_start", False),
+                    auto_apply=data.get("auto_apply", True),
+                    refresh_interval=data.get("refresh_interval", 300),
+                    displays=displays,
                 )
             except Exception as e:
                 print(f"Warning: Could not load config: {e}")
@@ -103,27 +105,20 @@ class StartupManager:
     def save_config(self):
         """Save configuration to file."""
         data = {
-            'version': self.config.version,
-            'auto_start': self.config.auto_start,
-            'auto_apply': self.config.auto_apply,
-            'refresh_interval': self.config.refresh_interval,
-            'displays': {
-                key: asdict(val) for key, val in self.config.displays.items()
-            }
+            "version": self.config.version,
+            "auto_start": self.config.auto_start,
+            "auto_apply": self.config.auto_apply,
+            "refresh_interval": self.config.refresh_interval,
+            "displays": {key: asdict(val) for key, val in self.config.displays.items()},
         }
 
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def is_startup_enabled(self) -> bool:
         """Check if application is set to run at startup."""
         try:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                STARTUP_KEY,
-                0,
-                winreg.KEY_READ
-            )
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_READ)
             try:
                 winreg.QueryValueEx(key, APP_NAME)
                 return True
@@ -144,22 +139,17 @@ class StartupManager:
             exe_path = self._get_executable_path()
 
             if silent:
-                if getattr(sys, 'frozen', False):
+                if getattr(sys, "frozen", False):
                     startup_cmd = f'"{exe_path}" start-service --silent'
                 else:
-                    startup_cmd = 'pythonw -m calibrate_pro.startup.calibration_loader start-service --silent'
+                    startup_cmd = "pythonw -m calibrate_pro.startup.calibration_loader start-service --silent"
             else:
-                if getattr(sys, 'frozen', False):
+                if getattr(sys, "frozen", False):
                     startup_cmd = f'"{exe_path}" start-service'
                 else:
-                    startup_cmd = 'pythonw -m calibrate_pro.startup.calibration_loader start-service'
+                    startup_cmd = "pythonw -m calibrate_pro.startup.calibration_loader start-service"
 
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                STARTUP_KEY,
-                0,
-                winreg.KEY_SET_VALUE
-            )
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
             winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, startup_cmd)
             winreg.CloseKey(key)
 
@@ -175,6 +165,7 @@ class StartupManager:
         """Register as macOS login item via launchd."""
         try:
             from calibrate_pro.platform.macos import enable_macos_startup
+
             result = enable_macos_startup(silent)
             if result:
                 self.config.auto_start = True
@@ -187,12 +178,7 @@ class StartupManager:
     def disable_startup(self) -> bool:
         """Remove application from Windows startup."""
         try:
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                STARTUP_KEY,
-                0,
-                winreg.KEY_SET_VALUE
-            )
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
             try:
                 winreg.DeleteValue(key, APP_NAME)
             except OSError:
@@ -216,7 +202,7 @@ class StartupManager:
         icc_path: str | None = None,
         hdr_mode: bool = False,
         delta_e_avg: float = 0.0,
-        delta_e_max: float = 0.0
+        delta_e_max: float = 0.0,
     ):
         """Save calibration state for a display."""
         state = DisplayCalibrationState(
@@ -228,7 +214,7 @@ class StartupManager:
             hdr_mode=hdr_mode,
             last_calibrated=datetime.now().isoformat(),
             delta_e_avg=delta_e_avg,
-            delta_e_max=delta_e_max
+            delta_e_max=delta_e_max,
         )
 
         self.config.displays[str(display_id)] = state

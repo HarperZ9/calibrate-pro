@@ -71,7 +71,6 @@ __all__ = [
     "SPECTRAL_LOCUS",
     "WHITE_POINTS",
     "GAMUTS",
-
     # Gamma Curves
     "GammaCurveWidget",
     "GammaInfoPanel",
@@ -81,7 +80,6 @@ __all__ = [
     "bt1886_eotf",
     "power_law_eotf",
     "l_star_eotf",
-
     # Delta E Charts
     "DeltaEBarChart",
     "DeltaEStatsPanel",
@@ -89,7 +87,6 @@ __all__ = [
     "DeltaEQuality",
     "classify_delta_e",
     "get_delta_e_color",
-
     # Color Swatches
     "ColorSwatch",
     "ComparisonSwatch",

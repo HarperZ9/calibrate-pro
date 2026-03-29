@@ -37,18 +37,21 @@ import numpy as np
 # Data Structures
 # =============================================================================
 
+
 class CalibrationRisk(Enum):
     """Risk level for calibration operations."""
-    NONE = auto()      # Read-only, no changes
-    LOW = auto()       # Software LUT only, easily reversible
-    MEDIUM = auto()    # ICC profile changes, reversible
-    HIGH = auto()      # Hardware settings via DDC/CI
+
+    NONE = auto()  # Read-only, no changes
+    LOW = auto()  # Software LUT only, easily reversible
+    MEDIUM = auto()  # ICC profile changes, reversible
+    HIGH = auto()  # Hardware settings via DDC/CI
     CRITICAL = auto()  # Service menu / firmware changes
 
 
 @dataclass
 class UserConsent:
     """Records user consent for calibration operations."""
+
     timestamp: float
     risk_level: CalibrationRisk
     display_name: str
@@ -61,6 +64,7 @@ class UserConsent:
 @dataclass
 class CameraCapture:
     """Single camera capture of a test pattern."""
+
     pattern_rgb: tuple[int, int, int]  # What was displayed
     captured_rgb: tuple[float, float, float]  # What camera saw (normalized)
     timestamp: float
@@ -71,6 +75,7 @@ class CameraCapture:
 @dataclass
 class GammaPoint:
     """Single point on the measured gamma curve."""
+
     input_level: float  # 0.0 - 1.0
     red_output: float
     green_output: float
@@ -80,6 +85,7 @@ class GammaPoint:
 @dataclass
 class CameraCalibrationResult:
     """Results from camera-based calibration."""
+
     success: bool = False
     delta_e_before: float = 0.0
     delta_e_after: float = 0.0
@@ -93,6 +99,7 @@ class CameraCalibrationResult:
 # =============================================================================
 # Camera Interface (Abstract)
 # =============================================================================
+
 
 class CameraInterface:
     """
@@ -136,7 +143,7 @@ class CameraInterface:
             (R, G, B) normalized to 0.0-1.0
         """
         x, y, w, h = roi
-        region = image[y:y+h, x:x+w]
+        region = image[y : y + h, x : x + w]
 
         # Average and normalize
         avg = np.mean(region, axis=(0, 1))
@@ -157,6 +164,7 @@ class WebcamCamera(CameraInterface):
         if self._cap is None:
             try:
                 import cv2
+
                 self._cap = cv2.VideoCapture(self.device_id)
                 # Disable auto-exposure and auto-white-balance for consistency
                 self._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
@@ -175,6 +183,7 @@ class WebcamCamera(CameraInterface):
 
         if ret:
             import cv2
+
             # Convert BGR to RGB
             return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         return None
@@ -197,7 +206,7 @@ class SimulatedCamera(CameraInterface):
         display_gamma: tuple[float, float, float] = (2.4, 2.35, 2.45),
         display_rgb_gain: tuple[float, float, float] = (0.95, 1.0, 1.05),
         camera_gamma: float = 2.2,
-        noise_level: float = 0.01
+        noise_level: float = 0.01,
     ):
         self.display_gamma = display_gamma
         self.display_rgb_gain = display_rgb_gain
@@ -255,6 +264,7 @@ class SimulatedCamera(CameraInterface):
 # Pattern Display Interface
 # =============================================================================
 
+
 class PatternDisplay:
     """
     Interface for displaying test patterns on the target display.
@@ -268,7 +278,7 @@ class PatternDisplay:
         """Display a solid color pattern."""
         raise NotImplementedError
 
-    def show_gradient(self, channel: str = 'all'):
+    def show_gradient(self, channel: str = "all"):
         """Display a gradient pattern for gamma measurement."""
         raise NotImplementedError
 
@@ -280,6 +290,7 @@ class PatternDisplay:
 # =============================================================================
 # Camera Calibration Engine
 # =============================================================================
+
 
 class CameraCalibrationEngine:
     """
@@ -298,7 +309,7 @@ class CameraCalibrationEngine:
         self,
         camera: CameraInterface,
         display: PatternDisplay | None = None,
-        roi: tuple[int, int, int, int] = (200, 150, 240, 180)
+        roi: tuple[int, int, int, int] = (200, 150, 240, 180),
     ):
         self.camera = camera
         self.display = display
@@ -314,12 +325,7 @@ class CameraCalibrationEngine:
         if self._progress_callback:
             self._progress_callback(message, progress)
 
-    def request_consent(
-        self,
-        display_name: str,
-        risk_level: CalibrationRisk,
-        operation: str
-    ) -> UserConsent:
+    def request_consent(self, display_name: str, risk_level: CalibrationRisk, operation: str) -> UserConsent:
         """
         Create a consent request for the user.
 
@@ -332,7 +338,7 @@ class CameraCalibrationEngine:
             operation=operation,
             user_acknowledged_risks=False,
             hardware_modification_approved=False,
-            backup_created=False
+            backup_created=False,
         )
         return consent
 
@@ -359,12 +365,7 @@ class CameraCalibrationEngine:
         # Get average in ROI
         measured = self.camera.get_roi_average(image, self.roi)
 
-        return CameraCapture(
-            pattern_rgb=rgb,
-            captured_rgb=measured,
-            timestamp=time.time(),
-            region_of_interest=self.roi
-        )
+        return CameraCapture(pattern_rgb=rgb, captured_rgb=measured, timestamp=time.time(), region_of_interest=self.roi)
 
     def measure_grayscale_ramp(self, steps: int = 17) -> list[GammaPoint]:
         """
@@ -381,14 +382,16 @@ class CameraCalibrationEngine:
 
             capture = self.measure_single_color(rgb)
 
-            points.append(GammaPoint(
-                input_level=level / 255.0,
-                red_output=capture.captured_rgb[0],
-                green_output=capture.captured_rgb[1],
-                blue_output=capture.captured_rgb[2]
-            ))
+            points.append(
+                GammaPoint(
+                    input_level=level / 255.0,
+                    red_output=capture.captured_rgb[0],
+                    green_output=capture.captured_rgb[1],
+                    blue_output=capture.captured_rgb[2],
+                )
+            )
 
-            self._report_progress(f"Measuring level {i+1}/{steps}", (i+1) / steps * 0.5)
+            self._report_progress(f"Measuring level {i + 1}/{steps}", (i + 1) / steps * 0.5)
 
         return points
 
@@ -439,11 +442,7 @@ class CameraCalibrationEngine:
         white_balance = (reds[-1], greens[-1], blues[-1])
         white_mean = np.mean(white_balance)
         if white_mean > 0:
-            rgb_gain_error = (
-                reds[-1] / white_mean,
-                greens[-1] / white_mean,
-                blues[-1] / white_mean
-            )
+            rgb_gain_error = (reds[-1] / white_mean, greens[-1] / white_mean, blues[-1] / white_mean)
         else:
             rgb_gain_error = (1.0, 1.0, 1.0)
 
@@ -452,22 +451,18 @@ class CameraCalibrationEngine:
         mid_balance = (reds[mid_idx], greens[mid_idx], blues[mid_idx])
         mid_mean = np.mean(mid_balance)
         if mid_mean > 0:
-            mid_rgb_error = (
-                reds[mid_idx] / mid_mean,
-                greens[mid_idx] / mid_mean,
-                blues[mid_idx] / mid_mean
-            )
+            mid_rgb_error = (reds[mid_idx] / mid_mean, greens[mid_idx] / mid_mean, blues[mid_idx] / mid_mean)
         else:
             mid_rgb_error = (1.0, 1.0, 1.0)
 
         return {
-            'gamma_r': gamma_r,
-            'gamma_g': gamma_g,
-            'gamma_b': gamma_b,
-            'gamma_average': (gamma_r + gamma_g + gamma_b) / 3,
-            'rgb_gain_error': rgb_gain_error,
-            'mid_rgb_error': mid_rgb_error,
-            'measured_points': points
+            "gamma_r": gamma_r,
+            "gamma_g": gamma_g,
+            "gamma_b": gamma_b,
+            "gamma_average": (gamma_r + gamma_g + gamma_b) / 3,
+            "rgb_gain_error": rgb_gain_error,
+            "mid_rgb_error": mid_rgb_error,
+            "measured_points": points,
         }
 
     def calculate_rgb_correction(self, analysis: dict[str, Any]) -> tuple[float, float, float]:
@@ -477,24 +472,16 @@ class CameraCalibrationEngine:
         These are the multipliers to apply to each channel.
         """
         # Inverse of the measured RGB gain error
-        rgb_error = analysis['rgb_gain_error']
+        rgb_error = analysis["rgb_gain_error"]
 
         # Normalize so max is 1.0 (we can only reduce, not boost past 1.0)
         max_val = max(rgb_error)
 
-        correction = (
-            max_val / rgb_error[0],
-            max_val / rgb_error[1],
-            max_val / rgb_error[2]
-        )
+        correction = (max_val / rgb_error[0], max_val / rgb_error[1], max_val / rgb_error[2])
 
         # Scale so max is 1.0
         max_corr = max(correction)
-        correction = (
-            correction[0] / max_corr,
-            correction[1] / max_corr,
-            correction[2] / max_corr
-        )
+        correction = (correction[0] / max_corr, correction[1] / max_corr, correction[2] / max_corr)
 
         return correction
 
@@ -537,7 +524,7 @@ class CameraCalibrationEngine:
         max_iterations: int = 5,
         target_delta_e: float = 1.0,
         apply_to_hardware: bool = False,
-        consent: UserConsent | None = None
+        consent: UserConsent | None = None,
     ) -> CameraCalibrationResult:
         """
         Run full camera-based calibration.
@@ -569,9 +556,9 @@ class CameraCalibrationEngine:
 
             result.delta_e_before = self.calculate_grayscale_delta_e(initial_points)
             result.gamma_measured = (
-                initial_analysis['gamma_r'],
-                initial_analysis['gamma_g'],
-                initial_analysis['gamma_b']
+                initial_analysis["gamma_r"],
+                initial_analysis["gamma_g"],
+                initial_analysis["gamma_b"],
             )
 
             self._report_progress(f"Initial Delta E (approx): {result.delta_e_before:.2f}", 0.3)
@@ -639,9 +626,7 @@ Risk Level: {risk_level}
 def generate_consent_text(consent: UserConsent, operation_details: str) -> str:
     """Generate the full consent warning text."""
     return CONSENT_WARNING_TEXT.format(
-        operation_details=operation_details,
-        display_name=consent.display_name,
-        risk_level=consent.risk_level.name
+        operation_details=operation_details, display_name=consent.display_name, risk_level=consent.risk_level.name
     )
 
 
@@ -660,14 +645,14 @@ if __name__ == "__main__":
         display_gamma=(2.1, 2.4, 2.5),  # R too low, B too high
         display_rgb_gain=(1.05, 1.0, 0.92),  # R too bright, B too dim
         camera_gamma=2.2,
-        noise_level=0.005
+        noise_level=0.005,
     )
 
     engine = CameraCalibrationEngine(camera)
 
     # Progress callback
     def on_progress(msg, pct):
-        bar = "█" * int(pct * 30) + "░" * int((1-pct) * 30)
+        bar = "█" * int(pct * 30) + "░" * int((1 - pct) * 30)
         print(f"\r[{bar}] {msg:40s}", end="", flush=True)
         if pct >= 1.0:
             print()
@@ -680,7 +665,7 @@ if __name__ == "__main__":
 
     result = engine.run_calibration(
         target_gamma=2.2,
-        apply_to_hardware=False  # No consent for demo
+        apply_to_hardware=False,  # No consent for demo
     )
 
     print()
@@ -688,6 +673,10 @@ if __name__ == "__main__":
     print(f"  Success: {result.success}")
     print(f"  Delta E before: {result.delta_e_before:.2f}")
     print(f"  Delta E after:  {result.delta_e_after:.2f}")
-    print(f"  Measured gamma: R={result.gamma_measured[0]:.2f} G={result.gamma_measured[1]:.2f} B={result.gamma_measured[2]:.2f}")
-    print(f"  RGB correction: R={result.rgb_correction[0]:.3f} G={result.rgb_correction[1]:.3f} B={result.rgb_correction[2]:.3f}")
+    print(
+        f"  Measured gamma: R={result.gamma_measured[0]:.2f} G={result.gamma_measured[1]:.2f} B={result.gamma_measured[2]:.2f}"
+    )
+    print(
+        f"  RGB correction: R={result.rgb_correction[0]:.3f} G={result.rgb_correction[1]:.3f} B={result.rgb_correction[2]:.3f}"
+    )
     print(f"  Message: {result.message}")

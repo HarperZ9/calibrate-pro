@@ -32,17 +32,17 @@ def run_as_admin():
     try:
         # Get the Python executable and script path
         script = os.path.abspath(sys.argv[0])
-        params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
 
         # Use ShellExecuteW to request elevation
         # verb="runas" triggers UAC prompt
         result = ctypes.windll.shell32.ShellExecuteW(
-            None,           # hwnd
-            "runas",        # lpOperation (run as admin)
-            sys.executable, # lpFile (python.exe)
+            None,  # hwnd
+            "runas",  # lpOperation (run as admin)
+            sys.executable,  # lpFile (python.exe)
             f'"{script}" {params}',  # lpParameters
-            None,           # lpDirectory
-            1               # nShowCmd (SW_SHOWNORMAL)
+            None,  # lpDirectory
+            1,  # nShowCmd (SW_SHOWNORMAL)
         )
 
         # ShellExecuteW returns > 32 on success
@@ -53,6 +53,7 @@ def run_as_admin():
     except Exception as e:
         print(f"Failed to elevate: {e}")
         return False
+
 
 try:
     from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -115,8 +116,7 @@ class GainSlider(QWidget):
 
     valueChanged = pyqtSignal(float)
 
-    def __init__(self, label: str, min_val: float = 0.5, max_val: float = 1.5,
-                 default: float = 1.0, parent=None):
+    def __init__(self, label: str, min_val: float = 0.5, max_val: float = 1.5, default: float = 1.0, parent=None):
         super().__init__(parent)
         self.min_val = min_val
         self.max_val = max_val
@@ -164,8 +164,7 @@ class OffsetSlider(QWidget):
 
     valueChanged = pyqtSignal(float)
 
-    def __init__(self, label: str, min_val: float = -0.1, max_val: float = 0.1,
-                 default: float = 0.0, parent=None):
+    def __init__(self, label: str, min_val: float = -0.1, max_val: float = 0.1, default: float = 0.0, parent=None):
         super().__init__(parent)
         self.min_val = min_val
         self.max_val = max_val
@@ -449,12 +448,9 @@ class HDRCalibrationWindow(QMainWindow):
         monitors = list_monitors()
 
         for m in monitors:
-            hdr_str = " [HDR]" if m['is_hdr'] else ""
-            primary_str = " (Primary)" if m['is_primary'] else ""
-            self.monitor_combo.addItem(
-                f"{m['friendly_name']}{primary_str}{hdr_str} - {m['size'][0]}x{m['size'][1]}",
-                m
-            )
+            hdr_str = " [HDR]" if m["is_hdr"] else ""
+            primary_str = " (Primary)" if m["is_primary"] else ""
+            self.monitor_combo.addItem(f"{m['friendly_name']}{primary_str}{hdr_str} - {m['size'][0]}x{m['size'][1]}", m)
 
         self._log(f"Found {len(monitors)} monitors")
 
@@ -463,8 +459,8 @@ class HDRCalibrationWindow(QMainWindow):
         if index >= 0:
             data = self.monitor_combo.itemData(index)
             self.controller.get_monitors()
-            if data and 'index' in data:
-                self.current_monitor = self.controller.get_monitor_by_index(data['index'])
+            if data and "index" in data:
+                self.current_monitor = self.controller.get_monitor_by_index(data["index"])
                 self._log(f"Selected: {data['friendly_name']}")
 
     def _update_status(self):
@@ -509,37 +505,21 @@ class HDRCalibrationWindow(QMainWindow):
     def _get_hdr_params(self) -> dict:
         """Get current HDR calibration parameters."""
         return {
-            'rgb_gains': (
-                self.hdr_gain_r.value(),
-                self.hdr_gain_g.value(),
-                self.hdr_gain_b.value()
-            ),
-            'rgb_offsets': (
-                self.hdr_offset_r.value(),
-                self.hdr_offset_g.value(),
-                self.hdr_offset_b.value()
-            ),
-            'whitepoint': (1.0, 1.0, 1.0),
-            'peak_luminance': float(self.peak_luminance.value()),
-            'lut_size': int(self.lut_size.currentText())
+            "rgb_gains": (self.hdr_gain_r.value(), self.hdr_gain_g.value(), self.hdr_gain_b.value()),
+            "rgb_offsets": (self.hdr_offset_r.value(), self.hdr_offset_g.value(), self.hdr_offset_b.value()),
+            "whitepoint": (1.0, 1.0, 1.0),
+            "peak_luminance": float(self.peak_luminance.value()),
+            "lut_size": int(self.lut_size.currentText()),
         }
 
     def _get_sdr_params(self) -> dict:
         """Get current SDR calibration parameters."""
         return {
-            'rgb_gains': (
-                self.sdr_gain_r.value(),
-                self.sdr_gain_g.value(),
-                self.sdr_gain_b.value()
-            ),
-            'rgb_offsets': (
-                self.sdr_offset_r.value(),
-                self.sdr_offset_g.value(),
-                self.sdr_offset_b.value()
-            ),
-            'whitepoint': (1.0, 1.0, 1.0),
-            'target_gamma': self.target_gamma.value(),
-            'lut_size': int(self.lut_size.currentText())
+            "rgb_gains": (self.sdr_gain_r.value(), self.sdr_gain_g.value(), self.sdr_gain_b.value()),
+            "rgb_offsets": (self.sdr_offset_r.value(), self.sdr_offset_g.value(), self.sdr_offset_b.value()),
+            "whitepoint": (1.0, 1.0, 1.0),
+            "target_gamma": self.target_gamma.value(),
+            "lut_size": int(self.lut_size.currentText()),
         }
 
     def _apply_lut(self):
@@ -555,33 +535,28 @@ class HDRCalibrationWindow(QMainWindow):
             if is_hdr:
                 params = self._get_hdr_params()
                 lut = generate_hdr_calibration_lut(
-                    size=params['lut_size'],
-                    rgb_gains=params['rgb_gains'],
-                    rgb_offsets=params['rgb_offsets'],
-                    target_whitepoint=params['whitepoint'],
-                    peak_luminance=params['peak_luminance']
+                    size=params["lut_size"],
+                    rgb_gains=params["rgb_gains"],
+                    rgb_offsets=params["rgb_offsets"],
+                    target_whitepoint=params["whitepoint"],
+                    peak_luminance=params["peak_luminance"],
                 )
                 lut_type = LUTType.HDR
                 title = f"HDR Calibration - Peak {params['peak_luminance']} nits"
             else:
                 params = self._get_sdr_params()
                 lut = generate_sdr_calibration_lut(
-                    size=params['lut_size'],
-                    target_gamma=params['target_gamma'],
-                    rgb_gains=params['rgb_gains'],
-                    rgb_offsets=params['rgb_offsets'],
-                    target_whitepoint=params['whitepoint']
+                    size=params["lut_size"],
+                    target_gamma=params["target_gamma"],
+                    rgb_gains=params["rgb_gains"],
+                    rgb_offsets=params["rgb_offsets"],
+                    target_whitepoint=params["whitepoint"],
                 )
                 lut_type = LUTType.SDR
                 title = f"SDR Calibration - Gamma {params['target_gamma']}"
 
             # Apply LUT
-            success = self.controller.load_lut(
-                self.current_monitor,
-                lut,
-                lut_type,
-                title
-            )
+            success = self.controller.load_lut(self.current_monitor, lut, lut_type, title)
 
             if success:
                 self._log(f"Applied {lut_type.value.upper()} LUT: {params['lut_size']}³")
@@ -658,7 +633,7 @@ class HDRCalibrationWindow(QMainWindow):
                 "DwmLutGUI.exe was not found.\n\n"
                 "Please download dwm_lut from:\n"
                 "https://github.com/ledoge/dwm_lut/releases\n\n"
-                "And extract it to the calibrate/dwm_lut folder."
+                "And extract it to the calibrate/dwm_lut folder.",
             )
             return
 
@@ -678,7 +653,7 @@ class HDRCalibrationWindow(QMainWindow):
                 "DwmLutGUI requires administrator privileges.\n\n"
                 f"Please manually run as Administrator:\n"
                 f"{self.controller.dwm_lut_exe}\n\n"
-                "After starting DwmLutGUI, click 'Apply LUT' to apply your calibration."
+                "After starting DwmLutGUI, click 'Apply LUT' to apply your calibration.",
             )
 
         # Update status after delay

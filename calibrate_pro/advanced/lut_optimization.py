@@ -19,6 +19,7 @@ try:
     from scipy.interpolate import RegularGridInterpolator
     from scipy.ndimage import gaussian_filter, uniform_filter
     from scipy.optimize import minimize
+
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -31,38 +32,44 @@ except ImportError:
 # Enums
 # =============================================================================
 
+
 class SmoothingMethod(Enum):
     """LUT smoothing methods."""
-    GAUSSIAN = auto()       # Gaussian blur
-    BILATERAL = auto()      # Edge-preserving bilateral
-    ANISOTROPIC = auto()    # Anisotropic diffusion
-    PERCEPTUAL = auto()     # Perceptual smoothing in Lab
+
+    GAUSSIAN = auto()  # Gaussian blur
+    BILATERAL = auto()  # Edge-preserving bilateral
+    ANISOTROPIC = auto()  # Anisotropic diffusion
+    PERCEPTUAL = auto()  # Perceptual smoothing in Lab
 
 
 class GamutMappingMethod(Enum):
     """Gamut mapping methods for out-of-gamut colors."""
-    CLIP = auto()           # Simple RGB clipping
-    COMPRESS = auto()       # Chroma compression
-    PERCEPTUAL = auto()     # Perceptual intent mapping
-    ABSOLUTE = auto()       # Absolute colorimetric
-    SATURATION = auto()     # Saturation preserving
+
+    CLIP = auto()  # Simple RGB clipping
+    COMPRESS = auto()  # Chroma compression
+    PERCEPTUAL = auto()  # Perceptual intent mapping
+    ABSOLUTE = auto()  # Absolute colorimetric
+    SATURATION = auto()  # Saturation preserving
 
 
 class OptimizationGoal(Enum):
     """LUT optimization goal."""
-    MIN_DELTA_E = auto()    # Minimize average Delta E
+
+    MIN_DELTA_E = auto()  # Minimize average Delta E
     MIN_MAX_ERROR = auto()  # Minimize maximum error
-    SMOOTH = auto()         # Prioritize smoothness
-    BALANCED = auto()       # Balance accuracy and smoothness
+    SMOOTH = auto()  # Prioritize smoothness
+    BALANCED = auto()  # Balance accuracy and smoothness
 
 
 # =============================================================================
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class LUTQualityMetrics:
     """Quality metrics for a 3D LUT."""
+
     # Size
     lut_size: int
 
@@ -93,6 +100,7 @@ class LUTQualityMetrics:
 @dataclass
 class OptimizationResult:
     """Result of LUT optimization."""
+
     optimized_lut: np.ndarray
     original_metrics: LUTQualityMetrics
     optimized_metrics: LUTQualityMetrics
@@ -107,20 +115,22 @@ class OptimizationResult:
 @dataclass
 class SmoothingConfig:
     """Configuration for LUT smoothing."""
+
     method: SmoothingMethod = SmoothingMethod.PERCEPTUAL
-    sigma: float = 0.5              # Smoothing strength
-    preserve_edges: bool = True     # Edge preservation
-    edge_threshold: float = 0.1     # Edge detection threshold
+    sigma: float = 0.5  # Smoothing strength
+    preserve_edges: bool = True  # Edge preservation
+    edge_threshold: float = 0.1  # Edge detection threshold
     iterations: int = 1
 
 
 @dataclass
 class GamutConfig:
     """Configuration for gamut mapping."""
+
     method: GamutMappingMethod = GamutMappingMethod.PERCEPTUAL
-    source_gamut: str = "wide"      # Source gamut (wide, p3, bt2020)
-    target_gamut: str = "srgb"      # Target gamut
-    compression_factor: float = 0.8 # Chroma compression factor
+    source_gamut: str = "wide"  # Source gamut (wide, p3, bt2020)
+    target_gamut: str = "srgb"  # Target gamut
+    compression_factor: float = 0.8  # Chroma compression factor
     black_point_compensation: bool = True
 
 
@@ -128,29 +138,27 @@ class GamutConfig:
 # Color Conversion Functions
 # =============================================================================
 
+
 def rgb_to_xyz(rgb: np.ndarray, gamma: float = 2.2) -> np.ndarray:
     """Convert RGB to XYZ (sRGB primaries)."""
     # Linearize
     rgb_linear = np.power(np.clip(rgb, 0, 1), gamma)
 
     # sRGB to XYZ matrix
-    matrix = np.array([
-        [0.4124564, 0.3575761, 0.1804375],
-        [0.2126729, 0.7151522, 0.0721750],
-        [0.0193339, 0.1191920, 0.9503041]
-    ])
+    matrix = np.array(
+        [[0.4124564, 0.3575761, 0.1804375], [0.2126729, 0.7151522, 0.0721750], [0.0193339, 0.1191920, 0.9503041]]
+    )
 
     return np.dot(rgb_linear, matrix.T)
 
 
-def xyz_to_lab(xyz: np.ndarray,
-               white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
+def xyz_to_lab(xyz: np.ndarray, white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
     """Convert XYZ to Lab."""
     xyz_normalized = xyz / np.array(white)
 
     def f(t):
         delta = 6 / 29
-        return np.where(t > delta**3, np.cbrt(t), t / (3 * delta**2) + 4/29)
+        return np.where(t > delta**3, np.cbrt(t), t / (3 * delta**2) + 4 / 29)
 
     fx = f(xyz_normalized[..., 0])
     fy = f(xyz_normalized[..., 1])
@@ -163,8 +171,7 @@ def xyz_to_lab(xyz: np.ndarray,
     return np.stack([L, a, b], axis=-1)
 
 
-def lab_to_xyz(lab: np.ndarray,
-               white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
+def lab_to_xyz(lab: np.ndarray, white: tuple[float, float, float] = (0.95047, 1.0, 1.08883)) -> np.ndarray:
     """Convert Lab to XYZ."""
     L, a, b = lab[..., 0], lab[..., 1], lab[..., 2]
 
@@ -174,7 +181,7 @@ def lab_to_xyz(lab: np.ndarray,
 
     def f_inv(t):
         delta = 6 / 29
-        return np.where(t > delta, t**3, 3 * delta**2 * (t - 4/29))
+        return np.where(t > delta, t**3, 3 * delta**2 * (t - 4 / 29))
 
     x = f_inv(fx)
     y = f_inv(fy)
@@ -187,17 +194,15 @@ def lab_to_xyz(lab: np.ndarray,
 def xyz_to_rgb(xyz: np.ndarray, gamma: float = 2.2) -> np.ndarray:
     """Convert XYZ to RGB (sRGB primaries)."""
     # XYZ to sRGB matrix
-    matrix = np.array([
-        [3.2404542, -1.5371385, -0.4985314],
-        [-0.9692660, 1.8760108, 0.0415560],
-        [0.0556434, -0.2040259, 1.0572252]
-    ])
+    matrix = np.array(
+        [[3.2404542, -1.5371385, -0.4985314], [-0.9692660, 1.8760108, 0.0415560], [0.0556434, -0.2040259, 1.0572252]]
+    )
 
     rgb_linear = np.dot(xyz, matrix.T)
     rgb_linear = np.clip(rgb_linear, 0, 1)
 
     # Apply gamma
-    return np.power(rgb_linear, 1/gamma)
+    return np.power(rgb_linear, 1 / gamma)
 
 
 def rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
@@ -236,9 +241,7 @@ def delta_e_2000(lab1: np.ndarray, lab2: np.ndarray) -> np.ndarray:
     delta_C_prime = C2_prime - C1_prime
 
     delta_h_prime = h2_prime - h1_prime
-    delta_h_prime = np.where(np.abs(delta_h_prime) > 180,
-                              delta_h_prime - np.sign(delta_h_prime) * 360,
-                              delta_h_prime)
+    delta_h_prime = np.where(np.abs(delta_h_prime) > 180, delta_h_prime - np.sign(delta_h_prime) * 360, delta_h_prime)
 
     delta_H_prime = 2 * np.sqrt(C1_prime * C2_prime) * np.sin(np.radians(delta_h_prime / 2))
 
@@ -246,31 +249,30 @@ def delta_e_2000(lab1: np.ndarray, lab2: np.ndarray) -> np.ndarray:
     C_prime_avg = (C1_prime + C2_prime) / 2
 
     h_prime_sum = h1_prime + h2_prime
-    h_prime_avg = np.where(
-        np.abs(h1_prime - h2_prime) > 180,
-        (h_prime_sum + 360) / 2,
-        h_prime_sum / 2
+    h_prime_avg = np.where(np.abs(h1_prime - h2_prime) > 180, (h_prime_sum + 360) / 2, h_prime_sum / 2)
+
+    T = (
+        1
+        - 0.17 * np.cos(np.radians(h_prime_avg - 30))
+        + 0.24 * np.cos(np.radians(2 * h_prime_avg))
+        + 0.32 * np.cos(np.radians(3 * h_prime_avg + 6))
+        - 0.20 * np.cos(np.radians(4 * h_prime_avg - 63))
     )
 
-    T = (1 - 0.17 * np.cos(np.radians(h_prime_avg - 30)) +
-         0.24 * np.cos(np.radians(2 * h_prime_avg)) +
-         0.32 * np.cos(np.radians(3 * h_prime_avg + 6)) -
-         0.20 * np.cos(np.radians(4 * h_prime_avg - 63)))
-
-    delta_theta = 30 * np.exp(-((h_prime_avg - 275) / 25)**2)
+    delta_theta = 30 * np.exp(-(((h_prime_avg - 275) / 25) ** 2))
     R_C = 2 * np.sqrt(C_prime_avg**7 / (C_prime_avg**7 + 25**7))
 
-    S_L = 1 + (0.015 * (L_prime_avg - 50)**2) / np.sqrt(20 + (L_prime_avg - 50)**2)
+    S_L = 1 + (0.015 * (L_prime_avg - 50) ** 2) / np.sqrt(20 + (L_prime_avg - 50) ** 2)
     S_C = 1 + 0.045 * C_prime_avg
     S_H = 1 + 0.015 * C_prime_avg * T
 
     R_T = -np.sin(np.radians(2 * delta_theta)) * R_C
 
     delta_E = np.sqrt(
-        (delta_L_prime / S_L)**2 +
-        (delta_C_prime / S_C)**2 +
-        (delta_H_prime / S_H)**2 +
-        R_T * (delta_C_prime / S_C) * (delta_H_prime / S_H)
+        (delta_L_prime / S_L) ** 2
+        + (delta_C_prime / S_C) ** 2
+        + (delta_H_prime / S_H) ** 2
+        + R_T * (delta_C_prime / S_C) * (delta_H_prime / S_H)
     )
 
     return delta_E
@@ -280,8 +282,8 @@ def delta_e_2000(lab1: np.ndarray, lab2: np.ndarray) -> np.ndarray:
 # LUT Analysis Functions
 # =============================================================================
 
-def analyze_lut_quality(lut: np.ndarray,
-                        reference: np.ndarray | None = None) -> LUTQualityMetrics:
+
+def analyze_lut_quality(lut: np.ndarray, reference: np.ndarray | None = None) -> LUTQualityMetrics:
     """
     Analyze quality metrics of a 3D LUT.
 
@@ -339,8 +341,7 @@ def analyze_lut_quality(lut: np.ndarray,
     return metrics
 
 
-def analyze_interpolation_quality(lut: np.ndarray,
-                                  test_points: int = 1000) -> tuple[float, float]:
+def analyze_interpolation_quality(lut: np.ndarray, test_points: int = 1000) -> tuple[float, float]:
     """
     Analyze interpolation quality of a LUT.
 
@@ -354,10 +355,7 @@ def analyze_interpolation_quality(lut: np.ndarray,
 
     # Create interpolator
     x = np.linspace(0, 1, size)
-    interpolator = RegularGridInterpolator(
-        (x, x, x), lut,
-        method='linear', bounds_error=False, fill_value=None
-    )
+    interpolator = RegularGridInterpolator((x, x, x), lut, method="linear", bounds_error=False, fill_value=None)
 
     # Generate random test points
     np.random.seed(42)
@@ -383,6 +381,7 @@ def analyze_interpolation_quality(lut: np.ndarray,
 # LUT Smoothing Functions
 # =============================================================================
 
+
 def smooth_lut_gaussian(lut: np.ndarray, sigma: float = 0.5) -> np.ndarray:
     """Apply Gaussian smoothing to LUT."""
     smoothed = np.zeros_like(lut)
@@ -391,9 +390,7 @@ def smooth_lut_gaussian(lut: np.ndarray, sigma: float = 0.5) -> np.ndarray:
     return np.clip(smoothed, 0, 1)
 
 
-def smooth_lut_perceptual(lut: np.ndarray,
-                          sigma: float = 0.5,
-                          preserve_edges: bool = True) -> np.ndarray:
+def smooth_lut_perceptual(lut: np.ndarray, sigma: float = 0.5, preserve_edges: bool = True) -> np.ndarray:
     """
     Apply perceptual smoothing in Lab space.
 
@@ -410,13 +407,9 @@ def smooth_lut_perceptual(lut: np.ndarray,
     for channel in range(3):
         if preserve_edges and channel > 0:  # Preserve edges in a,b channels
             # Use smaller sigma for chromatic channels
-            smoothed_lab[..., channel] = gaussian_filter(
-                lut_lab[..., channel], sigma=sigma * 0.5
-            )
+            smoothed_lab[..., channel] = gaussian_filter(lut_lab[..., channel], sigma=sigma * 0.5)
         else:
-            smoothed_lab[..., channel] = gaussian_filter(
-                lut_lab[..., channel], sigma=sigma
-            )
+            smoothed_lab[..., channel] = gaussian_filter(lut_lab[..., channel], sigma=sigma)
 
     # Convert back to RGB
     smoothed_rgb = lab_to_rgb(smoothed_lab.reshape(-1, 3)).reshape(size, size, size, 3)
@@ -424,9 +417,7 @@ def smooth_lut_perceptual(lut: np.ndarray,
     return np.clip(smoothed_rgb, 0, 1)
 
 
-def smooth_lut_bilateral(lut: np.ndarray,
-                         sigma_spatial: float = 1.0,
-                         sigma_range: float = 0.1) -> np.ndarray:
+def smooth_lut_bilateral(lut: np.ndarray, sigma_spatial: float = 1.0, sigma_range: float = 0.1) -> np.ndarray:
     """
     Apply bilateral smoothing to LUT (edge-preserving).
 
@@ -452,16 +443,13 @@ def smooth_lut_bilateral(lut: np.ndarray,
 
                 # Spatial weights
                 ii, jj, kk = np.meshgrid(
-                    np.arange(i_min, i_max) - i,
-                    np.arange(j_min, j_max) - j,
-                    np.arange(k_min, k_max) - k,
-                    indexing='ij'
+                    np.arange(i_min, i_max) - i, np.arange(j_min, j_max) - j, np.arange(k_min, k_max) - k, indexing="ij"
                 )
                 spatial_weight = np.exp(-(ii**2 + jj**2 + kk**2) / (2 * sigma_spatial**2))
 
                 # Range weights
-                diff = np.sqrt(np.sum((neighborhood - center)**2, axis=-1))
-                range_weight = np.exp(-diff**2 / (2 * sigma_range**2))
+                diff = np.sqrt(np.sum((neighborhood - center) ** 2, axis=-1))
+                range_weight = np.exp(-(diff**2) / (2 * sigma_range**2))
 
                 # Combined weights
                 weight = spatial_weight * range_weight
@@ -478,13 +466,13 @@ def smooth_lut_bilateral(lut: np.ndarray,
 # Gamut Mapping Functions
 # =============================================================================
 
+
 def map_gamut_clip(lut: np.ndarray) -> np.ndarray:
     """Simple RGB clipping for out-of-gamut colors."""
     return np.clip(lut, 0, 1)
 
 
-def map_gamut_compress(lut: np.ndarray,
-                       compression_factor: float = 0.8) -> np.ndarray:
+def map_gamut_compress(lut: np.ndarray, compression_factor: float = 0.8) -> np.ndarray:
     """
     Compress chroma for out-of-gamut colors.
 
@@ -517,8 +505,7 @@ def map_gamut_compress(lut: np.ndarray,
     return np.clip(result, 0, 1)
 
 
-def map_gamut_perceptual(lut: np.ndarray,
-                         target_gamut: str = "srgb") -> np.ndarray:
+def map_gamut_perceptual(lut: np.ndarray, target_gamut: str = "srgb") -> np.ndarray:
     """
     Perceptual gamut mapping.
 
@@ -572,6 +559,7 @@ def map_gamut_perceptual(lut: np.ndarray,
 # LUT Optimizer Class
 # =============================================================================
 
+
 class LUTOptimizer:
     """
     Advanced 3D LUT optimization engine.
@@ -580,10 +568,12 @@ class LUTOptimizer:
     LUT accuracy and smoothness.
     """
 
-    def __init__(self,
-                 goal: OptimizationGoal = OptimizationGoal.BALANCED,
-                 smoothing_config: SmoothingConfig | None = None,
-                 gamut_config: GamutConfig | None = None):
+    def __init__(
+        self,
+        goal: OptimizationGoal = OptimizationGoal.BALANCED,
+        smoothing_config: SmoothingConfig | None = None,
+        gamut_config: GamutConfig | None = None,
+    ):
         """
         Initialize optimizer.
 
@@ -596,10 +586,9 @@ class LUTOptimizer:
         self.smoothing = smoothing_config or SmoothingConfig()
         self.gamut = gamut_config or GamutConfig()
 
-    def optimize(self,
-                 lut: np.ndarray,
-                 reference: np.ndarray | None = None,
-                 target_delta_e: float = 1.0) -> OptimizationResult:
+    def optimize(
+        self, lut: np.ndarray, reference: np.ndarray | None = None, target_delta_e: float = 1.0
+    ) -> OptimizationResult:
         """
         Optimize a 3D LUT.
 
@@ -612,6 +601,7 @@ class LUTOptimizer:
             OptimizationResult with optimized LUT and metrics
         """
         import time
+
         start_time = time.time()
 
         # Analyze original
@@ -657,17 +647,12 @@ class LUTOptimizer:
         if self.smoothing.method == SmoothingMethod.GAUSSIAN:
             return smooth_lut_gaussian(lut, self.smoothing.sigma)
         elif self.smoothing.method == SmoothingMethod.PERCEPTUAL:
-            return smooth_lut_perceptual(
-                lut, self.smoothing.sigma, self.smoothing.preserve_edges
-            )
+            return smooth_lut_perceptual(lut, self.smoothing.sigma, self.smoothing.preserve_edges)
         elif self.smoothing.method == SmoothingMethod.BILATERAL:
             return smooth_lut_bilateral(lut, self.smoothing.sigma)
         return lut
 
-    def _optimize_accuracy(self,
-                          lut: np.ndarray,
-                          reference: np.ndarray | None,
-                          target_delta_e: float) -> np.ndarray:
+    def _optimize_accuracy(self, lut: np.ndarray, reference: np.ndarray | None, target_delta_e: float) -> np.ndarray:
         """Optimize for minimum Delta E."""
         if reference is None:
             return lut
@@ -697,9 +682,7 @@ class LUTOptimizer:
 
         return result
 
-    def _optimize_max_error(self,
-                           lut: np.ndarray,
-                           reference: np.ndarray | None) -> np.ndarray:
+    def _optimize_max_error(self, lut: np.ndarray, reference: np.ndarray | None) -> np.ndarray:
         """Optimize to minimize maximum error."""
         if reference is None:
             return lut
@@ -730,10 +713,7 @@ class LUTOptimizer:
 
         return result
 
-    def _optimize_balanced(self,
-                          lut: np.ndarray,
-                          reference: np.ndarray | None,
-                          target_delta_e: float) -> np.ndarray:
+    def _optimize_balanced(self, lut: np.ndarray, reference: np.ndarray | None, target_delta_e: float) -> np.ndarray:
         """Balance accuracy and smoothness."""
         # First optimize accuracy
         result = self._optimize_accuracy(lut, reference, target_delta_e)
@@ -761,6 +741,7 @@ class LUTOptimizer:
 # Utility Functions
 # =============================================================================
 
+
 def create_identity_lut(size: int = 17) -> np.ndarray:
     """Create an identity 3D LUT."""
     lut = np.zeros((size, size, size, 3), dtype=np.float64)
@@ -768,18 +749,12 @@ def create_identity_lut(size: int = 17) -> np.ndarray:
     for r in range(size):
         for g in range(size):
             for b in range(size):
-                lut[r, g, b] = [
-                    r / (size - 1),
-                    g / (size - 1),
-                    b / (size - 1)
-                ]
+                lut[r, g, b] = [r / (size - 1), g / (size - 1), b / (size - 1)]
 
     return lut
 
 
-def create_test_lut(size: int = 17,
-                    contrast: float = 1.1,
-                    saturation: float = 1.05) -> np.ndarray:
+def create_test_lut(size: int = 17, contrast: float = 1.1, saturation: float = 1.05) -> np.ndarray:
     """Create a test LUT with contrast/saturation adjustments."""
     identity = create_identity_lut(size)
 

@@ -34,6 +34,7 @@ TARGET_GAMUTS = ["sRGB", "Display P3", "BT.709", "Adobe RGB"]
 
 # Profile Data
 
+
 def _scan_profiles() -> list[dict]:
     """
     Scan the calibrations directory for .cube / .icc pairs.
@@ -72,15 +73,17 @@ def _scan_profiles() -> list[dict]:
             if mod_time is None or icc_mod > mod_time:
                 mod_time = icc_mod
 
-        profiles.append({
-            "name": stem.replace("_", " ").replace("-", " — ", 1),
-            "stem": stem,
-            "cube_path": cube,
-            "icc_path": icc_path,
-            "cube_size": cube_stat.st_size if cube_stat else 0,
-            "icc_size": icc_stat.st_size if icc_stat else 0,
-            "modified": mod_time,
-        })
+        profiles.append(
+            {
+                "name": stem.replace("_", " ").replace("-", " — ", 1),
+                "stem": stem,
+                "cube_path": cube,
+                "icc_path": icc_path,
+                "cube_size": cube_stat.st_size if cube_stat else 0,
+                "icc_size": icc_stat.st_size if icc_stat else 0,
+                "modified": mod_time,
+            }
+        )
 
     # Also pick up .icc files that have no matching .cube
     for icc in sorted(CALIBRATIONS_DIR.glob("*.icc")):
@@ -88,15 +91,17 @@ def _scan_profiles() -> list[dict]:
             seen_stems.add(icc.stem)
             icc_stat = icc.stat()
             mod_time = datetime.fromtimestamp(icc_stat.st_mtime)
-            profiles.append({
-                "name": icc.stem.replace("_", " ").replace("-", " — ", 1),
-                "stem": icc.stem,
-                "cube_path": None,
-                "icc_path": icc,
-                "cube_size": 0,
-                "icc_size": icc_stat.st_size,
-                "modified": mod_time,
-            })
+            profiles.append(
+                {
+                    "name": icc.stem.replace("_", " ").replace("-", " — ", 1),
+                    "stem": icc.stem,
+                    "cube_path": None,
+                    "icc_path": icc,
+                    "cube_size": 0,
+                    "icc_size": icc_stat.st_size,
+                    "modified": mod_time,
+                }
+            )
 
     return profiles
 
@@ -113,6 +118,7 @@ def _format_size(size_bytes: int) -> str:
 
 
 # Profile Card Widget
+
 
 class ProfileCard(Card):
     """Card showing a single calibration profile."""
@@ -135,9 +141,7 @@ class ProfileCard(Card):
         top.setSpacing(10)
 
         name_label = QLabel(profile["name"])
-        name_label.setStyleSheet(
-            f"font-size: 14px; font-weight: 500; color: {C.TEXT};"
-        )
+        name_label.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
         top.addWidget(name_label)
 
         if is_active:
@@ -178,31 +182,19 @@ class ProfileCard(Card):
         files_row.setSpacing(4)
 
         if profile.get("cube_path"):
-            cube_label = QLabel(
-                f".cube  {_format_size(profile['cube_size'])}  \u2014  "
-                f"{profile['cube_path']}"
-            )
+            cube_label = QLabel(f".cube  {_format_size(profile['cube_size'])}  \u2014  {profile['cube_path']}")
             cube_label.setStyleSheet(
-                f"font-size: 10px; color: {C.TEXT3}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace;"
+                f"font-size: 10px; color: {C.TEXT3}; font-family: 'Cascadia Code', 'Consolas', monospace;"
             )
-            cube_label.setTextInteractionFlags(
-                Qt.TextInteractionFlag.TextSelectableByMouse
-            )
+            cube_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             files_row.addWidget(cube_label)
 
         if profile.get("icc_path"):
-            icc_label = QLabel(
-                f".icc  {_format_size(profile['icc_size'])}  \u2014  "
-                f"{profile['icc_path']}"
-            )
+            icc_label = QLabel(f".icc  {_format_size(profile['icc_size'])}  \u2014  {profile['icc_path']}")
             icc_label.setStyleSheet(
-                f"font-size: 10px; color: {C.TEXT3}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace;"
+                f"font-size: 10px; color: {C.TEXT3}; font-family: 'Cascadia Code', 'Consolas', monospace;"
             )
-            icc_label.setTextInteractionFlags(
-                Qt.TextInteractionFlag.TextSelectableByMouse
-            )
+            icc_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             files_row.addWidget(icc_label)
 
         if not profile.get("cube_path") and not profile.get("icc_path"):
@@ -273,16 +265,15 @@ class ProfileCard(Card):
 
             if cube and cube.exists():
                 from calibrate_pro.lut_system.dwm_lut import load_lut
+
                 load_lut(str(cube), display_index=0)
 
             if icc and icc.exists():
                 from calibrate_pro.panels.detection import install_profile
+
                 install_profile(str(icc))
 
-            QMessageBox.information(
-                self, "Profile Activated",
-                f"Activated: {self._profile['name']}"
-            )
+            QMessageBox.information(self, "Profile Activated", f"Activated: {self._profile['name']}")
         except Exception as e:
             QMessageBox.warning(self, "Activation Error", str(e))
 
@@ -293,22 +284,21 @@ class ProfileCard(Card):
             return
         try:
             import shutil
+
             dest_path = Path(dest)
             for key in ("cube_path", "icc_path"):
                 src = self._profile.get(key)
                 if src and src.exists():
                     shutil.copy2(str(src), str(dest_path / src.name))
-            QMessageBox.information(
-                self, "Exported",
-                f"Profile exported to {dest_path}"
-            )
+            QMessageBox.information(self, "Exported", f"Profile exported to {dest_path}")
         except Exception as e:
             QMessageBox.warning(self, "Export Error", str(e))
 
     def _on_delete(self):
         """Delete profile files after confirmation."""
         reply = QMessageBox.question(
-            self, "Delete Profile",
+            self,
+            "Delete Profile",
             f"Delete '{self._profile['name']}' and its files?\n\nThis cannot be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -327,6 +317,7 @@ class ProfileCard(Card):
 
 
 # Profiles Page
+
 
 class ProfilesPage(QWidget):
     """Profile management page."""
@@ -411,6 +402,7 @@ class ProfilesPage(QWidget):
         active_stem: str | None = None
         try:
             from calibrate_pro.utils.startup_manager import StartupManager
+
             mgr = StartupManager()
             cal = mgr.get_display_calibration(0)
             if cal and cal.lut_path:
@@ -419,7 +411,7 @@ class ProfilesPage(QWidget):
             pass
 
         for profile in profiles:
-            is_active = (active_stem is not None and profile["stem"] == active_stem)
+            is_active = active_stem is not None and profile["stem"] == active_stem
             card = ProfileCard(profile, is_active=is_active)
             card.clicked.connect(self._show_detail)
             self._cards_layout.addWidget(card)
@@ -446,9 +438,7 @@ class ProfilesPage(QWidget):
         header_row.setSpacing(12)
 
         name_label = QLabel(profile["name"])
-        name_label.setStyleSheet(
-            f"font-size: 16px; font-weight: 600; color: {C.TEXT};"
-        )
+        name_label.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {C.TEXT};")
         header_row.addWidget(name_label)
         header_row.addStretch()
 
@@ -472,6 +462,7 @@ class ProfilesPage(QWidget):
         # CIE Diagram
         try:
             from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
+
             cie = CIEDiagramWidget()
             cie.setFixedSize(350, 350)
 
@@ -479,6 +470,7 @@ class ProfilesPage(QWidget):
             try:
                 from calibrate_pro.panels.database import PanelDatabase
                 from calibrate_pro.panels.detection import enumerate_displays, identify_display
+
                 db = PanelDatabase()
                 displays = enumerate_displays()
                 if displays:
@@ -533,9 +525,7 @@ class ProfilesPage(QWidget):
 
         has_cube = profile.get("cube_path") is not None
         has_icc = profile.get("icc_path") is not None
-        files_str = ", ".join(
-            f for f, present in [(".cube", has_cube), (".icc", has_icc)] if present
-        ) or "None"
+        files_str = ", ".join(f for f, present in [(".cube", has_cube), (".icc", has_icc)] if present) or "None"
         stat_data.append(("Files", files_str))
 
         for label, value in stat_data:
@@ -550,7 +540,9 @@ class ProfilesPage(QWidget):
     def _rename_profile(self, profile: dict):
         """Open a dialog to rename the profile files."""
         new_name, ok = QInputDialog.getText(
-            self, "Rename Profile", "New name:",
+            self,
+            "Rename Profile",
+            "New name:",
             text=profile["name"],
         )
         if not ok or not new_name.strip():
@@ -576,9 +568,7 @@ class ProfilesPage(QWidget):
         msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(msg)
 
-        hint = QLabel(
-            "Run 'Calibrate' to create your first profile."
-        )
+        hint = QLabel("Run 'Calibrate' to create your first profile.")
         hint.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(hint)
@@ -588,7 +578,8 @@ class ProfilesPage(QWidget):
     def _generate_all(self):
         """Generate profiles for sRGB, P3, BT.709, and Adobe RGB."""
         reply = QMessageBox.question(
-            self, "Generate All Profiles",
+            self,
+            "Generate All Profiles",
             "Generate calibration profiles for:\n\n"
             "  - sRGB\n"
             "  - Display P3\n"
@@ -604,16 +595,14 @@ class ProfilesPage(QWidget):
             CALIBRATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
             from calibrate_pro.calibration.engine import CalibrationEngine
+
             engine = CalibrationEngine()
 
             for gamut in TARGET_GAMUTS:
                 try:
                     engine.calibrate(target_gamut=gamut, output_dir=str(CALIBRATIONS_DIR))
                 except Exception as e:
-                    QMessageBox.warning(
-                        self, "Generation Error",
-                        f"Failed to generate {gamut} profile:\n{e}"
-                    )
+                    QMessageBox.warning(self, "Generation Error", f"Failed to generate {gamut} profile:\n{e}")
 
             self._populate()
 

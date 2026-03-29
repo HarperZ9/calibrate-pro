@@ -27,8 +27,10 @@ logger = logging.getLogger("calibrate_pro.automation")
 # Enums
 # =============================================================================
 
+
 class TaskStatus(Enum):
     """Automation task status."""
+
     PENDING = auto()
     RUNNING = auto()
     COMPLETED = auto()
@@ -39,6 +41,7 @@ class TaskStatus(Enum):
 
 class TaskType(Enum):
     """Type of automation task."""
+
     CALIBRATE = auto()
     VERIFY = auto()
     PROFILE = auto()
@@ -51,6 +54,7 @@ class TaskType(Enum):
 
 class WorkflowState(Enum):
     """Workflow execution state."""
+
     IDLE = auto()
     RUNNING = auto()
     PAUSED = auto()
@@ -60,6 +64,7 @@ class WorkflowState(Enum):
 
 class EventType(Enum):
     """Automation event types."""
+
     TASK_STARTED = auto()
     TASK_COMPLETED = auto()
     TASK_FAILED = auto()
@@ -75,9 +80,11 @@ class EventType(Enum):
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class TaskResult:
     """Result of a task execution."""
+
     success: bool
     data: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
@@ -88,6 +95,7 @@ class TaskResult:
 @dataclass
 class AutomationTask:
     """Single automation task definition."""
+
     task_id: str
     task_type: TaskType
     name: str
@@ -115,6 +123,7 @@ class AutomationTask:
 @dataclass
 class Workflow:
     """Workflow definition containing multiple tasks."""
+
     workflow_id: str
     name: str
     description: str = ""
@@ -144,6 +153,7 @@ class Workflow:
 @dataclass
 class AutomationEvent:
     """Automation system event."""
+
     event_type: EventType
     timestamp: datetime = field(default_factory=datetime.now)
     data: dict[str, Any] = field(default_factory=dict)
@@ -153,6 +163,7 @@ class AutomationEvent:
 @dataclass
 class ScheduledTask:
     """Scheduled task for recurring execution."""
+
     schedule_id: str
     workflow_id: str
     name: str
@@ -172,15 +183,14 @@ class ScheduledTask:
 # Task Handlers
 # =============================================================================
 
+
 class TaskHandler:
     """Base class for task handlers."""
 
     def __init__(self):
         self.name = "base"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Execute the task. Override in subclasses."""
         raise NotImplementedError
 
@@ -196,9 +206,7 @@ class CalibrateHandler(TaskHandler):
         super().__init__()
         self.name = "calibrate"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Execute calibration."""
         params = task.parameters
         display_id = params.get("display_id", 0)
@@ -218,7 +226,7 @@ class CalibrateHandler(TaskHandler):
                 "delta_e_mean": 1.2,
                 "delta_e_max": 2.8,
                 "profile_path": f"calibration_{display_id}.icc",
-            }
+            },
         )
 
     def validate(self, task: AutomationTask) -> bool:
@@ -234,9 +242,7 @@ class VerifyHandler(TaskHandler):
         super().__init__()
         self.name = "verify"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Execute verification."""
         params = task.parameters
         display_id = params.get("display_id", 0)
@@ -253,7 +259,7 @@ class VerifyHandler(TaskHandler):
                 "verification_type": verification_type,
                 "delta_e_mean": 1.5,
                 "passed": True,
-            }
+            },
         )
 
 
@@ -264,9 +270,7 @@ class ProfileHandler(TaskHandler):
         super().__init__()
         self.name = "profile"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Generate ICC profile."""
         params = task.parameters
         output_path = params.get("output_path", "profile.icc")
@@ -280,7 +284,7 @@ class ProfileHandler(TaskHandler):
             data={
                 "profile_path": output_path,
                 "profile_version": "4.4",
-            }
+            },
         )
 
 
@@ -291,9 +295,7 @@ class LUTHandler(TaskHandler):
         super().__init__()
         self.name = "lut"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Generate or apply LUT."""
         params = task.parameters
         action = params.get("action", "generate")
@@ -309,7 +311,7 @@ class LUTHandler(TaskHandler):
                 "action": action,
                 "lut_path": lut_path,
                 "lut_size": 33,
-            }
+            },
         )
 
 
@@ -320,9 +322,7 @@ class ExportHandler(TaskHandler):
         super().__init__()
         self.name = "export"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Export data/reports."""
         params = task.parameters
         export_type = params.get("type", "report")
@@ -337,7 +337,7 @@ class ExportHandler(TaskHandler):
             data={
                 "export_type": export_type,
                 "output_path": output_path,
-            }
+            },
         )
 
 
@@ -348,9 +348,7 @@ class CustomHandler(TaskHandler):
         super().__init__()
         self.name = "custom"
 
-    async def execute(self,
-                      task: AutomationTask,
-                      context: dict[str, Any]) -> TaskResult:
+    async def execute(self, task: AutomationTask, context: dict[str, Any]) -> TaskResult:
         """Execute custom script."""
         params = task.parameters
         script = params.get("script", "")
@@ -386,6 +384,7 @@ class CustomHandler(TaskHandler):
 # Workflow Engine
 # =============================================================================
 
+
 class WorkflowEngine:
     """
     Executes automation workflows.
@@ -412,19 +411,15 @@ class WorkflowEngine:
         self._context: dict[str, Any] = {}
         self._executor = ThreadPoolExecutor(max_workers=4)
 
-    def register_handler(self,
-                        task_type: TaskType,
-                        handler: TaskHandler) -> None:
+    def register_handler(self, task_type: TaskType, handler: TaskHandler) -> None:
         """Register a custom task handler."""
         self.handlers[task_type] = handler
 
-    def add_event_listener(self,
-                          listener: Callable[[AutomationEvent], None]) -> None:
+    def add_event_listener(self, listener: Callable[[AutomationEvent], None]) -> None:
         """Add event listener."""
         self._event_listeners.append(listener)
 
-    def remove_event_listener(self,
-                             listener: Callable[[AutomationEvent], None]) -> None:
+    def remove_event_listener(self, listener: Callable[[AutomationEvent], None]) -> None:
         """Remove event listener."""
         if listener in self._event_listeners:
             self._event_listeners.remove(listener)
@@ -437,9 +432,7 @@ class WorkflowEngine:
             except Exception as e:
                 logger.error(f"Event listener error: {e}")
 
-    async def execute_workflow(self,
-                               workflow: Workflow,
-                               context: dict[str, Any] | None = None) -> Workflow:
+    async def execute_workflow(self, workflow: Workflow, context: dict[str, Any] | None = None) -> Workflow:
         """
         Execute a complete workflow.
 
@@ -454,10 +447,12 @@ class WorkflowEngine:
         workflow.state = WorkflowState.RUNNING
         workflow.started_at = datetime.now()
 
-        self._emit_event(AutomationEvent(
-            event_type=EventType.WORKFLOW_STARTED,
-            data={"workflow_id": workflow.workflow_id, "name": workflow.name},
-        ))
+        self._emit_event(
+            AutomationEvent(
+                event_type=EventType.WORKFLOW_STARTED,
+                data={"workflow_id": workflow.workflow_id, "name": workflow.name},
+            )
+        )
 
         try:
             # Build dependency graph
@@ -475,10 +470,7 @@ class WorkflowEngine:
                         continue
 
                     # Check dependencies
-                    deps_met = all(
-                        dep_id in completed_tasks
-                        for dep_id in task.depends_on
-                    )
+                    deps_met = all(dep_id in completed_tasks for dep_id in task.depends_on)
                     if deps_met:
                         ready_tasks.append(task)
 
@@ -505,16 +497,20 @@ class WorkflowEngine:
             # Determine final state
             if workflow.errors:
                 workflow.state = WorkflowState.FAILED
-                self._emit_event(AutomationEvent(
-                    event_type=EventType.WORKFLOW_FAILED,
-                    data={"workflow_id": workflow.workflow_id, "errors": workflow.errors},
-                ))
+                self._emit_event(
+                    AutomationEvent(
+                        event_type=EventType.WORKFLOW_FAILED,
+                        data={"workflow_id": workflow.workflow_id, "errors": workflow.errors},
+                    )
+                )
             else:
                 workflow.state = WorkflowState.COMPLETED
-                self._emit_event(AutomationEvent(
-                    event_type=EventType.WORKFLOW_COMPLETED,
-                    data={"workflow_id": workflow.workflow_id},
-                ))
+                self._emit_event(
+                    AutomationEvent(
+                        event_type=EventType.WORKFLOW_COMPLETED,
+                        data={"workflow_id": workflow.workflow_id},
+                    )
+                )
 
         except Exception as e:
             workflow.state = WorkflowState.FAILED
@@ -529,10 +525,12 @@ class WorkflowEngine:
         task.status = TaskStatus.RUNNING
         task.started_at = datetime.now()
 
-        self._emit_event(AutomationEvent(
-            event_type=EventType.TASK_STARTED,
-            data={"task_id": task.task_id, "name": task.name},
-        ))
+        self._emit_event(
+            AutomationEvent(
+                event_type=EventType.TASK_STARTED,
+                data={"task_id": task.task_id, "name": task.name},
+            )
+        )
 
         handler = self.handlers.get(task.task_type)
         if not handler:
@@ -559,10 +557,7 @@ class WorkflowEngine:
 
         for attempt in range(task.max_retries + 1):
             try:
-                result = await asyncio.wait_for(
-                    handler.execute(task, self._context),
-                    timeout=task.timeout
-                )
+                result = await asyncio.wait_for(handler.execute(task, self._context), timeout=task.timeout)
                 break
             except asyncio.TimeoutError:
                 result = TaskResult(
@@ -587,25 +582,27 @@ class WorkflowEngine:
 
         if result.success:
             task.status = TaskStatus.COMPLETED
-            self._emit_event(AutomationEvent(
-                event_type=EventType.TASK_COMPLETED,
-                data={"task_id": task.task_id, "result": result.data},
-            ))
+            self._emit_event(
+                AutomationEvent(
+                    event_type=EventType.TASK_COMPLETED,
+                    data={"task_id": task.task_id, "result": result.data},
+                )
+            )
         else:
             task.status = TaskStatus.FAILED
-            self._emit_event(AutomationEvent(
-                event_type=EventType.TASK_FAILED,
-                data={"task_id": task.task_id, "error": result.error},
-            ))
+            self._emit_event(
+                AutomationEvent(
+                    event_type=EventType.TASK_FAILED,
+                    data={"task_id": task.task_id, "error": result.error},
+                )
+            )
 
         # Store result in context for downstream tasks
         self._context[f"task_{task.task_id}"] = result.data
 
         return result
 
-    async def execute_task(self,
-                          task: AutomationTask,
-                          context: dict[str, Any] | None = None) -> TaskResult:
+    async def execute_task(self, task: AutomationTask, context: dict[str, Any] | None = None) -> TaskResult:
         """Execute a single task standalone."""
         self._context = context or {}
         return await self._execute_task(task)
@@ -614,6 +611,7 @@ class WorkflowEngine:
 # =============================================================================
 # Automation API
 # =============================================================================
+
 
 class AutomationAPI:
     """
@@ -633,11 +631,9 @@ class AutomationAPI:
     # Task Creation
     # =========================================================================
 
-    def create_task(self,
-                    task_type: TaskType,
-                    name: str,
-                    parameters: dict[str, Any] | None = None,
-                    **kwargs) -> AutomationTask:
+    def create_task(
+        self, task_type: TaskType, name: str, parameters: dict[str, Any] | None = None, **kwargs
+    ) -> AutomationTask:
         """Create a new automation task."""
         self._task_counter += 1
         task_id = f"task_{self._task_counter:04d}"
@@ -650,11 +646,7 @@ class AutomationAPI:
             **kwargs,
         )
 
-    def calibrate(self,
-                  display_id: int = 0,
-                  whitepoint: str = "D65",
-                  gamma: float = 2.2,
-                  **kwargs) -> AutomationTask:
+    def calibrate(self, display_id: int = 0, whitepoint: str = "D65", gamma: float = 2.2, **kwargs) -> AutomationTask:
         """Create a calibration task."""
         return self.create_task(
             TaskType.CALIBRATE,
@@ -664,13 +656,10 @@ class AutomationAPI:
                 "whitepoint": whitepoint,
                 "gamma": gamma,
                 **kwargs,
-            }
+            },
         )
 
-    def verify(self,
-               display_id: int = 0,
-               verification_type: str = "colorchecker",
-               **kwargs) -> AutomationTask:
+    def verify(self, display_id: int = 0, verification_type: str = "colorchecker", **kwargs) -> AutomationTask:
         """Create a verification task."""
         return self.create_task(
             TaskType.VERIFY,
@@ -679,12 +668,10 @@ class AutomationAPI:
                 "display_id": display_id,
                 "type": verification_type,
                 **kwargs,
-            }
+            },
         )
 
-    def generate_profile(self,
-                        output_path: str,
-                        **kwargs) -> AutomationTask:
+    def generate_profile(self, output_path: str, **kwargs) -> AutomationTask:
         """Create a profile generation task."""
         return self.create_task(
             TaskType.PROFILE,
@@ -692,13 +679,10 @@ class AutomationAPI:
             parameters={
                 "output_path": output_path,
                 **kwargs,
-            }
+            },
         )
 
-    def generate_lut(self,
-                     lut_path: str,
-                     lut_size: int = 33,
-                     **kwargs) -> AutomationTask:
+    def generate_lut(self, lut_path: str, lut_size: int = 33, **kwargs) -> AutomationTask:
         """Create a LUT generation task."""
         return self.create_task(
             TaskType.LUT_GENERATE,
@@ -708,13 +692,10 @@ class AutomationAPI:
                 "lut_path": lut_path,
                 "lut_size": lut_size,
                 **kwargs,
-            }
+            },
         )
 
-    def apply_lut(self,
-                  lut_path: str,
-                  display_id: int = 0,
-                  **kwargs) -> AutomationTask:
+    def apply_lut(self, lut_path: str, display_id: int = 0, **kwargs) -> AutomationTask:
         """Create a LUT application task."""
         return self.create_task(
             TaskType.LUT_APPLY,
@@ -724,13 +705,10 @@ class AutomationAPI:
                 "lut_path": lut_path,
                 "display_id": display_id,
                 **kwargs,
-            }
+            },
         )
 
-    def export_report(self,
-                      output_path: str,
-                      report_type: str = "pdf",
-                      **kwargs) -> AutomationTask:
+    def export_report(self, output_path: str, report_type: str = "pdf", **kwargs) -> AutomationTask:
         """Create an export task."""
         return self.create_task(
             TaskType.EXPORT,
@@ -740,13 +718,10 @@ class AutomationAPI:
                 "output_path": output_path,
                 "format": report_type,
                 **kwargs,
-            }
+            },
         )
 
-    def run_script(self,
-                   script: str = "",
-                   script_path: str = "",
-                   **kwargs) -> AutomationTask:
+    def run_script(self, script: str = "", script_path: str = "", **kwargs) -> AutomationTask:
         """Create a custom script task."""
         return self.create_task(
             TaskType.CUSTOM,
@@ -755,17 +730,14 @@ class AutomationAPI:
                 "script": script,
                 "script_path": script_path,
                 **kwargs,
-            }
+            },
         )
 
     # =========================================================================
     # Workflow Creation
     # =========================================================================
 
-    def create_workflow(self,
-                        name: str,
-                        tasks: list[AutomationTask] | None = None,
-                        description: str = "") -> Workflow:
+    def create_workflow(self, name: str, tasks: list[AutomationTask] | None = None, description: str = "") -> Workflow:
         """Create a new workflow."""
         self._workflow_counter += 1
         workflow_id = f"workflow_{self._workflow_counter:04d}"
@@ -780,9 +752,7 @@ class AutomationAPI:
         self._workflows[workflow_id] = workflow
         return workflow
 
-    def create_calibration_workflow(self,
-                                    display_id: int = 0,
-                                    name: str = "Full Calibration") -> Workflow:
+    def create_calibration_workflow(self, display_id: int = 0, name: str = "Full Calibration") -> Workflow:
         """Create a complete calibration workflow."""
         tasks = [
             self.calibrate(display_id=display_id),
@@ -795,13 +765,11 @@ class AutomationAPI:
 
         # Set dependencies
         for i in range(1, len(tasks)):
-            tasks[i].depends_on = [tasks[i-1].task_id]
+            tasks[i].depends_on = [tasks[i - 1].task_id]
 
         return self.create_workflow(name, tasks)
 
-    def create_verification_workflow(self,
-                                     display_id: int = 0,
-                                     name: str = "Verification") -> Workflow:
+    def create_verification_workflow(self, display_id: int = 0, name: str = "Verification") -> Workflow:
         """Create a verification-only workflow."""
         tasks = [
             self.verify(display_id=display_id, verification_type="colorchecker"),
@@ -837,11 +805,9 @@ class AutomationAPI:
     # Scheduling
     # =========================================================================
 
-    def schedule(self,
-                 workflow: Workflow,
-                 interval_hours: float | None = None,
-                 cron: str | None = None,
-                 name: str = "") -> ScheduledTask:
+    def schedule(
+        self, workflow: Workflow, interval_hours: float | None = None, cron: str | None = None, name: str = ""
+    ) -> ScheduledTask:
         """Schedule a workflow for recurring execution."""
         schedule_id = f"schedule_{len(self._scheduled_tasks):04d}"
 
@@ -870,8 +836,7 @@ class AutomationAPI:
     # Event Handling
     # =========================================================================
 
-    def on_event(self,
-                 callback: Callable[[AutomationEvent], None]) -> None:
+    def on_event(self, callback: Callable[[AutomationEvent], None]) -> None:
         """Register an event callback."""
         self.engine.add_event_listener(callback)
 
@@ -901,7 +866,7 @@ class AutomationAPI:
             "tags": workflow.tags,
         }
 
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
     def load_workflow(self, path: str) -> Workflow:
@@ -938,6 +903,7 @@ class AutomationAPI:
 # =============================================================================
 # CLI Interface
 # =============================================================================
+
 
 def create_cli_parser():
     """Create command-line argument parser."""
@@ -1030,6 +996,7 @@ def run_cli(args: list[str] | None = None) -> int:
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def print_workflow_status(workflow: Workflow) -> None:
     """Print workflow execution status."""

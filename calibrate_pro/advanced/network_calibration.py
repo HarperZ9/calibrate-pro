@@ -26,8 +26,10 @@ from typing import Any
 # Enums
 # =============================================================================
 
+
 class NodeStatus(Enum):
     """Calibration node status."""
+
     OFFLINE = auto()
     ONLINE = auto()
     BUSY = auto()
@@ -37,6 +39,7 @@ class NodeStatus(Enum):
 
 class JobStatus(Enum):
     """Calibration job status."""
+
     PENDING = auto()
     QUEUED = auto()
     RUNNING = auto()
@@ -47,6 +50,7 @@ class JobStatus(Enum):
 
 class JobType(Enum):
     """Type of calibration job."""
+
     FULL_CALIBRATION = auto()
     VERIFICATION_ONLY = auto()
     PROFILE_APPLY = auto()
@@ -56,8 +60,9 @@ class JobType(Enum):
 
 class ProfileSyncMode(Enum):
     """Profile synchronization mode."""
-    PUSH = auto()       # Server pushes to clients
-    PULL = auto()       # Clients pull from server
+
+    PUSH = auto()  # Server pushes to clients
+    PULL = auto()  # Clients pull from server
     BIDIRECTIONAL = auto()
 
 
@@ -65,9 +70,11 @@ class ProfileSyncMode(Enum):
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class DisplayNode:
     """Remote display node information."""
+
     node_id: str
     hostname: str
     ip_address: str
@@ -104,9 +111,10 @@ class DisplayNode:
 @dataclass
 class CalibrationJob:
     """Calibration job definition."""
+
     job_id: str
     job_type: JobType
-    target_nodes: list[str]     # List of node IDs
+    target_nodes: list[str]  # List of node IDs
 
     # Job parameters
     parameters: dict = field(default_factory=dict)
@@ -133,6 +141,7 @@ class CalibrationJob:
 @dataclass
 class ProfilePackage:
     """Distributable calibration profile package."""
+
     package_id: str
     name: str
     version: str
@@ -165,6 +174,7 @@ class ProfilePackage:
 @dataclass
 class SyncState:
     """Profile synchronization state."""
+
     last_sync: datetime | None = None
     pending_updates: int = 0
     sync_errors: list[str] = field(default_factory=list)
@@ -175,8 +185,10 @@ class SyncState:
 # Network Protocol Messages
 # =============================================================================
 
+
 class MessageType(Enum):
     """Network message types."""
+
     PING = 0
     PONG = 1
     STATUS_REQUEST = 2
@@ -198,6 +210,7 @@ class MessageType(Enum):
 @dataclass
 class NetworkMessage:
     """Network protocol message."""
+
     msg_type: MessageType
     sender_id: str
     payload: dict = field(default_factory=dict)
@@ -211,15 +224,15 @@ class NetworkMessage:
             "payload": self.payload,
             "timestamp": self.timestamp.isoformat(),
         }
-        json_data = json.dumps(data).encode('utf-8')
+        json_data = json.dumps(data).encode("utf-8")
         # Prefix with length
-        return struct.pack('>I', len(json_data)) + json_data
+        return struct.pack(">I", len(json_data)) + json_data
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'NetworkMessage':
+    def from_bytes(cls, data: bytes) -> "NetworkMessage":
         """Deserialize message from bytes."""
         # Skip length prefix
-        json_data = data[4:].decode('utf-8')
+        json_data = data[4:].decode("utf-8")
         obj = json.loads(json_data)
         return cls(
             msg_type=MessageType(obj["type"]),
@@ -233,6 +246,7 @@ class NetworkMessage:
 # Calibration Server
 # =============================================================================
 
+
 class CalibrationServer:
     """
     Central calibration server for fleet management.
@@ -241,10 +255,7 @@ class CalibrationServer:
     and synchronizes profiles across the network.
     """
 
-    def __init__(self,
-                 host: str = "0.0.0.0",
-                 port: int = 5678,
-                 server_id: str | None = None):
+    def __init__(self, host: str = "0.0.0.0", port: int = 5678, server_id: str | None = None):
         """
         Initialize calibration server.
 
@@ -314,12 +325,14 @@ class CalibrationServer:
     # Job Management
     # =========================================================================
 
-    def create_job(self,
-                   job_type: JobType,
-                   target_nodes: list[str],
-                   parameters: dict | None = None,
-                   priority: int = 0,
-                   created_by: str = "") -> CalibrationJob:
+    def create_job(
+        self,
+        job_type: JobType,
+        target_nodes: list[str],
+        parameters: dict | None = None,
+        priority: int = 0,
+        created_by: str = "",
+    ) -> CalibrationJob:
         """
         Create a new calibration job.
 
@@ -394,9 +407,7 @@ class CalibrationServer:
         """Get profile package by ID."""
         return self.profiles.get(package_id)
 
-    def push_profile_to_nodes(self,
-                              package_id: str,
-                              node_ids: list[str]) -> dict[str, bool]:
+    def push_profile_to_nodes(self, package_id: str, node_ids: list[str]) -> dict[str, bool]:
         """
         Push profile package to specified nodes.
 
@@ -434,7 +445,7 @@ class CalibrationServer:
                     "has_icc": package.icc_profile is not None,
                     "has_lut_3d": package.lut_3d is not None,
                     "calibration_data": package.calibration_data,
-                }
+                },
             )
             # Actual send would go here
             return True
@@ -445,9 +456,7 @@ class CalibrationServer:
     # Fleet Calibration
     # =========================================================================
 
-    def calibrate_fleet(self,
-                        group: str | None = None,
-                        parameters: dict | None = None) -> CalibrationJob:
+    def calibrate_fleet(self, group: str | None = None, parameters: dict | None = None) -> CalibrationJob:
         """
         Create calibration job for entire fleet or group.
 
@@ -489,9 +498,7 @@ class CalibrationServer:
             created_by="fleet_manager",
         )
 
-    def apply_profile_to_fleet(self,
-                               package_id: str,
-                               group: str | None = None) -> CalibrationJob:
+    def apply_profile_to_fleet(self, package_id: str, group: str | None = None) -> CalibrationJob:
         """Apply profile to entire fleet or group."""
         if group:
             nodes = self.get_nodes_by_group(group)
@@ -557,9 +564,7 @@ class CalibrationServer:
             self.job_queue.pop(0)
             self._notify_job_change(job)
 
-    async def _execute_job_on_node(self,
-                                   job: CalibrationJob,
-                                   node: DisplayNode) -> dict:
+    async def _execute_job_on_node(self, job: CalibrationJob, node: DisplayNode) -> dict:
         """Execute job on a specific node."""
         self.update_node_status(node.node_id, NodeStatus.CALIBRATING)
 
@@ -656,6 +661,7 @@ class CalibrationServer:
 # Calibration Client
 # =============================================================================
 
+
 class CalibrationClient:
     """
     Calibration client for remote nodes.
@@ -663,10 +669,7 @@ class CalibrationClient:
     Connects to a calibration server and executes calibration commands.
     """
 
-    def __init__(self,
-                 server_host: str,
-                 server_port: int = 5678,
-                 node_id: str | None = None):
+    def __init__(self, server_host: str, server_port: int = 5678, node_id: str | None = None):
         """
         Initialize calibration client.
 
@@ -734,7 +737,7 @@ class CalibrationClient:
                 "display_name": self.node_info.display_name,
                 "display_model": self.node_info.display_model,
                 "has_colorimeter": self.node_info.has_colorimeter,
-            }
+            },
         )
         self._send_message(msg)
 
@@ -752,13 +755,11 @@ class CalibrationClient:
                 "status": self.node_info.status.name,
                 "active_profile": self.node_info.active_profile,
                 "active_lut": self.node_info.active_lut,
-            }
+            },
         )
         self._send_message(msg)
 
-    def register_handler(self,
-                        msg_type: MessageType,
-                        handler: Callable[[NetworkMessage], None]) -> None:
+    def register_handler(self, msg_type: MessageType, handler: Callable[[NetworkMessage], None]) -> None:
         """Register handler for message type."""
         self._command_handlers[msg_type] = handler
 
@@ -772,6 +773,7 @@ class CalibrationClient:
 # =============================================================================
 # Profile Sync Manager
 # =============================================================================
+
 
 class ProfileSyncManager:
     """
@@ -810,9 +812,7 @@ class ProfileSyncManager:
                     if package_id not in self.sync_state.synced_profiles:
                         self.sync_state.synced_profiles.append(package_id)
                 else:
-                    self.sync_state.sync_errors.append(
-                        f"Failed to sync {package.name} to {node_id}"
-                    )
+                    self.sync_state.sync_errors.append(f"Failed to sync {package.name} to {node_id}")
 
         self.sync_state.last_sync = datetime.now()
         return self.sync_state
@@ -832,6 +832,7 @@ class ProfileSyncManager:
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def create_test_nodes(count: int = 5) -> list[DisplayNode]:
     """Create test display nodes."""
@@ -917,7 +918,7 @@ if __name__ == "__main__":
             "whitepoint": "D65",
             "gamma": 2.2,
             "gamut": "sRGB",
-        }
+        },
     )
     server.add_profile(package)
 

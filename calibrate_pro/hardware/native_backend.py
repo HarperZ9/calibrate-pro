@@ -10,7 +10,6 @@ Supports:
 - Calibrite ColorChecker Display
 """
 
-
 from calibrate_pro.hardware.colorimeter_base import ColorimeterBase, ColorMeasurement, DeviceInfo, DeviceType
 from calibrate_pro.hardware.usb_device import (
     COLORIMETER_USB_IDS,
@@ -47,10 +46,7 @@ class NativeBackend(ColorimeterBase):
 
         for usb_dev in usb_devices:
             # Determine device type and create DeviceInfo
-            name = COLORIMETER_USB_IDS.get(
-                (usb_dev.vendor_id, usb_dev.product_id),
-                "Unknown Colorimeter"
-            )
+            name = COLORIMETER_USB_IDS.get((usb_dev.vendor_id, usb_dev.product_id), "Unknown Colorimeter")
 
             # Determine device type
             if "i1Pro" in name or "ColorMunki" in name and "Display" not in name:
@@ -65,14 +61,16 @@ class NativeBackend(ColorimeterBase):
             if "OLED" in name or "Pro Plus" in name:
                 caps.append("oled_mode")
 
-            devices.append(DeviceInfo(
-                name=name,
-                manufacturer=usb_dev.manufacturer or self._get_manufacturer(usb_dev.vendor_id),
-                model=name,
-                serial=usb_dev.serial_number or "",
-                device_type=dev_type,
-                capabilities=caps
-            ))
+            devices.append(
+                DeviceInfo(
+                    name=name,
+                    manufacturer=usb_dev.manufacturer or self._get_manufacturer(usb_dev.vendor_id),
+                    model=name,
+                    serial=usb_dev.serial_number or "",
+                    device_type=dev_type,
+                    capabilities=caps,
+                )
+            )
 
         return devices
 
@@ -93,12 +91,14 @@ class NativeBackend(ColorimeterBase):
             # i1Display family
             if pid in [0x5001, 0x5011, 0x5020, 0x5010, 0x5021, 0x5022, 0x5023]:
                 from calibrate_pro.hardware.i1display_native import I1DisplayNative
+
                 return I1DisplayNative()
             # i1Pro family would go here
 
         # Datacolor Spyder devices
         elif vid == 0x085C:
             from calibrate_pro.hardware.spyder_native import SpyderNative
+
             return SpyderNative()
 
         return None
@@ -157,7 +157,7 @@ class NativeBackend(ColorimeterBase):
 
     def set_integration_time(self, seconds: float) -> bool:
         """Set integration time."""
-        if self._driver and hasattr(self._driver, 'set_integration_time'):
+        if self._driver and hasattr(self._driver, "set_integration_time"):
             return self._driver.set_integration_time(seconds)
         return False
 
@@ -197,12 +197,19 @@ def auto_connect() -> NativeBackend | None:
     if devices:
         # Prefer spectrophotometer, then i1Display Pro Plus, then any
         priority_order = [
-            "i1Pro 3", "i1Pro 2", "i1Pro",
-            "ColorChecker Display Plus", "ColorChecker Display Pro",
-            "i1Display Pro Plus", "i1Display Pro",
-            "SpyderX2", "SpyderX",
-            "ColorMunki Display", "i1Display Studio",
-            "Spyder5", "Spyder4"
+            "i1Pro 3",
+            "i1Pro 2",
+            "i1Pro",
+            "ColorChecker Display Plus",
+            "ColorChecker Display Pro",
+            "i1Display Pro Plus",
+            "i1Display Pro",
+            "SpyderX2",
+            "SpyderX",
+            "ColorMunki Display",
+            "i1Display Studio",
+            "Spyder5",
+            "Spyder4",
         ]
 
         # Sort devices by priority
@@ -212,10 +219,7 @@ def auto_connect() -> NativeBackend | None:
                     return i
             return len(priority_order)
 
-        sorted_devices = sorted(
-            enumerate(devices),
-            key=lambda x: get_priority(x[1])
-        )
+        sorted_devices = sorted(enumerate(devices), key=lambda x: get_priority(x[1]))
 
         for idx, _ in sorted_devices:
             if backend.connect(idx):

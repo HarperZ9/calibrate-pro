@@ -47,8 +47,10 @@ COLORS = {
 # Display Information
 # =============================================================================
 
+
 class DisplayTechnology(Enum):
     """Display panel technology."""
+
     UNKNOWN = "Unknown"
     LCD_TN = "LCD (TN)"
     LCD_IPS = "LCD (IPS)"
@@ -61,6 +63,7 @@ class DisplayTechnology(Enum):
 
 class CalibrationStatus(Enum):
     """Display calibration status."""
+
     UNCALIBRATED = auto()
     CALIBRATED = auto()
     NEEDS_RECALIBRATION = auto()
@@ -70,6 +73,7 @@ class CalibrationStatus(Enum):
 @dataclass
 class DisplayInfo:
     """Complete display information."""
+
     # Identification
     id: int = 0
     name: str = ""
@@ -120,6 +124,7 @@ class DisplayInfo:
 # Display Monitor Widget
 # =============================================================================
 
+
 class DisplayMonitorWidget(QFrame):
     """Visual representation of a single display."""
 
@@ -148,7 +153,7 @@ class DisplayMonitorWidget(QFrame):
         self.number_badge.setFixedSize(24, 24)
         self.number_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.number_badge.setStyleSheet(f"""
-            background-color: {COLORS['accent']};
+            background-color: {COLORS["accent"]};
             color: white;
             font-weight: 600;
             border-radius: 12px;
@@ -159,7 +164,7 @@ class DisplayMonitorWidget(QFrame):
         if self.display_info.is_primary:
             primary_label = QLabel("Primary")
             primary_label.setStyleSheet(f"""
-                color: {COLORS['success']};
+                color: {COLORS["success"]};
                 font-size: 10px;
                 font-weight: 600;
             """)
@@ -179,15 +184,13 @@ class DisplayMonitorWidget(QFrame):
         self.name_label.setStyleSheet(f"""
             font-weight: 600;
             font-size: 13px;
-            color: {COLORS['text_primary']};
+            color: {COLORS["text_primary"]};
         """)
         self.name_label.setWordWrap(True)
         layout.addWidget(self.name_label)
 
         # Resolution
-        self.resolution_label = QLabel(
-            f"{self.display_info.resolution} @ {self.display_info.refresh_rate:.0f}Hz"
-        )
+        self.resolution_label = QLabel(f"{self.display_info.resolution} @ {self.display_info.refresh_rate:.0f}Hz")
         self.resolution_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px;")
         layout.addWidget(self.resolution_label)
 
@@ -209,19 +212,19 @@ class DisplayMonitorWidget(QFrame):
         status = self.display_info.calibration_status
         if status == CalibrationStatus.CALIBRATED:
             text = "✓"
-            color = COLORS['success']
+            color = COLORS["success"]
             tooltip = f"Calibrated (ΔE: {self.display_info.delta_e:.2f})"
         elif status == CalibrationStatus.NEEDS_RECALIBRATION:
             text = "!"
-            color = COLORS['warning']
+            color = COLORS["warning"]
             tooltip = "Needs recalibration"
         elif status == CalibrationStatus.CALIBRATING:
             text = "◐"
-            color = COLORS['accent']
+            color = COLORS["accent"]
             tooltip = "Calibrating..."
         else:
             text = "○"
-            color = COLORS['text_disabled']
+            color = COLORS["text_disabled"]
             tooltip = "Not calibrated"
 
         self.status_indicator.setText(text)
@@ -231,14 +234,14 @@ class DisplayMonitorWidget(QFrame):
     def _update_style(self):
         """Update widget style based on state."""
         if self._selected:
-            border_color = COLORS['accent']
-            bg_color = COLORS['surface_alt']
+            border_color = COLORS["accent"]
+            bg_color = COLORS["surface_alt"]
         elif self._hovered:
-            border_color = COLORS['accent']
-            bg_color = COLORS['surface']
+            border_color = COLORS["accent"]
+            bg_color = COLORS["surface"]
         else:
-            border_color = COLORS['border']
-            bg_color = COLORS['surface']
+            border_color = COLORS["border"]
+            bg_color = COLORS["surface"]
 
         self.setStyleSheet(f"""
             DisplayMonitorWidget {{
@@ -282,6 +285,7 @@ class DisplayMonitorWidget(QFrame):
 # Visual Layout Preview
 # =============================================================================
 
+
 class DisplayLayoutPreview(QGraphicsView):
     """Visual preview of display arrangement."""
 
@@ -304,8 +308,8 @@ class DisplayLayoutPreview(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setStyleSheet(f"""
             QGraphicsView {{
-                background-color: {COLORS['background']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["background"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 8px;
             }}
         """)
@@ -348,23 +352,23 @@ class DisplayLayoutPreview(QGraphicsView):
 
             # Create rectangle
             rect = QGraphicsRectItem(x, y, w, h)
-            rect.setPen(QPen(QColor(COLORS['border']), 2))
-            rect.setBrush(QBrush(QColor(COLORS['surface'])))
+            rect.setPen(QPen(QColor(COLORS["border"]), 2))
+            rect.setBrush(QBrush(QColor(COLORS["surface"])))
             rect.setData(0, display.id)
             self.scene.addItem(rect)
             self.display_rects[display.id] = rect
 
             # Add label
             label = QGraphicsTextItem(str(display.id + 1))
-            label.setDefaultTextColor(QColor(COLORS['text_primary']))
+            label.setDefaultTextColor(QColor(COLORS["text_primary"]))
             font = QFont("Segoe UI", 16, QFont.Weight.Bold)
             label.setFont(font)
-            label.setPos(x + w/2 - 8, y + h/2 - 12)
+            label.setPos(x + w / 2 - 8, y + h / 2 - 12)
             self.scene.addItem(label)
 
             # Add resolution text
             res_label = QGraphicsTextItem(display.resolution)
-            res_label.setDefaultTextColor(QColor(COLORS['text_secondary']))
+            res_label.setDefaultTextColor(QColor(COLORS["text_secondary"]))
             res_font = QFont("Segoe UI", 8)
             res_label.setFont(res_font)
             res_label.setPos(x + 4, y + h - 16)
@@ -378,11 +382,11 @@ class DisplayLayoutPreview(QGraphicsView):
         self._selected_id = display_id
         for did, rect in self.display_rects.items():
             if did == display_id:
-                rect.setPen(QPen(QColor(COLORS['accent']), 3))
-                rect.setBrush(QBrush(QColor(COLORS['surface_alt'])))
+                rect.setPen(QPen(QColor(COLORS["accent"]), 3))
+                rect.setBrush(QBrush(QColor(COLORS["surface_alt"])))
             else:
-                rect.setPen(QPen(QColor(COLORS['border']), 2))
-                rect.setBrush(QBrush(QColor(COLORS['surface'])))
+                rect.setPen(QPen(QColor(COLORS["border"]), 2))
+                rect.setBrush(QBrush(QColor(COLORS["surface"])))
 
     def mousePressEvent(self, event):
         pos = self.mapToScene(event.pos())
@@ -408,6 +412,7 @@ class DisplayLayoutPreview(QGraphicsView):
 # =============================================================================
 # Display Selector Widget
 # =============================================================================
+
 
 class DisplaySelector(QWidget):
     """Complete display selector with list and visual preview."""
@@ -496,6 +501,7 @@ class DisplaySelector(QWidget):
 
             # Try to determine aspect ratio
             from math import gcd
+
             g = gcd(display.width, display.height)
             display.aspect_ratio = f"{display.width // g}:{display.height // g}"
 
@@ -538,7 +544,7 @@ class DisplaySelector(QWidget):
 
         # Update widgets
         for did, widget in self.display_widgets.items():
-            widget.selected = (did == display_id)
+            widget.selected = did == display_id
 
         # Update preview
         self.layout_preview.select_display(display_id)
@@ -566,6 +572,7 @@ class DisplaySelector(QWidget):
 # =============================================================================
 # Quick Display Info Panel
 # =============================================================================
+
 
 class DisplayInfoPanel(QWidget):
     """Detailed information panel for selected display."""

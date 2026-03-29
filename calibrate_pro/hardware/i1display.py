@@ -19,6 +19,7 @@ from calibrate_pro.hardware.colorimeter_base import (
 
 class I1DisplayType:
     """i1Display model variants."""
+
     I1DISPLAY_PRO = "i1Display Pro"
     I1DISPLAY_PRO_PLUS = "i1Display Pro Plus"
     I1DISPLAY_STUDIO = "i1Display Studio"
@@ -50,28 +51,16 @@ I1DISPLAY_CORRECTIONS = {
     # APPROXIMATE — does not account for per-unit sensor variance
     "OLED": {
         "description": "OLED Display Correction (approximate, per-unit EEPROM needed)",
-        "matrix": [
-            [1.0245, -0.0156, -0.0089],
-            [-0.0087, 1.0134, -0.0047],
-            [0.0021, -0.0098, 1.0077]
-        ]
+        "matrix": [[1.0245, -0.0156, -0.0089], [-0.0087, 1.0134, -0.0047], [0.0021, -0.0098, 1.0077]],
     },
     "WideGamut": {
         "description": "Wide Gamut LCD Correction (approximate, per-unit EEPROM needed)",
-        "matrix": [
-            [1.0089, -0.0067, -0.0022],
-            [-0.0045, 1.0078, -0.0033],
-            [0.0012, -0.0056, 1.0044]
-        ]
+        "matrix": [[1.0089, -0.0067, -0.0022], [-0.0045, 1.0078, -0.0033], [0.0012, -0.0056, 1.0044]],
     },
     "LCD": {
         "description": "Standard LCD (identity — no correction)",
-        "matrix": [
-            [1.0000, 0.0000, 0.0000],
-            [0.0000, 1.0000, 0.0000],
-            [0.0000, 0.0000, 1.0000]
-        ]
-    }
+        "matrix": [[1.0000, 0.0000, 0.0000], [0.0000, 1.0000, 0.0000], [0.0000, 0.0000, 1.0000]],
+    },
 }
 
 
@@ -112,10 +101,9 @@ class I1DisplayDriver(ArgyllBackend):
     def _is_i1display(self, device: DeviceInfo) -> bool:
         """Check if device is an i1Display."""
         name_lower = device.name.lower()
-        return any(x in name_lower for x in [
-            "i1display", "i1 display", "colormunki display",
-            "eye-one display", "xrite"
-        ])
+        return any(
+            x in name_lower for x in ["i1display", "i1 display", "colormunki display", "eye-one display", "xrite"]
+        )
 
     def _identify_model(self, device: DeviceInfo) -> None:
         """Identify specific i1Display model and capabilities."""
@@ -166,10 +154,7 @@ class I1DisplayDriver(ArgyllBackend):
         OLED mode uses longer integration times for better
         black level measurements on OLED displays.
         """
-        if self.model_type not in [
-            I1DisplayType.I1DISPLAY_PRO,
-            I1DisplayType.I1DISPLAY_PRO_PLUS
-        ]:
+        if self.model_type not in [I1DisplayType.I1DISPLAY_PRO, I1DisplayType.I1DISPLAY_PRO_PLUS]:
             return False
 
         self.oled_mode = enabled
@@ -190,6 +175,7 @@ class I1DisplayDriver(ArgyllBackend):
         # Try per-unit EEPROM calibration via native driver
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             native = I1D3Driver()
             if native.open():
                 # Map display_type names to EEPROM calibration block names
@@ -232,12 +218,7 @@ class I1DisplayDriver(ArgyllBackend):
         try:
             # Use spotread with ambient mode
             cmd = [str(self.spotread_path), "-a", "-x"]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
                 # Parse ambient reading
@@ -253,8 +234,8 @@ class I1DisplayDriver(ArgyllBackend):
     def _parse_ambient_output(self, output: str) -> ColorMeasurement | None:
         """Parse ambient measurement output from spotread."""
         # Look for illuminance value
-        lux_match = re.search(r'Lux:\s*([\d.]+)', output)
-        cct_match = re.search(r'CCT:\s*([\d.]+)', output)
+        lux_match = re.search(r"Lux:\s*([\d.]+)", output)
+        cct_match = re.search(r"CCT:\s*([\d.]+)", output)
 
         if lux_match:
             lux = float(lux_match.group(1))
@@ -262,11 +243,7 @@ class I1DisplayDriver(ArgyllBackend):
 
             # Create measurement with ambient data
             # For ambient, Y represents illuminance in lux
-            return ColorMeasurement(
-                X=0, Y=lux, Z=0,
-                cct=cct,
-                measurement_mode="ambient"
-            )
+            return ColorMeasurement(X=0, Y=lux, Z=0, cct=cct, measurement_mode="ambient")
 
         return None
 
@@ -301,7 +278,7 @@ class I1DisplayDriver(ArgyllBackend):
             Z=float(corrected[2]),
             spectral_data=measurement.spectral_data,
             integration_time=measurement.integration_time,
-            measurement_mode=measurement.measurement_mode
+            measurement_mode=measurement.measurement_mode,
         )
 
     def measure_flicker(self) -> dict | None:

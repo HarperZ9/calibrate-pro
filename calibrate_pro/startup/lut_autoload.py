@@ -19,20 +19,17 @@ from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrati
 
 def setup_logging():
     """Configure logging for the auto-load service."""
-    log_dir = Path(os.environ.get('APPDATA', '')) / 'CalibratePro' / 'logs'
+    log_dir = Path(os.environ.get("APPDATA", "")) / "CalibratePro" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    log_file = log_dir / 'autoload.log'
+    log_file = log_dir / "autoload.log"
 
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
     )
-    return logging.getLogger('CalibratePro.AutoLoad')
+    return logging.getLogger("CalibratePro.AutoLoad")
 
 
 def load_calibration_luts():
@@ -56,7 +53,7 @@ def load_calibration_luts():
         loaded_count = 0
 
         for display in displays:
-            display_id = display['id']
+            display_id = display["id"]
             profile = manager.get_display_profile(display_id)
 
             if not profile:
@@ -98,11 +95,11 @@ def create_startup_shortcut():
         python_exe = sys.executable
 
         # Create a batch file that runs silently
-        startup_dir = Path(os.environ.get('APPDATA', '')) / 'CalibratePro'
+        startup_dir = Path(os.environ.get("APPDATA", "")) / "CalibratePro"
         startup_dir.mkdir(parents=True, exist_ok=True)
 
-        batch_file = startup_dir / 'autoload_luts.bat'
-        vbs_file = startup_dir / 'autoload_luts.vbs'
+        batch_file = startup_dir / "autoload_luts.bat"
+        vbs_file = startup_dir / "autoload_luts.vbs"
 
         # Create batch file
         batch_content = f'''@echo off
@@ -121,10 +118,8 @@ Set WshShell = Nothing
         # Add to Windows startup registry
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
-                           winreg.KEY_SET_VALUE) as key:
-            winreg.SetValueEx(key, "CalibratePro_LUT_AutoLoad", 0,
-                            winreg.REG_SZ, f'wscript.exe "{vbs_file}"')
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
+            winreg.SetValueEx(key, "CalibratePro_LUT_AutoLoad", 0, winreg.REG_SZ, f'wscript.exe "{vbs_file}"')
 
         return True, str(vbs_file)
 
@@ -139,8 +134,7 @@ def remove_startup():
 
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
-                           winreg.KEY_SET_VALUE) as key:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
             try:
                 winreg.DeleteValue(key, "CalibratePro_LUT_AutoLoad")
             except FileNotFoundError:
@@ -159,8 +153,7 @@ def check_startup_enabled():
 
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0,
-                           winreg.KEY_READ) as key:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ) as key:
             try:
                 value, _ = winreg.QueryValueEx(key, "CalibratePro_LUT_AutoLoad")
                 return True, value
@@ -175,14 +168,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Calibrate Pro LUT Auto-Load")
-    parser.add_argument('--install', action='store_true',
-                       help='Install auto-load to Windows startup')
-    parser.add_argument('--uninstall', action='store_true',
-                       help='Remove auto-load from Windows startup')
-    parser.add_argument('--status', action='store_true',
-                       help='Check if auto-load is enabled')
-    parser.add_argument('--load', action='store_true',
-                       help='Load LUTs now')
+    parser.add_argument("--install", action="store_true", help="Install auto-load to Windows startup")
+    parser.add_argument("--uninstall", action="store_true", help="Remove auto-load from Windows startup")
+    parser.add_argument("--status", action="store_true", help="Check if auto-load is enabled")
+    parser.add_argument("--load", action="store_true", help="Load LUTs now")
 
     args = parser.parse_args()
 

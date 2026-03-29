@@ -25,6 +25,7 @@ from calibrate_pro.hardware.colorimeter_base import (
 
 class SpectroType:
     """Spectrophotometer types."""
+
     I1PRO = "i1Pro"
     I1PRO2 = "i1Pro2"
     I1PRO3 = "i1Pro3"
@@ -38,17 +39,9 @@ class SpectroType:
 
 
 # Standard observer functions for spectral calculations
-CIE_1931_2DEG = {
-    "name": "CIE 1931 2° Standard Observer",
-    "wavelength_range": (380, 780),
-    "wavelength_step": 5
-}
+CIE_1931_2DEG = {"name": "CIE 1931 2° Standard Observer", "wavelength_range": (380, 780), "wavelength_step": 5}
 
-CIE_1964_10DEG = {
-    "name": "CIE 1964 10° Standard Observer",
-    "wavelength_range": (380, 780),
-    "wavelength_step": 5
-}
+CIE_1964_10DEG = {"name": "CIE 1964 10° Standard Observer", "wavelength_range": (380, 780), "wavelength_step": 5}
 
 
 class SpectrophotometerDriver(ArgyllBackend):
@@ -86,11 +79,21 @@ class SpectrophotometerDriver(ArgyllBackend):
     def _is_spectrophotometer(self, device: DeviceInfo) -> bool:
         """Check if device is a spectrophotometer."""
         name_lower = device.name.lower()
-        return any(x in name_lower for x in [
-            "i1pro", "i1 pro", "specbos", "spectro",
-            "colorchecker display pro", "colorchecker display plus",
-            "klein", "k-10", "photo research", "pr-"
-        ])
+        return any(
+            x in name_lower
+            for x in [
+                "i1pro",
+                "i1 pro",
+                "specbos",
+                "spectro",
+                "colorchecker display pro",
+                "colorchecker display plus",
+                "klein",
+                "k-10",
+                "photo research",
+                "pr-",
+            ]
+        )
 
     def _identify_model(self, device: DeviceInfo) -> None:
         """Identify spectrophotometer model."""
@@ -130,8 +133,7 @@ class SpectrophotometerDriver(ArgyllBackend):
         device.capabilities.append("emission")
 
         # Add model-specific capabilities
-        if self.model_type in [SpectroType.I1PRO, SpectroType.I1PRO2,
-                               SpectroType.I1PRO3, SpectroType.I1PRO3_PLUS]:
+        if self.model_type in [SpectroType.I1PRO, SpectroType.I1PRO2, SpectroType.I1PRO3, SpectroType.I1PRO3_PLUS]:
             device.capabilities.extend(["reflective", "ambient", "scanning"])
 
     def set_observer(self, observer: str) -> bool:
@@ -175,11 +177,7 @@ class SpectrophotometerDriver(ArgyllBackend):
         # Parse from ArgyllCMS output if available
         return None
 
-    def spectral_to_xyz(
-        self,
-        spectral_data: dict[float, float],
-        illuminant: str = "D65"
-    ) -> tuple[float, float, float]:
+    def spectral_to_xyz(self, spectral_data: dict[float, float], illuminant: str = "D65") -> tuple[float, float, float]:
         """
         Convert spectral data to XYZ using color matching functions.
 
@@ -231,9 +229,11 @@ class SpectrophotometerDriver(ArgyllBackend):
         wl = wavelength
 
         # X bar (two peaks)
-        x = (1.056 * np.exp(-0.5 * ((wl - 599.8) / 37.9) ** 2) +
-             0.362 * np.exp(-0.5 * ((wl - 442.0) / 16.0) ** 2) -
-             0.065 * np.exp(-0.5 * ((wl - 501.1) / 20.4) ** 2))
+        x = (
+            1.056 * np.exp(-0.5 * ((wl - 599.8) / 37.9) ** 2)
+            + 0.362 * np.exp(-0.5 * ((wl - 442.0) / 16.0) ** 2)
+            - 0.065 * np.exp(-0.5 * ((wl - 501.1) / 20.4) ** 2)
+        )
 
         # Y bar
         y = 1.217 * np.exp(-0.5 * ((wl - 568.8) / 46.9) ** 2)
@@ -310,8 +310,7 @@ class SpectrophotometerDriver(ArgyllBackend):
         """
         self._report_progress("Performing calibration...", 0)
 
-        if self.model_type in [SpectroType.I1PRO, SpectroType.I1PRO2,
-                                SpectroType.I1PRO3, SpectroType.I1PRO3_PLUS]:
+        if self.model_type in [SpectroType.I1PRO, SpectroType.I1PRO2, SpectroType.I1PRO3, SpectroType.I1PRO3_PLUS]:
             self._report_progress("Place device on calibration tile", 0.1)
         else:
             self._report_progress("Ensure lens cap is on", 0.1)

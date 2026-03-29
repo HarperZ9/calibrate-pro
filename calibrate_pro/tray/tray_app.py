@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_config_dir() -> Path:
     """Return ``%APPDATA%/CalibratePro``."""
     appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
@@ -74,6 +75,7 @@ def _is_calibrated() -> bool:
         return False
     try:
         import json
+
         with open(config_file) as fh:
             data = json.load(fh)
         displays = data.get("displays", {})
@@ -86,10 +88,12 @@ def _is_calibrated() -> bool:
 # pystray path
 # ---------------------------------------------------------------------------
 
+
 def _needs_recalibration() -> bool:
     """Return True if any display's calibration is older than 30 days."""
     try:
         from calibrate_pro.services.drift_monitor import any_needs_recalibration
+
         return any_needs_recalibration(max_age_days=30)
     except Exception:
         return False
@@ -110,13 +114,13 @@ def _create_icon_image(calibrated: bool, stale: bool = False):
     draw = ImageDraw.Draw(img)
 
     if calibrated and stale:
-        fill = (255, 193, 7, 255)        # Material amber / yellow
+        fill = (255, 193, 7, 255)  # Material amber / yellow
         border = (255, 160, 0, 255)
     elif calibrated:
-        fill = (76, 175, 80, 255)       # Material green
+        fill = (76, 175, 80, 255)  # Material green
         border = (56, 142, 60, 255)
     else:
-        fill = (158, 158, 158, 255)      # Grey
+        fill = (158, 158, 158, 255)  # Grey
         border = (117, 117, 117, 255)
 
     margin = 4
@@ -131,6 +135,7 @@ def _create_icon_image(calibrated: bool, stale: bool = False):
     # Draw a small "C" letter in the centre
     try:
         from PIL import ImageFont  # type: ignore
+
         font = ImageFont.truetype("arial.ttf", 32)
     except Exception:
         font = ImageFont.load_default()
@@ -156,25 +161,30 @@ def _run_pystray():
 
     def on_calibrate_all(icon, item):
         """Run ``auto_calibrate_all`` in a background thread."""
+
         def _work():
             try:
                 from calibrate_pro.sensorless.auto_calibration import auto_calibrate_all
+
                 auto_calibrate_all()
                 # Refresh icon colour -- freshly calibrated, not stale
                 icon.icon = _create_icon_image(True, stale=False)
                 icon.title = f"Calibrate Pro v{__version__}"
             except Exception as exc:
                 logger.error("Calibrate all failed: %s", exc)
+
         threading.Thread(target=_work, daemon=True).start()
 
     def on_restore(icon, item):
         """Reset calibrations on all displays."""
+
         def _work():
             try:
                 from calibrate_pro.panels.detection import (
                     enumerate_displays,
                     reset_gamma_ramp,
                 )
+
                 for display in enumerate_displays():
                     try:
                         reset_gamma_ramp(display.device_name)
@@ -184,12 +194,14 @@ def _run_pystray():
                 icon.title = f"Calibrate Pro v{__version__}"
             except Exception as exc:
                 logger.error("Restore defaults failed: %s", exc)
+
         threading.Thread(target=_work, daemon=True).start()
 
     def on_show_status(icon, item):
         """Print calibration status to console."""
         try:
             from calibrate_pro.services.drift_monitor import print_calibration_status
+
             print_calibration_status()
         except Exception as exc:
             logger.error("Status check failed: %s", exc)
@@ -202,6 +214,7 @@ def _run_pystray():
     def _startup_enabled():
         try:
             from calibrate_pro.utils.startup_manager import is_auto_start_enabled
+
             return is_auto_start_enabled()
         except Exception:
             return False
@@ -213,6 +226,7 @@ def _run_pystray():
                 enable_auto_start,
                 is_auto_start_enabled,
             )
+
             if is_auto_start_enabled():
                 disable_auto_start()
             else:
@@ -262,6 +276,7 @@ def _run_pystray():
     # Apply saved calibrations on launch
     try:
         from calibrate_pro.startup.calibration_loader import apply_saved_calibrations
+
         apply_saved_calibrations()
     except Exception:
         pass
@@ -272,6 +287,7 @@ def _run_pystray():
 # ---------------------------------------------------------------------------
 # Console-service fallback
 # ---------------------------------------------------------------------------
+
 
 def _run_console_service():
     """
@@ -316,6 +332,7 @@ def _run_console_service():
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def run_tray_app():
     """

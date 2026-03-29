@@ -22,63 +22,59 @@ import numpy as np
 # Tone Mapping Algorithms
 # =============================================================================
 
+
 class ToneMapOperator(Enum):
     """Available tone mapping operators."""
-    LINEAR = "linear"           # No tone mapping (clipping)
-    REINHARD = "reinhard"       # Reinhard global
+
+    LINEAR = "linear"  # No tone mapping (clipping)
+    REINHARD = "reinhard"  # Reinhard global
     REINHARD_EXT = "reinhard_extended"  # Extended Reinhard
-    ACES = "aces"               # ACES filmic
-    HABLE = "hable"             # Hable/Uncharted 2 filmic
-    BT2390 = "bt2390"           # ITU-R BT.2390 EETF
-    SPLINE = "spline"           # Custom spline curve
+    ACES = "aces"  # ACES filmic
+    HABLE = "hable"  # Hable/Uncharted 2 filmic
+    BT2390 = "bt2390"  # ITU-R BT.2390 EETF
+    SPLINE = "spline"  # Custom spline curve
     EXPONENTIAL = "exponential"  # Exponential roll-off
 
 
 @dataclass
 class ToneMapSettings:
     """Tone mapping configuration."""
+
     operator: ToneMapOperator = ToneMapOperator.BT2390
 
     # Source/target characteristics
-    source_peak: float = 1000.0      # Source peak luminance (cd/m²)
-    source_black: float = 0.0        # Source black level
-    target_peak: float = 100.0       # Target peak luminance
-    target_black: float = 0.0        # Target black level
+    source_peak: float = 1000.0  # Source peak luminance (cd/m²)
+    source_black: float = 0.0  # Source black level
+    target_peak: float = 100.0  # Target peak luminance
+    target_black: float = 0.0  # Target black level
 
     # Curve parameters
-    knee_start: float = 0.5          # Where roll-off begins (0-1 of target)
-    shoulder_strength: float = 0.5   # Roll-off strength
-    mid_gray: float = 0.18           # Mid-gray reference
-    white_clip: float = 1.0          # Maximum output value
+    knee_start: float = 0.5  # Where roll-off begins (0-1 of target)
+    shoulder_strength: float = 0.5  # Roll-off strength
+    mid_gray: float = 0.18  # Mid-gray reference
+    white_clip: float = 1.0  # Maximum output value
 
     # Highlight handling
     highlight_desaturation: float = 0.3  # Desaturate bright areas
-    preserve_hue: bool = True            # Maintain hue in highlights
+    preserve_hue: bool = True  # Maintain hue in highlights
 
     # Shadow handling
-    shadow_contrast: float = 1.0     # Shadow contrast adjustment
-    black_rolloff: float = 0.0       # Soft black clipping
+    shadow_contrast: float = 1.0  # Shadow contrast adjustment
+    black_rolloff: float = 0.0  # Soft black clipping
 
 
 # =============================================================================
 # Core Tone Mapping Functions
 # =============================================================================
 
-def tone_map_linear(
-    luminance: np.ndarray,
-    source_peak: float,
-    target_peak: float
-) -> np.ndarray:
+
+def tone_map_linear(luminance: np.ndarray, source_peak: float, target_peak: float) -> np.ndarray:
     """Simple linear scaling with clipping."""
     scale = target_peak / source_peak
     return np.clip(luminance * scale, 0, target_peak)
 
 
-def tone_map_reinhard(
-    luminance: np.ndarray,
-    source_peak: float = 1000.0,
-    mid_gray: float = 0.18
-) -> np.ndarray:
+def tone_map_reinhard(luminance: np.ndarray, source_peak: float = 1000.0, mid_gray: float = 0.18) -> np.ndarray:
     """
     Reinhard global tone mapping.
 
@@ -100,10 +96,7 @@ def tone_map_reinhard(
 
 
 def tone_map_reinhard_extended(
-    luminance: np.ndarray,
-    source_peak: float = 1000.0,
-    target_peak: float = 100.0,
-    white_point: float = None
+    luminance: np.ndarray, source_peak: float = 1000.0, target_peak: float = 100.0, white_point: float = None
 ) -> np.ndarray:
     """
     Extended Reinhard with white point control.
@@ -122,10 +115,7 @@ def tone_map_reinhard_extended(
     return Ld * target_peak / source_peak
 
 
-def tone_map_aces(
-    rgb: np.ndarray,
-    source_peak: float = 1000.0
-) -> np.ndarray:
+def tone_map_aces(rgb: np.ndarray, source_peak: float = 1000.0) -> np.ndarray:
     """
     ACES filmic tone mapping.
 
@@ -148,11 +138,7 @@ def tone_map_aces(
     return np.clip(result, 0.0, 1.0)
 
 
-def tone_map_hable(
-    rgb: np.ndarray,
-    source_peak: float = 1000.0,
-    exposure_bias: float = 2.0
-) -> np.ndarray:
+def tone_map_hable(rgb: np.ndarray, source_peak: float = 1000.0, exposure_bias: float = 2.0) -> np.ndarray:
     """
     Hable/Uncharted 2 filmic tone mapping.
 
@@ -183,7 +169,7 @@ def tone_map_bt2390(
     source_peak: float = 1000.0,
     target_peak: float = 100.0,
     source_black: float = 0.0,
-    target_black: float = 0.0
+    target_black: float = 0.0,
 ) -> np.ndarray:
     """
     ITU-R BT.2390 EETF (Electro-Electro Transfer Function).
@@ -247,10 +233,7 @@ def tone_map_bt2390(
 
 
 def tone_map_exponential(
-    luminance: np.ndarray,
-    source_peak: float = 1000.0,
-    target_peak: float = 100.0,
-    exposure: float = 1.0
+    luminance: np.ndarray, source_peak: float = 1000.0, target_peak: float = 100.0, exposure: float = 1.0
 ) -> np.ndarray:
     """
     Exponential tone mapping with soft roll-off.
@@ -269,11 +252,8 @@ def tone_map_exponential(
 # RGB Tone Mapping with Hue Preservation
 # =============================================================================
 
-def tone_map_rgb(
-    rgb: np.ndarray,
-    settings: ToneMapSettings,
-    preserve_hue: bool = True
-) -> np.ndarray:
+
+def tone_map_rgb(rgb: np.ndarray, settings: ToneMapSettings, preserve_hue: bool = True) -> np.ndarray:
     """
     Apply tone mapping to RGB data with optional hue preservation.
 
@@ -296,22 +276,17 @@ def tone_map_rgb(
         if settings.operator == ToneMapOperator.REINHARD:
             mapped_lum = tone_map_reinhard(luminance, settings.source_peak)
         elif settings.operator == ToneMapOperator.REINHARD_EXT:
-            mapped_lum = tone_map_reinhard_extended(
-                luminance, settings.source_peak, settings.target_peak
-            )
+            mapped_lum = tone_map_reinhard_extended(luminance, settings.source_peak, settings.target_peak)
         elif settings.operator == ToneMapOperator.ACES:
             mapped_lum = tone_map_aces(luminance[..., np.newaxis], settings.source_peak)[..., 0]
         elif settings.operator == ToneMapOperator.HABLE:
             mapped_lum = tone_map_hable(luminance[..., np.newaxis], settings.source_peak)[..., 0]
         elif settings.operator == ToneMapOperator.BT2390:
             mapped_lum = tone_map_bt2390(
-                luminance, settings.source_peak, settings.target_peak,
-                settings.source_black, settings.target_black
+                luminance, settings.source_peak, settings.target_peak, settings.source_black, settings.target_black
             )
         elif settings.operator == ToneMapOperator.EXPONENTIAL:
-            mapped_lum = tone_map_exponential(
-                luminance, settings.source_peak, settings.target_peak
-            )
+            mapped_lum = tone_map_exponential(luminance, settings.source_peak, settings.target_peak)
         else:
             mapped_lum = tone_map_linear(luminance, settings.source_peak, settings.target_peak)
 
@@ -322,9 +297,10 @@ def tone_map_rgb(
         # Apply highlight desaturation
         if settings.highlight_desaturation > 0:
             desat_amount = settings.highlight_desaturation * np.clip(
-                (mapped_lum - settings.knee_start * settings.target_peak) /
-                ((1.0 - settings.knee_start) * settings.target_peak + 0.0001),
-                0, 1
+                (mapped_lum - settings.knee_start * settings.target_peak)
+                / ((1.0 - settings.knee_start) * settings.target_peak + 0.0001),
+                0,
+                1,
             )
             gray = mapped_lum[..., np.newaxis] * np.array([[[1, 1, 1]]])
             result = result * (1 - desat_amount[..., np.newaxis]) + gray * desat_amount[..., np.newaxis]
@@ -342,13 +318,9 @@ def tone_map_rgb(
                 if settings.operator == ToneMapOperator.REINHARD:
                     result[..., c] = tone_map_reinhard(rgb[..., c], settings.source_peak)
                 elif settings.operator == ToneMapOperator.BT2390:
-                    result[..., c] = tone_map_bt2390(
-                        rgb[..., c], settings.source_peak, settings.target_peak
-                    )
+                    result[..., c] = tone_map_bt2390(rgb[..., c], settings.source_peak, settings.target_peak)
                 else:
-                    result[..., c] = tone_map_linear(
-                        rgb[..., c], settings.source_peak, settings.target_peak
-                    )
+                    result[..., c] = tone_map_linear(rgb[..., c], settings.source_peak, settings.target_peak)
 
     # Clip to valid range
     result = np.clip(result, 0, settings.target_peak)
@@ -364,10 +336,8 @@ def tone_map_rgb(
 # Tone Mapping LUT Generation
 # =============================================================================
 
-def generate_tonemap_1d_lut(
-    settings: ToneMapSettings,
-    size: int = 1024
-) -> np.ndarray:
+
+def generate_tonemap_1d_lut(settings: ToneMapSettings, size: int = 1024) -> np.ndarray:
     """
     Generate 1D tone mapping LUT.
 
@@ -385,9 +355,7 @@ def generate_tonemap_1d_lut(
     if settings.operator == ToneMapOperator.REINHARD:
         lum_out = tone_map_reinhard(lum_in, settings.source_peak)
     elif settings.operator == ToneMapOperator.REINHARD_EXT:
-        lum_out = tone_map_reinhard_extended(
-            lum_in, settings.source_peak, settings.target_peak
-        )
+        lum_out = tone_map_reinhard_extended(lum_in, settings.source_peak, settings.target_peak)
     elif settings.operator == ToneMapOperator.ACES:
         lum_out = tone_map_aces(lum_in[:, np.newaxis], settings.source_peak)[:, 0]
         lum_out *= settings.target_peak
@@ -396,8 +364,7 @@ def generate_tonemap_1d_lut(
         lum_out *= settings.target_peak
     elif settings.operator == ToneMapOperator.BT2390:
         lum_out = tone_map_bt2390(
-            lum_in, settings.source_peak, settings.target_peak,
-            settings.source_black, settings.target_black
+            lum_in, settings.source_peak, settings.target_peak, settings.source_black, settings.target_black
         )
     elif settings.operator == ToneMapOperator.EXPONENTIAL:
         lum_out = tone_map_exponential(lum_in, settings.source_peak, settings.target_peak)
@@ -408,10 +375,7 @@ def generate_tonemap_1d_lut(
     return np.clip(lum_out / settings.target_peak, 0, 1)
 
 
-def generate_tonemap_3d_lut(
-    settings: ToneMapSettings,
-    size: int = 33
-) -> np.ndarray:
+def generate_tonemap_3d_lut(settings: ToneMapSettings, size: int = 33) -> np.ndarray:
     """
     Generate 3D tone mapping LUT.
 
@@ -424,7 +388,7 @@ def generate_tonemap_3d_lut(
     """
     # Create RGB grid
     coords = np.linspace(0, 1, size)
-    r, g, b = np.meshgrid(coords, coords, coords, indexing='ij')
+    r, g, b = np.meshgrid(coords, coords, coords, indexing="ij")
 
     # Stack and scale to source range
     rgb = np.stack([r, g, b], axis=-1) * settings.source_peak
@@ -440,6 +404,7 @@ def generate_tonemap_3d_lut(
 # HDR to SDR Conversion
 # =============================================================================
 
+
 class HDRToSDRConverter:
     """
     Complete HDR to SDR conversion with color management.
@@ -449,7 +414,7 @@ class HDRToSDRConverter:
         self,
         source_peak: float = 1000.0,
         target_peak: float = 100.0,
-        operator: ToneMapOperator = ToneMapOperator.BT2390
+        operator: ToneMapOperator = ToneMapOperator.BT2390,
     ):
         """
         Initialize converter.
@@ -459,17 +424,9 @@ class HDRToSDRConverter:
             target_peak: SDR target luminance
             operator: Tone mapping algorithm
         """
-        self.settings = ToneMapSettings(
-            operator=operator,
-            source_peak=source_peak,
-            target_peak=target_peak
-        )
+        self.settings = ToneMapSettings(operator=operator, source_peak=source_peak, target_peak=target_peak)
 
-    def convert_pq_to_sdr(
-        self,
-        pq_rgb: np.ndarray,
-        apply_gamma: bool = True
-    ) -> np.ndarray:
+    def convert_pq_to_sdr(self, pq_rgb: np.ndarray, apply_gamma: bool = True) -> np.ndarray:
         """
         Convert PQ-encoded HDR to SDR.
 
@@ -494,19 +451,12 @@ class HDRToSDRConverter:
         # Apply gamma encoding
         if apply_gamma:
             # sRGB gamma
-            result = np.where(
-                result <= 0.0031308,
-                result * 12.92,
-                1.055 * np.power(result, 1/2.4) - 0.055
-            )
+            result = np.where(result <= 0.0031308, result * 12.92, 1.055 * np.power(result, 1 / 2.4) - 0.055)
 
         return np.clip(result, 0, 1)
 
     def convert_hlg_to_sdr(
-        self,
-        hlg_rgb: np.ndarray,
-        system_gamma: float = 1.2,
-        apply_gamma: bool = True
+        self, hlg_rgb: np.ndarray, system_gamma: float = 1.2, apply_gamma: bool = True
     ) -> np.ndarray:
         """
         Convert HLG-encoded HDR to SDR.
@@ -532,11 +482,7 @@ class HDRToSDRConverter:
 
         # Apply gamma
         if apply_gamma:
-            result = np.where(
-                result <= 0.0031308,
-                result * 12.92,
-                1.055 * np.power(result, 1/2.4) - 0.055
-            )
+            result = np.where(result <= 0.0031308, result * 12.92, 1.055 * np.power(result, 1 / 2.4) - 0.055)
 
         return np.clip(result, 0, 1)
 
@@ -561,10 +507,9 @@ class HDRToSDRConverter:
 # Convenience Functions
 # =============================================================================
 
+
 def hdr_to_sdr(
-    hdr_rgb: np.ndarray,
-    source_peak: float = 1000.0,
-    operator: ToneMapOperator = ToneMapOperator.BT2390
+    hdr_rgb: np.ndarray, source_peak: float = 1000.0, operator: ToneMapOperator = ToneMapOperator.BT2390
 ) -> np.ndarray:
     """
     Quick HDR to SDR conversion.
@@ -581,10 +526,7 @@ def hdr_to_sdr(
     return tone_map_rgb(hdr_rgb, converter.settings) / 100.0
 
 
-def compare_operators(
-    source_peak: float = 1000.0,
-    target_peak: float = 100.0
-) -> dict[str, np.ndarray]:
+def compare_operators(source_peak: float = 1000.0, target_peak: float = 100.0) -> dict[str, np.ndarray]:
     """
     Compare different tone mapping operators.
 
@@ -593,11 +535,7 @@ def compare_operators(
     results = {}
 
     for op in ToneMapOperator:
-        settings = ToneMapSettings(
-            operator=op,
-            source_peak=source_peak,
-            target_peak=target_peak
-        )
+        settings = ToneMapSettings(operator=op, source_peak=source_peak, target_peak=target_peak)
         results[op.value] = generate_tonemap_1d_lut(settings, 256)
 
     return results

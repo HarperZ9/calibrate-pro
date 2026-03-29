@@ -13,6 +13,7 @@ import numpy as np
 
 class MatchingMethod(Enum):
     """Visual matching methods."""
+
     FLICKER = "flicker"  # Alternate between reference and display
     SIDE_BY_SIDE = "side_by_side"  # Show both simultaneously
     SPLIT_SCREEN = "split_screen"  # Split view comparison
@@ -21,6 +22,7 @@ class MatchingMethod(Enum):
 
 class AdjustmentType(Enum):
     """Types of visual adjustments."""
+
     BRIGHTNESS = "brightness"
     CONTRAST = "contrast"
     RGB_BALANCE = "rgb_balance"
@@ -32,6 +34,7 @@ class AdjustmentType(Enum):
 @dataclass
 class MatchResult:
     """Result from a visual matching session."""
+
     adjustment_type: AdjustmentType
     initial_value: float
     final_value: float
@@ -43,6 +46,7 @@ class MatchResult:
 @dataclass
 class CalibrationAdjustment:
     """Adjustment to apply during calibration."""
+
     red_gain: float = 1.0
     green_gain: float = 1.0
     blue_gain: float = 1.0
@@ -77,8 +81,9 @@ class VisualMatcher:
         """Set the visual matching method."""
         self.method = method
 
-    def create_reference_patch(self, target_rgb: tuple[int, int, int],
-                                 size: tuple[int, int] = (200, 200)) -> np.ndarray:
+    def create_reference_patch(
+        self, target_rgb: tuple[int, int, int], size: tuple[int, int] = (200, 200)
+    ) -> np.ndarray:
         """
         Create a reference color patch.
 
@@ -93,9 +98,12 @@ class VisualMatcher:
         patch[:, :] = target_rgb
         return patch
 
-    def create_display_patch(self, target_rgb: tuple[int, int, int],
-                              adjustment: CalibrationAdjustment | None = None,
-                              size: tuple[int, int] = (200, 200)) -> np.ndarray:
+    def create_display_patch(
+        self,
+        target_rgb: tuple[int, int, int],
+        adjustment: CalibrationAdjustment | None = None,
+        size: tuple[int, int] = (200, 200),
+    ) -> np.ndarray:
         """
         Create an adjusted display patch for comparison.
 
@@ -128,10 +136,9 @@ class VisualMatcher:
         patch[:, :] = [r, g, b]
         return patch
 
-    def create_flicker_sequence(self, reference: np.ndarray,
-                                  display: np.ndarray,
-                                  frequency: float = 2.0,
-                                  duration: float = 5.0) -> list[tuple[np.ndarray, float]]:
+    def create_flicker_sequence(
+        self, reference: np.ndarray, display: np.ndarray, frequency: float = 2.0, duration: float = 5.0
+    ) -> list[tuple[np.ndarray, float]]:
         """
         Create a flicker sequence for comparison.
 
@@ -154,9 +161,7 @@ class VisualMatcher:
 
         return sequence
 
-    def create_split_view(self, reference: np.ndarray,
-                           display: np.ndarray,
-                           split: str = "vertical") -> np.ndarray:
+    def create_split_view(self, reference: np.ndarray, display: np.ndarray, split: str = "vertical") -> np.ndarray:
         """
         Create a split-screen comparison view.
 
@@ -174,9 +179,9 @@ class VisualMatcher:
             combined = np.vstack([reference, display])
         return combined
 
-    def calculate_adjustment_step(self, adjustment_type: AdjustmentType,
-                                    direction: int,
-                                    fine_mode: bool = False) -> CalibrationAdjustment:
+    def calculate_adjustment_step(
+        self, adjustment_type: AdjustmentType, direction: int, fine_mode: bool = False
+    ) -> CalibrationAdjustment:
         """
         Calculate the next adjustment step.
 
@@ -217,12 +222,15 @@ class VisualMatcher:
         """Apply a new adjustment."""
         self.current_adjustment = adjustment
 
-    def record_match(self, adjustment_type: AdjustmentType,
-                      initial_value: float,
-                      final_value: float,
-                      confidence: float,
-                      iterations: int,
-                      time_seconds: float) -> MatchResult:
+    def record_match(
+        self,
+        adjustment_type: AdjustmentType,
+        initial_value: float,
+        final_value: float,
+        confidence: float,
+        iterations: int,
+        time_seconds: float,
+    ) -> MatchResult:
         """
         Record a completed visual match.
 
@@ -243,7 +251,7 @@ class VisualMatcher:
             final_value=final_value,
             confidence=confidence,
             iterations=iterations,
-            time_seconds=time_seconds
+            time_seconds=time_seconds,
         )
         self.match_history.append(result)
         return result
@@ -277,8 +285,7 @@ class GrayscaleBalancer:
         self.matcher = matcher or VisualMatcher()
         self.gray_levels = [25, 50, 75, 100, 128, 150, 175, 200, 225, 255]
 
-    def create_gray_target(self, level: int,
-                            size: tuple[int, int] = (300, 300)) -> np.ndarray:
+    def create_gray_target(self, level: int, size: tuple[int, int] = (300, 300)) -> np.ndarray:
         """Create a neutral gray target patch."""
         patch = np.zeros((size[1], size[0], 3), dtype=np.uint8)
         patch[:, :] = [level, level, level]
@@ -288,8 +295,9 @@ class GrayscaleBalancer:
         """Get the current adjustment for a gray level."""
         return self.matcher.current_adjustment
 
-    def calculate_rgb_correction(self, measured_rgb: tuple[int, int, int],
-                                   target_gray: int) -> tuple[float, float, float]:
+    def calculate_rgb_correction(
+        self, measured_rgb: tuple[int, int, int], target_gray: int
+    ) -> tuple[float, float, float]:
         """
         Calculate RGB gain corrections to achieve neutral gray.
 
@@ -383,9 +391,9 @@ class WhitepointMatcher:
         cct = cct_map.get(self.target, 6500)
         return self.cct_to_rgb(cct)
 
-    def create_whitepoint_comparison(self,
-                                       current_rgb: tuple[int, int, int],
-                                       size: tuple[int, int] = (400, 200)) -> np.ndarray:
+    def create_whitepoint_comparison(
+        self, current_rgb: tuple[int, int, int], size: tuple[int, int] = (400, 200)
+    ) -> np.ndarray:
         """
         Create a side-by-side whitepoint comparison.
 

@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WarmupStatus:
     """Current warm-up status."""
+
     elapsed_seconds: float = 0.0
     elapsed_min: float = 0.0
     current_luminance: float = 0.0
@@ -51,6 +52,7 @@ class WarmupStatus:
 @dataclass
 class WarmupReading:
     """Single luminance reading during warm-up."""
+
     timestamp: float
     luminance: float
 
@@ -124,7 +126,7 @@ class WarmupMonitor:
         # Calculate drift rate over the last 3 readings
         drift = 999.0
         if len(self._readings) >= 2:
-            recent = self._readings[-min(4, len(self._readings)):]
+            recent = self._readings[-min(4, len(self._readings)) :]
             dt_min = (recent[-1].timestamp - recent[0].timestamp) / 60.0
             if dt_min > 0:
                 dlum = abs(recent[-1].luminance - recent[0].luminance)
@@ -170,7 +172,7 @@ class WarmupMonitor:
 
 # Recommended warm-up times by technology
 WARMUP_ESTIMATES = {
-    "QD-OLED": 30,     # minutes
+    "QD-OLED": 30,  # minutes
     "WOLED": 30,
     "OLED": 30,
     "IPS": 30,

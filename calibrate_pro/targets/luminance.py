@@ -20,37 +20,39 @@ import numpy as np
 
 class LuminanceStandard(Enum):
     """Industry luminance standards."""
+
     # SDR Standards
-    SDR_GENERAL = "SDR General"           # 80-120 cd/m2
-    REC709_BROADCAST = "Rec.709 Broadcast" # 100 cd/m2 (EBU Tech 3320)
-    SMPTE_RP166 = "SMPTE RP 166"          # 35 cd/m2 (film grading)
-    EBU_GRADE1 = "EBU Grade 1"            # 100 cd/m2
-    DCI_P3_CINEMA = "DCI-P3 Cinema"       # 48 cd/m2 (14 fL)
+    SDR_GENERAL = "SDR General"  # 80-120 cd/m2
+    REC709_BROADCAST = "Rec.709 Broadcast"  # 100 cd/m2 (EBU Tech 3320)
+    SMPTE_RP166 = "SMPTE RP 166"  # 35 cd/m2 (film grading)
+    EBU_GRADE1 = "EBU Grade 1"  # 100 cd/m2
+    DCI_P3_CINEMA = "DCI-P3 Cinema"  # 48 cd/m2 (14 fL)
 
     # HDR Standards
-    HDR10 = "HDR10"                       # 1000+ cd/m2 peak
-    HDR10_PLUS = "HDR10+"                 # 1000-4000 cd/m2
-    DOLBY_VISION = "Dolby Vision"         # 1000-10000 cd/m2
-    HLG = "HLG"                           # 1000+ cd/m2
-    HDR_REFERENCE = "HDR Reference"       # 1000 cd/m2 mastering
+    HDR10 = "HDR10"  # 1000+ cd/m2 peak
+    HDR10_PLUS = "HDR10+"  # 1000-4000 cd/m2
+    DOLBY_VISION = "Dolby Vision"  # 1000-10000 cd/m2
+    HLG = "HLG"  # 1000+ cd/m2
+    HDR_REFERENCE = "HDR Reference"  # 1000 cd/m2 mastering
 
     # Consumer Displays
-    CONSUMER_SDR = "Consumer SDR"         # 200-350 cd/m2
-    CONSUMER_HDR = "Consumer HDR"         # 400-1000 cd/m2
+    CONSUMER_SDR = "Consumer SDR"  # 200-350 cd/m2
+    CONSUMER_HDR = "Consumer HDR"  # 400-1000 cd/m2
 
     # Professional Reference
-    REFERENCE_GRADE = "Reference Grade"   # Calibrated to standard
-    NATIVE = "Native"                     # Display maximum
+    REFERENCE_GRADE = "Reference Grade"  # Calibrated to standard
+    NATIVE = "Native"  # Display maximum
     CUSTOM = "Custom"
 
 
 class BlackLevelStandard(Enum):
     """Black level reference standards."""
-    ABSOLUTE_BLACK = "Absolute Black"     # 0.0001 cd/m2 (OLED ideal)
-    REFERENCE_BLACK = "Reference Black"   # 0.005 cd/m2 (high-end reference)
-    BROADCAST_BLACK = "Broadcast Black"   # 0.01 cd/m2
-    CONSUMER_LCD = "Consumer LCD"         # 0.05-0.1 cd/m2
-    NATIVE = "Native"                     # Display native
+
+    ABSOLUTE_BLACK = "Absolute Black"  # 0.0001 cd/m2 (OLED ideal)
+    REFERENCE_BLACK = "Reference Black"  # 0.005 cd/m2 (high-end reference)
+    BROADCAST_BLACK = "Broadcast Black"  # 0.01 cd/m2
+    CONSUMER_LCD = "Consumer LCD"  # 0.05-0.1 cd/m2
+    NATIVE = "Native"  # Display native
     CUSTOM = "Custom"
 
 
@@ -62,37 +64,36 @@ LUMINANCE_STANDARDS: dict[str, dict] = {
         "reference_white": 100.0,
         "min_black": 0.05,
         "contrast": 1000,
-        "description": "General SDR content viewing"
+        "description": "General SDR content viewing",
     },
     "Rec.709 Broadcast": {
         "peak": 100.0,
         "reference_white": 100.0,
         "min_black": 0.01,
         "contrast": 10000,
-        "description": "EBU Tech 3320 broadcast reference"
+        "description": "EBU Tech 3320 broadcast reference",
     },
     "SMPTE RP 166": {
         "peak": 35.0,
         "reference_white": 35.0,
         "min_black": 0.005,
         "contrast": 7000,
-        "description": "Film grading in dark room (14 fL ambient)"
+        "description": "Film grading in dark room (14 fL ambient)",
     },
     "EBU Grade 1": {
         "peak": 100.0,
         "reference_white": 100.0,
         "min_black": 0.01,
         "contrast": 10000,
-        "description": "EBU Grade 1 reference monitor"
+        "description": "EBU Grade 1 reference monitor",
     },
     "DCI-P3 Cinema": {
         "peak": 48.0,
         "reference_white": 48.0,
         "min_black": 0.001,
         "contrast": 2000,
-        "description": "Digital Cinema (14 fL / 48 cd/m2)"
+        "description": "Digital Cinema (14 fL / 48 cd/m2)",
     },
-
     # HDR Standards
     "HDR10": {
         "peak": 1000.0,
@@ -101,51 +102,50 @@ LUMINANCE_STANDARDS: dict[str, dict] = {
         "contrast": 200000,
         "max_cll": 1000,
         "max_fall": 400,
-        "description": "HDR10 mastering standard"
+        "description": "HDR10 mastering standard",
     },
     "HDR10+": {
         "peak": 4000.0,
         "reference_white": 203.0,
         "min_black": 0.0005,
         "contrast": 8000000,
-        "description": "HDR10+ with dynamic metadata"
+        "description": "HDR10+ with dynamic metadata",
     },
     "Dolby Vision": {
         "peak": 4000.0,
         "reference_white": 203.0,
         "min_black": 0.0001,
         "contrast": 40000000,
-        "description": "Dolby Vision mastering"
+        "description": "Dolby Vision mastering",
     },
     "HLG": {
         "peak": 1000.0,
         "reference_white": 203.0,  # At 1000 nit display
         "min_black": 0.005,
         "contrast": 200000,
-        "description": "Hybrid Log-Gamma broadcast HDR"
+        "description": "Hybrid Log-Gamma broadcast HDR",
     },
     "HDR Reference": {
         "peak": 1000.0,
         "reference_white": 203.0,
         "min_black": 0.005,
         "contrast": 200000,
-        "description": "Standard HDR reference mastering"
+        "description": "Standard HDR reference mastering",
     },
-
     # Consumer
     "Consumer SDR": {
         "peak": 300.0,
         "reference_white": 200.0,
         "min_black": 0.1,
         "contrast": 3000,
-        "description": "Typical consumer SDR display"
+        "description": "Typical consumer SDR display",
     },
     "Consumer HDR": {
         "peak": 600.0,
         "reference_white": 203.0,
         "min_black": 0.05,
         "contrast": 12000,
-        "description": "Typical consumer HDR display"
+        "description": "Typical consumer HDR display",
     },
 }
 
@@ -163,7 +163,7 @@ def footlamberts_to_nits(fl: float) -> float:
 def calculate_contrast_ratio(peak: float, black: float) -> float:
     """Calculate contrast ratio from peak and black level."""
     if black <= 0:
-        return float('inf')
+        return float("inf")
     return peak / black
 
 
@@ -197,6 +197,7 @@ class LuminanceTarget:
         surround_luminance: Viewing environment (dark/dim/average)
         tolerance_percent: Acceptable deviation percentage
     """
+
     standard: LuminanceStandard = LuminanceStandard.SDR_GENERAL
     peak_luminance: float | None = None  # cd/m2
     reference_white: float | None = None  # cd/m2
@@ -241,8 +242,7 @@ class LuminanceTarget:
 
         standard_name = self.standard.value
         if standard_name in LUMINANCE_STANDARDS:
-            return LUMINANCE_STANDARDS[standard_name].get("reference_white",
-                   LUMINANCE_STANDARDS[standard_name]["peak"])
+            return LUMINANCE_STANDARDS[standard_name].get("reference_white", LUMINANCE_STANDARDS[standard_name]["peak"])
 
         return self.get_peak_luminance()
 
@@ -287,7 +287,7 @@ class LuminanceTarget:
             "MaxFALL": max_fall,
             "MinLuminance": self.get_black_level(),
             "MaxLuminance": peak,
-            "ReferenceWhite": self.get_reference_white()
+            "ReferenceWhite": self.get_reference_white(),
         }
 
     def is_hdr(self) -> bool:
@@ -300,7 +300,7 @@ class LuminanceTarget:
             LuminanceStandard.HDR10_PLUS,
             LuminanceStandard.DOLBY_VISION,
             LuminanceStandard.HLG,
-            LuminanceStandard.HDR_REFERENCE
+            LuminanceStandard.HDR_REFERENCE,
         }
 
         return self.standard in hdr_standards
@@ -336,21 +336,17 @@ class LuminanceTarget:
             "measured_peak": measured_peak,
             "peak_error_percent": peak_error,
             "peak_passed": peak_pass,
-
             "target_black": target_black,
             "measured_black": measured_black,
             "black_error_percent": black_error,
-
             "target_contrast": target_contrast,
             "measured_contrast": measured_contrast,
             "contrast_error_percent": contrast_error,
             "contrast_passed": contrast_pass,
-
             "dynamic_range_stops": self.get_dynamic_range_stops(),
             "measured_dr_stops": np.log2(measured_contrast) if measured_contrast > 1 else 0,
-
             "overall_passed": peak_pass and contrast_pass,
-            "grade": self._grade_result(peak_error, contrast_error)
+            "grade": self._grade_result(peak_error, contrast_error),
         }
 
     def _grade_result(self, peak_error: float, contrast_error: float) -> str:
@@ -381,7 +377,7 @@ class LuminanceTarget:
             "computed_peak": self.get_peak_luminance(),
             "computed_black": self.get_black_level(),
             "computed_contrast": self.get_contrast_ratio(),
-            "is_hdr": self.is_hdr()
+            "is_hdr": self.is_hdr(),
         }
 
     @classmethod
@@ -397,7 +393,7 @@ class LuminanceTarget:
             max_cll=data.get("max_cll"),
             max_fall=data.get("max_fall"),
             name=data.get("name", ""),
-            description=data.get("description", "")
+            description=data.get("description", ""),
         )
 
 
@@ -408,6 +404,7 @@ class GrayscaleTarget:
 
     Defines expected luminance at each grayscale level based on gamma/EOTF.
     """
+
     gamma: float = 2.2
     peak_luminance: float = 100.0
     black_level: float = 0.0
@@ -429,13 +426,13 @@ class GrayscaleTarget:
             lb = self.black_level
 
             # BT.1886 formula
-            a = (lw ** (1/2.4) - lb ** (1/2.4)) ** 2.4
-            b = lb ** (1/2.4) / (lw ** (1/2.4) - lb ** (1/2.4))
+            a = (lw ** (1 / 2.4) - lb ** (1 / 2.4)) ** 2.4
+            b = lb ** (1 / 2.4) / (lw ** (1 / 2.4) - lb ** (1 / 2.4))
 
             luminance = a * max(level + b, 0) ** 2.4
         else:
             # Simple power law
-            luminance = self.black_level + (self.peak_luminance - self.black_level) * (level ** self.gamma)
+            luminance = self.black_level + (self.peak_luminance - self.black_level) * (level**self.gamma)
 
         return luminance
 
@@ -444,11 +441,7 @@ class GrayscaleTarget:
         ramp = []
         for i in range(steps):
             level = i / (steps - 1)
-            ramp.append({
-                "level": level,
-                "target_luminance": self.get_luminance(level),
-                "level_percent": level * 100
-            })
+            ramp.append({"level": level, "target_luminance": self.get_luminance(level), "level_percent": level * 100})
         return ramp
 
 
@@ -460,21 +453,21 @@ class GrayscaleTarget:
 LUMINANCE_REC709 = LuminanceTarget(
     standard=LuminanceStandard.REC709_BROADCAST,
     name="Rec.709 Broadcast",
-    description="EBU Tech 3320 broadcast reference (100 cd/m2)"
+    description="EBU Tech 3320 broadcast reference (100 cd/m2)",
 )
 
 # Film Grading
 LUMINANCE_FILM = LuminanceTarget(
     standard=LuminanceStandard.SMPTE_RP166,
     name="Film Grading (SMPTE RP 166)",
-    description="Dark room film grading (35 cd/m2 / 10 fL)"
+    description="Dark room film grading (35 cd/m2 / 10 fL)",
 )
 
 # DCI Cinema
 LUMINANCE_DCI = LuminanceTarget(
     standard=LuminanceStandard.DCI_P3_CINEMA,
     name="DCI-P3 Cinema",
-    description="Digital Cinema Initiative (48 cd/m2 / 14 fL)"
+    description="Digital Cinema Initiative (48 cd/m2 / 14 fL)",
 )
 
 # HDR10 Mastering
@@ -482,7 +475,7 @@ LUMINANCE_HDR10 = LuminanceTarget(
     standard=LuminanceStandard.HDR10,
     hdr_mode=True,
     name="HDR10 Mastering",
-    description="HDR10 mastering (1000 cd/m2 peak)"
+    description="HDR10 mastering (1000 cd/m2 peak)",
 )
 
 # HDR10+ High-End
@@ -491,7 +484,7 @@ LUMINANCE_HDR10_PLUS = LuminanceTarget(
     peak_luminance=4000.0,
     hdr_mode=True,
     name="HDR10+ High-End",
-    description="HDR10+ with dynamic metadata (4000 cd/m2 peak)"
+    description="HDR10+ with dynamic metadata (4000 cd/m2 peak)",
 )
 
 # Dolby Vision
@@ -499,7 +492,7 @@ LUMINANCE_DOLBY_VISION = LuminanceTarget(
     standard=LuminanceStandard.DOLBY_VISION,
     hdr_mode=True,
     name="Dolby Vision Mastering",
-    description="Dolby Vision reference (4000 cd/m2 peak)"
+    description="Dolby Vision reference (4000 cd/m2 peak)",
 )
 
 # Consumer SDR
@@ -507,7 +500,7 @@ LUMINANCE_CONSUMER_SDR = LuminanceTarget(
     standard=LuminanceStandard.CONSUMER_SDR,
     peak_luminance=250.0,
     name="Consumer SDR",
-    description="Typical consumer SDR viewing (250 cd/m2)"
+    description="Typical consumer SDR viewing (250 cd/m2)",
 )
 
 # Consumer HDR
@@ -516,7 +509,7 @@ LUMINANCE_CONSUMER_HDR = LuminanceTarget(
     peak_luminance=600.0,
     hdr_mode=True,
     name="Consumer HDR",
-    description="Typical consumer HDR viewing (600 cd/m2 peak)"
+    description="Typical consumer HDR viewing (600 cd/m2 peak)",
 )
 
 
@@ -545,11 +538,7 @@ def get_hdr_presets() -> list[LuminanceTarget]:
 
 
 def create_custom_luminance(
-    peak: float,
-    black: float = 0.0,
-    reference_white: float | None = None,
-    hdr_mode: bool = False,
-    name: str = "Custom"
+    peak: float, black: float = 0.0, reference_white: float | None = None, hdr_mode: bool = False, name: str = "Custom"
 ) -> LuminanceTarget:
     """
     Create a custom luminance target.
@@ -573,15 +562,12 @@ def create_custom_luminance(
         black_level=black,
         reference_white=reference_white,
         hdr_mode=hdr_mode,
-        name=name
+        name=name,
     )
 
 
 def calculate_recommended_luminance(
-    viewing_distance_m: float,
-    screen_diagonal_inches: float,
-    ambient_lux: float = 50.0,
-    hdr: bool = False
+    viewing_distance_m: float, screen_diagonal_inches: float, ambient_lux: float = 50.0, hdr: bool = False
 ) -> dict:
     """
     Calculate recommended luminance based on viewing conditions.
@@ -628,5 +614,5 @@ def calculate_recommended_luminance(
         "recommended_black": 0.005 if hdr else 0.05,
         "viewing_angle_degrees": np.degrees(view_angle) * 2,
         "ambient_lux": ambient_lux,
-        "hdr_mode": hdr
+        "hdr_mode": hdr,
     }

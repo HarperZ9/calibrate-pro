@@ -15,10 +15,12 @@ USB_AVAILABLE = False
 
 try:
     import hid
+
     HID_AVAILABLE = True
 except ImportError:
     try:
         import hidapi as hid
+
         HID_AVAILABLE = True
     except ImportError:
         pass
@@ -26,6 +28,7 @@ except ImportError:
 try:
     import usb.core
     import usb.util
+
     USB_AVAILABLE = True
 except ImportError:
     pass
@@ -33,22 +36,26 @@ except ImportError:
 
 class USBError(Exception):
     """USB communication error."""
+
     pass
 
 
 class DeviceNotFoundError(USBError):
     """Device not found."""
+
     pass
 
 
 class CommunicationError(USBError):
     """Communication with device failed."""
+
     pass
 
 
 @dataclass
 class USBDeviceInfo:
     """Information about a USB device."""
+
     vendor_id: int
     product_id: int
     manufacturer: str
@@ -76,7 +83,6 @@ COLORIMETER_USB_IDS = {
     (0x0765, 0xD094): "i1Display 2",
     (0x0765, 0xD095): "i1Display LT",
     (0x0765, 0xD096): "ColorMunki Smile",
-
     # Datacolor Spyder devices
     (0x085C, 0x0200): "Spyder2",
     (0x085C, 0x0300): "Spyder3",
@@ -84,7 +90,6 @@ COLORIMETER_USB_IDS = {
     (0x085C, 0x0500): "Spyder5",
     (0x085C, 0x0600): "SpyderX",
     (0x085C, 0x0700): "SpyderX2",
-
     # Calibrite (rebranded X-Rite)
     (0x0765, 0x5021): "ColorChecker Display",
     (0x0765, 0x5022): "ColorChecker Display Pro",
@@ -176,7 +181,7 @@ class HIDTransport(USBTransport):
                 raise CommunicationError("Device not open")
             try:
                 data = self._device.read(size, timeout_ms=timeout)
-                return bytes(data) if data else b''
+                return bytes(data) if data else b""
             except OSError as e:
                 raise CommunicationError(f"Read failed: {e}") from e
 
@@ -200,10 +205,7 @@ class RawUSBTransport(USBTransport):
         """Open raw USB device."""
         with self._lock:
             try:
-                self._device = usb.core.find(
-                    idVendor=device_info.vendor_id,
-                    idProduct=device_info.product_id
-                )
+                self._device = usb.core.find(idVendor=device_info.vendor_id, idProduct=device_info.product_id)
                 if self._device is None:
                     raise DeviceNotFoundError("Device not found")
 
@@ -223,11 +225,10 @@ class RawUSBTransport(USBTransport):
 
                 self._ep_out = usb.util.find_descriptor(
                     intf,
-                    custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_OUT
+                    custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_OUT,
                 )
                 self._ep_in = usb.util.find_descriptor(
-                    intf,
-                    custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_IN
+                    intf, custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress) == usb.util.ENDPOINT_IN
                 )
 
                 return True
@@ -280,18 +281,20 @@ def enumerate_hid_devices() -> list[USBDeviceInfo]:
 
     try:
         for dev in hid.enumerate():
-            vid = dev.get('vendor_id', 0)
-            pid = dev.get('product_id', 0)
+            vid = dev.get("vendor_id", 0)
+            pid = dev.get("product_id", 0)
 
             if (vid, pid) in COLORIMETER_USB_IDS:
-                devices.append(USBDeviceInfo(
-                    vendor_id=vid,
-                    product_id=pid,
-                    manufacturer=dev.get('manufacturer_string', '') or COLORIMETER_USB_IDS.get((vid, pid), ''),
-                    product=dev.get('product_string', '') or COLORIMETER_USB_IDS.get((vid, pid), ''),
-                    serial_number=dev.get('serial_number', '') or '',
-                    path=dev.get('path')
-                ))
+                devices.append(
+                    USBDeviceInfo(
+                        vendor_id=vid,
+                        product_id=pid,
+                        manufacturer=dev.get("manufacturer_string", "") or COLORIMETER_USB_IDS.get((vid, pid), ""),
+                        product=dev.get("product_string", "") or COLORIMETER_USB_IDS.get((vid, pid), ""),
+                        serial_number=dev.get("serial_number", "") or "",
+                        path=dev.get("path"),
+                    )
+                )
     except OSError:
         pass
 
@@ -310,21 +313,23 @@ def enumerate_usb_devices() -> list[USBDeviceInfo]:
             dev = usb.core.find(idVendor=vid, idProduct=pid)
             if dev:
                 try:
-                    manufacturer = usb.util.get_string(dev, dev.iManufacturer) if dev.iManufacturer else ''
-                    product = usb.util.get_string(dev, dev.iProduct) if dev.iProduct else ''
-                    serial = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else ''
+                    manufacturer = usb.util.get_string(dev, dev.iManufacturer) if dev.iManufacturer else ""
+                    product = usb.util.get_string(dev, dev.iProduct) if dev.iProduct else ""
+                    serial = usb.util.get_string(dev, dev.iSerialNumber) if dev.iSerialNumber else ""
                 except (OSError, ValueError):
-                    manufacturer = product = serial = ''
+                    manufacturer = product = serial = ""
 
-                devices.append(USBDeviceInfo(
-                    vendor_id=vid,
-                    product_id=pid,
-                    manufacturer=manufacturer or COLORIMETER_USB_IDS.get((vid, pid), ''),
-                    product=product or COLORIMETER_USB_IDS.get((vid, pid), ''),
-                    serial_number=serial,
-                    bus=dev.bus,
-                    address=dev.address
-                ))
+                devices.append(
+                    USBDeviceInfo(
+                        vendor_id=vid,
+                        product_id=pid,
+                        manufacturer=manufacturer or COLORIMETER_USB_IDS.get((vid, pid), ""),
+                        product=product or COLORIMETER_USB_IDS.get((vid, pid), ""),
+                        serial_number=serial,
+                        bus=dev.bus,
+                        address=dev.address,
+                    )
+                )
     except (OSError, ValueError):
         pass
 

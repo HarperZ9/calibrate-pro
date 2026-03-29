@@ -39,6 +39,7 @@ DEFAULT_PERCENTILES = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 
 class ProcessingWindowFlag(IntEnum):
     """Processing window types."""
+
     FULL_FRAME = 0
     ELLIPTICAL = 1
     RECTANGULAR = 2
@@ -48,6 +49,7 @@ class ProcessingWindowFlag(IntEnum):
 # HDR10+ Data Structures
 # =============================================================================
 
+
 @dataclass
 class BezierCurve:
     """
@@ -56,8 +58,9 @@ class BezierCurve:
     HDR10+ uses cubic Bezier curves to define the tone mapping function
     from mastering display to target display.
     """
-    knee_point_x: float = 0.0      # Normalized [0, 1]
-    knee_point_y: float = 0.0      # Normalized [0, 1]
+
+    knee_point_x: float = 0.0  # Normalized [0, 1]
+    knee_point_y: float = 0.0  # Normalized [0, 1]
     anchors: list[float] = field(default_factory=list)  # Up to 15 anchor points
 
     def evaluate(self, t: np.ndarray) -> np.ndarray:
@@ -84,12 +87,16 @@ class BezierCurve:
         # Simple linear interpolation through anchors for now
         # Full Bezier implementation would use de Casteljau's algorithm
         x_points = np.linspace(0, 1, n)
-        y_points = np.concatenate([
-            [0.0],
-            [self.knee_point_y],
-            self.anchors[:n-2] if len(self.anchors) >= n-2 else self.anchors + [1.0] * (n-2-len(self.anchors)),
-            [1.0]
-        ])[:n]
+        y_points = np.concatenate(
+            [
+                [0.0],
+                [self.knee_point_y],
+                self.anchors[: n - 2]
+                if len(self.anchors) >= n - 2
+                else self.anchors + [1.0] * (n - 2 - len(self.anchors)),
+                [1.0],
+            ]
+        )[:n]
 
         # Interpolate
         result = np.interp(t, x_points, y_points)
@@ -110,6 +117,7 @@ class DistributionData:
     Describes how brightness values are distributed in the scene
     using percentile values.
     """
+
     percentiles: list[int] = field(default_factory=lambda: DEFAULT_PERCENTILES.copy())
     values: list[float] = field(default_factory=list)  # Luminance at each percentile
 
@@ -139,6 +147,7 @@ class ProcessingWindow:
 
     Defines a region of the frame with specific tone mapping parameters.
     """
+
     window_id: int = 0
     window_type: ProcessingWindowFlag = ProcessingWindowFlag.FULL_FRAME
 
@@ -168,6 +177,7 @@ class HDR10PlusMetadata:
     """
     Complete HDR10+ dynamic metadata for a single frame/scene.
     """
+
     # Application info
     application_identifier: int = HDR10PLUS_APPLICATION_IDENTIFIER
     application_version: int = HDR10PLUS_APPLICATION_VERSION
@@ -220,7 +230,7 @@ class HDR10PlusMetadata:
                     "fraction_bright": w.fraction_bright_pixels,
                 }
                 for w in self.windows
-            ]
+            ],
         }
 
     @classmethod
@@ -252,6 +262,7 @@ class HDR10PlusMetadata:
 # HDR10+ Tone Mapping
 # =============================================================================
 
+
 class HDR10PlusToneMapper:
     """
     HDR10+ dynamic tone mapper.
@@ -259,11 +270,7 @@ class HDR10PlusToneMapper:
     Applies scene-adaptive tone mapping based on HDR10+ metadata.
     """
 
-    def __init__(
-        self,
-        target_max_luminance: float = 1000.0,
-        target_min_luminance: float = 0.005
-    ):
+    def __init__(self, target_max_luminance: float = 1000.0, target_min_luminance: float = 0.005):
         """
         Initialize tone mapper.
 
@@ -277,11 +284,7 @@ class HDR10PlusToneMapper:
         # Cache for generated LUTs
         self._lut_cache: dict[int, np.ndarray] = {}
 
-    def generate_tone_curve(
-        self,
-        metadata: HDR10PlusMetadata,
-        size: int = 1024
-    ) -> np.ndarray:
+    def generate_tone_curve(self, metadata: HDR10PlusMetadata, size: int = 1024) -> np.ndarray:
         """
         Generate tone mapping curve from HDR10+ metadata.
 
@@ -307,11 +310,7 @@ class HDR10PlusToneMapper:
         # Generate adaptive curve
         return self._generate_adaptive_curve(effective_source, size)
 
-    def _generate_adaptive_curve(
-        self,
-        source_peak: float,
-        size: int
-    ) -> np.ndarray:
+    def _generate_adaptive_curve(self, source_peak: float, size: int) -> np.ndarray:
         """Generate adaptive tone curve based on source/target ratio."""
         t = np.linspace(0, 1, size)
 
@@ -347,11 +346,7 @@ class HDR10PlusToneMapper:
 
         return np.clip(output, 0.0, 1.0)
 
-    def apply(
-        self,
-        rgb_linear: np.ndarray,
-        metadata: HDR10PlusMetadata
-    ) -> np.ndarray:
+    def apply(self, rgb_linear: np.ndarray, metadata: HDR10PlusMetadata) -> np.ndarray:
         """
         Apply HDR10+ tone mapping to linear RGB.
 
@@ -391,10 +386,9 @@ class HDR10PlusToneMapper:
 # HDR10+ Scene Analysis
 # =============================================================================
 
+
 def analyze_frame(
-    rgb_linear: np.ndarray,
-    mastering_peak: float = 1000.0,
-    num_percentiles: int = NUM_PERCENTILES
+    rgb_linear: np.ndarray, mastering_peak: float = 1000.0, num_percentiles: int = NUM_PERCENTILES
 ) -> HDR10PlusMetadata:
     """
     Analyze a frame to generate HDR10+ metadata.
@@ -434,26 +428,19 @@ def analyze_frame(
         window_type=ProcessingWindowFlag.FULL_FRAME,
         max_scl=(max_scl_r, max_scl_g, max_scl_b),
         average_maxrgb=avg_maxrgb,
-        distribution=DistributionData(
-            percentiles=percentiles,
-            values=percentile_values
-        ),
-        fraction_bright_pixels=fraction_bright
+        distribution=DistributionData(percentiles=percentiles, values=percentile_values),
+        fraction_bright_pixels=fraction_bright,
     )
 
     return HDR10PlusMetadata(
         mastering_display_actual_peak_luminance=mastering_peak,
         targeted_system_display_maximum_luminance=1000.0,
         windows=[window],
-        num_windows=1
+        num_windows=1,
     )
 
 
-def detect_scene_change(
-    current: HDR10PlusMetadata,
-    previous: HDR10PlusMetadata,
-    threshold: float = 0.3
-) -> bool:
+def detect_scene_change(current: HDR10PlusMetadata, previous: HDR10PlusMetadata, threshold: float = 0.3) -> bool:
     """
     Detect if a scene change occurred between frames.
 
@@ -483,6 +470,7 @@ def detect_scene_change(
 # =============================================================================
 # HDR10+ Metadata Parsing
 # =============================================================================
+
 
 def parse_sei_payload(data: bytes) -> HDR10PlusMetadata | None:
     """
@@ -520,8 +508,7 @@ def parse_sei_payload(data: bytes) -> HDR10PlusMetadata | None:
         # Parse remaining metadata
         # This is a simplified parser - full implementation would need bit-level parsing
         metadata = HDR10PlusMetadata(
-            application_identifier=application_identifier,
-            application_version=application_version
+            application_identifier=application_identifier, application_version=application_version
         )
 
         return metadata
@@ -541,13 +528,17 @@ def serialize_metadata(metadata: HDR10PlusMetadata) -> bytes:
         SEI payload bytes
     """
     # ITU-T T.35 header
-    payload = bytearray([
-        0xB5,  # Country code (USA)
-        0x00, 0x3C,  # Terminal provider code (Samsung)
-        0x00, 0x01,  # Terminal provider oriented code
-        metadata.application_identifier,
-        metadata.application_version
-    ])
+    payload = bytearray(
+        [
+            0xB5,  # Country code (USA)
+            0x00,
+            0x3C,  # Terminal provider code (Samsung)
+            0x00,
+            0x01,  # Terminal provider oriented code
+            metadata.application_identifier,
+            metadata.application_version,
+        ]
+    )
 
     # Add simplified metadata payload
     # Full implementation would need proper bit-level serialization
@@ -559,6 +550,7 @@ def serialize_metadata(metadata: HDR10PlusMetadata) -> bytes:
 # HDR10+ Calibration
 # =============================================================================
 
+
 def generate_hdr10plus_test_scenes() -> list[HDR10PlusMetadata]:
     """
     Generate test scenes for HDR10+ calibration.
@@ -569,37 +561,25 @@ def generate_hdr10plus_test_scenes() -> list[HDR10PlusMetadata]:
     scenes = []
 
     # Dark scene
-    dark = HDR10PlusMetadata(
-        mastering_display_actual_peak_luminance=1000.0,
-        scene_id=1
-    )
+    dark = HDR10PlusMetadata(mastering_display_actual_peak_luminance=1000.0, scene_id=1)
     dark.windows[0].max_scl = (50.0, 50.0, 50.0)
     dark.windows[0].average_maxrgb = 10.0
     scenes.append(dark)
 
     # Medium scene
-    medium = HDR10PlusMetadata(
-        mastering_display_actual_peak_luminance=1000.0,
-        scene_id=2
-    )
+    medium = HDR10PlusMetadata(mastering_display_actual_peak_luminance=1000.0, scene_id=2)
     medium.windows[0].max_scl = (400.0, 400.0, 400.0)
     medium.windows[0].average_maxrgb = 100.0
     scenes.append(medium)
 
     # Bright scene
-    bright = HDR10PlusMetadata(
-        mastering_display_actual_peak_luminance=1000.0,
-        scene_id=3
-    )
+    bright = HDR10PlusMetadata(mastering_display_actual_peak_luminance=1000.0, scene_id=3)
     bright.windows[0].max_scl = (1000.0, 1000.0, 1000.0)
     bright.windows[0].average_maxrgb = 400.0
     scenes.append(bright)
 
     # Specular highlights
-    specular = HDR10PlusMetadata(
-        mastering_display_actual_peak_luminance=4000.0,
-        scene_id=4
-    )
+    specular = HDR10PlusMetadata(mastering_display_actual_peak_luminance=4000.0, scene_id=4)
     specular.windows[0].max_scl = (4000.0, 3000.0, 2000.0)
     specular.windows[0].average_maxrgb = 200.0
     specular.windows[0].fraction_bright_pixels = 0.05
@@ -609,9 +589,7 @@ def generate_hdr10plus_test_scenes() -> list[HDR10PlusMetadata]:
 
 
 def create_hdr10plus_calibration_luts(
-    target_peak: float,
-    target_black: float = 0.005,
-    size: int = 33
+    target_peak: float, target_black: float = 0.005, size: int = 33
 ) -> dict[str, np.ndarray]:
     """
     Create calibration LUTs for different HDR10+ scene types.

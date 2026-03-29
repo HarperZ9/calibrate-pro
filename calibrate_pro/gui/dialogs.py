@@ -27,11 +27,11 @@ from calibrate_pro.gui.theme import COLORS
 
 # Consent Dialog - Hardware modification warnings
 
+
 class ConsentDialog(QDialog):
     """Dialog for obtaining user consent before hardware modifications."""
 
-    def __init__(self, parent=None, display_name: str = "Display",
-                 changes: list = None, risk_level: str = "MEDIUM"):
+    def __init__(self, parent=None, display_name: str = "Display", changes: list = None, risk_level: str = "MEDIUM"):
         super().__init__(parent)
         self.setWindowTitle("Calibration Consent Required")
         self.setMinimumWidth(500)
@@ -51,7 +51,7 @@ class ConsentDialog(QDialog):
         header = QLabel("DISPLAY CALIBRATION")
         header.setStyleSheet(f"""
             font-size: 18px; font-weight: 700;
-            color: {COLORS['warning']};
+            color: {COLORS["warning"]};
         """)
         layout.addWidget(header)
 
@@ -61,19 +61,15 @@ class ConsentDialog(QDialog):
         layout.addWidget(display_label)
 
         # Risk level indicator
-        risk_colors = {
-            "LOW": COLORS['success'],
-            "MEDIUM": COLORS['warning'],
-            "HIGH": COLORS['error']
-        }
-        risk_color = risk_colors.get(risk_level, COLORS['warning'])
+        risk_colors = {"LOW": COLORS["success"], "MEDIUM": COLORS["warning"], "HIGH": COLORS["error"]}
+        risk_color = risk_colors.get(risk_level, COLORS["warning"])
 
         risk_label = QLabel(f"Risk Level: {risk_level}")
         risk_label.setStyleSheet(f"""
             font-size: 13px; font-weight: 600;
             color: {risk_color};
             padding: 4px 8px;
-            background-color: {COLORS['surface_alt']};
+            background-color: {COLORS["surface_alt"]};
             border-radius: 4px;
         """)
         layout.addWidget(risk_label)
@@ -103,8 +99,8 @@ class ConsentDialog(QDialog):
         safety_text.setReadOnly(True)
         safety_text.setMaximumHeight(150)
         safety_text.setStyleSheet(f"""
-            background-color: {COLORS['surface_alt']};
-            border: 1px solid {COLORS['border']};
+            background-color: {COLORS["surface_alt"]};
+            border: 1px solid {COLORS["border"]};
             border-radius: 4px;
             padding: 8px;
         """)
@@ -149,6 +145,7 @@ class ConsentDialog(QDialog):
 
 # Simulated Measurement Window - Hardware colorimeter simulation
 
+
 class SimulatedMeasurementWindow(QWidget):
     """
     Fullscreen window that simulates hardware colorimeter measurements.
@@ -167,18 +164,38 @@ class SimulatedMeasurementWindow(QWidget):
     # Default measurement sequence - grayscale + primaries + ColorChecker subset
     DEFAULT_PATCHES = [
         # Grayscale ramp
-        (0, 0, 0), (26, 26, 26), (51, 51, 51), (77, 77, 77),
-        (102, 102, 102), (128, 128, 128), (153, 153, 153),
-        (179, 179, 179), (204, 204, 204), (230, 230, 230), (255, 255, 255),
+        (0, 0, 0),
+        (26, 26, 26),
+        (51, 51, 51),
+        (77, 77, 77),
+        (102, 102, 102),
+        (128, 128, 128),
+        (153, 153, 153),
+        (179, 179, 179),
+        (204, 204, 204),
+        (230, 230, 230),
+        (255, 255, 255),
         # Primaries
-        (255, 0, 0), (0, 255, 0), (0, 0, 255),
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
         # Secondaries
-        (255, 255, 0), (0, 255, 255), (255, 0, 255),
+        (255, 255, 0),
+        (0, 255, 255),
+        (255, 0, 255),
         # ColorChecker key patches
-        (115, 82, 68), (194, 150, 130), (98, 122, 157),
-        (87, 108, 67), (133, 128, 177), (214, 126, 44),
-        (56, 61, 150), (70, 148, 73), (175, 54, 60),
-        (231, 199, 31), (187, 86, 149), (8, 133, 161),
+        (115, 82, 68),
+        (194, 150, 130),
+        (98, 122, 157),
+        (87, 108, 67),
+        (133, 128, 177),
+        (214, 126, 44),
+        (56, 61, 150),
+        (70, 148, 73),
+        (175, 54, 60),
+        (231, 199, 31),
+        (187, 86, 149),
+        (8, 133, 161),
     ]
 
     def __init__(self, parent=None, screen: QScreen = None):
@@ -305,6 +322,7 @@ class SimulatedMeasurementWindow(QWidget):
 
         # Keyboard shortcut to cancel
         from PyQt6.QtGui import QKeySequence, QShortcut
+
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self._cancel_measurement)
 
     def _draw_crosshair(self):
@@ -341,6 +359,7 @@ class SimulatedMeasurementWindow(QWidget):
         self.beep_enabled = True
         try:
             import winsound
+
             self.winsound = winsound
         except ImportError:
             self.winsound = None
@@ -352,11 +371,8 @@ class SimulatedMeasurementWindow(QWidget):
             try:
                 # Run async to not block UI
                 import threading
-                threading.Thread(
-                    target=self.winsound.Beep,
-                    args=(frequency, duration),
-                    daemon=True
-                ).start()
+
+                threading.Thread(target=self.winsound.Beep, args=(frequency, duration), daemon=True).start()
             except Exception:
                 pass
 
@@ -367,14 +383,17 @@ class SimulatedMeasurementWindow(QWidget):
     def _play_complete_beep(self):
         """Play completion beep sequence."""
         import threading
+
         def beep_sequence():
             import time
+
             if self.winsound:
                 self.winsound.Beep(800, 100)
                 time.sleep(0.1)
                 self.winsound.Beep(1000, 100)
                 time.sleep(0.1)
                 self.winsound.Beep(1200, 150)
+
         threading.Thread(target=beep_sequence, daemon=True).start()
 
     def set_patches(self, patches: list[tuple]):

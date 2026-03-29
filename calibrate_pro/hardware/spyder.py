@@ -19,6 +19,7 @@ from calibrate_pro.hardware.colorimeter_base import (
 
 class SpyderType:
     """Spyder model variants."""
+
     SPYDER_X_ELITE = "SpyderX Elite"
     SPYDER_X_PRO = "SpyderX Pro"
     SPYDER_X2_ELITE = "SpyderX2 Elite"
@@ -84,36 +85,20 @@ SPYDER_SPECS = {
 SPYDER_CORRECTIONS = {
     "WOLED": {
         "description": "WOLED (LG/Sony) Correction",
-        "matrix": [
-            [1.0312, -0.0198, -0.0114],
-            [-0.0112, 1.0189, -0.0077],
-            [0.0034, -0.0123, 1.0089]
-        ]
+        "matrix": [[1.0312, -0.0198, -0.0114], [-0.0112, 1.0189, -0.0077], [0.0034, -0.0123, 1.0089]],
     },
     "QDOLED": {
         "description": "QD-OLED (Samsung) Correction",
-        "matrix": [
-            [1.0156, -0.0089, -0.0067],
-            [-0.0078, 1.0134, -0.0056],
-            [0.0023, -0.0078, 1.0055]
-        ]
+        "matrix": [[1.0156, -0.0089, -0.0067], [-0.0078, 1.0134, -0.0056], [0.0023, -0.0078, 1.0055]],
     },
     "WideGamut": {
         "description": "Wide Gamut LCD Correction",
-        "matrix": [
-            [1.0067, -0.0045, -0.0022],
-            [-0.0034, 1.0056, -0.0022],
-            [0.0011, -0.0034, 1.0023]
-        ]
+        "matrix": [[1.0067, -0.0045, -0.0022], [-0.0034, 1.0056, -0.0022], [0.0011, -0.0034, 1.0023]],
     },
     "LCD": {
         "description": "Standard LCD Correction",
-        "matrix": [
-            [1.0000, 0.0000, 0.0000],
-            [0.0000, 1.0000, 0.0000],
-            [0.0000, 0.0000, 1.0000]
-        ]
-    }
+        "matrix": [[1.0000, 0.0000, 0.0000], [0.0000, 1.0000, 0.0000], [0.0000, 0.0000, 1.0000]],
+    },
 }
 
 
@@ -152,9 +137,7 @@ class SpyderDriver(ArgyllBackend):
     def _is_spyder(self, device: DeviceInfo) -> bool:
         """Check if device is a Spyder colorimeter."""
         name_lower = device.name.lower()
-        return any(x in name_lower for x in [
-            "spyder", "datacolor"
-        ])
+        return any(x in name_lower for x in ["spyder", "datacolor"])
 
     def _identify_model(self, device: DeviceInfo) -> None:
         """Identify specific Spyder model and capabilities."""
@@ -252,12 +235,7 @@ class SpyderDriver(ArgyllBackend):
 
         try:
             cmd = [str(self.spotread_path), "-a", "-x"]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
                 return self._parse_ambient_output(result.stdout)
@@ -269,18 +247,14 @@ class SpyderDriver(ArgyllBackend):
 
     def _parse_ambient_output(self, output: str) -> ColorMeasurement | None:
         """Parse ambient measurement output."""
-        lux_match = re.search(r'Lux:\s*([\d.]+)', output)
-        cct_match = re.search(r'CCT:\s*([\d.]+)', output)
+        lux_match = re.search(r"Lux:\s*([\d.]+)", output)
+        cct_match = re.search(r"CCT:\s*([\d.]+)", output)
 
         if lux_match:
             lux = float(lux_match.group(1))
             cct = float(cct_match.group(1)) if cct_match else 0
 
-            return ColorMeasurement(
-                X=0, Y=lux, Z=0,
-                cct=cct,
-                measurement_mode="ambient"
-            )
+            return ColorMeasurement(X=0, Y=lux, Z=0, cct=cct, measurement_mode="ambient")
 
         return None
 
@@ -312,7 +286,7 @@ class SpyderDriver(ArgyllBackend):
             Z=float(corrected[2]),
             spectral_data=measurement.spectral_data,
             integration_time=measurement.integration_time,
-            measurement_mode=measurement.measurement_mode
+            measurement_mode=measurement.measurement_mode,
         )
 
     def calibrate_device(self) -> bool:

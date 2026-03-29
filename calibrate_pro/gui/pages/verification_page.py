@@ -78,22 +78,58 @@ class VerificationPage(QWidget):
 
         # ColorChecker patch names and simulated Delta E values
         patches = [
-            ("Dark Skin", 0.69), ("Light Skin", 0.39), ("Blue Sky", 0.44),
-            ("Foliage", 0.62), ("Blue Flower", 0.41), ("Bluish Green", 0.42),
-            ("Orange", 0.83), ("Purplish Blue", 0.42), ("Moderate Red", 0.30),
-            ("Purple", 1.03), ("Yellow Green", 0.57), ("Orange Yellow", 0.78),
-            ("Blue", 0.80), ("Green", 0.60), ("Red", 0.72),
-            ("Yellow", 0.48), ("Magenta", 0.37), ("Cyan", 2.93),
-            ("White", 0.09), ("Neutral 8", 0.32), ("Neutral 6.5", 0.48),
-            ("Neutral 5", 0.32), ("Neutral 3.5", 0.32), ("Black", 1.15),
+            ("Dark Skin", 0.69),
+            ("Light Skin", 0.39),
+            ("Blue Sky", 0.44),
+            ("Foliage", 0.62),
+            ("Blue Flower", 0.41),
+            ("Bluish Green", 0.42),
+            ("Orange", 0.83),
+            ("Purplish Blue", 0.42),
+            ("Moderate Red", 0.30),
+            ("Purple", 1.03),
+            ("Yellow Green", 0.57),
+            ("Orange Yellow", 0.78),
+            ("Blue", 0.80),
+            ("Green", 0.60),
+            ("Red", 0.72),
+            ("Yellow", 0.48),
+            ("Magenta", 0.37),
+            ("Cyan", 2.93),
+            ("White", 0.09),
+            ("Neutral 8", 0.32),
+            ("Neutral 6.5", 0.48),
+            ("Neutral 5", 0.32),
+            ("Neutral 3.5", 0.32),
+            ("Black", 1.15),
         ]
 
         # Approximate colors for visualization
         colors = [
-            "#735244", "#c29682", "#627a9d", "#576c43", "#8580b1", "#67bdaa",
-            "#d67e2c", "#505ba6", "#c15a63", "#5e3c6c", "#9dbc40", "#e0a32e",
-            "#383d96", "#469449", "#af363c", "#e7c71f", "#bb5695", "#0885a1",
-            "#f3f3f2", "#c8c8c8", "#a0a0a0", "#7a7a7a", "#555555", "#343434",
+            "#735244",
+            "#c29682",
+            "#627a9d",
+            "#576c43",
+            "#8580b1",
+            "#67bdaa",
+            "#d67e2c",
+            "#505ba6",
+            "#c15a63",
+            "#5e3c6c",
+            "#9dbc40",
+            "#e0a32e",
+            "#383d96",
+            "#469449",
+            "#af363c",
+            "#e7c71f",
+            "#bb5695",
+            "#0885a1",
+            "#f3f3f2",
+            "#c8c8c8",
+            "#a0a0a0",
+            "#7a7a7a",
+            "#555555",
+            "#343434",
         ]
 
         for i, ((name, de), color) in enumerate(zip(patches, colors)):
@@ -102,7 +138,7 @@ class VerificationPage(QWidget):
             patch = QFrame()
             patch.setMinimumSize(80, 70)
 
-            de_color = COLORS['success'] if de < 1 else COLORS['warning'] if de < 2 else COLORS['error']
+            de_color = COLORS["success"] if de < 1 else COLORS["warning"] if de < 2 else COLORS["error"]
 
             patch.setStyleSheet(f"""
                 QFrame {{
@@ -118,7 +154,9 @@ class VerificationPage(QWidget):
             patch_layout.addStretch()
 
             de_label = QLabel(f"{de:.2f}")
-            de_label.setStyleSheet("color: white; font-weight: 700; font-size: 12px; background: rgba(0,0,0,0.5); border-radius: 3px; padding: 2px;")
+            de_label.setStyleSheet(
+                "color: white; font-weight: 700; font-size: 12px; background: rgba(0,0,0,0.5); border-radius: 3px; padding: 2px;"
+            )
             de_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             patch_layout.addWidget(de_label)
 
@@ -129,9 +167,9 @@ class VerificationPage(QWidget):
         # Results summary
         results_layout = QHBoxLayout()
 
-        avg_frame = self._create_result_stat("Average Delta E", "0.65", COLORS['success'])
-        max_frame = self._create_result_stat("Maximum Delta E", "2.93", COLORS['warning'])
-        grade_frame = self._create_result_stat("Grade", "Professional", COLORS['accent'])
+        avg_frame = self._create_result_stat("Average Delta E", "0.65", COLORS["success"])
+        max_frame = self._create_result_stat("Maximum Delta E", "2.93", COLORS["warning"])
+        grade_frame = self._create_result_stat("Grade", "Professional", COLORS["accent"])
 
         results_layout.addWidget(avg_frame)
         results_layout.addWidget(max_frame)
@@ -176,7 +214,7 @@ class VerificationPage(QWidget):
             patch = QFrame()
             patch.setMinimumSize(40, 100)
             patch.setStyleSheet(f"background-color: {gray}; border-radius: 4px;")
-            patch.setToolTip(f"Level {i*5}%\nRGB: ({level}, {level}, {level})")
+            patch.setToolTip(f"Level {i * 5}%\nRGB: ({level}, {level}, {level})")
             ramp_layout.addWidget(patch)
 
         layout.addWidget(ramp_widget)
@@ -262,11 +300,7 @@ class VerificationPage(QWidget):
             msg.setWindowTitle("Verification Results")
             msg.setIcon(QMessageBox.Icon.Information)
 
-            grade_color = (
-                COLORS['success'] if avg_de < 1.0 else
-                COLORS['warning'] if avg_de < 2.0 else
-                COLORS['error']
-            )
+            grade_color = COLORS["success"] if avg_de < 1.0 else COLORS["warning"] if avg_de < 2.0 else COLORS["error"]
 
             msg.setText("<h3>Calibration Verification Complete</h3>")
             msg.setInformativeText(
@@ -302,7 +336,4 @@ class VerificationPage(QWidget):
             self._last_verification = result
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Verification Error",
-                f"Failed to run verification:\n\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Verification Error", f"Failed to run verification:\n\n{str(e)}")

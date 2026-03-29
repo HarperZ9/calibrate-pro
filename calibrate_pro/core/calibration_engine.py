@@ -35,44 +35,54 @@ from calibrate_pro.sensorless.neuralux import SensorlessEngine, get_colorchecker
 if TYPE_CHECKING:
     from calibrate_pro.hardware.colorimeter_base import ColorimeterBase
 
+
 class CalibrationMode(Enum):
     """Calibration mode selection."""
-    SENSORLESS = "sensorless"      # Sensorless panel database
-    COLORIMETER = "colorimeter"    # Hardware colorimeter
+
+    SENSORLESS = "sensorless"  # Sensorless panel database
+    COLORIMETER = "colorimeter"  # Hardware colorimeter
     SPECTRO = "spectrophotometer"  # Hardware spectrophotometer
-    HYBRID = "hybrid"              # Sensorless + colorimeter verification
+    HYBRID = "hybrid"  # Sensorless + colorimeter verification
+
 
 class GammaTarget(Enum):
     """Gamma/EOTF target selection."""
-    POWER_22 = "2.2"            # Simple power law gamma 2.2
-    POWER_24 = "2.4"            # Simple power law gamma 2.4
-    SRGB = "sRGB"               # sRGB piecewise function
-    BT1886 = "BT.1886"          # Broadcast standard
-    LSTAR = "L*"                # CIE L* perceptual
-    CUSTOM = "custom"           # User-defined
+
+    POWER_22 = "2.2"  # Simple power law gamma 2.2
+    POWER_24 = "2.4"  # Simple power law gamma 2.4
+    SRGB = "sRGB"  # sRGB piecewise function
+    BT1886 = "BT.1886"  # Broadcast standard
+    LSTAR = "L*"  # CIE L* perceptual
+    CUSTOM = "custom"  # User-defined
+
 
 class WhitepointTarget(Enum):
     """White point target selection."""
-    D50 = "D50"                 # 5003K print standard
-    D55 = "D55"                 # 5503K daylight
-    D65 = "D65"                 # 6504K sRGB/broadcast
-    D75 = "D75"                 # 7504K north sky
-    DCI = "DCI"                 # 6300K DCI-P3
-    NATIVE = "native"           # Display native
-    CUSTOM = "custom"           # User-defined CCT
+
+    D50 = "D50"  # 5003K print standard
+    D55 = "D55"  # 5503K daylight
+    D65 = "D65"  # 6504K sRGB/broadcast
+    D75 = "D75"  # 7504K north sky
+    DCI = "DCI"  # 6300K DCI-P3
+    NATIVE = "native"  # Display native
+    CUSTOM = "custom"  # User-defined CCT
+
 
 class GamutTarget(Enum):
     """Color gamut target selection."""
-    SRGB = "sRGB"               # Standard web/consumer
-    DCI_P3 = "DCI-P3"           # Wide gamut cinema
-    BT2020 = "BT.2020"          # Ultra-wide HDR
-    ADOBE_RGB = "Adobe RGB"      # Wide gamut photography
-    NATIVE = "native"           # Display native gamut
-    CUSTOM = "custom"           # User-defined primaries
+
+    SRGB = "sRGB"  # Standard web/consumer
+    DCI_P3 = "DCI-P3"  # Wide gamut cinema
+    BT2020 = "BT.2020"  # Ultra-wide HDR
+    ADOBE_RGB = "Adobe RGB"  # Wide gamut photography
+    NATIVE = "native"  # Display native gamut
+    CUSTOM = "custom"  # User-defined primaries
+
 
 @dataclass
 class CalibrationTarget:
     """Target calibration parameters."""
+
     whitepoint: WhitepointTarget = WhitepointTarget.D65
     whitepoint_xy: tuple[float, float] | None = None
     whitepoint_cct: int | None = None
@@ -109,32 +119,18 @@ class CalibrationTarget:
             return self.gamut_primaries
 
         gamuts = {
-            GamutTarget.SRGB: (
-                (0.6400, 0.3300),
-                (0.3000, 0.6000),
-                (0.1500, 0.0600)
-            ),
-            GamutTarget.DCI_P3: (
-                (0.6800, 0.3200),
-                (0.2650, 0.6900),
-                (0.1500, 0.0600)
-            ),
-            GamutTarget.BT2020: (
-                (0.7080, 0.2920),
-                (0.1700, 0.7970),
-                (0.1310, 0.0460)
-            ),
-            GamutTarget.ADOBE_RGB: (
-                (0.6400, 0.3300),
-                (0.2100, 0.7100),
-                (0.1500, 0.0600)
-            ),
+            GamutTarget.SRGB: ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600)),
+            GamutTarget.DCI_P3: ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600)),
+            GamutTarget.BT2020: ((0.7080, 0.2920), (0.1700, 0.7970), (0.1310, 0.0460)),
+            GamutTarget.ADOBE_RGB: ((0.6400, 0.3300), (0.2100, 0.7100), (0.1500, 0.0600)),
         }
         return gamuts.get(self.gamut, gamuts[GamutTarget.SRGB])
+
 
 @dataclass
 class CalibrationResult:
     """Results from calibration process."""
+
     success: bool = False
     panel_name: str = ""
     panel_type: str = ""
@@ -170,8 +166,9 @@ class CalibrationResult:
             "grade": self.grade,
             "icc_profile": str(self.icc_profile_path) if self.icc_profile_path else None,
             "lut": str(self.lut_path) if self.lut_path else None,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
+
 
 class CalibrationEngine:
     """
@@ -180,11 +177,7 @@ class CalibrationEngine:
     Orchestrates sensorless and hardware calibration workflows.
     """
 
-    def __init__(
-        self,
-        mode: CalibrationMode = CalibrationMode.SENSORLESS,
-        panel_database: PanelDatabase | None = None
-    ):
+    def __init__(self, mode: CalibrationMode = CalibrationMode.SENSORLESS, panel_database: PanelDatabase | None = None):
         """
         Initialize calibration engine.
 
@@ -249,7 +242,7 @@ class CalibrationEngine:
         output_dir: Path,
         generate_icc: bool = True,
         generate_lut: bool = True,
-        lut_size: int = 33
+        lut_size: int = 33,
     ) -> CalibrationResult:
         """
         Perform sensorless calibration.
@@ -274,7 +267,7 @@ class CalibrationEngine:
             mode=CalibrationMode.SENSORLESS,
             target=self.target,
             panel_name=f"{panel.manufacturer} {panel.model_pattern.split('|')[0]}",
-            panel_type=panel.panel_type
+            panel_type=panel.panel_type,
         )
 
         output_dir = Path(output_dir)
@@ -329,7 +322,7 @@ class CalibrationEngine:
         generate_lut: bool = True,
         lut_size: int = 33,
         patch_count: int = 729,
-        display_callback: Callable | None = None
+        display_callback: Callable | None = None,
     ) -> CalibrationResult:
         """
         Perform hardware colorimeter calibration.
@@ -350,14 +343,14 @@ class CalibrationEngine:
             # Try to auto-connect
             try:
                 from calibrate_pro.hardware import auto_connect
+
                 self.colorimeter = auto_connect()
             except (ImportError, OSError, RuntimeError):
                 pass
 
         if self.colorimeter is None:
             raise RuntimeError(
-                "No colorimeter connected. Call set_colorimeter() or "
-                "connect a device before hardware calibration."
+                "No colorimeter connected. Call set_colorimeter() or connect a device before hardware calibration."
             )
 
         self._report_progress("Starting hardware calibration...", 0.05)
@@ -369,7 +362,7 @@ class CalibrationEngine:
             mode=self.mode,
             target=self.target,
             panel_name=f"{panel.manufacturer} {panel.model_pattern.split('|')[0]}",
-            panel_type=panel.panel_type
+            panel_type=panel.panel_type,
         )
 
         output_dir = Path(output_dir)
@@ -384,15 +377,11 @@ class CalibrationEngine:
 
         # Measure white point
         self._report_progress("Measuring white point...", 0.15)
-        white_measurement = self._measure_with_display(
-            (1.0, 1.0, 1.0), display_callback
-        )
+        white_measurement = self._measure_with_display((1.0, 1.0, 1.0), display_callback)
 
         # Measure black level
         self._report_progress("Measuring black level...", 0.2)
-        black_measurement = self._measure_with_display(
-            (0.0, 0.0, 0.0), display_callback
-        )
+        black_measurement = self._measure_with_display((0.0, 0.0, 0.0), display_callback)
 
         # Measure primaries
         self._report_progress("Measuring primaries...", 0.25)
@@ -405,9 +394,7 @@ class CalibrationEngine:
         # Generate profiling patches if needed for full profile
         if patch_count > 0 and generate_icc:
             self._report_progress("Measuring profiling patches...", 0.5)
-            profiling_data = self._measure_profiling_patches(
-                patch_count, display_callback
-            )
+            profiling_data = self._measure_profiling_patches(patch_count, display_callback)
         else:
             profiling_data = None
 
@@ -417,7 +404,7 @@ class CalibrationEngine:
             "black": black_measurement,
             "primaries": primaries,
             "grayscale": grayscale,
-            "profiling": profiling_data
+            "profiling": profiling_data,
         }
 
         # Generate ICC profile from measurements
@@ -457,7 +444,7 @@ class CalibrationEngine:
         generate_icc: bool = True,
         generate_lut: bool = True,
         lut_size: int = 33,
-        display_callback: Callable | None = None
+        display_callback: Callable | None = None,
     ) -> CalibrationResult:
         """
         Perform hybrid calibration: sensorless + hardware verification.
@@ -480,14 +467,13 @@ class CalibrationEngine:
 
         # Step 1: Sensorless calibration
         self._report_progress("Phase 1: Sensorless calibration...", 0.1)
-        sensorless_result = self.calibrate_sensorless(
-            model_string, output_dir, generate_icc, generate_lut, lut_size
-        )
+        sensorless_result = self.calibrate_sensorless(model_string, output_dir, generate_icc, generate_lut, lut_size)
 
         # If no colorimeter, return sensorless result
         if self.colorimeter is None:
             try:
                 from calibrate_pro.hardware import auto_connect
+
                 self.colorimeter = auto_connect()
             except (ImportError, OSError, RuntimeError):
                 pass
@@ -517,7 +503,7 @@ class CalibrationEngine:
             delta_e_max=verification["delta_e_max"],
             grade=verification["grade"],
             patch_results=verification["patches"],
-            success=True
+            success=True,
         )
 
         # If hardware verification shows significant error, refine
@@ -530,9 +516,7 @@ class CalibrationEngine:
         return result
 
     def _measure_with_display(
-        self,
-        rgb: tuple[float, float, float],
-        display_callback: Callable | None = None
+        self, rgb: tuple[float, float, float], display_callback: Callable | None = None
     ) -> dict | None:
         """
         Display a color and measure it.
@@ -546,6 +530,7 @@ class CalibrationEngine:
         """
         if display_callback:
             from calibrate_pro.hardware.colorimeter_base import CalibrationPatch
+
             patch = CalibrationPatch(r=rgb[0], g=rgb[1], b=rgb[2])
             display_callback(patch)
             time.sleep(0.5)  # Wait for display to settle
@@ -557,14 +542,11 @@ class CalibrationEngine:
                 "XYZ": (measurement.X, measurement.Y, measurement.Z),
                 "xy": (measurement.x, measurement.y),
                 "luminance": measurement.luminance,
-                "cct": measurement.cct
+                "cct": measurement.cct,
             }
         return None
 
-    def _measure_primaries(
-        self,
-        display_callback: Callable | None = None
-    ) -> dict[str, dict]:
+    def _measure_primaries(self, display_callback: Callable | None = None) -> dict[str, dict]:
         """Measure display primaries."""
         primaries = {}
 
@@ -583,11 +565,7 @@ class CalibrationEngine:
 
         return primaries
 
-    def _measure_grayscale(
-        self,
-        steps: int = 21,
-        display_callback: Callable | None = None
-    ) -> list[dict]:
+    def _measure_grayscale(self, steps: int = 21, display_callback: Callable | None = None) -> list[dict]:
         """Measure grayscale ramp."""
         results = []
 
@@ -601,11 +579,7 @@ class CalibrationEngine:
 
         return results
 
-    def _measure_profiling_patches(
-        self,
-        count: int,
-        display_callback: Callable | None = None
-    ) -> list[dict]:
+    def _measure_profiling_patches(self, count: int, display_callback: Callable | None = None) -> list[dict]:
         """Measure profiling patch set."""
         from calibrate_pro.hardware.colorimeter_base import generate_profiling_patches
 
@@ -615,24 +589,15 @@ class CalibrationEngine:
         for i, patch in enumerate(patches):
             if i % 50 == 0:
                 progress = 0.5 + (i / len(patches)) * 0.2
-                self._report_progress(
-                    f"Measuring patch {i+1}/{len(patches)}...",
-                    progress
-                )
+                self._report_progress(f"Measuring patch {i + 1}/{len(patches)}...", progress)
 
-            measurement = self._measure_with_display(
-                (patch.r, patch.g, patch.b), display_callback
-            )
+            measurement = self._measure_with_display((patch.r, patch.g, patch.b), display_callback)
             if measurement:
                 results.append(measurement)
 
         return results
 
-    def _create_icc_from_measurements(
-        self,
-        cal_data: dict,
-        panel: PanelCharacterization
-    ) -> ICCProfile:
+    def _create_icc_from_measurements(self, cal_data: dict, panel: PanelCharacterization) -> ICCProfile:
         """Create ICC profile from measurement data."""
         # Extract measured primaries
         primaries = cal_data.get("primaries", {})
@@ -653,15 +618,12 @@ class CalibrationEngine:
             green_xy=green_xy,
             blue_xy=blue_xy,
             white_xy=white_xy,
-            gamma=gamma
+            gamma=gamma,
         )
 
         return profile
 
-    def _calculate_gamma_from_grayscale(
-        self,
-        grayscale: list[dict]
-    ) -> float:
+    def _calculate_gamma_from_grayscale(self, grayscale: list[dict]) -> float:
         """Calculate effective gamma from grayscale measurements."""
         if len(grayscale) < 3:
             return 2.2  # Default
@@ -693,19 +655,14 @@ class CalibrationEngine:
 
         return max(1.8, min(3.0, gamma))
 
-    def _create_lut_from_measurements(
-        self,
-        cal_data: dict,
-        panel: PanelCharacterization,
-        size: int = 33
-    ) -> LUT3D:
+    def _create_lut_from_measurements(self, cal_data: dict, panel: PanelCharacterization, size: int = 33) -> LUT3D:
         """Create 3D LUT from measurement data."""
         # Build correction LUT based on measurements
         generator = LUTGenerator(
             source_primaries=panel.native_primaries,
             target_primaries=None,  # Will use measured
             source_gamma=(panel.gamma_red.gamma, panel.gamma_green.gamma, panel.gamma_blue.gamma),
-            target_gamma=self.target.gamma_value
+            target_gamma=self.target.gamma_value,
         )
 
         # Apply measurement-based corrections
@@ -713,10 +670,7 @@ class CalibrationEngine:
 
         return lut
 
-    def _verify_hardware(
-        self,
-        display_callback: Callable | None = None
-    ) -> dict:
+    def _verify_hardware(self, display_callback: Callable | None = None) -> dict:
         """Verify calibration with hardware measurements."""
         from calibrate_pro.hardware.colorimeter_base import generate_verification_patches
 
@@ -728,9 +682,7 @@ class CalibrationEngine:
         reference = get_colorchecker_reference()
 
         for i, patch in enumerate(patches):
-            measurement = self._measure_with_display(
-                (patch.r, patch.g, patch.b), display_callback
-            )
+            measurement = self._measure_with_display((patch.r, patch.g, patch.b), display_callback)
 
             if measurement and i < len(reference):
                 ref = reference[i]
@@ -743,13 +695,15 @@ class CalibrationEngine:
                 de = delta_e_2000(lab_measured, lab_reference)
                 delta_es.append(de)
 
-                results.append({
-                    "name": patch.name or f"Patch {i+1}",
-                    "rgb": (patch.r, patch.g, patch.b),
-                    "measured_XYZ": measurement["XYZ"],
-                    "reference_Lab": ref["Lab_D50"],
-                    "delta_e": de
-                })
+                results.append(
+                    {
+                        "name": patch.name or f"Patch {i + 1}",
+                        "rgb": (patch.r, patch.g, patch.b),
+                        "measured_XYZ": measurement["XYZ"],
+                        "reference_Lab": ref["Lab_D50"],
+                        "delta_e": de,
+                    }
+                )
 
         # Calculate statistics
         if delta_es:
@@ -768,12 +722,7 @@ class CalibrationEngine:
         else:
             grade = "Uncalibrated"
 
-        return {
-            "delta_e_avg": avg_de,
-            "delta_e_max": max_de,
-            "grade": grade,
-            "patches": results
-        }
+        return {"delta_e_avg": avg_de, "delta_e_max": max_de, "grade": grade, "patches": results}
 
     def calibrate(
         self,
@@ -782,7 +731,7 @@ class CalibrationEngine:
         generate_icc: bool = True,
         generate_lut: bool = True,
         lut_size: int = 33,
-        hdr_mode: bool = False
+        hdr_mode: bool = False,
     ) -> CalibrationResult:
         """
         Perform calibration based on current mode.
@@ -802,25 +751,15 @@ class CalibrationEngine:
         self.hdr_mode = hdr_mode
 
         if self.mode == CalibrationMode.SENSORLESS:
-            return self.calibrate_sensorless(
-                model_string, output_dir, generate_icc, generate_lut, lut_size
-            )
+            return self.calibrate_sensorless(model_string, output_dir, generate_icc, generate_lut, lut_size)
         elif self.mode in [CalibrationMode.COLORIMETER, CalibrationMode.SPECTRO]:
-            return self.calibrate_hardware(
-                model_string, output_dir, generate_icc, generate_lut, lut_size
-            )
+            return self.calibrate_hardware(model_string, output_dir, generate_icc, generate_lut, lut_size)
         elif self.mode == CalibrationMode.HYBRID:
-            return self.calibrate_hybrid(
-                model_string, output_dir, generate_icc, generate_lut, lut_size
-            )
+            return self.calibrate_hybrid(model_string, output_dir, generate_icc, generate_lut, lut_size)
         else:
             raise ValueError(f"Unknown calibration mode: {self.mode}")
 
-    def verify(
-        self,
-        model_string: str,
-        reference_patches: list | None = None
-    ) -> dict:
+    def verify(self, model_string: str, reference_patches: list | None = None) -> dict:
         """
         Verify calibration accuracy.
 
@@ -834,9 +773,7 @@ class CalibrationEngine:
         panel = self.detect_display(model_string)
         self.engine.current_panel = panel
 
-        return self.engine.verify_calibration(
-            panel, reference_patches=reference_patches
-        )
+        return self.engine.verify_calibration(panel, reference_patches=reference_patches)
 
     def get_available_panels(self) -> list[str]:
         """Get list of available panel profiles."""
@@ -851,27 +788,23 @@ class CalibrationEngine:
         return {
             "key": panel_key,
             "manufacturer": panel.manufacturer,
-            "model": panel.model_pattern.split('|')[0],
+            "model": panel.model_pattern.split("|")[0],
             "type": panel.panel_type,
             "primaries": {
                 "red": panel.native_primaries.red.as_tuple(),
                 "green": panel.native_primaries.green.as_tuple(),
                 "blue": panel.native_primaries.blue.as_tuple(),
-                "white": panel.native_primaries.white.as_tuple()
+                "white": panel.native_primaries.white.as_tuple(),
             },
-            "gamma": {
-                "red": panel.gamma_red.gamma,
-                "green": panel.gamma_green.gamma,
-                "blue": panel.gamma_blue.gamma
-            },
+            "gamma": {"red": panel.gamma_red.gamma, "green": panel.gamma_green.gamma, "blue": panel.gamma_blue.gamma},
             "capabilities": {
                 "max_sdr": panel.capabilities.max_luminance_sdr,
                 "max_hdr": panel.capabilities.max_luminance_hdr,
                 "hdr": panel.capabilities.hdr_capable,
                 "wide_gamut": panel.capabilities.wide_gamut,
-                "vrr": panel.capabilities.vrr_capable
+                "vrr": panel.capabilities.vrr_capable,
             },
-            "notes": panel.notes
+            "notes": panel.notes,
         }
 
 
@@ -879,10 +812,9 @@ class CalibrationEngine:
 # Convenience Functions
 # =============================================================================
 
+
 def quick_calibrate(
-    model_string: str,
-    output_dir: str | Path = ".",
-    mode: CalibrationMode = CalibrationMode.SENSORLESS
+    model_string: str, output_dir: str | Path = ".", mode: CalibrationMode = CalibrationMode.SENSORLESS
 ) -> CalibrationResult:
     """
     Quick calibration with default settings.

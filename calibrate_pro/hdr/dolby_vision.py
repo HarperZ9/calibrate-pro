@@ -22,18 +22,21 @@ import numpy as np
 # Dolby Vision Constants
 # =============================================================================
 
+
 # Dolby Vision profiles
 class DVProfile(IntEnum):
     """Dolby Vision profile types."""
-    PROFILE_4 = 4    # HDR10 compatible (deprecated)
-    PROFILE_5 = 5    # IPT-PQ, single layer (streaming)
-    PROFILE_7 = 7    # BC (Base + Enhancement layer)
-    PROFILE_8 = 8    # HDR10 compatible, SDR backwards compatible
+
+    PROFILE_4 = 4  # HDR10 compatible (deprecated)
+    PROFILE_5 = 5  # IPT-PQ, single layer (streaming)
+    PROFILE_7 = 7  # BC (Base + Enhancement layer)
+    PROFILE_8 = 8  # HDR10 compatible, SDR backwards compatible
 
 
 # Color spaces
 class DVColorSpace(IntEnum):
     """Dolby Vision color spaces."""
+
     YCbCr = 0
     RGB = 1
     IPT = 2  # IPT-PQ color space (Intensity, Protan, Tritan)
@@ -42,27 +45,31 @@ class DVColorSpace(IntEnum):
 # Transfer functions
 class DVTransferFunction(IntEnum):
     """Transfer function types."""
-    PQ = 0          # SMPTE ST.2084 PQ
-    HLG = 1         # HLG
-    SDR = 2         # BT.1886
+
+    PQ = 0  # SMPTE ST.2084 PQ
+    HLG = 1  # HLG
+    SDR = 2  # BT.1886
     LINEAR = 3
 
 
 # Signal ranges
 class DVSignalRange(IntEnum):
     """Signal range types."""
-    NARROW = 0      # Limited range (16-235/240)
-    FULL = 1        # Full range (0-255)
+
+    NARROW = 0  # Limited range (16-235/240)
+    FULL = 1  # Full range (0-255)
 
 
 # =============================================================================
 # Dolby Vision Metadata Structures
 # =============================================================================
 
+
 @dataclass
 class DVPrimaries:
     """Dolby Vision color primaries (CIE 1931 xy)."""
-    red: tuple[float, float] = (0.708, 0.292)    # BT.2020
+
+    red: tuple[float, float] = (0.708, 0.292)  # BT.2020
     green: tuple[float, float] = (0.170, 0.797)
     blue: tuple[float, float] = (0.131, 0.046)
     white: tuple[float, float] = (0.3127, 0.3290)  # D65
@@ -71,9 +78,10 @@ class DVPrimaries:
 @dataclass
 class DVContentRange:
     """Content light level range."""
-    min_pq: int = 0           # Minimum PQ code value (12-bit)
-    max_pq: int = 4095        # Maximum PQ code value
-    min_luminance: float = 0.0     # cd/m²
+
+    min_pq: int = 0  # Minimum PQ code value (12-bit)
+    max_pq: int = 4095  # Maximum PQ code value
+    min_luminance: float = 0.0  # cd/m²
     max_luminance: float = 10000.0  # cd/m²
 
 
@@ -84,9 +92,10 @@ class DVTrimPass:
 
     Trim passes adjust the master grade for specific target displays.
     """
-    target_max_pq: int = 2081        # Target display peak (PQ code)
-    target_min_pq: int = 62          # Target display black
-    target_primary_index: int = 0    # 0=P3, 1=BT.2020
+
+    target_max_pq: int = 2081  # Target display peak (PQ code)
+    target_min_pq: int = 62  # Target display black
+    target_primary_index: int = 0  # 0=P3, 1=BT.2020
 
     # Trim adjustments
     trim_slope: float = 1.0
@@ -98,11 +107,12 @@ class DVTrimPass:
     trim_saturation_gain: float = 1.0
 
     # Mid-tone adjustments
-    ms_weight: float = 1.0           # Mid-tones slope weight
+    ms_weight: float = 1.0  # Mid-tones slope weight
 
     def to_pq_luminance(self, pq_code: int) -> float:
         """Convert 12-bit PQ code to luminance."""
         from calibrate_pro.hdr.pq_st2084 import pq_eotf
+
         signal = pq_code / 4095.0
         return float(pq_eotf(np.array([signal]))[0])
 
@@ -124,6 +134,7 @@ class DVPolynomialCurve:
 
     Used for custom tone mapping in Dolby Vision.
     """
+
     order: int = 0
     coefficients: list[float] = field(default_factory=list)
     mmr_coefficients: list[list[float]] = field(default_factory=list)  # Multi-model regression
@@ -146,6 +157,7 @@ class DVRPU:
 
     Contains all metadata needed for tone mapping a frame.
     """
+
     # Profile info
     profile: DVProfile = DVProfile.PROFILE_8
     level: int = 6  # Profile level (affects max resolution/fps)
@@ -193,6 +205,7 @@ class DVRPU:
     def get_source_range(self) -> tuple[float, float]:
         """Get source luminance range in cd/m²."""
         from calibrate_pro.hdr.pq_st2084 import pq_eotf
+
         min_sig = self.source_min_pq / 4095.0
         max_sig = self.source_max_pq / 4095.0
         min_lum = float(pq_eotf(np.array([min_sig]))[0])
@@ -202,6 +215,7 @@ class DVRPU:
     def get_target_range(self) -> tuple[float, float]:
         """Get target luminance range in cd/m²."""
         from calibrate_pro.hdr.pq_st2084 import pq_eotf
+
         min_sig = self.target_min_pq / 4095.0
         max_sig = self.target_max_pq / 4095.0
         min_lum = float(pq_eotf(np.array([min_sig]))[0])
@@ -224,14 +238,15 @@ class DVRPU:
                 "red": self.primaries.red,
                 "green": self.primaries.green,
                 "blue": self.primaries.blue,
-                "white": self.primaries.white
-            }
+                "white": self.primaries.white,
+            },
         }
 
 
 # =============================================================================
 # Dolby Vision Tone Mapping
 # =============================================================================
+
 
 class DolbyVisionToneMapper:
     """
@@ -245,7 +260,7 @@ class DolbyVisionToneMapper:
         self,
         target_peak: float = 1000.0,
         target_black: float = 0.005,
-        target_primaries: str = "P3"  # "P3" or "BT2020"
+        target_primaries: str = "P3",  # "P3" or "BT2020"
     ):
         """
         Initialize Dolby Vision tone mapper.
@@ -261,14 +276,11 @@ class DolbyVisionToneMapper:
 
         # Compute target PQ codes
         from calibrate_pro.hdr.pq_st2084 import pq_oetf
+
         self.target_max_pq = int(pq_oetf(np.array([target_peak]))[0] * 4095)
         self.target_min_pq = int(pq_oetf(np.array([target_black]))[0] * 4095)
 
-    def generate_tone_curve(
-        self,
-        rpu: DVRPU,
-        size: int = 4096
-    ) -> np.ndarray:
+    def generate_tone_curve(self, rpu: DVRPU, size: int = 4096) -> np.ndarray:
         """
         Generate tone mapping curve from RPU metadata.
 
@@ -292,12 +304,7 @@ class DolbyVisionToneMapper:
         target_min, target_max = self.target_peak, self.target_black
 
         # Apply DV tone mapping algorithm
-        lum_out = self._apply_dv_tonemap(
-            lum_in,
-            source_min, source_max,
-            target_min, target_max,
-            rpu
-        )
+        lum_out = self._apply_dv_tonemap(lum_in, source_min, source_max, target_min, target_max, rpu)
 
         # Convert back to PQ
         pq_out = pq_oetf(lum_out)
@@ -305,13 +312,7 @@ class DolbyVisionToneMapper:
         return np.clip(pq_out, 0.0, 1.0)
 
     def _apply_dv_tonemap(
-        self,
-        lum: np.ndarray,
-        src_min: float,
-        src_max: float,
-        tgt_min: float,
-        tgt_max: float,
-        rpu: DVRPU
+        self, lum: np.ndarray, src_min: float, src_max: float, tgt_min: float, tgt_max: float, rpu: DVRPU
     ) -> np.ndarray:
         """Apply Dolby Vision tone mapping algorithm."""
         # Normalize to source range
@@ -343,9 +344,7 @@ class DolbyVisionToneMapper:
 
             # Modified Reinhard with DV characteristics
             max_stretch = (src_max - src_min * knee) / (tgt_max - tgt_min * knee)
-            compressed = knee + (1.0 - knee) * (
-                (above - knee) / (above - knee + (1.0 - knee) / max_stretch)
-            )
+            compressed = knee + (1.0 - knee) * ((above - knee) / (above - knee + (1.0 - knee) / max_stretch))
             lum_out[~below_knee] = compressed
 
             # Apply trim if available
@@ -358,11 +357,7 @@ class DolbyVisionToneMapper:
 
         return np.clip(lum_out, tgt_min, tgt_max)
 
-    def apply_to_frame(
-        self,
-        frame: np.ndarray,
-        rpu: DVRPU
-    ) -> np.ndarray:
+    def apply_to_frame(self, frame: np.ndarray, rpu: DVRPU) -> np.ndarray:
         """
         Apply Dolby Vision processing to a frame.
 
@@ -391,11 +386,9 @@ class DolbyVisionToneMapper:
 # Profile-Specific Handling
 # =============================================================================
 
+
 def create_profile5_rpu(
-    source_peak: float = 1000.0,
-    source_black: float = 0.0001,
-    frame_max: float = 500.0,
-    frame_avg: float = 100.0
+    source_peak: float = 1000.0, source_black: float = 0.0001, frame_max: float = 500.0, frame_avg: float = 100.0
 ) -> DVRPU:
     """
     Create Profile 5 RPU metadata.
@@ -419,14 +412,12 @@ def create_profile5_rpu(
         source_max_pq=source_max_pq,
         max_pq=frame_max_pq,
         avg_pq=frame_avg_pq,
-        vdr_dm_metadata_present=True
+        vdr_dm_metadata_present=True,
     )
 
 
 def create_profile8_rpu(
-    source_peak: float = 1000.0,
-    source_black: float = 0.0001,
-    hdr10_compatible: bool = True
+    source_peak: float = 1000.0, source_black: float = 0.0001, hdr10_compatible: bool = True
 ) -> DVRPU:
     """
     Create Profile 8 RPU metadata.
@@ -446,16 +437,16 @@ def create_profile8_rpu(
         transfer_function=DVTransferFunction.PQ,
         source_min_pq=source_min_pq,
         source_max_pq=source_max_pq,
-        signal_range=DVSignalRange.NARROW if hdr10_compatible else DVSignalRange.FULL
+        signal_range=DVSignalRange.NARROW if hdr10_compatible else DVSignalRange.FULL,
     )
 
     # Add default trim for 1000 nit target
     target_1000 = DVTrimPass(
         target_max_pq=2081,  # ~1000 nits
-        target_min_pq=62,    # ~0.005 nits
+        target_min_pq=62,  # ~0.005 nits
         trim_slope=1.0,
         trim_offset=0.0,
-        trim_power=1.0
+        trim_power=1.0,
     )
     rpu.trim_passes.append(target_1000)
 
@@ -465,6 +456,7 @@ def create_profile8_rpu(
 # =============================================================================
 # RPU Parsing/Serialization (Simplified)
 # =============================================================================
+
 
 def parse_rpu_header(data: bytes) -> dict[str, Any] | None:
     """
@@ -486,20 +478,14 @@ def parse_rpu_header(data: bytes) -> dict[str, Any] | None:
         rpu_type = data[0] >> 4
         rpu_format = data[0] & 0x0F
 
-        return {
-            "rpu_type": rpu_type,
-            "rpu_format": rpu_format,
-            "data_length": len(data)
-        }
+        return {"rpu_type": rpu_type, "rpu_format": rpu_format, "data_length": len(data)}
 
     except Exception:
         return None
 
 
 def create_calibration_rpu(
-    display_peak: float,
-    display_black: float = 0.005,
-    profile: DVProfile = DVProfile.PROFILE_8
+    display_peak: float, display_black: float = 0.005, profile: DVProfile = DVProfile.PROFILE_8
 ) -> DVRPU:
     """
     Create RPU metadata for display calibration.
@@ -519,13 +505,11 @@ def create_calibration_rpu(
 
         # Add trim pass for this specific display
         from calibrate_pro.hdr.pq_st2084 import pq_oetf
+
         target_max_pq = int(pq_oetf(np.array([display_peak]))[0] * 4095)
         target_min_pq = int(pq_oetf(np.array([display_black]))[0] * 4095)
 
-        trim = DVTrimPass(
-            target_max_pq=target_max_pq,
-            target_min_pq=target_min_pq
-        )
+        trim = DVTrimPass(target_max_pq=target_max_pq, target_min_pq=target_min_pq)
         rpu.trim_passes = [trim]
 
         return rpu
@@ -535,9 +519,11 @@ def create_calibration_rpu(
 # Dolby Vision Calibration
 # =============================================================================
 
+
 @dataclass
 class DVCalibrationResult:
     """Dolby Vision display calibration result."""
+
     profile: DVProfile
     measured_peak: float
     measured_black: float
@@ -548,17 +534,11 @@ class DVCalibrationResult:
 
     def to_rpu(self) -> DVRPU:
         """Generate RPU from calibration."""
-        return create_calibration_rpu(
-            self.measured_peak,
-            self.measured_black,
-            self.profile
-        )
+        return create_calibration_rpu(self.measured_peak, self.measured_black, self.profile)
 
 
 def calibrate_for_dolby_vision(
-    measured_levels: np.ndarray,
-    measured_luminance: np.ndarray,
-    profile: DVProfile = DVProfile.PROFILE_8
+    measured_levels: np.ndarray, measured_luminance: np.ndarray, profile: DVProfile = DVProfile.PROFILE_8
 ) -> DVCalibrationResult:
     """
     Calibrate display for Dolby Vision.
@@ -604,7 +584,7 @@ def calibrate_for_dolby_vision(
         target_max_pq=target_max_pq,
         target_min_pq=target_min_pq,
         eotf_accuracy=avg_error,
-        grade=grade
+        grade=grade,
     )
 
 
