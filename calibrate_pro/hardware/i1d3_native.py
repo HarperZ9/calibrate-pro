@@ -49,6 +49,7 @@ CMD_MEASURE1 = 0x0100       # Measure (locked mode)
 CMD_MEASURE2 = 0x0200       # Measure (unlocked mode)
 CMD_SET_INTTIME = 0x0300    # Set integration time
 CMD_GET_INTTIME = 0x0301    # Get integration time
+CMD_RD_EE = 0x0800          # Read EEPROM: offset(2B) + length(1B) → data
 CMD_UNLOCK = 0x0000         # Unlock with key
 
 # Status codes
@@ -114,7 +115,8 @@ class I1D3Driver:
     def __init__(self):
         self._device = None
         self._info: I1D3Info | None = None
-        self._cal_matrix = None  # 3x3 calibration matrix
+        self._cal_matrix = None  # 3x3 calibration matrix (per-unit from EEPROM)
+        self._cal_source = "none"  # "device_eeprom", "fallback_approximate", or "none"
         self._black_offset = None  # 3-element black level offset
         self._integration_time = 0.2  # Default 200ms
 
@@ -305,35 +307,138 @@ class I1D3Driver:
         time.sleep(0.1)
         self._device.read(REPORT_SIZE, timeout_ms=2000)
 
+    def _read_eeprom(self, offset: int, length: int) -> bytes | None:
+        """
+        Read bytes from the device's internal EEPROM.
+
+        The i1Display3 EEPROM read command (0x0800) takes:
+        - 2 bytes: offset (big-endian)
+        - 1 byte: length (max ~58 per read due to 64-byte report size)
+
+        Returns the raw bytes, or None on failure.
+        """
+        if length > 58:
+            # Read in chunks for large requests
+            result = bytearray()
+            pos = 0
+            while pos < length:
+                chunk_len = min(58, length - pos)
+                chunk = self._read_eeprom(offset + pos, chunk_len)
+                if chunk is None:
+                    return None
+                result.extend(chunk)
+                pos += chunk_len
+            return bytes(result)
+
+        data = struct.pack(">HB", offset, length)
+        resp = self._send_command(CMD_RD_EE, data)
+        if resp and len(resp) >= 3 + length:
+            return resp[3:3 + length]
+        return None
+
+    def _parse_cal_matrix(self, raw: bytes) -> list[list[float]] | None:
+        """
+        Parse a 3x3 calibration matrix from raw EEPROM data.
+
+        Each matrix entry is a big-endian IEEE 754 double (8 bytes).
+        Total: 9 doubles = 72 bytes.
+        """
+        if len(raw) < 72:
+            return None
+        matrix = []
+        for row in range(3):
+            r = []
+            for col in range(3):
+                offset = (row * 3 + col) * 8
+                val = struct.unpack(">d", raw[offset:offset + 8])[0]
+                r.append(val)
+            matrix.append(r)
+        return matrix
+
+    # Calibration matrix EEPROM offsets (from protocol analysis).
+    # Each contains a 3x3 double matrix (72 bytes) preceded by a
+    # header with the display technology label.
+    CAL_OFFSETS = {
+        "Ambient":           0x0058,
+        "CCFL":              0x04D8,
+        "WideGamutCCFL":     0x0958,
+        "WhiteLED":          0x0DD8,
+        "RGBLED":            0x1258,
+        "OLED":              0x191C,
+        "RGPhosphorBlueLED": 0x1B58,
+        "WideGamutLEDPA2":   0x1FD8,
+        "Last":              0x2458,
+    }
+
+    # Offset from the start of each calibration block to the 3x3 matrix data.
+    # The block starts with a header; the matrix is at +0x80 from block start
+    # for most entries (may vary — this is the common layout).
+    CAL_MATRIX_OFFSET = 0x80
+
     def _read_calibration(self):
         """
-        Read calibration data from the device's internal EEPROM.
+        Read per-unit calibration data from the device's internal EEPROM.
 
-        The i1Display3 stores 9 calibration matrices in its EEPROM,
-        each optimized for a different display technology. We use the
-        "Organic LED" matrix at offset 0x191C for OLED displays.
+        The i1Display3 stores 9 calibration matrices, each optimized for a
+        different display technology. Each unit has DIFFERENT calibration data
+        because the sensor filter characteristics vary between units.
 
-        Matrix labels and offsets (from EEPROM dump):
-        - 0x0058: Ambient
-        - 0x04D8: CCFL (cold cathode fluorescent)
-        - 0x0958: Wide Gamut CCFL
-        - 0x0DD8: White LED
-        - 0x1258: RGB LED
-        - 0x191C: Organic LED  <-- used for QD-OLED/WOLED
-        - 0x1B58: RG Phosphor Blue LED
-        - 0x1FD8: Wide gamut LED PA2
-        - 0x2458: Last
+        We attempt to read the OLED matrix (for QD-OLED/WOLED displays).
+        If EEPROM reading fails, we fall back to approximate constants.
         """
-        # Organic LED calibration matrix from device EEPROM at offset 0x191C
-        # Extracted from NEC MDSVSENSOR3 (i1Display3 OEM) EEPROM dump
-        # Produces white point x=0.3127 (D65) for OLED panels
+        # Try to read the OLED calibration matrix from this specific device
+        oled_offset = self.CAL_OFFSETS["OLED"] + self.CAL_MATRIX_OFFSET
+        raw = self._read_eeprom(oled_offset, 72)
+
+        if raw is not None:
+            matrix = self._parse_cal_matrix(raw)
+            if matrix is not None:
+                # Validate: matrix should have reasonable values (not zeros, not huge)
+                flat = [abs(v) for row in matrix for v in row]
+                if all(0.0 < v < 10.0 for v in flat if v != 0.0):
+                    self._cal_matrix = matrix
+                    self._cal_source = "device_eeprom"
+                    return
+
+        # Fallback: approximate matrix from a reference device (NEC MDSVSENSOR3).
+        # This does NOT account for per-unit sensor variance.
         self._cal_matrix = [
             [0.03836831, -0.02175997, 0.01696057],
             [0.01449629,  0.01611903, 0.00057150],
             [-0.00004481, 0.00035042, 0.08032401],
         ]
+        self._cal_source = "fallback_approximate"
 
         self._black_offset = [0.0, 0.0, 0.0]
+
+    def set_display_type(self, display_type: str) -> bool:
+        """
+        Load the calibration matrix for a specific display technology
+        from this device's EEPROM.
+
+        Args:
+            display_type: One of the keys in CAL_OFFSETS (e.g., "OLED",
+                         "WhiteLED", "CCFL", "WideGamutCCFL")
+
+        Returns:
+            True if the matrix was read successfully, False if fallback used.
+        """
+        if display_type not in self.CAL_OFFSETS:
+            return False
+
+        offset = self.CAL_OFFSETS[display_type] + self.CAL_MATRIX_OFFSET
+        raw = self._read_eeprom(offset, 72)
+
+        if raw is not None:
+            matrix = self._parse_cal_matrix(raw)
+            if matrix is not None:
+                flat = [abs(v) for row in matrix for v in row]
+                if all(0.0 < v < 10.0 for v in flat if v != 0.0):
+                    self._cal_matrix = matrix
+                    self._cal_source = f"device_eeprom_{display_type}"
+                    return True
+
+        return False
 
     def _set_integration_time(self, seconds: float):
         """Set the sensor integration time."""
