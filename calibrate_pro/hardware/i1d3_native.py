@@ -175,7 +175,8 @@ class I1D3Driver:
 
             return True
 
-        except Exception:
+        except Exception as e:
+            print(f"[i1d3] Connection failed: {e}")
             self._device = None
             return False
 
@@ -184,8 +185,8 @@ class I1D3Driver:
         if self._device:
             try:
                 self._device.close()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[i1d3] Error closing device: {e}")
             self._device = None
 
     def get_info(self) -> I1D3Info | None:
@@ -218,7 +219,8 @@ class I1D3Driver:
             result = self._apply_calibration(raw)
             return result
 
-        except Exception:
+        except Exception as e:
+            print(f"[i1d3] Measurement failed: {e}")
             return None
 
     # =========================================================================
@@ -281,8 +283,8 @@ class I1D3Driver:
         serial = ""
         try:
             serial = self._device.get_serial_number_string() or ""
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[i1d3] Could not read serial number: {e}")
 
         return I1D3Info(
             product=product.split()[0] if parts else product,

@@ -477,7 +477,8 @@ def apply_vcgt_windows(vcgt: VCGTTable, display_index: int = 0, device_name: str
             if release_fn:
                 release_fn(hdc)
 
-    except Exception:
+    except Exception as e:
+        print(f"[vcgt] apply_vcgt_windows failed: {e}")
         return False
 
 
@@ -523,8 +524,8 @@ def _resolve_display_device_name(display_index: int) -> str:
                 active_count += 1
             adapter_idx += 1
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[vcgt] _resolve_display_device_name failed for index {display_index}: {e}")
     return ""
 
 
@@ -556,7 +557,8 @@ def get_current_vcgt_windows() -> VCGTTable | None:
         finally:
             user32.ReleaseDC(None, hdc)
 
-    except Exception:
+    except Exception as e:
+        print(f"[vcgt] get_current_vcgt_windows failed: {e}")
         return None
 
 
