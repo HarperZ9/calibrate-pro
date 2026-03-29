@@ -181,9 +181,33 @@ class I1DisplayDriver(ArgyllBackend):
         """
         Apply display type correction matrix.
 
+        Prefers per-unit calibration from the native i1Display3 EEPROM driver
+        when available. Falls back to approximate hardcoded matrices.
+
         Args:
             display_type: One of "OLED", "WideGamut", "LCD"
         """
+        # Try per-unit EEPROM calibration via native driver
+        try:
+            from calibrate_pro.hardware.i1d3_native import I1D3Driver
+            native = I1D3Driver()
+            if native.open():
+                # Map display_type names to EEPROM calibration block names
+                eeprom_map = {
+                    "OLED": "OLED",
+                    "WideGamut": "WideGamutLEDPA2",
+                    "LCD": "WhiteLED",
+                }
+                eeprom_name = eeprom_map.get(display_type)
+                if eeprom_name and native.set_display_type(eeprom_name):
+                    self._correction_matrix = native._cal_matrix
+                    native.close()
+                    return True
+                native.close()
+        except (ImportError, OSError):
+            pass
+
+        # Fallback to approximate matrices
         if display_type in I1DISPLAY_CORRECTIONS:
             self._correction_matrix = I1DISPLAY_CORRECTIONS[display_type]["matrix"]
             return True
