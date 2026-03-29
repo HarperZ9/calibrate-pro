@@ -62,7 +62,7 @@ Run `calibrate-pro --help` for the full 26-command list.
 
 Built-in USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display). No ArgyllCMS required.
 
-CCMX spectral correction computed from EDID vs sensor primaries — fixes sensor matrix for QD-OLED emission spectra.
+**Known limitation**: The native i1Display3 driver uses approximate correction matrices, not per-unit spectral calibration. Each i1Display3 stores unique sensitivity curves in EEPROM — reading and computing per-unit corrections is tracked as a priority issue. For accurate measured calibration, use the ArgyllCMS backend which reads per-unit data. The sensorless mode (no colorimeter needed) is unaffected by this issue.
 
 ## Supported Displays
 

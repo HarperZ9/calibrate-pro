@@ -27,29 +27,45 @@ class I1DisplayType:
     UNKNOWN = "Unknown i1Display"
 
 
-# Device-specific correction matrices for common display types
+# KNOWN ISSUE: Per-unit spectral correction
+#
+# These matrices are PLACEHOLDERS. Each i1Display3 unit stores unique spectral
+# sensitivity curves in its EEPROM. The correction matrix should be computed
+# from these per-unit curves against the target display's spectral emission.
+# Using hardcoded matrices ignores unit-to-unit variance, which can be
+# significant (see: avsforum.com/threads/3268914 — spectral corrections thread).
+#
+# The correct approach:
+# 1. Read the per-unit calibration data from the i1Display3 EEPROM via USB HID
+# 2. Parse the stored spectral sensitivity curves (3 channels, ~380-730nm)
+# 3. Compute a correction matrix for the target display type by integrating
+#    the sensor response curves against the display's spectral power distribution
+# 4. Apply this per-unit matrix to raw XYZ measurements
+#
+# Until per-unit EEPROM reading is implemented, these fallback matrices provide
+# approximate corrections based on typical i1Display Pro characteristics.
+# For accurate measurements, use ArgyllCMS which reads per-unit calibration.
+
 I1DISPLAY_CORRECTIONS = {
-    # OLED correction for i1Display Pro
+    # APPROXIMATE — does not account for per-unit sensor variance
     "OLED": {
-        "description": "OLED Display Correction",
+        "description": "OLED Display Correction (approximate, per-unit EEPROM needed)",
         "matrix": [
             [1.0245, -0.0156, -0.0089],
             [-0.0087, 1.0134, -0.0047],
             [0.0021, -0.0098, 1.0077]
         ]
     },
-    # Wide gamut LCD correction
     "WideGamut": {
-        "description": "Wide Gamut LCD Correction",
+        "description": "Wide Gamut LCD Correction (approximate, per-unit EEPROM needed)",
         "matrix": [
             [1.0089, -0.0067, -0.0022],
             [-0.0045, 1.0078, -0.0033],
             [0.0012, -0.0056, 1.0044]
         ]
     },
-    # Standard LCD (sRGB)
     "LCD": {
-        "description": "Standard LCD Correction",
+        "description": "Standard LCD (identity — no correction)",
         "matrix": [
             [1.0000, 0.0000, 0.0000],
             [0.0000, 1.0000, 0.0000],
