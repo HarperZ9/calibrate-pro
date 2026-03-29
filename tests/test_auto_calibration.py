@@ -1,5 +1,6 @@
 """Tests for calibrate_pro.sensorless.auto_calibration — AutoCalibrationEngine."""
 
+import sys
 import tempfile
 from pathlib import Path
 
@@ -163,6 +164,7 @@ def test_match_panel_fallback():
 # -------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="requires ctypes.windll (Windows)")
 def test_run_calibration_software_only():
     """run_calibration with apply_ddc=False, apply_lut=False should produce
     a result with ICC and LUT file paths."""
@@ -185,6 +187,7 @@ def test_run_calibration_software_only():
     assert result.lut_path.endswith(".cube")
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="requires ctypes.windll (Windows)")
 def test_run_calibration_produces_verification():
     """run_calibration should populate verification data."""
     engine = AutoCalibrationEngine()
