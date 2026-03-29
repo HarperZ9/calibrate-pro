@@ -71,12 +71,12 @@ def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
         m = s * 0.08
 
         # Monitor body
-        body_rect = (m, m, s - 2*m, s * 0.72)
+        body_rect = (m, m, s - 2 * m, s * 0.72)
         p.setPen(QPen(QColor(accent_color), max(1, s * 0.04)))
         p.setBrush(QColor("#f7f3ee"))
-        p.drawRoundedRect(int(body_rect[0]), int(body_rect[1]),
-                          int(body_rect[2]), int(body_rect[3]),
-                          s * 0.08, s * 0.08)
+        p.drawRoundedRect(
+            int(body_rect[0]), int(body_rect[1]), int(body_rect[2]), int(body_rect[3]), s * 0.08, s * 0.08
+        )
 
         # Screen area
         inset = s * 0.14
@@ -86,9 +86,7 @@ def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
         screen_h = s * 0.52
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor("#f0ebe4"))
-        p.drawRoundedRect(int(screen_x), int(screen_y),
-                          int(screen_w), int(screen_h),
-                          s * 0.04, s * 0.04)
+        p.drawRoundedRect(int(screen_x), int(screen_y), int(screen_w), int(screen_h), s * 0.04, s * 0.04)
 
         # Single-color calibration arc
         cx = s * 0.5
@@ -109,20 +107,20 @@ def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
         stand_h = s * 0.08
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(accent_color))
-        stand = QPolygonF([
-            QPointF(cx - stand_w * 0.4, stand_top),
-            QPointF(cx + stand_w * 0.4, stand_top),
-            QPointF(cx + stand_w * 0.7, stand_top + stand_h),
-            QPointF(cx - stand_w * 0.7, stand_top + stand_h),
-        ])
+        stand = QPolygonF(
+            [
+                QPointF(cx - stand_w * 0.4, stand_top),
+                QPointF(cx + stand_w * 0.4, stand_top),
+                QPointF(cx + stand_w * 0.7, stand_top + stand_h),
+                QPointF(cx - stand_w * 0.7, stand_top + stand_h),
+            ]
+        )
         p.drawPolygon(stand)
 
         # Base
         base_y = stand_top + stand_h
         base_w = s * 0.30
-        p.drawRoundedRect(int(cx - base_w/2), int(base_y),
-                          int(base_w), int(s * 0.04),
-                          s * 0.02, s * 0.02)
+        p.drawRoundedRect(int(cx - base_w / 2), int(base_y), int(base_w), int(s * 0.04), s * 0.02, s * 0.02)
 
         # Check mark in accent color
         if size >= 24:
@@ -133,10 +131,10 @@ def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             p.setPen(pen)
-            p.drawLine(QPointF(check_x, check_y + check_s * 0.4),
-                       QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75))
-            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75),
-                       QPointF(check_x + check_s, check_y))
+            p.drawLine(
+                QPointF(check_x, check_y + check_s * 0.4), QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75)
+            )
+            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75), QPointF(check_x + check_s, check_y))
 
         p.end()
         icon.addPixmap(pm)
@@ -164,12 +162,12 @@ def make_app_icon() -> QIcon:
         m = s * 0.08  # margin
 
         # Monitor body — rounded rectangle, warm brown
-        body_rect = (m, m, s - 2*m, s * 0.72)
+        body_rect = (m, m, s - 2 * m, s * 0.72)
         p.setPen(QPen(QColor("#b07878"), max(1, s * 0.04)))
         p.setBrush(QColor("#f7f3ee"))
-        p.drawRoundedRect(int(body_rect[0]), int(body_rect[1]),
-                          int(body_rect[2]), int(body_rect[3]),
-                          s * 0.08, s * 0.08)
+        p.drawRoundedRect(
+            int(body_rect[0]), int(body_rect[1]), int(body_rect[2]), int(body_rect[3]), s * 0.08, s * 0.08
+        )
 
         # Screen area — slightly inset, dark
         inset = s * 0.14
@@ -179,9 +177,7 @@ def make_app_icon() -> QIcon:
         screen_h = s * 0.52
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor("#f0ebe4"))
-        p.drawRoundedRect(int(screen_x), int(screen_y),
-                          int(screen_w), int(screen_h),
-                          s * 0.04, s * 0.04)
+        p.drawRoundedRect(int(screen_x), int(screen_y), int(screen_w), int(screen_h), s * 0.04, s * 0.04)
 
         # Color calibration arc on screen — three subtle bands (R, G, B)
         cx = s * 0.5
@@ -203,20 +199,20 @@ def make_app_icon() -> QIcon:
         stand_h = s * 0.08
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor("#d4a0a0"))
-        stand = QPolygonF([
-            QPointF(cx - stand_w * 0.4, stand_top),
-            QPointF(cx + stand_w * 0.4, stand_top),
-            QPointF(cx + stand_w * 0.7, stand_top + stand_h),
-            QPointF(cx - stand_w * 0.7, stand_top + stand_h),
-        ])
+        stand = QPolygonF(
+            [
+                QPointF(cx - stand_w * 0.4, stand_top),
+                QPointF(cx + stand_w * 0.4, stand_top),
+                QPointF(cx + stand_w * 0.7, stand_top + stand_h),
+                QPointF(cx - stand_w * 0.7, stand_top + stand_h),
+            ]
+        )
         p.drawPolygon(stand)
 
         # Base
         base_y = stand_top + stand_h
         base_w = s * 0.30
-        p.drawRoundedRect(int(cx - base_w/2), int(base_y),
-                          int(base_w), int(s * 0.04),
-                          s * 0.02, s * 0.02)
+        p.drawRoundedRect(int(cx - base_w / 2), int(base_y), int(base_w), int(s * 0.04), s * 0.02, s * 0.02)
 
         # Small check mark — olive green, bottom right of screen
         if size >= 24:
@@ -227,10 +223,10 @@ def make_app_icon() -> QIcon:
             pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
             p.setPen(pen)
-            p.drawLine(QPointF(check_x, check_y + check_s * 0.4),
-                       QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75))
-            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75),
-                       QPointF(check_x + check_s, check_y))
+            p.drawLine(
+                QPointF(check_x, check_y + check_s * 0.4), QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75)
+            )
+            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75), QPointF(check_x + check_s, check_y))
 
         p.end()
         icon.addPixmap(pm)
@@ -252,11 +248,11 @@ CAL_PAGES = [
 
 # Dashboard Page
 
+
 class GamutMiniWidget(QWidget):
     """Tiny CIE xy gamut triangle visualization."""
 
-    def __init__(self, red_xy=(0.64, 0.33), green_xy=(0.30, 0.60),
-                 blue_xy=(0.15, 0.06), size: int = 64, parent=None):
+    def __init__(self, red_xy=(0.64, 0.33), green_xy=(0.30, 0.60), blue_xy=(0.15, 0.06), size: int = 64, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
         self._r = red_xy
@@ -309,8 +305,7 @@ class GamutMiniWidget(QWidget):
 class GamutBar(QWidget):
     """Compact horizontal gamut coverage bar."""
 
-    def __init__(self, srgb: float = 0, p3: float = 0, bt2020: float = 0,
-                 parent=None):
+    def __init__(self, srgb: float = 0, p3: float = 0, bt2020: float = 0, parent=None):
         super().__init__(parent)
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -344,7 +339,9 @@ class GamutBar(QWidget):
             # Label
             p.setPen(QColor(C.TEXT3))
             p.setFont(QFont("Segoe UI", 7))
-            p.drawText(0, int(y), label_w, bar_h + 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label)
+            p.drawText(
+                0, int(y), label_w, bar_h + 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label
+            )
 
             # Track
             p.setPen(Qt.PenStyle.NoPen)
@@ -358,9 +355,14 @@ class GamutBar(QWidget):
 
             # Percentage
             p.setPen(QColor(C.TEXT2))
-            p.drawText(int(bar_x + bar_w + 4), int(y), 28, bar_h + 2,
-                       Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                       f"{pct:.0f}%")
+            p.drawText(
+                int(bar_x + bar_w + 4),
+                int(y),
+                28,
+                bar_h + 2,
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                f"{pct:.0f}%",
+            )
 
         p.end()
 
@@ -370,14 +372,25 @@ class DisplayCard(Card):
 
     calibrate_clicked = pyqtSignal(int)  # emits display index
 
-    def __init__(self, name: str, resolution: str, panel_type: str,
-                 gamut_srgb: float = 0, gamut_p3: float = 0, gamut_bt2020: float = 0,
-                 calibrated: bool = False, hdr: bool = False,
-                 cal_age: str = "", delta_e: float = 0,
-                 red_xy=(0.64, 0.33), green_xy=(0.30, 0.60), blue_xy=(0.15, 0.06),
-                 peak_nits: float = 0,
-                 display_index: int = 0,
-                 parent=None):
+    def __init__(
+        self,
+        name: str,
+        resolution: str,
+        panel_type: str,
+        gamut_srgb: float = 0,
+        gamut_p3: float = 0,
+        gamut_bt2020: float = 0,
+        calibrated: bool = False,
+        hdr: bool = False,
+        cal_age: str = "",
+        delta_e: float = 0,
+        red_xy=(0.64, 0.33),
+        green_xy=(0.30, 0.60),
+        blue_xy=(0.15, 0.06),
+        peak_nits: float = 0,
+        display_index: int = 0,
+        parent=None,
+    ):
         super().__init__(parent)
         self._display_index = display_index
         self.setMinimumHeight(140)
@@ -405,9 +418,11 @@ class DisplayCard(Card):
         # Tags
         if hdr:
             hdr_tag = QLabel("HDR")
-            hdr_tag.setStyleSheet(f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-                                  f"border-radius: 9px; padding: 2px 10px; font-size: 9px; "
-                                  f"color: {C.CYAN}; font-weight: 600;")
+            hdr_tag.setStyleSheet(
+                f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
+                f"border-radius: 9px; padding: 2px 10px; font-size: 9px; "
+                f"color: {C.CYAN}; font-weight: 600;"
+            )
             hdr_tag.setFixedHeight(18)
             name_row.addWidget(hdr_tag)
         name_row.addStretch()
@@ -436,9 +451,11 @@ class DisplayCard(Card):
         if calibrated and delta_e > 0:
             de_color = C.GREEN_HI if delta_e < 2 else C.YELLOW if delta_e < 4 else C.RED
             de_badge = QLabel(f"dE {delta_e:.1f}")
-            de_badge.setStyleSheet(f"background: {C.SURFACE2}; border: 1px solid {de_color}; "
-                                   f"border-radius: 10px; padding: 4px 12px; font-size: 11px; "
-                                   f"color: {de_color}; font-weight: 600;")
+            de_badge.setStyleSheet(
+                f"background: {C.SURFACE2}; border: 1px solid {de_color}; "
+                f"border-radius: 10px; padding: 4px 12px; font-size: 11px; "
+                f"color: {de_color}; font-weight: 600;"
+            )
             de_badge.setFixedHeight(26)
             de_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
             right.addWidget(de_badge, alignment=Qt.AlignmentFlag.AlignRight)
@@ -526,7 +543,9 @@ class LiveSensorCard(Card):
         self._lum_stat = Stat("Luminance", "—", C.TEXT)
         self._cct_stat = Stat("CCT", "—", C.TEXT)
         self._xyz_label = QLabel("X — Y — Z —")
-        self._xyz_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; font-family: 'Cascadia Code', 'Consolas', monospace;")
+        self._xyz_label.setStyleSheet(
+            f"font-size: 11px; color: {C.TEXT2}; font-family: 'Cascadia Code', 'Consolas', monospace;"
+        )
 
         readings.addWidget(self._lum_stat)
         readings.addWidget(self._cct_stat)
@@ -544,6 +563,7 @@ class LiveSensorCard(Card):
     def _start_live(self):
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             self._driver = I1D3Driver()
             if not self._driver.open():
                 self._title.setText("Colorimeter — Failed to open")
@@ -590,6 +610,7 @@ class LiveSensorCard(Card):
 
 # Add Display Profile Dialog
 
+
 class AddDisplayDialog(QDialog):
     """Dialog for adding display profiles via EDID auto-detect or JSON import."""
 
@@ -623,9 +644,7 @@ class AddDisplayDialog(QDialog):
         layout.setSpacing(16)
 
         heading = QLabel("Add Display Profile")
-        heading.setStyleSheet(
-            f"font-size: 18px; font-weight: 500; color: {C.TEXT};"
-        )
+        heading.setStyleSheet(f"font-size: 18px; font-weight: 500; color: {C.TEXT};")
         layout.addWidget(heading)
 
         tabs = QTabWidget()
@@ -641,8 +660,7 @@ class AddDisplayDialog(QDialog):
         vbox.setSpacing(12)
 
         desc = QLabel(
-            "Detect connected displays via EDID and create panel profiles\n"
-            "from their reported chromaticity data."
+            "Detect connected displays via EDID and create panel profiles\nfrom their reported chromaticity data."
         )
         desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; line-height: 1.4;")
         desc.setWordWrap(True)
@@ -657,8 +675,7 @@ class AddDisplayDialog(QDialog):
         # Info card
         info_card = QFrame()
         info_card.setStyleSheet(
-            f"QFrame {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; padding: 12px; }}"
+            f"QFrame {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 10px; padding: 12px; }}"
         )
         info_layout = QVBoxLayout(info_card)
         info_layout.setSpacing(6)
@@ -841,22 +858,25 @@ class AddDisplayDialog(QDialog):
                     edid_gamma = edid_info.get("gamma", 2.2) or 2.2
                     # Extract chromaticity using the auto-cal engine method
                     from calibrate_pro.sensorless.auto_calibration import AutoCalibrationEngine
+
                     edid_chromaticity = AutoCalibrationEngine._extract_edid_chromaticity(edid_bytes)
 
                 in_db = "  [in database]" if panel else "  [unknown]"
                 res = f"{display.width}x{display.height}"
                 self._edid_combo.addItem(f"{name}  ({res}){in_db}")
 
-                self._scanned_displays.append({
-                    "display": display,
-                    "name": name,
-                    "index": i,
-                    "in_database": panel is not None,
-                    "panel": panel,
-                    "edid_chromaticity": edid_chromaticity,
-                    "edid_gamma": edid_gamma,
-                    "manufacturer": display.manufacturer or "Unknown",
-                })
+                self._scanned_displays.append(
+                    {
+                        "display": display,
+                        "name": name,
+                        "index": i,
+                        "in_database": panel is not None,
+                        "panel": panel,
+                        "edid_chromaticity": edid_chromaticity,
+                        "edid_gamma": edid_gamma,
+                        "manufacturer": display.manufacturer or "Unknown",
+                    }
+                )
                 self._scanned_edid_data.append(edid_chromaticity)
 
             if not displays:
@@ -880,8 +900,7 @@ class AddDisplayDialog(QDialog):
         if info["in_database"]:
             panel = info["panel"]
             self._edid_info_label.setText(
-                f"This display is already in the database as:\n"
-                f"{panel.name}  ({panel.panel_type})"
+                f"This display is already in the database as:\n{panel.name}  ({panel.panel_type})"
             )
             self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.GREEN};")
             self._create_btn.setEnabled(False)
@@ -914,8 +933,7 @@ class AddDisplayDialog(QDialog):
             self._create_btn.setEnabled(True)
         else:
             self._edid_info_label.setText(
-                "No EDID chromaticity data available for this display.\n"
-                "A generic sRGB profile will be used."
+                "No EDID chromaticity data available for this display.\nA generic sRGB profile will be used."
             )
             self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
             self._primaries_label.setText("")
@@ -964,8 +982,8 @@ class AddDisplayDialog(QDialog):
             if panel.ddc is None:
                 panel.ddc = DDCRecommendations(
                     notes=f"Auto-generated defaults for {info['name']}. "
-                          "Adjust picture mode and color preset in your monitor's OSD "
-                          "for best DDC/CI control."
+                    "Adjust picture mode and color preset in your monitor's OSD "
+                    "for best DDC/CI control."
                 )
 
             # Save to profiles directory
@@ -976,12 +994,13 @@ class AddDisplayDialog(QDialog):
             filepath = db.save_panel(key, f"{safe_name.lower()}.json")
 
             QMessageBox.information(
-                self, "Profile Created",
+                self,
+                "Profile Created",
                 f"Panel profile created successfully.\n\n"
                 f"Name: {info['name']}\n"
                 f"Type: {panel.panel_type}\n"
                 f"Gamma: {gamma}\n"
-                f"Saved to: {filepath}"
+                f"Saved to: {filepath}",
             )
 
             self.display_added.emit()
@@ -994,8 +1013,7 @@ class AddDisplayDialog(QDialog):
     def _browse_import_file(self):
         """Open file dialog to select a .json panel profile."""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select Panel Profile", "",
-            "JSON Panel Profiles (*.json);;All Files (*)"
+            self, "Select Panel Profile", "", "JSON Panel Profiles (*.json);;All Files (*)"
         )
         if not path:
             return
@@ -1010,6 +1028,7 @@ class AddDisplayDialog(QDialog):
         # Preview the file
         try:
             import json
+
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
@@ -1056,7 +1075,8 @@ class AddDisplayDialog(QDialog):
             dest = profiles_dir / Path(self._import_file_path).name
             if dest.exists():
                 reply = QMessageBox.question(
-                    self, "File Exists",
+                    self,
+                    "File Exists",
                     f"{dest.name} already exists. Overwrite?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
@@ -1079,9 +1099,9 @@ class AddDisplayDialog(QDialog):
                 count = 1
 
             QMessageBox.information(
-                self, "Import Successful",
-                f"Imported {count} panel profile(s) from:\n{Path(self._import_file_path).name}\n\n"
-                f"Saved to: {dest}"
+                self,
+                "Import Successful",
+                f"Imported {count} panel profile(s) from:\n{Path(self._import_file_path).name}\n\nSaved to: {dest}",
             )
 
             self.display_added.emit()
@@ -1209,6 +1229,7 @@ class DashboardPage(QWidget):
                 calibrated = False
                 try:
                     from calibrate_pro.utils.startup_manager import StartupManager
+
                     mgr = StartupManager()
                     cal = mgr.get_display_calibration(i)
                     if cal and cal.lut_path and Path(cal.lut_path).exists():
@@ -1223,7 +1244,13 @@ class DashboardPage(QWidget):
 
                 # Get gamut coverage
                 srgb_pct = 100 if panel and panel.capabilities.wide_gamut else 99
-                bt2020_pct = 79 if panel and panel.panel_type == "QD-OLED" else 61 if panel and panel.capabilities.wide_gamut else 45
+                bt2020_pct = (
+                    79
+                    if panel and panel.panel_type == "QD-OLED"
+                    else 61
+                    if panel and panel.capabilities.wide_gamut
+                    else 45
+                )
 
                 # Peak luminance
                 peak = panel.capabilities.max_luminance_hdr if panel else 0
@@ -1235,6 +1262,7 @@ class DashboardPage(QWidget):
                     cal_state = mgr.get_display_calibration(i)
                     if cal_state and cal_state.last_calibrated:
                         from datetime import datetime
+
                         cal_dt = datetime.fromisoformat(cal_state.last_calibrated)
                         age = datetime.now() - cal_dt
                         if age.days == 0:
@@ -1248,13 +1276,21 @@ class DashboardPage(QWidget):
                     logger.debug("Could not read calibration age for display %d: %s", i, e)
 
                 card = DisplayCard(
-                    name, res, panel_type,
-                    gamut_srgb=srgb_pct, gamut_p3=gamut_p3, gamut_bt2020=bt2020_pct,
-                    calibrated=calibrated, hdr=hdr,
-                    cal_age=cal_age, delta_e=delta_e,
-                    red_xy=r_xy, green_xy=g_xy, blue_xy=b_xy,
+                    name,
+                    res,
+                    panel_type,
+                    gamut_srgb=srgb_pct,
+                    gamut_p3=gamut_p3,
+                    gamut_bt2020=bt2020_pct,
+                    calibrated=calibrated,
+                    hdr=hdr,
+                    cal_age=cal_age,
+                    delta_e=delta_e,
+                    red_xy=r_xy,
+                    green_xy=g_xy,
+                    blue_xy=b_xy,
                     peak_nits=peak,
-                    display_index=i
+                    display_index=i,
                 )
                 card.calibrate_clicked.connect(self.navigate_to_calibrate.emit)
                 self._cards_layout.addWidget(card)
@@ -1264,6 +1300,7 @@ class DashboardPage(QWidget):
             # Check DWM LUT status
             try:
                 from calibrate_pro.lut_system.dwm_lut import get_dwm_lut_directory
+
                 lut_dir = get_dwm_lut_directory()
                 lut_files = list(lut_dir.glob("*.cube")) if lut_dir.exists() else []
                 if lut_files:
@@ -1276,12 +1313,9 @@ class DashboardPage(QWidget):
             # Guard status
             try:
                 main_window = self.window()
-                if hasattr(main_window, '_guard') and main_window._guard and main_window._guard.is_running:
+                if hasattr(main_window, "_guard") and main_window._guard and main_window._guard.is_running:
                     restores = main_window._guard.restore_count
-                    self._stat_guard.set_value(
-                        f"Active ({restores} restores)" if restores else "Active",
-                        C.GREEN_HI
-                    )
+                    self._stat_guard.set_value(f"Active ({restores} restores)" if restores else "Active", C.GREEN_HI)
                 else:
                     self._stat_guard.set_value("Inactive", C.TEXT3)
             except (AttributeError, RuntimeError):
@@ -1290,6 +1324,7 @@ class DashboardPage(QWidget):
             # Startup status
             try:
                 from calibrate_pro.utils.startup_manager import StartupManager
+
                 mgr = StartupManager()
                 if mgr.is_startup_enabled():
                     self._stat_startup.set_value("Enabled", C.GREEN_HI)
@@ -1306,6 +1341,7 @@ class DashboardPage(QWidget):
         # Sensor detection
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             devices = I1D3Driver.find_devices()
             if devices:
                 sensor_name = devices[0].get("product", "Unknown Colorimeter")
@@ -1330,6 +1366,7 @@ class DashboardPage(QWidget):
 
 # Placeholder Pages (to be rebuilt individually)
 
+
 class PlaceholderPage(QWidget):
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
@@ -1341,6 +1378,7 @@ class PlaceholderPage(QWidget):
 
 
 # Main Window
+
 
 class CalibrateProWindow(QMainWindow):
     """Main application window."""
@@ -1376,6 +1414,7 @@ class CalibrateProWindow(QMainWindow):
     def _start_services(self):
         """Start calibration guard and other background services."""
         import logging
+
         logger = logging.getLogger(__name__)
         self._guard = None
 
@@ -1393,10 +1432,11 @@ class CalibrateProWindow(QMainWindow):
             # Guard all displays that have saved calibration state
             try:
                 from calibrate_pro.panels.detection import enumerate_displays
+
                 displays = enumerate_displays()
                 for i, d in enumerate(displays):
-                    device_name = getattr(d, 'device_name', f"\\\\.\\DISPLAY{i+1}")
-                    display_name = getattr(d, 'name', f"Display {i+1}")
+                    device_name = getattr(d, "device_name", f"\\\\.\\DISPLAY{i + 1}")
+                    display_name = getattr(d, "name", f"Display {i + 1}")
                     gd = GuardedDisplay(
                         device_name=device_name,
                         display_name=display_name,
@@ -1478,6 +1518,7 @@ class CalibrateProWindow(QMainWindow):
 
         try:
             from calibrate_pro.panels.detection import enumerate_displays, get_display_name
+
             displays = enumerate_displays()
             if displays:
                 for d in displays:
@@ -1506,6 +1547,7 @@ class CalibrateProWindow(QMainWindow):
         sensor_color = C.TEXT3
         try:
             from calibrate_pro.hardware.i1d3_native import I1D3Driver
+
             devices = I1D3Driver.find_devices()
             if devices:
                 sensor_name = devices[0].get("product", "i1Display3")
@@ -1555,7 +1597,7 @@ class CalibrateProWindow(QMainWindow):
 
     def _escape_action(self):
         """Minimize to tray if available, otherwise minimize window."""
-        if hasattr(self, '_tray') and self._tray.isVisible():
+        if hasattr(self, "_tray") and self._tray.isVisible():
             self.hide()
         else:
             self.showMinimized()
@@ -1567,24 +1609,24 @@ class CalibrateProWindow(QMainWindow):
 
         # File
         file_menu = mb.addMenu("&File")
-        file_menu.addAction(QAction("&Calibrate All", self, shortcut="Ctrl+Shift+C",
-                                     triggered=self._calibrate_all))
+        file_menu.addAction(QAction("&Calibrate All", self, shortcut="Ctrl+Shift+C", triggered=self._calibrate_all))
         file_menu.addSeparator()
 
         export = file_menu.addMenu("&Export")
-        for fmt, label in [("cube", ".cube (Resolve / dwm_lut)"),
-                           ("3dlut", ".3dlut (MadVR)"),
-                           ("png", ".png (ReShade / SpecialK)"),
-                           ("icc", ".icc (ICC Profile)"),
-                           ("mpv", "mpv config"),
-                           ("obs", "OBS LUT")]:
+        for fmt, label in [
+            ("cube", ".cube (Resolve / dwm_lut)"),
+            ("3dlut", ".3dlut (MadVR)"),
+            ("png", ".png (ReShade / SpecialK)"),
+            ("icc", ".icc (ICC Profile)"),
+            ("mpv", "mpv config"),
+            ("obs", "OBS LUT"),
+        ]:
             act = QAction(label, self)
             act.triggered.connect(lambda checked, f=fmt: self._export(f))
             export.addAction(act)
 
         file_menu.addSeparator()
-        file_menu.addAction(QAction("E&xit", self, shortcut="Alt+F4",
-                                     triggered=self.close))
+        file_menu.addAction(QAction("E&xit", self, shortcut="Alt+F4", triggered=self.close))
 
         # View — page navigation shortcuts
         view = mb.addMenu("&View")
@@ -1596,8 +1638,7 @@ class CalibrateProWindow(QMainWindow):
             act.triggered.connect(lambda checked, idx=i: self._shortcut_switch_page(idx))
             view.addAction(act)
         view.addSeparator()
-        view.addAction(QAction("&Refresh Dashboard", self, shortcut="F5",
-                                triggered=self._refresh_dashboard))
+        view.addAction(QAction("&Refresh Dashboard", self, shortcut="F5", triggered=self._refresh_dashboard))
 
         # Display
         disp = mb.addMenu("&Display")
@@ -1635,48 +1676,53 @@ class CalibrateProWindow(QMainWindow):
         self.dashboard = DashboardPage()
         self.dashboard.navigate_to_calibrate.connect(self._navigate_to_calibrate)
         self.dashboard.calibrate_all_requested.connect(self._calibrate_all)
-        self.stack.addWidget(self.dashboard)                        # 0
+        self.stack.addWidget(self.dashboard)  # 0
 
         # Calibrate page
         try:
             from calibrate_pro.gui.pages.calibrate import CalibratePage
+
             cal_page = CalibratePage()
             cal_page.calibration_completed.connect(self._update_tray_state)
-            self.stack.addWidget(cal_page)                          # 1
+            self.stack.addWidget(cal_page)  # 1
         except (ImportError, AttributeError) as e:
             logger.warning("Failed to load CalibratePage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Calibrate"))      # 1
+            self.stack.addWidget(PlaceholderPage("Calibrate"))  # 1
 
         # Verify page
         try:
             from calibrate_pro.gui.pages.verify import VerifyPage
-            self.stack.addWidget(VerifyPage())                      # 2
+
+            self.stack.addWidget(VerifyPage())  # 2
         except (ImportError, TypeError) as e:
             logger.warning("Failed to load VerifyPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Verify"))         # 2
+            self.stack.addWidget(PlaceholderPage("Verify"))  # 2
         # Profiles page
         try:
             from calibrate_pro.gui.pages.profiles import ProfilesPage
-            self.stack.addWidget(ProfilesPage())                    # 3
+
+            self.stack.addWidget(ProfilesPage())  # 3
         except ImportError as e:
             logger.warning("Failed to load ProfilesPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Profiles"))       # 3
+            self.stack.addWidget(PlaceholderPage("Profiles"))  # 3
 
         # DDC Control page
         try:
             from calibrate_pro.gui.pages.ddc_control import DDCControlPage
-            self.stack.addWidget(DDCControlPage())                  # 4
+
+            self.stack.addWidget(DDCControlPage())  # 4
         except (ImportError, RuntimeError) as e:
             logger.warning("Failed to load DDCControlPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("DDC Control"))    # 4
+            self.stack.addWidget(PlaceholderPage("DDC Control"))  # 4
 
         # Settings page
         try:
             from calibrate_pro.gui.pages.settings import SettingsPage
-            self.stack.addWidget(SettingsPage())                    # 5
+
+            self.stack.addWidget(SettingsPage())  # 5
         except (ImportError, OSError) as e:
             logger.warning("Failed to load SettingsPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Settings"))       # 5
+            self.stack.addWidget(PlaceholderPage("Settings"))  # 5
 
         main_layout.addWidget(self.stack, stretch=1)
         self.setCentralWidget(central)
@@ -1741,7 +1787,7 @@ class CalibrateProWindow(QMainWindow):
 
     def _update_tray_state(self):
         """Check calibration status across all displays and update the tray icon/tooltip."""
-        if not hasattr(self, '_tray'):
+        if not hasattr(self, "_tray"):
             return
 
         try:
@@ -1788,7 +1834,9 @@ class CalibrateProWindow(QMainWindow):
             elif calibrated_count == total:
                 icon_color = C.GREEN
                 tooltip = f"{APP_NAME} - All displays calibrated"
-            elif stale_count > 0 and (calibrated_count + stale_count) == total or calibrated_count > 0 or stale_count > 0:
+            elif (
+                stale_count > 0 and (calibrated_count + stale_count) == total or calibrated_count > 0 or stale_count > 0
+            ):
                 icon_color = C.YELLOW
                 tooltip = f"{APP_NAME} - {', '.join(per_display_status)}"
             else:
@@ -1806,7 +1854,7 @@ class CalibrateProWindow(QMainWindow):
 
     def _rebuild_profile_submenu(self):
         """Populate the tray 'Switch Profile' submenu with available profiles."""
-        if not hasattr(self, '_profile_submenu'):
+        if not hasattr(self, "_profile_submenu"):
             return
         self._profile_submenu.clear()
 
@@ -1829,6 +1877,7 @@ class CalibrateProWindow(QMainWindow):
         active_stem = None
         try:
             from calibrate_pro.utils.startup_manager import StartupManager
+
             mgr = StartupManager()
             cal = mgr.get_display_calibration(0)
             if cal and cal.lut_path:
@@ -1842,21 +1891,21 @@ class CalibrateProWindow(QMainWindow):
             act.setCheckable(True)
             if active_stem and cube.stem == active_stem:
                 act.setChecked(True)
-            act.triggered.connect(
-                lambda checked, p=str(cube): self._apply_tray_profile(p)
-            )
+            act.triggered.connect(lambda checked, p=str(cube): self._apply_tray_profile(p))
             self._profile_submenu.addAction(act)
 
     def _apply_tray_profile(self, cube_path: str):
         """Apply a calibration profile LUT from the tray submenu."""
         try:
             from calibrate_pro.lut_system.dwm_lut import load_lut
+
             load_lut(cube_path, display_index=0)
 
             # Also install matching ICC if present
             icc_path = Path(cube_path).with_suffix(".icc")
             if icc_path.exists():
                 from calibrate_pro.panels.detection import install_profile
+
                 install_profile(str(icc_path))
 
             profile_name = Path(cube_path).stem.replace("_", " ")
@@ -1868,9 +1917,9 @@ class CalibrateProWindow(QMainWindow):
 
     def _quit(self):
         self._stop_services()
-        if hasattr(self, '_tray_timer'):
+        if hasattr(self, "_tray_timer"):
             self._tray_timer.stop()
-        if hasattr(self, '_tray'):
+        if hasattr(self, "_tray"):
             self._tray.hide()
         QApplication.quit()
 
@@ -1910,7 +1959,7 @@ class CalibrateProWindow(QMainWindow):
         self.sidebar._on_click(1)
         # Select the display in the Calibrate page's combo box
         cal_page = self.stack.widget(1)
-        if hasattr(cal_page, 'display_combo'):
+        if hasattr(cal_page, "display_combo"):
             if display_index < cal_page.display_combo.count():
                 cal_page.display_combo.setCurrentIndex(display_index)
 
@@ -1922,14 +1971,16 @@ class CalibrateProWindow(QMainWindow):
 
     def _restore_defaults(self):
         reply = QMessageBox.question(
-            self, "Restore Defaults",
+            self,
+            "Restore Defaults",
             "Reset all displays to uncalibrated defaults?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 from calibrate_pro.lut_system.dwm_lut import remove_lut
                 from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
+
                 for i, d in enumerate(enumerate_displays()):
                     reset_gamma_ramp(d.device_name)
                     try:
@@ -1942,27 +1993,33 @@ class CalibrateProWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", str(e))
 
     def _install_profile(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
+        path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
         if path:
             try:
                 from calibrate_pro.panels.detection import install_profile
+
                 install_profile(path)
                 self._status.setText(f"Installed: {Path(path).name}")
             except (ImportError, OSError) as e:
                 QMessageBox.warning(self, "Error", str(e))
 
     def _export(self, fmt: str):
-        ext_map = {"cube": "*.cube", "3dlut": "*.3dlut", "png": "*.png",
-                    "icc": "*.icc", "mpv": "*.conf", "obs": "*.cube"}
-        path, _ = QFileDialog.getSaveFileName(
-            self, f"Export {fmt}", "", f"{fmt.upper()} ({ext_map.get(fmt, '*.*')})")
+        ext_map = {
+            "cube": "*.cube",
+            "3dlut": "*.3dlut",
+            "png": "*.png",
+            "icc": "*.icc",
+            "mpv": "*.conf",
+            "obs": "*.cube",
+        }
+        path, _ = QFileDialog.getSaveFileName(self, f"Export {fmt}", "", f"{fmt.upper()} ({ext_map.get(fmt, '*.*')})")
         if path:
             self._status.setText(f"Exported: {Path(path).name}")
 
     def _test_patterns(self):
         try:
             from calibrate_pro.patterns.display import show_patterns
+
             show_patterns()
         except (ImportError, OSError, RuntimeError) as e:
             QMessageBox.warning(self, "Error", str(e))
@@ -1970,24 +2027,26 @@ class CalibrateProWindow(QMainWindow):
     def _hdr_status(self):
         try:
             from calibrate_pro.display.hdr_detect import detect_hdr_state
+
             states = detect_hdr_state()
-            msg = "\n".join(
-                f"{s.display_name}: {'HDR ON' if s.hdr_enabled else 'SDR'}"
-                for s in states
-            ) or "No displays detected"
+            msg = (
+                "\n".join(f"{s.display_name}: {'HDR ON' if s.hdr_enabled else 'SDR'}" for s in states)
+                or "No displays detected"
+            )
             QMessageBox.information(self, "HDR Status", msg)
         except (ImportError, OSError) as e:
             QMessageBox.warning(self, "Error", str(e))
 
     def _about(self):
         QMessageBox.about(
-            self, "About Calibrate Pro",
+            self,
+            "About Calibrate Pro",
             f"<h2>{APP_NAME}</h2>"
             f"<p>Version {APP_VERSION}</p>"
             f"<p>Professional sensorless display calibration<br>"
             f"with native colorimeter support.</p>"
             f"<p>Color science: Oklab, JzAzBz, CAM16, PQ/HLG, ACES</p>"
-            f"<p>&copy; 2022-2026 Zain Dana Harper</p>"
+            f"<p>&copy; 2022-2026 Zain Dana Harper</p>",
         )
 
     # --- Geometry persistence ---
@@ -2000,12 +2059,14 @@ class CalibrateProWindow(QMainWindow):
     def closeEvent(self, event):
         self.settings.setValue("window/geometry", self.saveGeometry())
         # Minimize to tray instead of closing
-        if hasattr(self, '_tray') and self._tray.isVisible():
+        if hasattr(self, "_tray") and self._tray.isVisible():
             event.ignore()
             self.hide()
             self._tray.showMessage(
-                APP_NAME, "Running in the background. Right-click tray icon to exit.",
-                QSystemTrayIcon.MessageIcon.Information, 2000
+                APP_NAME,
+                "Running in the background. Right-click tray icon to exit.",
+                QSystemTrayIcon.MessageIcon.Information,
+                2000,
             )
         else:
             event.accept()
@@ -2013,11 +2074,13 @@ class CalibrateProWindow(QMainWindow):
 
 # Entry Point
 
+
 def launch():
     """Launch the Calibrate Pro GUI."""
     # Windows taskbar icon fix — set app user model ID
     try:
         import ctypes
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("quanta.calibratepro.1")
     except (AttributeError, OSError):
         pass

@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
 # Color Conversion Utilities
 # =============================================================================
 
+
 def rgb_to_xyz(r: int, g: int, b: int) -> tuple[float, float, float]:
     """Convert sRGB to XYZ (D65)."""
     # Normalize to 0-1
@@ -44,9 +45,9 @@ def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:
 
     def f(t):
         delta = 6 / 29
-        if t > delta ** 3:
-            return t ** (1/3)
-        return t / (3 * delta ** 2) + 4 / 29
+        if t > delta**3:
+            return t ** (1 / 3)
+        return t / (3 * delta**2) + 4 / 29
 
     fx = f(X / Xn)
     fy = f(Y / Yn)
@@ -65,8 +66,7 @@ def rgb_to_lab(r: int, g: int, b: int) -> tuple[float, float, float]:
     return xyz_to_lab(X, Y, Z)
 
 
-def delta_e_2000(lab1: tuple[float, float, float],
-                 lab2: tuple[float, float, float]) -> float:
+def delta_e_2000(lab1: tuple[float, float, float], lab2: tuple[float, float, float]) -> float:
     """Calculate CIEDE2000 color difference."""
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
@@ -75,20 +75,20 @@ def delta_e_2000(lab1: tuple[float, float, float],
     L_bar = (L1 + L2) / 2
 
     # C values
-    C1 = math.sqrt(a1 ** 2 + b1 ** 2)
-    C2 = math.sqrt(a2 ** 2 + b2 ** 2)
+    C1 = math.sqrt(a1**2 + b1**2)
+    C2 = math.sqrt(a2**2 + b2**2)
     C_bar = (C1 + C2) / 2
 
     # G factor
-    G = 0.5 * (1 - math.sqrt(C_bar ** 7 / (C_bar ** 7 + 25 ** 7)))
+    G = 0.5 * (1 - math.sqrt(C_bar**7 / (C_bar**7 + 25**7)))
 
     # a' values
     a1_prime = a1 * (1 + G)
     a2_prime = a2 * (1 + G)
 
     # C' values
-    C1_prime = math.sqrt(a1_prime ** 2 + b1 ** 2)
-    C2_prime = math.sqrt(a2_prime ** 2 + b2 ** 2)
+    C1_prime = math.sqrt(a1_prime**2 + b1**2)
+    C2_prime = math.sqrt(a2_prime**2 + b2**2)
     C_bar_prime = (C1_prime + C2_prime) / 2
 
     # h' values
@@ -125,10 +125,13 @@ def delta_e_2000(lab1: tuple[float, float, float],
         H_bar_prime = (h1_prime + h2_prime - 360) / 2
 
     # T factor
-    T = (1 - 0.17 * math.cos(math.radians(H_bar_prime - 30))
-         + 0.24 * math.cos(math.radians(2 * H_bar_prime))
-         + 0.32 * math.cos(math.radians(3 * H_bar_prime + 6))
-         - 0.20 * math.cos(math.radians(4 * H_bar_prime - 63)))
+    T = (
+        1
+        - 0.17 * math.cos(math.radians(H_bar_prime - 30))
+        + 0.24 * math.cos(math.radians(2 * H_bar_prime))
+        + 0.32 * math.cos(math.radians(3 * H_bar_prime + 6))
+        - 0.20 * math.cos(math.radians(4 * H_bar_prime - 63))
+    )
 
     # Delta L', C', H'
     delta_L_prime = L2 - L1
@@ -140,17 +143,17 @@ def delta_e_2000(lab1: tuple[float, float, float],
     S_H = 1 + 0.015 * C_bar_prime * T
 
     # R_T
-    delta_theta = 30 * math.exp(-((H_bar_prime - 275) / 25) ** 2)
-    R_C = 2 * math.sqrt(C_bar_prime ** 7 / (C_bar_prime ** 7 + 25 ** 7))
+    delta_theta = 30 * math.exp(-(((H_bar_prime - 275) / 25) ** 2))
+    R_C = 2 * math.sqrt(C_bar_prime**7 / (C_bar_prime**7 + 25**7))
     R_T = -R_C * math.sin(math.radians(2 * delta_theta))
 
     # Final calculation
     kL = kC = kH = 1  # Unity for default
     delta_E = math.sqrt(
-        (delta_L_prime / (kL * S_L)) ** 2 +
-        (delta_C_prime / (kC * S_C)) ** 2 +
-        (delta_H_prime / (kH * S_H)) ** 2 +
-        R_T * (delta_C_prime / (kC * S_C)) * (delta_H_prime / (kH * S_H))
+        (delta_L_prime / (kL * S_L)) ** 2
+        + (delta_C_prime / (kC * S_C)) ** 2
+        + (delta_H_prime / (kH * S_H)) ** 2
+        + R_T * (delta_C_prime / (kC * S_C)) * (delta_H_prime / (kH * S_H))
     )
 
     return delta_E
@@ -159,6 +162,7 @@ def delta_e_2000(lab1: tuple[float, float, float],
 # =============================================================================
 # Color Swatch Widget
 # =============================================================================
+
 
 class ColorSwatch(QWidget):
     """Single color swatch display."""
@@ -241,6 +245,7 @@ class ColorSwatch(QWidget):
 # =============================================================================
 # Comparison Swatch Widget
 # =============================================================================
+
 
 class ComparisonSwatch(QWidget):
     """Side-by-side target and measured color comparison."""
@@ -327,6 +332,7 @@ class ComparisonSwatch(QWidget):
 # Color Info Panel
 # =============================================================================
 
+
 class ColorInfoPanel(QWidget):
     """Detailed color information display."""
 
@@ -387,6 +393,7 @@ class ColorInfoPanel(QWidget):
 # =============================================================================
 # Color Grid Widget
 # =============================================================================
+
 
 class ColorGrid(QWidget):
     """Grid of color swatches (e.g., for ColorChecker display)."""

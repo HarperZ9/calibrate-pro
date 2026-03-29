@@ -29,6 +29,7 @@ try:
         Table,
         TableStyle,
     )
+
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -59,8 +60,10 @@ from calibrate_pro.verification.grayscale import (
 # Enums
 # =============================================================================
 
+
 class ReportFormat(Enum):
     """Report output format."""
+
     PDF = auto()
     HTML = auto()
     JSON = auto()
@@ -68,6 +71,7 @@ class ReportFormat(Enum):
 
 class ReportType(Enum):
     """Type of verification report."""
+
     COLORCHECKER = auto()
     GRAYSCALE = auto()
     GAMUT = auto()
@@ -78,9 +82,11 @@ class ReportType(Enum):
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class ReportMetadata:
     """Report metadata."""
+
     title: str
     display_name: str
     profile_name: str
@@ -94,6 +100,7 @@ class ReportMetadata:
 @dataclass
 class ReportConfig:
     """Report generation configuration."""
+
     format: ReportFormat = ReportFormat.PDF
     page_size: str = "letter"  # letter, A4
     include_charts: bool = True
@@ -107,6 +114,7 @@ class ReportConfig:
 @dataclass
 class VerificationSummary:
     """Summary of all verification results."""
+
     colorchecker: ColorCheckerResult | None = None
     grayscale: GrayscaleResult | None = None
     gamut: GamutAnalysisResult | None = None
@@ -152,6 +160,7 @@ REPORT_COLORS = {
 # Report Generator Class
 # =============================================================================
 
+
 class ReportGenerator:
     """
     Professional calibration report generator.
@@ -169,10 +178,7 @@ class ReportGenerator:
         self.config = config or ReportConfig()
         self.colors = REPORT_COLORS.get(self.config.color_theme, REPORT_COLORS["professional"])
 
-    def generate(self,
-                 summary: VerificationSummary,
-                 metadata: ReportMetadata,
-                 output_path: str | None = None) -> str:
+    def generate(self, summary: VerificationSummary, metadata: ReportMetadata, output_path: str | None = None) -> str:
         """
         Generate verification report.
 
@@ -203,8 +209,7 @@ class ReportGenerator:
     def _generate_pdf(self, summary: VerificationSummary, metadata: ReportMetadata) -> str:
         """Generate PDF report using ReportLab."""
         if not REPORTLAB_AVAILABLE:
-            raise ImportError("ReportLab is required for PDF generation. "
-                            "Install with: pip install reportlab")
+            raise ImportError("ReportLab is required for PDF generation. Install with: pip install reportlab")
 
         # Determine output path
         if self.config.output_path:
@@ -220,10 +225,10 @@ class ReportGenerator:
         doc = SimpleDocTemplate(
             str(output_path),
             pagesize=page_size,
-            rightMargin=0.75*inch,
-            leftMargin=0.75*inch,
-            topMargin=0.75*inch,
-            bottomMargin=0.75*inch,
+            rightMargin=0.75 * inch,
+            leftMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
         )
 
         # Build story
@@ -232,16 +237,16 @@ class ReportGenerator:
 
         # Custom styles
         title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
+            "CustomTitle",
+            parent=styles["Heading1"],
             fontSize=24,
             spaceAfter=30,
             textColor=colors.HexColor(self.colors["primary"]),
         )
 
         heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
+            "CustomHeading",
+            parent=styles["Heading2"],
             fontSize=16,
             spaceBefore=20,
             spaceAfter=10,
@@ -249,8 +254,8 @@ class ReportGenerator:
         )
 
         ParagraphStyle(
-            'CustomSubheading',
-            parent=styles['Heading3'],
+            "CustomSubheading",
+            parent=styles["Heading3"],
             fontSize=12,
             spaceBefore=15,
             spaceAfter=8,
@@ -258,8 +263,8 @@ class ReportGenerator:
         )
 
         body_style = ParagraphStyle(
-            'CustomBody',
-            parent=styles['Normal'],
+            "CustomBody",
+            parent=styles["Normal"],
             fontSize=10,
             spaceAfter=6,
             textColor=colors.HexColor(self.colors["text"]),
@@ -281,13 +286,17 @@ class ReportGenerator:
         if metadata.organization:
             meta_data.append(["Organization:", metadata.organization])
 
-        meta_table = Table(meta_data, colWidths=[1.5*inch, 4*inch])
-        meta_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor(self.colors["text"])),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
+        meta_table = Table(meta_data, colWidths=[1.5 * inch, 4 * inch])
+        meta_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor(self.colors["text"])),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         story.append(meta_table)
         story.append(Spacer(1, 20))
 
@@ -359,8 +368,7 @@ class ReportGenerator:
 
         return "".join(lines)
 
-    def _create_colorchecker_section(self, result: ColorCheckerResult,
-                                     styles, body_style) -> list:
+    def _create_colorchecker_section(self, result: ColorCheckerResult, styles, body_style) -> list:
         """Create ColorChecker section for PDF."""
         elements = []
 
@@ -382,30 +390,28 @@ class ReportGenerator:
             for patch in result.patch_measurements[:12]:  # First 12 patches
                 ref = f"({patch.reference_l:.1f}, {patch.reference_a:.1f}, {patch.reference_b:.1f})"
                 meas = f"({patch.measured_l:.1f}, {patch.measured_a:.1f}, {patch.measured_b:.1f})"
-                table_data.append([
-                    patch.patch_name,
-                    ref,
-                    meas,
-                    f"{patch.delta_e_2000:.2f}"
-                ])
+                table_data.append([patch.patch_name, ref, meas, f"{patch.delta_e_2000:.2f}"])
 
-            table = Table(table_data, colWidths=[1.5*inch, 1.8*inch, 1.8*inch, 0.8*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(self.colors["primary"])),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(self.colors["border"])),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ]))
+            table = Table(table_data, colWidths=[1.5 * inch, 1.8 * inch, 1.8 * inch, 0.8 * inch])
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(self.colors["primary"])),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTSIZE", (0, 0), (-1, -1), 8),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor(self.colors["border"])),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ]
+                )
+            )
             elements.append(table)
 
         return elements
 
-    def _create_grayscale_section(self, result: GrayscaleResult,
-                                  styles, body_style) -> list:
+    def _create_grayscale_section(self, result: GrayscaleResult, styles, body_style) -> list:
         """Create Grayscale section for PDF."""
         elements = []
 
@@ -430,35 +436,42 @@ class ReportGenerator:
 
         return elements
 
-    def _create_gamut_section(self, result: GamutAnalysisResult,
-                              styles, body_style) -> list:
+    def _create_gamut_section(self, result: GamutAnalysisResult, styles, body_style) -> list:
         """Create Gamut section for PDF."""
         elements = []
 
         # Coverage table
         table_data = [
             ["Color Space", "Coverage", "Grade"],
-            ["sRGB", f"{result.srgb_coverage.coverage_percent:.1f}%",
-             gv_grade_to_string(result.srgb_coverage.grade)],
-            ["DCI-P3", f"{result.p3_coverage.coverage_percent:.1f}%",
-             gv_grade_to_string(result.p3_coverage.grade)],
-            ["BT.2020", f"{result.bt2020_coverage.coverage_percent:.1f}%",
-             gv_grade_to_string(result.bt2020_coverage.grade)],
-            ["Adobe RGB", f"{result.adobe_rgb_coverage.coverage_percent:.1f}%",
-             gv_grade_to_string(result.adobe_rgb_coverage.grade)],
+            ["sRGB", f"{result.srgb_coverage.coverage_percent:.1f}%", gv_grade_to_string(result.srgb_coverage.grade)],
+            ["DCI-P3", f"{result.p3_coverage.coverage_percent:.1f}%", gv_grade_to_string(result.p3_coverage.grade)],
+            [
+                "BT.2020",
+                f"{result.bt2020_coverage.coverage_percent:.1f}%",
+                gv_grade_to_string(result.bt2020_coverage.grade),
+            ],
+            [
+                "Adobe RGB",
+                f"{result.adobe_rgb_coverage.coverage_percent:.1f}%",
+                gv_grade_to_string(result.adobe_rgb_coverage.grade),
+            ],
         ]
 
-        table = Table(table_data, colWidths=[1.5*inch, 1.2*inch, 2*inch])
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(self.colors["primary"])),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor(self.colors["border"])),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ]))
+        table = Table(table_data, colWidths=[1.5 * inch, 1.2 * inch, 2 * inch])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(self.colors["primary"])),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor(self.colors["border"])),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
         elements.append(table)
         elements.append(Spacer(1, 10))
 
@@ -486,7 +499,7 @@ class ReportGenerator:
 
         html = self._build_html_content(summary, metadata)
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
         return str(output_path)
@@ -690,30 +703,30 @@ class ReportGenerator:
 
         # Recommendations
         if summary.recommendations:
-            html += f'''
+            html += f"""
     <div class="recommendations">
         <h3>Recommendations</h3>
         <ul>
             {"".join(f"<li>{rec}</li>" for rec in summary.recommendations)}
         </ul>
     </div>
-'''
+"""
 
         # Footer
-        html += f'''
+        html += f"""
     <div class="footer">
         Generated by {metadata.software_version} on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
     </div>
 </body>
 </html>
-'''
+"""
         return html
 
     def _build_colorchecker_html(self, result: ColorCheckerResult) -> str:
         """Build ColorChecker HTML section."""
         grade_class = result.overall_grade.name.lower()
 
-        html = f'''
+        html = f"""
     <div class="summary-card">
         <h2>ColorChecker Verification</h2>
         <span class="grade-badge grade-{grade_class}">{cc_grade_to_string(result.overall_grade)}</span>
@@ -736,10 +749,10 @@ class ReportGenerator:
                 <div class="stat-label">95th %ile</div>
             </div>
         </div>
-'''
+"""
 
         if self.config.include_detailed_data:
-            html += '''
+            html += """
         <h3>Patch Measurements</h3>
         <table>
             <tr>
@@ -748,30 +761,30 @@ class ReportGenerator:
                 <th>Measured L*a*b*</th>
                 <th>ΔE00</th>
             </tr>
-'''
+"""
             for patch in result.patch_measurements:
-                html += f'''
+                html += f"""
             <tr>
                 <td>{patch.patch_name}</td>
                 <td>({patch.reference_l:.1f}, {patch.reference_a:.1f}, {patch.reference_b:.1f})</td>
                 <td>({patch.measured_l:.1f}, {patch.measured_a:.1f}, {patch.measured_b:.1f})</td>
                 <td>{patch.delta_e_2000:.2f}</td>
             </tr>
-'''
-            html += '''
+"""
+            html += """
         </table>
-'''
+"""
 
-        html += '''
+        html += """
     </div>
-'''
+"""
         return html
 
     def _build_grayscale_html(self, result: GrayscaleResult) -> str:
         """Build Grayscale HTML section."""
         grade_class = result.overall_grade.name.lower()
 
-        return f'''
+        return f"""
     <div class="summary-card">
         <h2>Grayscale Verification</h2>
         <span class="grade-badge grade-{grade_class}">{gs_grade_to_string(result.overall_grade)}</span>
@@ -807,11 +820,11 @@ class ReportGenerator:
             {"".join(f"<tr><td>{name.title()}</td><td>{analysis.delta_e_mean:.2f}</td><td>{analysis.gamma_mean:.2f}</td><td>{analysis.cct_mean:.0f}K</td><td><span class=grade-badge grade-{analysis.grade.name.lower()}>{analysis.grade.name}</span></td></tr>" for name, analysis in result.region_analysis.items())}
         </table>
     </div>
-'''
+"""
 
     def _build_gamut_html(self, result: GamutAnalysisResult) -> str:
         """Build Gamut HTML section."""
-        return f'''
+        return f"""
     <div class="summary-card">
         <h2>Gamut Analysis</h2>
 
@@ -875,7 +888,7 @@ class ReportGenerator:
             {"".join(f"<tr><td>{name}</td><td>{xy[0]:.4f}</td><td>{xy[1]:.4f}</td></tr>" for name, xy in result.measured_primaries.items())}
         </table>
     </div>
-'''
+"""
 
     # =========================================================================
     # JSON Generation
@@ -992,7 +1005,7 @@ class ReportGenerator:
                 },
             }
 
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         return str(output_path)
@@ -1001,6 +1014,7 @@ class ReportGenerator:
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def generate_recommendations(summary: VerificationSummary) -> list[str]:
     """Generate calibration recommendations based on verification results."""
@@ -1015,13 +1029,9 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
                 "Consider re-calibrating with more measurement patches."
             )
         if cc.grayscale_grade in [VerificationGrade.ACCEPTABLE, VerificationGrade.POOR]:
-            recommendations.append(
-                "Grayscale patches show color tint. Check RGB balance in grayscale calibration."
-            )
+            recommendations.append("Grayscale patches show color tint. Check RGB balance in grayscale calibration.")
         if cc.skin_tone_grade == VerificationGrade.POOR:
-            recommendations.append(
-                "Skin tone accuracy is poor. This is critical for portrait/video work."
-            )
+            recommendations.append("Skin tone accuracy is poor. This is critical for portrait/video work.")
 
     # Grayscale recommendations
     if summary.grayscale:
@@ -1033,13 +1043,11 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
             )
         if abs(gs.cct_mean - 6500) > 200:  # Assuming D65 target
             recommendations.append(
-                f"White point CCT ({gs.cct_mean:.0f}K) deviates from D65 (6500K). "
-                "Check white balance calibration."
+                f"White point CCT ({gs.cct_mean:.0f}K) deviates from D65 (6500K). Check white balance calibration."
             )
         if gs.contrast_ratio < 500:
             recommendations.append(
-                f"Low contrast ratio ({gs.contrast_ratio:.0f}:1). "
-                "Consider adjusting backlight or checking black level."
+                f"Low contrast ratio ({gs.contrast_ratio:.0f}:1). Consider adjusting backlight or checking black level."
             )
 
     # Gamut recommendations
@@ -1052,8 +1060,7 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
             )
         if abs(gm.white_point_duv) > 0.005:
             recommendations.append(
-                f"White point Duv ({gm.white_point_duv:.4f}) indicates tint. "
-                "Aim for Duv < 0.005 for neutral whites."
+                f"White point Duv ({gm.white_point_duv:.4f}) indicates tint. Aim for Duv < 0.005 for neutral whites."
             )
 
     return recommendations
@@ -1129,10 +1136,7 @@ if __name__ == "__main__":
 
     gm_analyzer = GamutAnalyzer()
     gm_result = gm_analyzer.analyze(
-        create_test_primaries(0.98),
-        generate_gamut_samples(ColorSpace.SRGB, 9),
-        "Test Display",
-        "Test Profile"
+        create_test_primaries(0.98), generate_gamut_samples(ColorSpace.SRGB, 9), "Test Display", "Test Profile"
     )
 
     # Create summary

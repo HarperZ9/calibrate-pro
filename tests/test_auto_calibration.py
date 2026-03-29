@@ -17,6 +17,7 @@ from calibrate_pro.sensorless.auto_calibration import (
 # AutoCalibrationEngine can be instantiated
 # -------------------------------------------------------------------------
 
+
 def test_engine_instantiation():
     """AutoCalibrationEngine should instantiate without errors."""
     engine = AutoCalibrationEngine()
@@ -37,11 +38,16 @@ def test_engine_has_progress_callback():
 # _extract_edid_chromaticity with synthetic EDID bytes
 # -------------------------------------------------------------------------
 
+
 def _build_synthetic_edid(
-    red_x=0.640, red_y=0.330,
-    green_x=0.300, green_y=0.600,
-    blue_x=0.150, blue_y=0.060,
-    white_x=0.3127, white_y=0.3290,
+    red_x=0.640,
+    red_y=0.330,
+    green_x=0.300,
+    green_y=0.600,
+    blue_x=0.150,
+    blue_y=0.060,
+    white_x=0.3127,
+    white_y=0.3290,
 ):
     """Build synthetic EDID bytes (at least 35 bytes) with chromaticity data.
 
@@ -49,6 +55,7 @@ def _build_synthetic_edid(
       Bytes 25-26: packed low 2 bits for R, G, B, W (x and y)
       Bytes 27-34: high 8 bits for Rx, Ry, Gx, Gy, Bx, By, Wx, Wy
     """
+
     def encode_10bit(val):
         """Encode a chromaticity value [0, 1] as 10-bit integer."""
         return int(round(val * 1024)) & 0x3FF
@@ -64,32 +71,26 @@ def _build_synthetic_edid(
 
     # Low bits packed into bytes 25-26
     # Byte 25: RxL(7:6) RyL(5:4) GxL(3:2) GyL(1:0)
-    byte25 = (
-        ((rx & 0x03) << 6) |
-        ((ry & 0x03) << 4) |
-        ((gx & 0x03) << 2) |
-        (gy & 0x03)
-    )
+    byte25 = ((rx & 0x03) << 6) | ((ry & 0x03) << 4) | ((gx & 0x03) << 2) | (gy & 0x03)
     # Byte 26: BxL(7:6) ByL(5:4) WxL(3:2) WyL(1:0)
-    byte26 = (
-        ((bx & 0x03) << 6) |
-        ((by & 0x03) << 4) |
-        ((wx & 0x03) << 2) |
-        (wy & 0x03)
-    )
+    byte26 = ((bx & 0x03) << 6) | ((by & 0x03) << 4) | ((wx & 0x03) << 2) | (wy & 0x03)
 
     # High bytes (upper 8 bits of each 10-bit value)
     high_bytes = [
-        rx >> 2, ry >> 2,
-        gx >> 2, gy >> 2,
-        bx >> 2, by >> 2,
-        wx >> 2, wy >> 2,
+        rx >> 2,
+        ry >> 2,
+        gx >> 2,
+        gy >> 2,
+        bx >> 2,
+        by >> 2,
+        wx >> 2,
+        wy >> 2,
     ]
 
     # Build EDID: 25 padding bytes, then our chromaticity data
     edid = bytearray(25)  # bytes 0-24: padding
-    edid.append(byte25)   # byte 25
-    edid.append(byte26)   # byte 26
+    edid.append(byte25)  # byte 25
+    edid.append(byte26)  # byte 26
     edid.extend(high_bytes)  # bytes 27-34
     return bytes(edid)
 
@@ -113,9 +114,12 @@ def test_extract_edid_chromaticity_srgb():
 def test_extract_edid_chromaticity_wide_gamut():
     """Extracting QD-OLED-like chromaticity from synthetic EDID."""
     edid = _build_synthetic_edid(
-        red_x=0.680, red_y=0.310,
-        green_x=0.233, green_y=0.711,
-        blue_x=0.138, blue_y=0.050,
+        red_x=0.680,
+        red_y=0.310,
+        green_x=0.233,
+        green_y=0.711,
+        blue_x=0.138,
+        blue_y=0.050,
     )
     result = AutoCalibrationEngine._extract_edid_chromaticity(edid)
     assert result is not None
@@ -132,6 +136,7 @@ def test_extract_edid_too_short():
 # -------------------------------------------------------------------------
 # _match_panel finds known panels
 # -------------------------------------------------------------------------
+
 
 def test_match_panel_pg27ucdm():
     """_match_panel should find PG27UCDM from display info."""
@@ -156,6 +161,7 @@ def test_match_panel_fallback():
 # -------------------------------------------------------------------------
 # run_calibration with apply_ddc=False, apply_lut=False
 # -------------------------------------------------------------------------
+
 
 def test_run_calibration_software_only():
     """run_calibration with apply_ddc=False, apply_lut=False should produce
@@ -202,6 +208,7 @@ def test_run_calibration_produces_verification():
 # CalibrationTarget defaults
 # -------------------------------------------------------------------------
 
+
 def test_calibration_target_defaults():
     """CalibrationTarget should have sensible defaults."""
     target = CalibrationTarget()
@@ -231,6 +238,7 @@ def test_calibration_target_custom():
 # -------------------------------------------------------------------------
 # UserConsent logic
 # -------------------------------------------------------------------------
+
 
 def test_user_consent_not_approved_by_default():
     """UserConsent should not be approved by default."""
@@ -279,6 +287,7 @@ def test_request_consent_ddc():
 # -------------------------------------------------------------------------
 # AutoCalibrationResult defaults
 # -------------------------------------------------------------------------
+
 
 def test_result_defaults():
     """AutoCalibrationResult should have sensible defaults."""

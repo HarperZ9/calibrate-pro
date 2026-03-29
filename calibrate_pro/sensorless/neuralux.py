@@ -38,12 +38,15 @@ from calibrate_pro.panels.database import (
 # ColorChecker Reference Data
 # =============================================================================
 
+
 @dataclass
 class ColorPatch:
     """Reference color patch with Lab and sRGB values."""
+
     name: str
     lab_d50: tuple[float, float, float]  # L*, a*, b* under D50
-    srgb: tuple[float, float, float]     # sRGB values [0, 1]
+    srgb: tuple[float, float, float]  # sRGB values [0, 1]
+
 
 # X-Rite ColorChecker Classic reference values
 # Lab values are CIE D50 illuminant (standard for color science)
@@ -75,13 +78,16 @@ COLORCHECKER_CLASSIC = [
     ColorPatch("Black", (20.461, -0.079, -0.973), (0.191, 0.194, 0.199)),
 ]
 
+
 def get_colorchecker_reference() -> list[ColorPatch]:
     """Get ColorChecker reference patches."""
     return COLORCHECKER_CLASSIC.copy()
 
+
 # =============================================================================
 # Sensorless Calibration Engine
 # =============================================================================
+
 
 class SensorlessEngine:
     """
@@ -138,10 +144,7 @@ class SensorlessEngine:
             return panel
         return None
 
-    def calculate_correction_matrix(
-        self,
-        panel: PanelCharacterization | None = None
-    ) -> np.ndarray:
+    def calculate_correction_matrix(self, panel: PanelCharacterization | None = None) -> np.ndarray:
         """
         Calculate 3x3 color correction matrix for panel.
 
@@ -167,18 +170,12 @@ class SensorlessEngine:
 
         # Panel RGB to XYZ
         panel_to_xyz = primaries_to_xyz_matrix(
-            primaries.red.as_tuple(),
-            primaries.green.as_tuple(),
-            primaries.blue.as_tuple(),
-            primaries.white.as_tuple()
+            primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple(), primaries.white.as_tuple()
         )
 
         # sRGB to XYZ
         srgb_to_xyz_mat = primaries_to_xyz_matrix(
-            (0.6400, 0.3300),
-            (0.3000, 0.6000),
-            (0.1500, 0.0600),
-            (0.3127, 0.3290)
+            (0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600), (0.3127, 0.3290)
         )
 
         # XYZ to panel RGB
@@ -190,9 +187,7 @@ class SensorlessEngine:
         return correction_matrix
 
     def generate_trc_curves(
-        self,
-        panel: PanelCharacterization | None = None,
-        points: int = 1024
+        self, panel: PanelCharacterization | None = None, points: int = 1024
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate per-channel TRC curves for panel.
@@ -219,9 +214,7 @@ class SensorlessEngine:
         return red_curve, green_curve, blue_curve
 
     def generate_vcgt(
-        self,
-        panel: PanelCharacterization | None = None,
-        points: int = 256
+        self, panel: PanelCharacterization | None = None, points: int = 256
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate VCGT (Video Card Gamma Table) for calibration loader.
@@ -250,9 +243,7 @@ class SensorlessEngine:
         return red_curve, green_curve, blue_curve
 
     def create_icc_profile(
-        self,
-        panel: PanelCharacterization | None = None,
-        profile_name: str | None = None
+        self, panel: PanelCharacterization | None = None, profile_name: str | None = None
     ) -> ICCProfile:
         """
         Create calibrated ICC profile for panel.
@@ -288,7 +279,7 @@ class SensorlessEngine:
             gamma=(panel.gamma_red.gamma, panel.gamma_green.gamma, panel.gamma_blue.gamma),
             trc_curves=(trc_red, trc_green, trc_blue),
             vcgt=vcgt,
-            copyright="Copyright Zain Dana Harper 2022-2026 - Calibrate Pro"
+            copyright="Copyright Zain Dana Harper 2022-2026 - Calibrate Pro",
         )
 
         return profile
@@ -299,7 +290,7 @@ class SensorlessEngine:
         size: int = 33,
         lut_name: str | None = None,
         hdr_mode: bool = False,
-        target: str = "native"
+        target: str = "native",
     ) -> LUT3D:
         """
         Create calibration 3D LUT for panel.
@@ -336,11 +327,7 @@ class SensorlessEngine:
 
         generator = LUTGenerator(size)
 
-        panel_prims = (
-            primaries.red.as_tuple(),
-            primaries.green.as_tuple(),
-            primaries.blue.as_tuple()
-        )
+        panel_prims = (primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple())
 
         if hdr_mode:
             peak = panel.capabilities.max_luminance_hdr
@@ -351,7 +338,7 @@ class SensorlessEngine:
                 gamma_green=panel.gamma_green.gamma,
                 gamma_blue=panel.gamma_blue.gamma,
                 peak_luminance=peak,
-                title=lut_name
+                title=lut_name,
             )
         elif target == "native":
             # Native gamut: fix gamma and white point, keep full gamut
@@ -366,7 +353,7 @@ class SensorlessEngine:
                 target_gamma=2.2,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
-                panel_key=panel.model_pattern.split("|")[0]
+                panel_key=panel.model_pattern.split("|")[0],
             )
         elif target == "sRGB":
             is_wide_gamut = panel.capabilities.wide_gamut or primaries.red.x > 0.66
@@ -378,7 +365,7 @@ class SensorlessEngine:
                     gamma_green=panel.gamma_green.gamma,
                     gamma_blue=panel.gamma_blue.gamma,
                     title=lut_name,
-                    target_gamma=2.2
+                    target_gamma=2.2,
                 )
             else:
                 lut = generator.create_calibration_lut(
@@ -389,7 +376,7 @@ class SensorlessEngine:
                     gamma_blue=panel.gamma_blue.gamma,
                     color_matrix=self.calculate_correction_matrix(panel),
                     title=lut_name,
-                    target_gamma=2.2
+                    target_gamma=2.2,
                 )
         elif target == "p3":
             # Compress to DCI-P3 gamut
@@ -402,7 +389,7 @@ class SensorlessEngine:
                 gamma_blue=panel.gamma_blue.gamma,
                 target_primaries=p3_primaries,
                 title=lut_name,
-                target_gamma=2.2
+                target_gamma=2.2,
             )
         else:
             # Unknown target, fall back to native
@@ -417,15 +404,13 @@ class SensorlessEngine:
                 target_gamma=2.2,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
-                panel_key=panel.model_pattern.split("|")[0]
+                panel_key=panel.model_pattern.split("|")[0],
             )
 
         return lut
 
     def verify_calibration(
-        self,
-        panel: PanelCharacterization | None = None,
-        reference_patches: list[ColorPatch] | None = None
+        self, panel: PanelCharacterization | None = None, reference_patches: list[ColorPatch] | None = None
     ) -> dict:
         """
         Verify calibration accuracy using ColorChecker reference.
@@ -463,7 +448,7 @@ class SensorlessEngine:
             "cam16_delta_e_values": [],
             "cam16_delta_e_avg": 0.0,
             "cam16_delta_e_max": 0.0,
-            "grade": ""
+            "grade": "",
         }
 
         # Pre-compute CAM16 environment for viewing-condition-aware Delta E
@@ -471,10 +456,7 @@ class SensorlessEngine:
 
         # Build panel color transformation
         panel_to_xyz = primaries_to_xyz_matrix(
-            primaries.red.as_tuple(),
-            primaries.green.as_tuple(),
-            primaries.blue.as_tuple(),
-            primaries.white.as_tuple()
+            primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple(), primaries.white.as_tuple()
         )
 
         # Target gamma (sRGB)
@@ -505,19 +487,23 @@ class SensorlessEngine:
             rgb_panel_linear = np.clip(rgb_panel_linear, 0.0001, 1.0)
 
             # Step 3: LUT encodes for panel (inverse panel gamma)
-            rgb_signal = np.array([
-                np.power(rgb_panel_linear[0], 1.0 / panel.gamma_red.gamma),
-                np.power(rgb_panel_linear[1], 1.0 / panel.gamma_green.gamma),
-                np.power(rgb_panel_linear[2], 1.0 / panel.gamma_blue.gamma)
-            ])
+            rgb_signal = np.array(
+                [
+                    np.power(rgb_panel_linear[0], 1.0 / panel.gamma_red.gamma),
+                    np.power(rgb_panel_linear[1], 1.0 / panel.gamma_green.gamma),
+                    np.power(rgb_panel_linear[2], 1.0 / panel.gamma_blue.gamma),
+                ]
+            )
             rgb_signal = np.clip(rgb_signal, 0, 1)
 
             # Step 4: Panel applies its native gamma (undoes step 3)
-            rgb_panel_final = np.array([
-                np.power(rgb_signal[0], panel.gamma_red.gamma),
-                np.power(rgb_signal[1], panel.gamma_green.gamma),
-                np.power(rgb_signal[2], panel.gamma_blue.gamma)
-            ])
+            rgb_panel_final = np.array(
+                [
+                    np.power(rgb_signal[0], panel.gamma_red.gamma),
+                    np.power(rgb_signal[1], panel.gamma_green.gamma),
+                    np.power(rgb_signal[2], panel.gamma_blue.gamma),
+                ]
+            )
 
             # Step 5: Panel RGB to XYZ using panel primaries
             xyz_displayed = panel_to_xyz @ rgb_panel_final
@@ -545,21 +531,23 @@ class SensorlessEngine:
                 cam_ref = xyz_to_cam16(ref_xyz_100, cam16_env)
                 cam_disp = xyz_to_cam16(disp_xyz_100, cam16_env)
 
-                ucs_ref = cam16_to_ucs(cam_ref['J'], cam_ref['M'], cam_ref['h'])
-                ucs_disp = cam16_to_ucs(cam_disp['J'], cam_disp['M'], cam_disp['h'])
+                ucs_ref = cam16_to_ucs(cam_ref["J"], cam_ref["M"], cam_ref["h"])
+                ucs_disp = cam16_to_ucs(cam_disp["J"], cam_disp["M"], cam_disp["h"])
 
                 cam16_de = cam16_ucs_delta_e(ucs_ref, ucs_disp)
             except Exception:
                 cam16_de = de  # Fallback to CIEDE2000
 
-            results["patches"].append({
-                "name": patch.name,
-                "ref_lab": patch.lab_d50,
-                "ref_srgb": patch.srgb,
-                "displayed_lab": tuple(lab_displayed),
-                "delta_e": float(de),
-                "cam16_delta_e": float(cam16_de)
-            })
+            results["patches"].append(
+                {
+                    "name": patch.name,
+                    "ref_lab": patch.lab_d50,
+                    "ref_srgb": patch.srgb,
+                    "displayed_lab": tuple(lab_displayed),
+                    "delta_e": float(de),
+                    "cam16_delta_e": float(cam16_de),
+                }
+            )
             results["delta_e_values"].append(de)
             results["cam16_delta_e_values"].append(cam16_de)
 
@@ -585,7 +573,9 @@ class SensorlessEngine:
         else:
             results["grade"] = "Acceptable (predicted dE >= 3.0)"
 
-        results["accuracy_note"] = "Predicted from panel database. Actual accuracy depends on per-unit panel variation. Verify with a colorimeter for measured results."
+        results["accuracy_note"] = (
+            "Predicted from panel database. Actual accuracy depends on per-unit panel variation. Verify with a colorimeter for measured results."
+        )
 
         # Calculate gamut coverage percentages
         results["gamut_coverage"] = self._calculate_gamut_coverage(panel)
@@ -593,18 +583,15 @@ class SensorlessEngine:
         # 3D color volume (captures luminance-dependent gamut changes)
         try:
             from calibrate_pro.display.color_volume import compute_color_volume
+
             primaries = panel.native_primaries
             vol = compute_color_volume(
-                panel_primaries=(
-                    primaries.red.as_tuple(),
-                    primaries.green.as_tuple(),
-                    primaries.blue.as_tuple()
-                ),
+                panel_primaries=(primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple()),
                 panel_white=primaries.white.as_tuple(),
                 lightness_steps=11,
                 hue_steps=36,
                 panel_type=panel.panel_type,
-                peak_luminance=panel.capabilities.max_luminance_hdr
+                peak_luminance=panel.capabilities.max_luminance_hdr,
             )
             results["color_volume"] = {
                 "srgb_pct": vol.srgb_volume_pct,
@@ -612,7 +599,7 @@ class SensorlessEngine:
                 "bt2020_pct": vol.bt2020_volume_pct,
                 "relative_to_srgb_pct": vol.relative_to_srgb_pct,
                 "lightness_levels": vol.lightness_levels,
-                "gamut_area_per_level": vol.gamut_area_per_level
+                "gamut_area_per_level": vol.gamut_area_per_level,
             }
         except Exception:
             pass
@@ -630,6 +617,7 @@ class SensorlessEngine:
         Returns:
             Dict with keys: srgb_pct, dci_p3_pct, bt2020_pct, panel_area, srgb_area
         """
+
         def polygon_area(poly):
             """Shoelace formula for arbitrary polygon area."""
             n = len(poly)
@@ -648,10 +636,13 @@ class SensorlessEngine:
             Clips subject polygon against each edge of clip_polygon.
             Returns the intersection polygon (may be empty).
             """
+
             def inside_edge(point, edge_start, edge_end):
                 """Check if point is on the inside (left) of directed edge."""
-                return ((edge_end[0] - edge_start[0]) * (point[1] - edge_start[1]) -
-                        (edge_end[1] - edge_start[1]) * (point[0] - edge_start[0])) >= 0
+                return (
+                    (edge_end[0] - edge_start[0]) * (point[1] - edge_start[1])
+                    - (edge_end[1] - edge_start[1]) * (point[0] - edge_start[0])
+                ) >= 0
 
             def line_intersection(p1, p2, p3, p4):
                 """Find intersection of line p1-p2 with line p3-p4."""
@@ -724,7 +715,7 @@ class SensorlessEngine:
             "bt2020_pct": min(100.0, bt2020_overlap / bt2020_area * 100.0) if bt2020_area > 0 else 0,
             "panel_area": panel_area,
             "srgb_area": srgb_area,
-            "relative_to_srgb_pct": panel_area / srgb_area * 100.0 if srgb_area > 0 else 0
+            "relative_to_srgb_pct": panel_area / srgb_area * 100.0 if srgb_area > 0 else 0,
         }
 
     def calibrate(
@@ -733,7 +724,7 @@ class SensorlessEngine:
         output_dir: Path | None = None,
         generate_icc: bool = True,
         generate_lut: bool = True,
-        lut_size: int = 33
+        lut_size: int = 33,
     ) -> dict:
         """
         Perform full sensorless calibration for a display.
@@ -755,12 +746,7 @@ class SensorlessEngine:
             panel = self.database.get_fallback()
             self.current_panel = panel
 
-        results = {
-            "panel": panel.name,
-            "panel_type": panel.panel_type,
-            "files": {},
-            "verification": {}
-        }
+        results = {"panel": panel.name, "panel_type": panel.panel_type, "files": {}, "verification": {}}
 
         if output_dir is None:
             output_dir = Path(".")
@@ -873,7 +859,7 @@ class SensorlessEngine:
                     # Blend between identity and corrected based on saturation
                     # Low saturation -> mostly identity (preserve near-grays)
                     # High saturation -> fully corrected (compress gamut)
-                    blend_factor = saturation ** 0.5  # Smooth transition
+                    blend_factor = saturation**0.5  # Smooth transition
                     rgb_output = rgb_signal * (1 - blend_factor) + rgb_corrected_signal * blend_factor
 
                     lut.data[r_idx, g_idx, b_idx] = np.clip(rgb_output, 0, 1)
@@ -900,10 +886,7 @@ class SensorlessEngine:
 
         # Build panel color transformation
         panel_to_xyz = primaries_to_xyz_matrix(
-            primaries.red.as_tuple(),
-            primaries.green.as_tuple(),
-            primaries.blue.as_tuple(),
-            primaries.white.as_tuple()
+            primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple(), primaries.white.as_tuple()
         )
 
         delta_e_values = []
@@ -937,7 +920,7 @@ def calibrate_display(
     output_dir: Path | None = None,
     generate_icc: bool = True,
     generate_lut: bool = True,
-    lut_size: int = 33
+    lut_size: int = 33,
 ) -> dict:
     """
     Convenience function to calibrate a display.
@@ -954,11 +937,7 @@ def calibrate_display(
     """
     engine = SensorlessEngine()
     return engine.calibrate(
-        model_string,
-        output_dir=output_dir,
-        generate_icc=generate_icc,
-        generate_lut=generate_lut,
-        lut_size=lut_size
+        model_string, output_dir=output_dir, generate_icc=generate_icc, generate_lut=generate_lut, lut_size=lut_size
     )
 
 

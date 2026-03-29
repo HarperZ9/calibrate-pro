@@ -19,10 +19,7 @@ from pathlib import Path
 from typing import Any
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -30,11 +27,9 @@ logger = logging.getLogger(__name__)
 # DDC/CI Structures and Functions
 # ============================================================================
 
+
 class PHYSICAL_MONITOR(Structure):
-    _fields_ = [
-        ('hPhysicalMonitor', wintypes.HANDLE),
-        ('szPhysicalMonitorDescription', wintypes.WCHAR * 128)
-    ]
+    _fields_ = [("hPhysicalMonitor", wintypes.HANDLE), ("szPhysicalMonitorDescription", wintypes.WCHAR * 128)]
 
 
 class DDCController:
@@ -65,19 +60,17 @@ class DDCController:
                 physical = (PHYSICAL_MONITOR * num.value)()
                 if self.dxva2.GetPhysicalMonitorsFromHMONITOR(hMonitor, num, physical):
                     for i in range(num.value):
-                        self.monitors.append({
-                            'hMonitor': hMonitor,
-                            'physical': physical[i],
-                            'description': physical[i].szPhysicalMonitorDescription
-                        })
+                        self.monitors.append(
+                            {
+                                "hMonitor": hMonitor,
+                                "physical": physical[i],
+                                "description": physical[i].szPhysicalMonitorDescription,
+                            }
+                        )
             return True
 
         MONITORENUMPROC = ctypes.WINFUNCTYPE(
-            wintypes.BOOL,
-            wintypes.HMONITOR,
-            wintypes.HDC,
-            POINTER(wintypes.RECT),
-            wintypes.LPARAM
+            wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC, POINTER(wintypes.RECT), wintypes.LPARAM
         )
         self.user32.EnumDisplayMonitors(None, None, MONITORENUMPROC(callback), 0)
 
@@ -86,7 +79,7 @@ class DDCController:
         if monitor_idx >= len(self.monitors):
             return None
 
-        handle = self.monitors[monitor_idx]['physical'].hPhysicalMonitor
+        handle = self.monitors[monitor_idx]["physical"].hPhysicalMonitor
         vcp_type = wintypes.DWORD()
         current = wintypes.DWORD()
         maximum = wintypes.DWORD()
@@ -102,7 +95,7 @@ class DDCController:
         if monitor_idx >= len(self.monitors):
             return False
 
-        handle = self.monitors[monitor_idx]['physical'].hPhysicalMonitor
+        handle = self.monitors[monitor_idx]["physical"].hPhysicalMonitor
         return bool(self.dxva2.SetVCPFeature(handle, vcp_code, value))
 
     def apply_calibration(self, monitor_idx: int, settings: dict[str, Any]) -> bool:
@@ -110,8 +103,8 @@ class DDCController:
         success = True
 
         # Apply color preset
-        if 'color_preset' in settings:
-            if not self.set_vcp(monitor_idx, self.VCP_COLOR_PRESET, settings['color_preset']):
+        if "color_preset" in settings:
+            if not self.set_vcp(monitor_idx, self.VCP_COLOR_PRESET, settings["color_preset"]):
                 logger.warning(f"Failed to set color preset to {settings['color_preset']}")
                 success = False
             else:
@@ -121,24 +114,26 @@ class DDCController:
         time.sleep(0.3)
 
         # Apply RGB gains
-        if 'red_gain' in settings:
-            if not self.set_vcp(monitor_idx, self.VCP_RED_GAIN, settings['red_gain']):
+        if "red_gain" in settings:
+            if not self.set_vcp(monitor_idx, self.VCP_RED_GAIN, settings["red_gain"]):
                 logger.warning(f"Failed to set red gain to {settings['red_gain']}")
                 success = False
 
-        if 'green_gain' in settings:
-            if not self.set_vcp(monitor_idx, self.VCP_GREEN_GAIN, settings['green_gain']):
+        if "green_gain" in settings:
+            if not self.set_vcp(monitor_idx, self.VCP_GREEN_GAIN, settings["green_gain"]):
                 logger.warning(f"Failed to set green gain to {settings['green_gain']}")
                 success = False
 
-        if 'blue_gain' in settings:
-            if not self.set_vcp(monitor_idx, self.VCP_BLUE_GAIN, settings['blue_gain']):
+        if "blue_gain" in settings:
+            if not self.set_vcp(monitor_idx, self.VCP_BLUE_GAIN, settings["blue_gain"]):
                 logger.warning(f"Failed to set blue gain to {settings['blue_gain']}")
                 success = False
 
         if success:
-            logger.info(f"RGB gains set to R={settings.get('red_gain', 100)}, "
-                       f"G={settings.get('green_gain', 100)}, B={settings.get('blue_gain', 100)}")
+            logger.info(
+                f"RGB gains set to R={settings.get('red_gain', 100)}, "
+                f"G={settings.get('green_gain', 100)}, B={settings.get('blue_gain', 100)}"
+            )
 
         return success
 
@@ -146,7 +141,7 @@ class DDCController:
         """Release monitor handles."""
         for mon in self.monitors:
             try:
-                physical_array = (PHYSICAL_MONITOR * 1)(mon['physical'])
+                physical_array = (PHYSICAL_MONITOR * 1)(mon["physical"])
                 self.dxva2.DestroyPhysicalMonitors(1, physical_array)
             except Exception:
                 pass  # Best-effort cleanup of monitor handles
@@ -156,12 +151,13 @@ class DDCController:
 # ICC Profile Management
 # ============================================================================
 
+
 class ICCProfileManager:
     """Manages ICC profile installation and association."""
 
     def __init__(self):
         self.mscms = ctypes.windll.mscms
-        self.profile_dir = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'System32' / 'spool' / 'drivers' / 'color'
+        self.profile_dir = Path(os.environ.get("WINDIR", "C:/Windows")) / "System32" / "spool" / "drivers" / "color"
 
     def get_monitor_device_id(self, display_index: int = 0) -> str | None:
         """Get the device ID for a display's monitor."""
@@ -169,12 +165,12 @@ class ICCProfileManager:
 
         class DISPLAY_DEVICEW(Structure):
             _fields_ = [
-                ('cb', wintypes.DWORD),
-                ('DeviceName', wintypes.WCHAR * 32),
-                ('DeviceString', wintypes.WCHAR * 128),
-                ('StateFlags', wintypes.DWORD),
-                ('DeviceID', wintypes.WCHAR * 128),
-                ('DeviceKey', wintypes.WCHAR * 128),
+                ("cb", wintypes.DWORD),
+                ("DeviceName", wintypes.WCHAR * 32),
+                ("DeviceString", wintypes.WCHAR * 128),
+                ("StateFlags", wintypes.DWORD),
+                ("DeviceID", wintypes.WCHAR * 128),
+                ("DeviceKey", wintypes.WCHAR * 128),
             ]
 
         display = DISPLAY_DEVICEW()
@@ -201,9 +197,7 @@ class ICCProfileManager:
 
         try:
             result = self.mscms.WcsAssociateColorProfileWithDevice(
-                WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER,
-                device_id,
-                profile_name
+                WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER, device_id, profile_name
             )
             return bool(result)
         except Exception as e:
@@ -222,7 +216,7 @@ class ICCProfileManager:
                 CPT_ICC,
                 0,  # subtype
                 0,  # index
-                profile_name
+                profile_name,
             )
             return bool(result)
         except Exception as e:
@@ -234,9 +228,11 @@ class ICCProfileManager:
 # Calibration Configuration
 # ============================================================================
 
+
 @dataclass
 class MonitorCalibration:
     """Calibration settings for a single monitor."""
+
     monitor_id: str  # Device ID or model identifier
     description: str
     color_preset: int = 0x05  # sRGB mode
@@ -251,6 +247,7 @@ class MonitorCalibration:
 @dataclass
 class CalibrationProfile:
     """Complete calibration profile for all monitors."""
+
     version: str = "1.0"
     name: str = "Default"
     monitors: dict[int, MonitorCalibration] = None
@@ -272,7 +269,7 @@ class AutoCalibrationManager:
 
     def _get_config_dir(self) -> Path:
         """Get configuration directory."""
-        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
         config_dir = Path(appdata) / "CalibratePro"
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir
@@ -285,13 +282,11 @@ class AutoCalibrationManager:
                     data = json.load(f)
 
                 monitors = {}
-                for idx, mon_data in data.get('monitors', {}).items():
+                for idx, mon_data in data.get("monitors", {}).items():
                     monitors[int(idx)] = MonitorCalibration(**mon_data)
 
                 return CalibrationProfile(
-                    version=data.get('version', '1.0'),
-                    name=data.get('name', 'Default'),
-                    monitors=monitors
+                    version=data.get("version", "1.0"), name=data.get("name", "Default"), monitors=monitors
                 )
             except Exception as e:
                 logger.warning(f"Could not load profile: {e}")
@@ -301,15 +296,12 @@ class AutoCalibrationManager:
     def save_profile(self):
         """Save calibration profile to file."""
         data = {
-            'version': self.profile.version,
-            'name': self.profile.name,
-            'monitors': {
-                str(idx): asdict(mon)
-                for idx, mon in self.profile.monitors.items()
-            }
+            "version": self.profile.version,
+            "name": self.profile.name,
+            "monitors": {str(idx): asdict(mon) for idx, mon in self.profile.monitors.items()},
         }
 
-        with open(self.profile_file, 'w') as f:
+        with open(self.profile_file, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Saved calibration profile to {self.profile_file}")
@@ -325,7 +317,7 @@ class AutoCalibrationManager:
         blue_gain: int = 100,
         icc_profile: str | None = None,
         white_point: str = "D65",
-        ddc_supported: bool = True
+        ddc_supported: bool = True,
     ):
         """Add or update calibration for a monitor."""
         self.profile.monitors[monitor_idx] = MonitorCalibration(
@@ -337,7 +329,7 @@ class AutoCalibrationManager:
             blue_gain=blue_gain,
             icc_profile=icc_profile,
             white_point=white_point,
-            ddc_supported=ddc_supported
+            ddc_supported=ddc_supported,
         )
         self.save_profile()
 
@@ -356,10 +348,10 @@ class AutoCalibrationManager:
             ddc_success = True
             if calibration.ddc_supported:
                 settings = {
-                    'color_preset': calibration.color_preset,
-                    'red_gain': calibration.red_gain,
-                    'green_gain': calibration.green_gain,
-                    'blue_gain': calibration.blue_gain,
+                    "color_preset": calibration.color_preset,
+                    "red_gain": calibration.red_gain,
+                    "green_gain": calibration.green_gain,
+                    "blue_gain": calibration.blue_gain,
                 }
                 ddc_success = self.ddc.apply_calibration(monitor_idx, settings)
             else:
@@ -394,6 +386,7 @@ class AutoCalibrationManager:
 # Windows Startup Registration
 # ============================================================================
 
+
 def register_startup(script_path: str | None = None) -> bool:
     """Register auto-calibration to run at Windows startup."""
     import winreg
@@ -406,19 +399,14 @@ def register_startup(script_path: str | None = None) -> bool:
         script_path = os.path.abspath(__file__)
 
     # Build command - use pythonw for silent execution
-    python_path = sys.executable.replace('python.exe', 'pythonw.exe')
+    python_path = sys.executable.replace("python.exe", "pythonw.exe")
     if not os.path.exists(python_path):
         python_path = sys.executable
 
     cmd = f'"{python_path}" "{script_path}" --apply'
 
     try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            STARTUP_KEY,
-            0,
-            winreg.KEY_SET_VALUE
-        )
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
         winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, cmd)
         winreg.CloseKey(key)
         logger.info(f"Registered startup: {cmd}")
@@ -436,12 +424,7 @@ def unregister_startup() -> bool:
     APP_NAME = "CalibratePro_AutoCalibration"
 
     try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            STARTUP_KEY,
-            0,
-            winreg.KEY_SET_VALUE
-        )
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
         try:
             winreg.DeleteValue(key, APP_NAME)
         except OSError:
@@ -462,12 +445,7 @@ def is_startup_registered() -> bool:
     APP_NAME = "CalibratePro_AutoCalibration"
 
     try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            STARTUP_KEY,
-            0,
-            winreg.KEY_READ
-        )
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_READ)
         try:
             winreg.QueryValueEx(key, APP_NAME)
             return True
@@ -483,16 +461,17 @@ def is_startup_registered() -> bool:
 # Main Entry Point
 # ============================================================================
 
+
 def main():
     """Main entry point for auto-calibration."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='CalibratePro Auto-Calibration')
-    parser.add_argument('--apply', action='store_true', help='Apply calibration')
-    parser.add_argument('--register', action='store_true', help='Register for Windows startup')
-    parser.add_argument('--unregister', action='store_true', help='Remove from Windows startup')
-    parser.add_argument('--status', action='store_true', help='Show current status')
-    parser.add_argument('--setup', action='store_true', help='Setup current monitor calibration')
+    parser = argparse.ArgumentParser(description="CalibratePro Auto-Calibration")
+    parser.add_argument("--apply", action="store_true", help="Apply calibration")
+    parser.add_argument("--register", action="store_true", help="Register for Windows startup")
+    parser.add_argument("--unregister", action="store_true", help="Remove from Windows startup")
+    parser.add_argument("--status", action="store_true", help="Show current status")
+    parser.add_argument("--setup", action="store_true", help="Setup current monitor calibration")
 
     args = parser.parse_args()
 
@@ -536,7 +515,7 @@ def main():
             print("No monitors found!")
             return
 
-        description = manager.ddc.monitors[0]['description']
+        description = manager.ddc.monitors[0]["description"]
         device_id = manager.icc.get_monitor_device_id(0) or "Unknown"
 
         # Add default D65 sRGB calibration
@@ -549,7 +528,7 @@ def main():
             green_gain=100,
             blue_gain=100,
             icc_profile="CalibratePro_Display1.icc",
-            white_point="D65"
+            white_point="D65",
         )
 
         print(f"Configured: {description}")
@@ -581,5 +560,5 @@ def main():
         manager.cleanup()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

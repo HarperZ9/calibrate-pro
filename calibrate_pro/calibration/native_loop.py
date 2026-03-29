@@ -37,25 +37,27 @@ from calibrate_pro.core.lut_engine import LUT3D
 @dataclass
 class DisplayProfile:
     """Measured display characterization."""
-    levels: np.ndarray           # Signal levels used for TRC measurement
-    trc_r: np.ndarray            # Red TRC (signal -> normalized linear)
-    trc_g: np.ndarray            # Green TRC
-    trc_b: np.ndarray            # Blue TRC
-    M_display: np.ndarray        # 3x3 measured primaries-to-XYZ matrix (absolute)
-    white_Y: float               # Peak white luminance (cd/m2)
-    black_xyz: np.ndarray        # Black point XYZ (absolute)
+
+    levels: np.ndarray  # Signal levels used for TRC measurement
+    trc_r: np.ndarray  # Red TRC (signal -> normalized linear)
+    trc_g: np.ndarray  # Green TRC
+    trc_b: np.ndarray  # Blue TRC
+    M_display: np.ndarray  # 3x3 measured primaries-to-XYZ matrix (absolute)
+    white_Y: float  # Peak white luminance (cd/m2)
+    black_xyz: np.ndarray  # Black point XYZ (absolute)
     white_xy: tuple[float, float]  # White point chromaticity
-    red_xy: tuple[float, float]    # Red primary chromaticity
+    red_xy: tuple[float, float]  # Red primary chromaticity
     green_xy: tuple[float, float]  # Green primary chromaticity
-    blue_xy: tuple[float, float]   # Blue primary chromaticity
-    gamma_r: float               # Estimated red gamma
-    gamma_g: float               # Estimated green gamma
-    gamma_b: float               # Estimated blue gamma
+    blue_xy: tuple[float, float]  # Blue primary chromaticity
+    gamma_r: float  # Estimated red gamma
+    gamma_g: float  # Estimated green gamma
+    gamma_b: float  # Estimated blue gamma
 
 
 @dataclass
 class CalibrationResult:
     """Result of a calibration verification."""
+
     patch_name: str
     de_before: float
     de_after: float
@@ -65,6 +67,7 @@ class CalibrationResult:
 @dataclass
 class PatchMeasurement:
     """Single patch measurement."""
+
     name: str
     srgb: tuple[float, float, float]
     xyz: np.ndarray
@@ -74,52 +77,64 @@ class PatchMeasurement:
 
 # ColorChecker Classic reference Lab values (D50-adapted)
 COLORCHECKER_REF_LAB = {
-    "Dark Skin": (37.986, 13.555, 14.059), "Light Skin": (65.711, 18.130, 17.810),
-    "Blue Sky": (49.927, -4.880, -21.925), "Foliage": (43.139, -13.095, 21.905),
-    "Blue Flower": (55.112, 8.844, -25.399), "Bluish Green": (70.719, -33.397, -0.199),
-    "Orange": (62.661, 36.067, 57.096), "Purplish Blue": (40.020, 10.410, -45.964),
-    "Moderate Red": (51.124, 48.239, 16.248), "Purple": (30.325, 22.976, -21.587),
-    "Yellow Green": (72.532, -23.709, 57.255), "Orange Yellow": (71.941, 19.363, 67.857),
-    "Blue": (28.778, 14.179, -50.297), "Green": (55.261, -38.342, 31.370),
-    "Red": (42.101, 53.378, 28.190), "Yellow": (81.733, 4.039, 79.819),
-    "Magenta": (51.935, 49.986, -14.574), "Cyan": (51.038, -28.631, -28.638),
-    "White": (96.539, -0.425, 1.186), "Neutral 8": (81.257, -0.638, -0.335),
-    "Neutral 6.5": (66.766, -0.734, -0.504), "Neutral 5": (50.867, -0.153, -0.270),
-    "Neutral 3.5": (35.656, -0.421, -1.231), "Black": (20.461, -0.079, -0.973),
+    "Dark Skin": (37.986, 13.555, 14.059),
+    "Light Skin": (65.711, 18.130, 17.810),
+    "Blue Sky": (49.927, -4.880, -21.925),
+    "Foliage": (43.139, -13.095, 21.905),
+    "Blue Flower": (55.112, 8.844, -25.399),
+    "Bluish Green": (70.719, -33.397, -0.199),
+    "Orange": (62.661, 36.067, 57.096),
+    "Purplish Blue": (40.020, 10.410, -45.964),
+    "Moderate Red": (51.124, 48.239, 16.248),
+    "Purple": (30.325, 22.976, -21.587),
+    "Yellow Green": (72.532, -23.709, 57.255),
+    "Orange Yellow": (71.941, 19.363, 67.857),
+    "Blue": (28.778, 14.179, -50.297),
+    "Green": (55.261, -38.342, 31.370),
+    "Red": (42.101, 53.378, 28.190),
+    "Yellow": (81.733, 4.039, 79.819),
+    "Magenta": (51.935, 49.986, -14.574),
+    "Cyan": (51.038, -28.631, -28.638),
+    "White": (96.539, -0.425, 1.186),
+    "Neutral 8": (81.257, -0.638, -0.335),
+    "Neutral 6.5": (66.766, -0.734, -0.504),
+    "Neutral 5": (50.867, -0.153, -0.270),
+    "Neutral 3.5": (35.656, -0.421, -1.231),
+    "Black": (20.461, -0.079, -0.973),
 }
 
 # ColorChecker Classic sRGB values
 COLORCHECKER_SRGB = [
-    ("Dark Skin",    0.453, 0.317, 0.264),
-    ("Light Skin",   0.779, 0.577, 0.505),
-    ("Blue Sky",     0.355, 0.480, 0.611),
-    ("Foliage",      0.352, 0.422, 0.253),
-    ("Blue Flower",  0.508, 0.502, 0.691),
+    ("Dark Skin", 0.453, 0.317, 0.264),
+    ("Light Skin", 0.779, 0.577, 0.505),
+    ("Blue Sky", 0.355, 0.480, 0.611),
+    ("Foliage", 0.352, 0.422, 0.253),
+    ("Blue Flower", 0.508, 0.502, 0.691),
     ("Bluish Green", 0.362, 0.745, 0.675),
-    ("Orange",       0.879, 0.485, 0.183),
-    ("Purplish Blue",0.266, 0.358, 0.667),
+    ("Orange", 0.879, 0.485, 0.183),
+    ("Purplish Blue", 0.266, 0.358, 0.667),
     ("Moderate Red", 0.778, 0.321, 0.381),
-    ("Purple",       0.367, 0.227, 0.414),
+    ("Purple", 0.367, 0.227, 0.414),
     ("Yellow Green", 0.623, 0.741, 0.246),
-    ("Orange Yellow",0.904, 0.634, 0.154),
-    ("Blue",         0.139, 0.248, 0.577),
-    ("Green",        0.262, 0.584, 0.291),
-    ("Red",          0.752, 0.197, 0.178),
-    ("Yellow",       0.938, 0.857, 0.159),
-    ("Magenta",      0.752, 0.313, 0.577),
-    ("Cyan",         0.121, 0.544, 0.659),
-    ("White",        0.961, 0.961, 0.961),
-    ("Neutral 8",    0.784, 0.784, 0.784),
-    ("Neutral 6.5",  0.584, 0.584, 0.584),
-    ("Neutral 5",    0.420, 0.420, 0.420),
-    ("Neutral 3.5",  0.258, 0.258, 0.258),
-    ("Black",        0.085, 0.085, 0.085),
+    ("Orange Yellow", 0.904, 0.634, 0.154),
+    ("Blue", 0.139, 0.248, 0.577),
+    ("Green", 0.262, 0.584, 0.291),
+    ("Red", 0.752, 0.197, 0.178),
+    ("Yellow", 0.938, 0.857, 0.159),
+    ("Magenta", 0.752, 0.313, 0.577),
+    ("Cyan", 0.121, 0.544, 0.659),
+    ("White", 0.961, 0.961, 0.961),
+    ("Neutral 8", 0.784, 0.784, 0.784),
+    ("Neutral 6.5", 0.584, 0.584, 0.584),
+    ("Neutral 5", 0.420, 0.420, 0.420),
+    ("Neutral 3.5", 0.258, 0.258, 0.258),
+    ("Black", 0.085, 0.085, 0.085),
 ]
 
 
 def compute_ccmx(
-    sensor_primaries: tuple[tuple[float,float], ...],
-    true_primaries: tuple[tuple[float,float], ...],
+    sensor_primaries: tuple[tuple[float, float], ...],
+    true_primaries: tuple[tuple[float, float], ...],
 ) -> np.ndarray:
     """
     Compute a Colorimeter Correction Matrix (CCMX) from sensor-reported
@@ -137,9 +152,11 @@ def compute_ccmx(
     Returns:
         3x3 CCMX matrix. Usage: corrected_XYZ = CCMX @ sensor_XYZ
     """
+
     def xy_to_XYZ(x, y, Y=1.0):
-        if y == 0: return np.array([0.0, 0.0, 0.0])
-        return np.array([(Y/y)*x, Y, (Y/y)*(1-x-y)])
+        if y == 0:
+            return np.array([0.0, 0.0, 0.0])
+        return np.array([(Y / y) * x, Y, (Y / y) * (1 - x - y)])
 
     def build_matrix(r_xy, g_xy, b_xy, w_xy):
         R = xy_to_XYZ(*r_xy)
@@ -226,7 +243,10 @@ def profile_display(
     black = white_xyz[0].copy()
     for arr in [white_xyz, red_xyz, green_xyz, blue_xyz]:
         arr -= black
-    white_xyz[0] = 0; red_xyz[0] = 0; green_xyz[0] = 0; blue_xyz[0] = 0
+    white_xyz[0] = 0
+    red_xyz[0] = 0
+    green_xyz[0] = 0
+    blue_xyz[0] = 0
 
     white_Y = white_xyz[-1][1]
     R_xyz = red_xyz[-1]
@@ -239,7 +259,8 @@ def profile_display(
         trc = np.maximum(xyz_arr[:, 1], 0)
         if primary_Y > 0:
             trc /= primary_Y
-        trc[0] = 0.0; trc[-1] = 1.0
+        trc[0] = 0.0
+        trc[-1] = 1.0
         for i in range(1, len(trc)):
             trc[i] = max(trc[i], trc[i - 1])
         return trc
@@ -257,7 +278,9 @@ def profile_display(
 
     return DisplayProfile(
         levels=levels,
-        trc_r=trc_r, trc_g=trc_g, trc_b=trc_b,
+        trc_r=trc_r,
+        trc_g=trc_g,
+        trc_b=trc_b,
         M_display=M_display,
         white_Y=white_Y,
         black_xyz=black,
@@ -311,7 +334,7 @@ def build_correction_lut(
 
     dw_xy = _chromaticity(dw_norm)
     sw_xy = _chromaticity(sw_norm)
-    wp_shift = ((dw_xy[0] - sw_xy[0])**2 + (dw_xy[1] - sw_xy[1])**2)**0.5
+    wp_shift = ((dw_xy[0] - sw_xy[0]) ** 2 + (dw_xy[1] - sw_xy[1]) ** 2) ** 0.5
 
     if wp_shift > 0.005:
         source_cone = BRADFORD_MATRIX @ sw_norm
@@ -321,12 +344,9 @@ def build_correction_lut(
         adapt = np.eye(3)
 
     # Inverse TRC interpolators
-    inv_trc_r = interp1d(profile.trc_r, levels, kind='linear',
-                         bounds_error=False, fill_value=(0, 1))
-    inv_trc_g = interp1d(profile.trc_g, levels, kind='linear',
-                         bounds_error=False, fill_value=(0, 1))
-    inv_trc_b = interp1d(profile.trc_b, levels, kind='linear',
-                         bounds_error=False, fill_value=(0, 1))
+    inv_trc_r = interp1d(profile.trc_r, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
+    inv_trc_g = interp1d(profile.trc_g, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
+    inv_trc_b = interp1d(profile.trc_b, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
 
     # Generate LUT
     lut = LUT3D.create_identity(size)
@@ -343,11 +363,17 @@ def build_correction_lut(
                 target_xyz = adapt @ (SRGB_TO_XYZ @ linear)
                 display_linear = np.clip(inv_M @ target_xyz, 0.0, 1.0)
 
-                full_corrected = np.clip(np.array([
-                    float(inv_trc_r(display_linear[0])),
-                    float(inv_trc_g(display_linear[1])),
-                    float(inv_trc_b(display_linear[2])),
-                ]), 0.0, 1.0)
+                full_corrected = np.clip(
+                    np.array(
+                        [
+                            float(inv_trc_r(display_linear[0])),
+                            float(inv_trc_g(display_linear[1])),
+                            float(inv_trc_b(display_linear[2])),
+                        ]
+                    ),
+                    0.0,
+                    1.0,
+                )
 
                 # Chroma-based blending
                 max_c = max(r, g, b)

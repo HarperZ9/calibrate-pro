@@ -37,6 +37,7 @@ from collections.abc import Callable
 # It should draw directly on the supplied canvas, which has already been
 # cleared to black.
 
+
 def _draw_grayscale_ramp(canvas: tk.Canvas, w: int, h: int) -> None:
     """Horizontal gradient from black to white (256 steps)."""
     steps = 256
@@ -54,20 +55,22 @@ def _draw_rgb_primaries(canvas: tk.Canvas, w: int, h: int) -> None:
     colours = ["#ff0000", "#00ff00", "#0000ff"]
     bar_w = w / len(colours)
     for i, c in enumerate(colours):
-        canvas.create_rectangle(i * bar_w, 0, (i + 1) * bar_w, h,
-                                fill=c, outline="")
+        canvas.create_rectangle(i * bar_w, 0, (i + 1) * bar_w, h, fill=c, outline="")
 
 
 def _draw_rgbcmy(canvas: tk.Canvas, w: int, h: int) -> None:
     """Six vertical bars: R, G, B, C, M, Y."""
     colours = [
-        "#ff0000", "#00ff00", "#0000ff",
-        "#00ffff", "#ff00ff", "#ffff00",
+        "#ff0000",
+        "#00ff00",
+        "#0000ff",
+        "#00ffff",
+        "#ff00ff",
+        "#ffff00",
     ]
     bar_w = w / len(colours)
     for i, c in enumerate(colours):
-        canvas.create_rectangle(i * bar_w, 0, (i + 1) * bar_w, h,
-                                fill=c, outline="")
+        canvas.create_rectangle(i * bar_w, 0, (i + 1) * bar_w, h, fill=c, outline="")
 
 
 def _draw_gray_steps(canvas: tk.Canvas, w: int, h: int) -> None:
@@ -77,8 +80,7 @@ def _draw_gray_steps(canvas: tk.Canvas, w: int, h: int) -> None:
     for i in range(steps):
         v = int(i * 255 / (steps - 1))
         colour = f"#{v:02x}{v:02x}{v:02x}"
-        canvas.create_rectangle(i * patch_w, 0, (i + 1) * patch_w, h,
-                                fill=colour, outline="")
+        canvas.create_rectangle(i * patch_w, 0, (i + 1) * patch_w, h, fill=colour, outline="")
 
 
 def _draw_white(canvas: tk.Canvas, w: int, h: int) -> None:
@@ -144,6 +146,7 @@ PATTERNS: list[tuple[str, Callable]] = [
 # Fullscreen pattern viewer
 # ---------------------------------------------------------------------------
 
+
 class PatternViewer:
     """Fullscreen tkinter window that displays calibration test patterns."""
 
@@ -174,7 +177,9 @@ class PatternViewer:
 
         # Canvas fills the entire window
         self.canvas = tk.Canvas(
-            self.root, bg="black", highlightthickness=0,
+            self.root,
+            bg="black",
+            highlightthickness=0,
         )
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
@@ -208,6 +213,7 @@ class PatternViewer:
         try:
             # Try to use screeninfo (optional) for multi-monitor support
             from screeninfo import get_monitors  # type: ignore
+
             monitors = get_monitors()
             if self.display < len(monitors):
                 m = monitors[self.display]
@@ -225,12 +231,14 @@ class PatternViewer:
 
             def _callback(hMonitor, hdcMonitor, lprcMonitor, dwData):
                 rct = lprcMonitor.contents
-                monitors_info.append({
-                    "x": rct.left,
-                    "y": rct.top,
-                    "w": rct.right - rct.left,
-                    "h": rct.bottom - rct.top,
-                })
+                monitors_info.append(
+                    {
+                        "x": rct.left,
+                        "y": rct.top,
+                        "w": rct.right - rct.left,
+                        "h": rct.bottom - rct.top,
+                    }
+                )
                 return True
 
             MONITORENUMPROC = ctypes.WINFUNCTYPE(
@@ -241,7 +249,10 @@ class PatternViewer:
                 wintypes.LPARAM,
             )
             ctypes.windll.user32.EnumDisplayMonitors(
-                None, None, MONITORENUMPROC(_callback), 0,
+                None,
+                None,
+                MONITORENUMPROC(_callback),
+                0,
             )
 
             if self.display < len(monitors_info):
@@ -325,6 +336,7 @@ class PatternViewer:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def show_patterns(display: int = 0) -> None:
     """
     Open the fullscreen pattern viewer on the specified display.
@@ -347,7 +359,8 @@ if __name__ == "__main__":
         description="Calibrate Pro - Fullscreen Test Patterns",
     )
     parser.add_argument(
-        "--display", "-d",
+        "--display",
+        "-d",
         type=int,
         default=0,
         help="Display index (0-based, default: 0)",

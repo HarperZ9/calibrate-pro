@@ -26,6 +26,7 @@ from dataclasses import dataclass
 
 try:
     import hid
+
     HID_AVAILABLE = True
 except ImportError:
     HID_AVAILABLE = False
@@ -39,18 +40,18 @@ I1D3_PID = 0x5020  # i1Display3 / i1Display Pro family
 REPORT_SIZE = 64
 
 # Command codes (from ArgyllCMS i1d3.c)
-CMD_GET_INFO = 0x0000       # Get product info string
-CMD_STATUS = 0x0001         # Get status
-CMD_GET_PRODNAME = 0x0010   # Get product name
-CMD_GET_PRODTYPE = 0x0011   # Get product type
-CMD_GET_FIRMVER = 0x0012    # Get firmware version
-CMD_GET_FIRMDATE = 0x0013   # Get firmware date
-CMD_MEASURE1 = 0x0100       # Measure (locked mode)
-CMD_MEASURE2 = 0x0200       # Measure (unlocked mode)
-CMD_SET_INTTIME = 0x0300    # Set integration time
-CMD_GET_INTTIME = 0x0301    # Get integration time
-CMD_RD_EE = 0x0800          # Read EEPROM: offset(2B) + length(1B) → data
-CMD_UNLOCK = 0x0000         # Unlock with key
+CMD_GET_INFO = 0x0000  # Get product info string
+CMD_STATUS = 0x0001  # Get status
+CMD_GET_PRODNAME = 0x0010  # Get product name
+CMD_GET_PRODTYPE = 0x0011  # Get product type
+CMD_GET_FIRMVER = 0x0012  # Get firmware version
+CMD_GET_FIRMDATE = 0x0013  # Get firmware date
+CMD_MEASURE1 = 0x0100  # Measure (locked mode)
+CMD_MEASURE2 = 0x0200  # Measure (unlocked mode)
+CMD_SET_INTTIME = 0x0300  # Set integration time
+CMD_GET_INTTIME = 0x0301  # Get integration time
+CMD_RD_EE = 0x0800  # Read EEPROM: offset(2B) + length(1B) → data
+CMD_UNLOCK = 0x0000  # Unlock with key
 
 # Status codes
 STATUS_OK = 0x00
@@ -62,18 +63,16 @@ STATUS_LOCKED = 0x80
 UNLOCK_KEYS = {
     "i1Display3": bytes.fromhex(
         "47 52 45 54 41 4D 61 63 "  # GRETAMac
-        "62 65 74 68 00 00 00 00"   # beth
+        "62 65 74 68 00 00 00 00"  # beth
     ),
-    "ColorMunki": bytes.fromhex(
-        "47 52 45 54 41 4D 61 63 "
-        "62 65 74 68 00 00 00 00"
-    ),
+    "ColorMunki": bytes.fromhex("47 52 45 54 41 4D 61 63 62 65 74 68 00 00 00 00"),
 }
 
 
 @dataclass
 class I1D3Info:
     """Device information."""
+
     product: str
     serial: str
     firmware_version: str
@@ -85,6 +84,7 @@ class I1D3Info:
 @dataclass
 class I1D3Measurement:
     """Raw measurement result."""
+
     # Raw sensor counts (before calibration matrix)
     red_count: float
     green_count: float
@@ -95,8 +95,8 @@ class I1D3Measurement:
     Y: float = 0.0
     Z: float = 0.0
     # Derived values
-    luminance: float = 0.0   # cd/m2 (= Y)
-    cct: float = 0.0         # Correlated Color Temperature
+    luminance: float = 0.0  # cd/m2 (= Y)
+    cct: float = 0.0  # Correlated Color Temperature
 
 
 class I1D3Driver:
@@ -131,14 +131,16 @@ class I1D3Driver:
             return []
         devices = []
         for d in hid.enumerate(I1D3_VID, I1D3_PID):
-            devices.append({
-                "path": d.get("path", b""),
-                "product": d.get("product_string", ""),
-                "manufacturer": d.get("manufacturer_string", ""),
-                "serial": d.get("serial_number_string", ""),
-                "vid": d.get("vendor_id", 0),
-                "pid": d.get("product_id", 0),
-            })
+            devices.append(
+                {
+                    "path": d.get("path", b""),
+                    "product": d.get("product_string", ""),
+                    "manufacturer": d.get("manufacturer_string", ""),
+                    "serial": d.get("serial_number_string", ""),
+                    "vid": d.get("vendor_id", 0),
+                    "pid": d.get("product_id", 0),
+                }
+            )
         return devices
 
     def open(self, path: bytes = None) -> bool:
@@ -232,7 +234,7 @@ class I1D3Driver:
         report = bytearray(REPORT_SIZE)
         report[0] = 0x00  # Report ID
         report[1] = (cmd >> 8) & 0xFF  # Command high byte
-        report[2] = cmd & 0xFF         # Command low byte
+        report[2] = cmd & 0xFF  # Command low byte
 
         # Copy data
         for i, b in enumerate(data):
@@ -271,8 +273,9 @@ class I1D3Driver:
         for p in parts:
             if p.startswith("v"):
                 fw_ver = p
-            elif any(m in p for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
+            elif any(
+                m in p for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            ):
                 fw_date = p
 
         serial = ""
@@ -333,7 +336,7 @@ class I1D3Driver:
         data = struct.pack(">HB", offset, length)
         resp = self._send_command(CMD_RD_EE, data)
         if resp and len(resp) >= 3 + length:
-            return resp[3:3 + length]
+            return resp[3 : 3 + length]
         return None
 
     def _parse_cal_matrix(self, raw: bytes) -> list[list[float]] | None:
@@ -350,7 +353,7 @@ class I1D3Driver:
             r = []
             for col in range(3):
                 offset = (row * 3 + col) * 8
-                val = struct.unpack(">d", raw[offset:offset + 8])[0]
+                val = struct.unpack(">d", raw[offset : offset + 8])[0]
                 r.append(val)
             matrix.append(r)
         return matrix
@@ -359,15 +362,15 @@ class I1D3Driver:
     # Each contains a 3x3 double matrix (72 bytes) preceded by a
     # header with the display technology label.
     CAL_OFFSETS = {
-        "Ambient":           0x0058,
-        "CCFL":              0x04D8,
-        "WideGamutCCFL":     0x0958,
-        "WhiteLED":          0x0DD8,
-        "RGBLED":            0x1258,
-        "OLED":              0x191C,
+        "Ambient": 0x0058,
+        "CCFL": 0x04D8,
+        "WideGamutCCFL": 0x0958,
+        "WhiteLED": 0x0DD8,
+        "RGBLED": 0x1258,
+        "OLED": 0x191C,
         "RGPhosphorBlueLED": 0x1B58,
-        "WideGamutLEDPA2":   0x1FD8,
-        "Last":              0x2458,
+        "WideGamutLEDPA2": 0x1FD8,
+        "Last": 0x2458,
     }
 
     # Offset from the start of each calibration block to the 3x3 matrix data.
@@ -404,7 +407,7 @@ class I1D3Driver:
         # This does NOT account for per-unit sensor variance.
         self._cal_matrix = [
             [0.03836831, -0.02175997, 0.01696057],
-            [0.01449629,  0.01611903, 0.00057150],
+            [0.01449629, 0.01611903, 0.00057150],
             [-0.00004481, 0.00035042, 0.08032401],
         ]
         self._cal_source = "fallback_approximate"
@@ -489,9 +492,7 @@ class I1D3Driver:
         except (struct.error, ValueError):
             return None
 
-    def _apply_calibration(
-        self, raw: tuple[float, float, float]
-    ) -> I1D3Measurement:
+    def _apply_calibration(self, raw: tuple[float, float, float]) -> I1D3Measurement:
         """Apply calibration matrix to convert raw counts to XYZ."""
         r, g, b = raw
 
@@ -544,6 +545,7 @@ class I1D3Driver:
 # =============================================================================
 # Convenience functions
 # =============================================================================
+
 
 def detect_colorimeters() -> list[dict]:
     """Find all connected i1Display3 family colorimeters."""

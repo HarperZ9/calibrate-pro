@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 # Ensure we can find our modules
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     # Running as compiled executable
     APP_DIR = Path(sys.executable).parent
 else:
@@ -94,7 +94,11 @@ def cmd_calibrate(args) -> int:
             display = displays[0]
 
     # Determine model name
-    model_string = args.model if args.model else (display.monitor_name or display.model or f"Display{display.get_display_number()}")
+    model_string = (
+        args.model
+        if args.model
+        else (display.monitor_name or display.model or f"Display{display.get_display_number()}")
+    )
 
     print(f"Calibrating: {model_string}")
     print(f"Resolution: {display.width}x{display.height} @ {display.refresh_rate}Hz")
@@ -133,7 +137,7 @@ def cmd_calibrate(args) -> int:
         lut_size=args.lut_size,
         generate_icc=not args.no_icc,
         generate_lut=not args.no_lut,
-        hdr_mode=args.hdr
+        hdr_mode=args.hdr,
     )
 
     print("\n")
@@ -157,6 +161,7 @@ def cmd_calibrate(args) -> int:
 
         # Save calibration for persistence
         from calibrate_pro.utils.startup_manager import get_startup_manager
+
         startup_mgr = get_startup_manager()
         display_id = display.get_display_number() - 1
 
@@ -168,7 +173,7 @@ def cmd_calibrate(args) -> int:
             icc_path=str(result.icc_profile_path) if result.icc_profile_path else None,
             hdr_mode=args.hdr,
             delta_e_avg=result.delta_e_avg,
-            delta_e_max=result.delta_e_max
+            delta_e_max=result.delta_e_max,
         )
         print()
         print("[SAVED] Calibration saved for auto-restore on startup.")
@@ -273,10 +278,10 @@ def cmd_load_lut(args) -> int:
 
     # Determine file type and load
     success = False
-    if file_path.suffix.lower() in ['.icc', '.icm']:
+    if file_path.suffix.lower() in [".icc", ".icm"]:
         print("Loading ICC profile...")
         success = loader.load_icc_profile(display_id, str(file_path))
-    elif file_path.suffix.lower() in ['.cube', '.3dl', '.mga']:
+    elif file_path.suffix.lower() in [".cube", ".3dl", ".mga"]:
         print("Loading 3D LUT...")
         success = loader.load_lut_file(display_id, str(file_path))
     else:
@@ -311,7 +316,7 @@ def cmd_start_service(args) -> int:
     from calibrate_pro.lut_system.color_loader import get_color_loader
     from calibrate_pro.utils.startup_manager import get_startup_manager
 
-    silent = getattr(args, 'silent', False)
+    silent = getattr(args, "silent", False)
 
     if not silent:
         print(get_banner())
@@ -339,7 +344,7 @@ def cmd_start_service(args) -> int:
 
     status = loader.get_status()
 
-    if not status['calibrations']:
+    if not status["calibrations"]:
         if not silent:
             print("No calibrations configured.")
             print("Use 'calibrate' or 'load-lut' first to configure calibration.")
@@ -350,11 +355,11 @@ def cmd_start_service(args) -> int:
         print("Starting color loader service...")
         print()
         print("Configured displays:")
-        for display_id, cal in status['calibrations'].items():
+        for display_id, cal in status["calibrations"].items():
             print(f"  Display {int(display_id) + 1}: {cal['name']}")
-            if cal['lut']:
+            if cal["lut"]:
                 print(f"    LUT: {cal['lut']}")
-            if cal['icc']:
+            if cal["icc"]:
                 print(f"    ICC: {cal['icc']}")
 
         print()
@@ -479,20 +484,20 @@ def cmd_status(args) -> int:
 
     print("Displays:")
     for display in displays:
-        display_id = display['id']
-        cal = status['calibrations'].get(str(display_id))
+        display_id = display["id"]
+        cal = status["calibrations"].get(str(display_id))
 
-        primary = " (Primary)" if display['primary'] else ""
+        primary = " (Primary)" if display["primary"] else ""
         print(f"\n  Display {display_id + 1}{primary}: {display['monitor']}")
 
         if cal:
             print("    Status: CALIBRATED")
-            if cal['lut']:
+            if cal["lut"]:
                 print(f"    LUT: {Path(cal['lut']).name}")
-            if cal['icc']:
+            if cal["icc"]:
                 print(f"    ICC: {Path(cal['icc']).name}")
-            if cal['last_applied']:
-                age = time.time() - cal['last_applied']
+            if cal["last_applied"]:
+                age = time.time() - cal["last_applied"]
                 print(f"    Last Applied: {age:.0f}s ago")
         else:
             print("    Status: Not calibrated")
@@ -550,6 +555,7 @@ def cmd_gui(args) -> int:
     """Launch the graphical user interface."""
     try:
         from calibrate_pro.gui.main_window import main as gui_main
+
         return gui_main()
     except ImportError as e:
         print(f"Error: GUI not available - {e}")
@@ -560,76 +566,76 @@ def cmd_gui(args) -> int:
 def create_parser() -> argparse.ArgumentParser:
     """Create command-line argument parser."""
     parser = argparse.ArgumentParser(
-        prog='calibrate_pro',
-        description=f'{__app_name__} v{__version__} - Professional Display Calibration',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="calibrate_pro",
+        description=f"{__app_name__} v{__version__} - Professional Display Calibration",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--version', action='version', version=f'{__app_name__} v{__version__}')
+    parser.add_argument("--version", action="version", version=f"{__app_name__} v{__version__}")
 
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # detect
-    detect_parser = subparsers.add_parser('detect', help='Detect connected displays')
+    detect_parser = subparsers.add_parser("detect", help="Detect connected displays")
     detect_parser.set_defaults(func=cmd_detect)
 
     # calibrate
-    cal_parser = subparsers.add_parser('calibrate', help='Calibrate a display')
-    cal_parser.add_argument('--display', '-d', type=int, help='Display number (1-based)')
-    cal_parser.add_argument('--model', type=str, help='Monitor model name (e.g., PG27UCDM, G85SB)')
-    cal_parser.add_argument('--output', '-o', type=str, default='calibration_output', help='Output directory')
-    cal_parser.add_argument('--mode', '-m', choices=['sensorless', 'colorimeter', 'hybrid'], default='sensorless')
-    cal_parser.add_argument('--hdr', action='store_true', help='Enable HDR calibration mode')
-    cal_parser.add_argument('--lut-size', type=int, choices=[17, 33, 65], default=33, help='3D LUT size')
-    cal_parser.add_argument('--no-icc', action='store_true', help='Skip ICC profile generation')
-    cal_parser.add_argument('--no-lut', action='store_true', help='Skip 3D LUT generation')
-    cal_parser.add_argument('--apply', '-a', action='store_true', help='Apply calibration immediately')
+    cal_parser = subparsers.add_parser("calibrate", help="Calibrate a display")
+    cal_parser.add_argument("--display", "-d", type=int, help="Display number (1-based)")
+    cal_parser.add_argument("--model", type=str, help="Monitor model name (e.g., PG27UCDM, G85SB)")
+    cal_parser.add_argument("--output", "-o", type=str, default="calibration_output", help="Output directory")
+    cal_parser.add_argument("--mode", "-m", choices=["sensorless", "colorimeter", "hybrid"], default="sensorless")
+    cal_parser.add_argument("--hdr", action="store_true", help="Enable HDR calibration mode")
+    cal_parser.add_argument("--lut-size", type=int, choices=[17, 33, 65], default=33, help="3D LUT size")
+    cal_parser.add_argument("--no-icc", action="store_true", help="Skip ICC profile generation")
+    cal_parser.add_argument("--no-lut", action="store_true", help="Skip 3D LUT generation")
+    cal_parser.add_argument("--apply", "-a", action="store_true", help="Apply calibration immediately")
     cal_parser.set_defaults(func=cmd_calibrate)
 
     # verify
-    verify_parser = subparsers.add_parser('verify', help='Verify calibration accuracy')
-    verify_parser.add_argument('--display', '-d', type=int, help='Display number')
+    verify_parser = subparsers.add_parser("verify", help="Verify calibration accuracy")
+    verify_parser.add_argument("--display", "-d", type=int, help="Display number")
     verify_parser.set_defaults(func=cmd_verify)
 
     # load-lut
-    load_parser = subparsers.add_parser('load-lut', help='Load and apply LUT or ICC profile')
-    load_parser.add_argument('file', type=str, help='Path to .cube, .icc, or .icm file')
-    load_parser.add_argument('--display', '-d', type=int, default=1, help='Display number')
-    load_parser.add_argument('--persist', '-p', action='store_true', help='Keep running to maintain calibration')
+    load_parser = subparsers.add_parser("load-lut", help="Load and apply LUT or ICC profile")
+    load_parser.add_argument("file", type=str, help="Path to .cube, .icc, or .icm file")
+    load_parser.add_argument("--display", "-d", type=int, default=1, help="Display number")
+    load_parser.add_argument("--persist", "-p", action="store_true", help="Keep running to maintain calibration")
     load_parser.set_defaults(func=cmd_load_lut)
 
     # start-service
-    start_parser = subparsers.add_parser('start-service', help='Start background color loader')
-    start_parser.add_argument('--silent', '-s', action='store_true', help='Run silently (no output)')
+    start_parser = subparsers.add_parser("start-service", help="Start background color loader")
+    start_parser.add_argument("--silent", "-s", action="store_true", help="Run silently (no output)")
     start_parser.set_defaults(func=cmd_start_service)
 
     # stop-service
-    stop_parser = subparsers.add_parser('stop-service', help='Stop color loader and reset displays')
+    stop_parser = subparsers.add_parser("stop-service", help="Stop color loader and reset displays")
     stop_parser.set_defaults(func=cmd_stop_service)
 
     # enable-startup
-    enable_startup_parser = subparsers.add_parser('enable-startup', help='Enable auto-start at Windows boot')
+    enable_startup_parser = subparsers.add_parser("enable-startup", help="Enable auto-start at Windows boot")
     enable_startup_parser.set_defaults(func=cmd_enable_startup)
 
     # disable-startup
-    disable_startup_parser = subparsers.add_parser('disable-startup', help='Disable auto-start')
+    disable_startup_parser = subparsers.add_parser("disable-startup", help="Disable auto-start")
     disable_startup_parser.set_defaults(func=cmd_disable_startup)
 
     # list-panels
-    panels_parser = subparsers.add_parser('list-panels', help='List supported panel profiles')
+    panels_parser = subparsers.add_parser("list-panels", help="List supported panel profiles")
     panels_parser.set_defaults(func=cmd_list_panels)
 
     # info
-    info_parser = subparsers.add_parser('info', help='Show panel information')
-    info_parser.add_argument('panel', type=str, help='Panel key (e.g., PG27UCDM)')
+    info_parser = subparsers.add_parser("info", help="Show panel information")
+    info_parser.add_argument("panel", type=str, help="Panel key (e.g., PG27UCDM)")
     info_parser.set_defaults(func=cmd_info)
 
     # status
-    status_parser = subparsers.add_parser('status', help='Show current calibration status')
+    status_parser = subparsers.add_parser("status", help="Show current calibration status")
     status_parser.set_defaults(func=cmd_status)
 
     # gui
-    gui_parser = subparsers.add_parser('gui', help='Launch graphical interface')
+    gui_parser = subparsers.add_parser("gui", help="Launch graphical interface")
     gui_parser.set_defaults(func=cmd_gui)
 
     return parser
@@ -652,11 +658,12 @@ def main() -> int:
         return 130
     except Exception as e:
         print(f"\nError: {e}")
-        if os.environ.get('DEBUG'):
+        if os.environ.get("DEBUG"):
             import traceback
+
             traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

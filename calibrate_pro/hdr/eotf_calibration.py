@@ -20,28 +20,31 @@ import numpy as np
 # EOTF Types and Constants
 # =============================================================================
 
+
 class EOTFType(Enum):
     """Supported EOTF types."""
-    PQ = "pq"           # SMPTE ST.2084
-    HLG = "hlg"         # ARIB STD-B67
-    GAMMA = "gamma"     # Power law
-    SRGB = "srgb"       # sRGB/BT.1886
+
+    PQ = "pq"  # SMPTE ST.2084
+    HLG = "hlg"  # ARIB STD-B67
+    GAMMA = "gamma"  # Power law
+    SRGB = "srgb"  # sRGB/BT.1886
     LINEAR = "linear"
 
 
 class CalibrationStandard(Enum):
     """Calibration standards."""
-    ITU_R_BT2100 = "bt2100"        # ITU-R BT.2100 HDR
-    DOLBY_VISION = "dolby"         # Dolby Vision
-    HDR10 = "hdr10"                # HDR10 / HDR10+
+
+    ITU_R_BT2100 = "bt2100"  # ITU-R BT.2100 HDR
+    DOLBY_VISION = "dolby"  # Dolby Vision
+    HDR10 = "hdr10"  # HDR10 / HDR10+
     BROADCAST_HLG = "hlg_broadcast"
 
 
 # Reference levels for different standards
 REFERENCE_LEVELS = {
-    "pq_sdr_white": 203,      # SDR reference white in nits (for PQ)
-    "hlg_sdr_white": 100,     # SDR reference for HLG
-    "pq_reference": 100,      # PQ reference white
+    "pq_sdr_white": 203,  # SDR reference white in nits (for PQ)
+    "hlg_sdr_white": 100,  # SDR reference for HLG
+    "pq_reference": 100,  # PQ reference white
 }
 
 
@@ -49,12 +52,14 @@ REFERENCE_LEVELS = {
 # Calibration Patch Generation
 # =============================================================================
 
+
 @dataclass
 class EOTFPatch:
     """Single EOTF calibration patch."""
-    signal_level: float       # Input signal [0, 1]
-    target_luminance: float   # Expected output (cd/m²)
-    label: str               # Description
+
+    signal_level: float  # Input signal [0, 1]
+    target_luminance: float  # Expected output (cd/m²)
+    label: str  # Description
     is_near_black: bool = False
     is_critical: bool = False
 
@@ -63,7 +68,7 @@ def generate_pq_patches(
     num_patches: int = 21,
     include_near_black: bool = True,
     include_extended: bool = True,
-    max_luminance: float = 10000.0
+    max_luminance: float = 10000.0,
 ) -> list[EOTFPatch]:
     """
     Generate PQ EOTF verification patches.
@@ -86,25 +91,29 @@ def generate_pq_patches(
         near_black_nits = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
         for nits in near_black_nits:
             signal = float(pq_oetf(np.array([nits]))[0])
-            patches.append(EOTFPatch(
-                signal_level=signal,
-                target_luminance=nits,
-                label=f"{nits:.3f} nits",
-                is_near_black=True,
-                is_critical=nits <= 0.05
-            ))
+            patches.append(
+                EOTFPatch(
+                    signal_level=signal,
+                    target_luminance=nits,
+                    label=f"{nits:.3f} nits",
+                    is_near_black=True,
+                    is_critical=nits <= 0.05,
+                )
+            )
 
     # Standard grayscale ramp
     standard_nits = [2, 5, 10, 20, 50, 100, 200, 400, 600, 800, 1000]
     for nits in standard_nits:
         if nits <= max_luminance:
             signal = float(pq_oetf(np.array([nits]))[0])
-            patches.append(EOTFPatch(
-                signal_level=signal,
-                target_luminance=nits,
-                label=f"{nits} nits",
-                is_critical=(nits == 100 or nits == 1000)  # Reference points
-            ))
+            patches.append(
+                EOTFPatch(
+                    signal_level=signal,
+                    target_luminance=nits,
+                    label=f"{nits} nits",
+                    is_critical=(nits == 100 or nits == 1000),  # Reference points
+                )
+            )
 
     # Extended range
     if include_extended:
@@ -112,11 +121,7 @@ def generate_pq_patches(
         for nits in extended_nits:
             if nits <= max_luminance:
                 signal = float(pq_oetf(np.array([nits]))[0])
-                patches.append(EOTFPatch(
-                    signal_level=signal,
-                    target_luminance=nits,
-                    label=f"{nits} nits (extended)"
-                ))
+                patches.append(EOTFPatch(signal_level=signal, target_luminance=nits, label=f"{nits} nits (extended)"))
 
     # Sort by signal level
     patches.sort(key=lambda p: p.signal_level)
@@ -125,9 +130,7 @@ def generate_pq_patches(
 
 
 def generate_hlg_patches(
-    num_patches: int = 21,
-    system_gamma: float = 1.2,
-    peak_luminance: float = 1000.0
+    num_patches: int = 21, system_gamma: float = 1.2, peak_luminance: float = 1000.0
 ) -> list[EOTFPatch]:
     """
     Generate HLG EOTF verification patches.
@@ -150,12 +153,14 @@ def generate_hlg_patches(
         display_normalized = hlg_eotf(np.array([sig]), system_gamma)[0]
         luminance = display_normalized * peak_luminance
 
-        patches.append(EOTFPatch(
-            signal_level=float(sig),
-            target_luminance=float(luminance),
-            label=f"HLG {sig*100:.0f}%",
-            is_near_black=(sig < 0.1)
-        ))
+        patches.append(
+            EOTFPatch(
+                signal_level=float(sig),
+                target_luminance=float(luminance),
+                label=f"HLG {sig * 100:.0f}%",
+                is_near_black=(sig < 0.1),
+            )
+        )
 
     return patches
 
@@ -164,9 +169,11 @@ def generate_hlg_patches(
 # Measurement and Analysis
 # =============================================================================
 
+
 @dataclass
 class EOTFMeasurement:
     """Single EOTF measurement result."""
+
     signal_level: float
     target_luminance: float
     measured_luminance: float
@@ -178,6 +185,7 @@ class EOTFMeasurement:
 @dataclass
 class EOTFAnalysis:
     """Complete EOTF analysis results."""
+
     eotf_type: EOTFType
     measurements: list[EOTFMeasurement]
 
@@ -220,17 +228,15 @@ class EOTFAnalysis:
                     "signal": m.signal_level,
                     "target_nits": m.target_luminance,
                     "measured_nits": m.measured_luminance,
-                    "error_percent": m.error_percent
+                    "error_percent": m.error_percent,
                 }
                 for m in self.measurements
-            ]
+            ],
         }
 
 
 def analyze_pq_eotf(
-    signal_levels: np.ndarray,
-    measured_luminance: np.ndarray,
-    reference_white: float = 100.0
+    signal_levels: np.ndarray, measured_luminance: np.ndarray, reference_white: float = 100.0
 ) -> EOTFAnalysis:
     """
     Analyze PQ EOTF tracking.
@@ -261,13 +267,15 @@ def analyze_pq_eotf(
 
         error_nits = abs(measured - target)
 
-        measurements.append(EOTFMeasurement(
-            signal_level=float(signal_levels[i]),
-            target_luminance=float(target),
-            measured_luminance=float(measured),
-            error_percent=float(error_pct),
-            error_nits=float(error_nits)
-        ))
+        measurements.append(
+            EOTFMeasurement(
+                signal_level=float(signal_levels[i]),
+                target_luminance=float(target),
+                measured_luminance=float(measured),
+                error_percent=float(error_pct),
+                error_nits=float(error_nits),
+            )
+        )
 
     # Calculate overall metrics
     errors = np.array([m.error_percent for m in measurements])
@@ -333,15 +341,12 @@ def analyze_pq_eotf(
         dynamic_range_stops=float(dr_stops),
         gamma_tracking=gamma_tracking,
         grade=grade,
-        pass_fail=pass_fail
+        pass_fail=pass_fail,
     )
 
 
 def analyze_hlg_eotf(
-    signal_levels: np.ndarray,
-    measured_luminance: np.ndarray,
-    system_gamma: float = 1.2,
-    peak_luminance: float = 1000.0
+    signal_levels: np.ndarray, measured_luminance: np.ndarray, system_gamma: float = 1.2, peak_luminance: float = 1000.0
 ) -> EOTFAnalysis:
     """
     Analyze HLG EOTF tracking.
@@ -372,13 +377,15 @@ def analyze_hlg_eotf(
         else:
             error_pct = 0.0
 
-        measurements.append(EOTFMeasurement(
-            signal_level=float(signal_levels[i]),
-            target_luminance=float(target),
-            measured_luminance=float(measured),
-            error_percent=float(error_pct),
-            error_nits=float(abs(measured - target))
-        ))
+        measurements.append(
+            EOTFMeasurement(
+                signal_level=float(signal_levels[i]),
+                target_luminance=float(target),
+                measured_luminance=float(measured),
+                error_percent=float(error_pct),
+                error_nits=float(abs(measured - target)),
+            )
+        )
 
     # Metrics
     errors = np.array([m.error_percent for m in measurements])
@@ -416,7 +423,7 @@ def analyze_hlg_eotf(
         dynamic_range_stops=float(dr_stops),
         gamma_tracking=100.0 - avg_err,
         grade=grade,
-        pass_fail=(avg_err < 12.0)
+        pass_fail=(avg_err < 12.0),
     )
 
 
@@ -424,11 +431,8 @@ def analyze_hlg_eotf(
 # Calibration LUT Generation
 # =============================================================================
 
-def generate_eotf_correction_lut(
-    analysis: EOTFAnalysis,
-    size: int = 1024,
-    smooth: bool = True
-) -> np.ndarray:
+
+def generate_eotf_correction_lut(analysis: EOTFAnalysis, size: int = 1024, smooth: bool = True) -> np.ndarray:
     """
     Generate EOTF correction LUT from analysis.
 
@@ -490,14 +494,14 @@ def generate_eotf_correction_lut(
     # Smooth if requested
     if smooth:
         from scipy.ndimage import gaussian_filter1d
-        corrected = gaussian_filter1d(corrected, sigma=size/100)
+
+        corrected = gaussian_filter1d(corrected, sigma=size / 100)
 
     return np.clip(corrected, 0, 1)
 
 
 def generate_grayscale_correction_matrix(
-    rgb_measurements: np.ndarray,
-    target_white: tuple[float, float] = (0.3127, 0.3290)
+    rgb_measurements: np.ndarray, target_white: tuple[float, float] = (0.3127, 0.3290)
 ) -> np.ndarray:
     """
     Generate RGB correction matrix for grayscale balance.
@@ -529,9 +533,11 @@ def generate_grayscale_correction_matrix(
 # Calibration Workflow
 # =============================================================================
 
+
 @dataclass
 class CalibrationTarget:
     """HDR calibration target settings."""
+
     eotf_type: EOTFType = EOTFType.PQ
     peak_luminance: float = 1000.0
     black_level: float = 0.005
@@ -543,6 +549,7 @@ class CalibrationTarget:
 @dataclass
 class CalibrationResult:
     """Complete HDR calibration result."""
+
     target: CalibrationTarget
     eotf_analysis: EOTFAnalysis
     correction_lut: np.ndarray
@@ -561,12 +568,12 @@ class CalibrationResult:
                 "peak_nits": self.target.peak_luminance,
                 "black_nits": self.target.black_level,
                 "white_point": self.target.white_point,
-                "color_space": self.target.color_space
+                "color_space": self.target.color_space,
             },
             "analysis": self.eotf_analysis.to_dict(),
             "pre_error_percent": self.pre_calibration_error,
             "post_error_percent": self.post_calibration_error,
-            "improvement_percent": self.improvement
+            "improvement_percent": self.improvement,
         }
 
 
@@ -575,11 +582,7 @@ class EOTFCalibrator:
     HDR EOTF calibration workflow manager.
     """
 
-    def __init__(
-        self,
-        target: CalibrationTarget,
-        measure_func: Callable[[float], float] | None = None
-    ):
+    def __init__(self, target: CalibrationTarget, measure_func: Callable[[float], float] | None = None):
         """
         Initialize calibrator.
 
@@ -595,13 +598,10 @@ class EOTFCalibrator:
     def generate_patches(self) -> list[EOTFPatch]:
         """Generate calibration patches for target EOTF."""
         if self.target.eotf_type == EOTFType.PQ:
-            self._patches = generate_pq_patches(
-                include_extended=(self.target.peak_luminance > 1000)
-            )
+            self._patches = generate_pq_patches(include_extended=(self.target.peak_luminance > 1000))
         elif self.target.eotf_type == EOTFType.HLG:
             self._patches = generate_hlg_patches(
-                system_gamma=self.target.system_gamma,
-                peak_luminance=self.target.peak_luminance
+                system_gamma=self.target.system_gamma, peak_luminance=self.target.peak_luminance
             )
         else:
             # Gamma patches
@@ -609,8 +609,8 @@ class EOTFCalibrator:
             self._patches = [
                 EOTFPatch(
                     signal_level=float(s),
-                    target_luminance=float(s ** 2.2 * self.target.peak_luminance),
-                    label=f"{s*100:.0f}%"
+                    target_luminance=float(s**2.2 * self.target.peak_luminance),
+                    label=f"{s * 100:.0f}%",
                 )
                 for s in signals
             ]
@@ -632,19 +632,12 @@ class EOTFCalibrator:
         if self.target.eotf_type == EOTFType.PQ:
             return analyze_pq_eotf(signals, luminance)
         elif self.target.eotf_type == EOTFType.HLG:
-            return analyze_hlg_eotf(
-                signals, luminance,
-                self.target.system_gamma,
-                self.target.peak_luminance
-            )
+            return analyze_hlg_eotf(signals, luminance, self.target.system_gamma, self.target.peak_luminance)
         else:
             # Generic analysis
             return analyze_pq_eotf(signals, luminance)
 
-    def generate_correction(
-        self,
-        analysis: EOTFAnalysis | None = None
-    ) -> CalibrationResult:
+    def generate_correction(self, analysis: EOTFAnalysis | None = None) -> CalibrationResult:
         """Generate calibration correction."""
         if analysis is None:
             analysis = self.analyze()
@@ -653,10 +646,7 @@ class EOTFCalibrator:
         lut = generate_eotf_correction_lut(analysis)
 
         return CalibrationResult(
-            target=self.target,
-            eotf_analysis=analysis,
-            correction_lut=lut,
-            pre_calibration_error=analysis.average_error
+            target=self.target, eotf_analysis=analysis, correction_lut=lut, pre_calibration_error=analysis.average_error
         )
 
     def clear_measurements(self):

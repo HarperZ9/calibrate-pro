@@ -53,10 +53,30 @@ COLORCHECKER_CLASSIC_D50: dict[str, tuple[float, float, float]] = {
 
 # ColorChecker Classic patch names in order (left-to-right, top-to-bottom)
 COLORCHECKER_CLASSIC_ORDER = [
-    "dark_skin", "light_skin", "blue_sky", "foliage", "blue_flower", "bluish_green",
-    "orange", "purplish_blue", "moderate_red", "purple", "yellow_green", "orange_yellow",
-    "blue", "green", "red", "yellow", "magenta", "cyan",
-    "white", "neutral_8", "neutral_6.5", "neutral_5", "neutral_3.5", "black",
+    "dark_skin",
+    "light_skin",
+    "blue_sky",
+    "foliage",
+    "blue_flower",
+    "bluish_green",
+    "orange",
+    "purplish_blue",
+    "moderate_red",
+    "purple",
+    "yellow_green",
+    "orange_yellow",
+    "blue",
+    "green",
+    "red",
+    "yellow",
+    "magenta",
+    "cyan",
+    "white",
+    "neutral_8",
+    "neutral_6.5",
+    "neutral_5",
+    "neutral_3.5",
+    "black",
 ]
 
 # ColorChecker Classic display names
@@ -101,39 +121,44 @@ COLORCHECKER_CATEGORIES = {
 # Enums
 # =============================================================================
 
+
 class VerificationGrade(Enum):
     """Verification quality grade based on Delta E statistics."""
-    REFERENCE = auto()      # ΔE < 1.0 - Reference grade
-    EXCELLENT = auto()      # ΔE < 2.0 - Excellent
-    GOOD = auto()           # ΔE < 3.0 - Good
-    ACCEPTABLE = auto()     # ΔE < 5.0 - Acceptable
-    POOR = auto()           # ΔE >= 5.0 - Poor
+
+    REFERENCE = auto()  # ΔE < 1.0 - Reference grade
+    EXCELLENT = auto()  # ΔE < 2.0 - Excellent
+    GOOD = auto()  # ΔE < 3.0 - Good
+    ACCEPTABLE = auto()  # ΔE < 5.0 - Acceptable
+    POOR = auto()  # ΔE >= 5.0 - Poor
 
 
 class ColorCheckerType(Enum):
     """ColorChecker target type."""
-    CLASSIC_24 = auto()     # Standard 24-patch
-    DIGITAL_SG = auto()     # 140-patch Digital SG
-    PASSPORT = auto()       # ColorChecker Passport
-    VIDEO = auto()          # ColorChecker Video
+
+    CLASSIC_24 = auto()  # Standard 24-patch
+    DIGITAL_SG = auto()  # 140-patch Digital SG
+    PASSPORT = auto()  # ColorChecker Passport
+    VIDEO = auto()  # ColorChecker Video
 
 
 # =============================================================================
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class PatchMeasurement:
     """Single patch measurement result."""
+
     patch_id: str
     patch_name: str
     reference_lab: tuple[float, float, float]
     measured_lab: tuple[float, float, float]
     delta_e_76: float
     delta_e_2000: float
-    delta_l: float          # Lightness difference
-    delta_c: float          # Chroma difference
-    delta_h: float          # Hue difference
+    delta_l: float  # Lightness difference
+    delta_c: float  # Chroma difference
+    delta_h: float  # Hue difference
     category: str = ""
 
     @property
@@ -164,6 +189,7 @@ class PatchMeasurement:
 @dataclass
 class CategoryAnalysis:
     """Analysis results for a patch category."""
+
     category: str
     patch_count: int
     delta_e_mean: float
@@ -179,6 +205,7 @@ class CategoryAnalysis:
 @dataclass
 class ColorCheckerResult:
     """Complete ColorChecker verification result."""
+
     target_type: ColorCheckerType
     patch_measurements: list[PatchMeasurement]
     category_analysis: dict[str, CategoryAnalysis]
@@ -221,6 +248,7 @@ class ColorCheckerResult:
 # Color Math Functions
 # =============================================================================
 
+
 def lab_to_lch(lab: tuple[float, float, float]) -> tuple[float, float, float]:
     """Convert Lab to LCH (Lightness, Chroma, Hue)."""
     L, a, b = lab
@@ -231,17 +259,20 @@ def lab_to_lch(lab: tuple[float, float, float]) -> tuple[float, float, float]:
     return (L, C, H)
 
 
-def delta_e_1976(lab1: tuple[float, float, float],
-                 lab2: tuple[float, float, float]) -> float:
+def delta_e_1976(lab1: tuple[float, float, float], lab2: tuple[float, float, float]) -> float:
     """Calculate CIE76 Delta E (Euclidean distance in Lab)."""
     L1, a1, b1 = lab1
     L2, a2, b2 = lab2
-    return np.sqrt((L2 - L1)**2 + (a2 - a1)**2 + (b2 - b1)**2)
+    return np.sqrt((L2 - L1) ** 2 + (a2 - a1) ** 2 + (b2 - b1) ** 2)
 
 
-def delta_e_2000(lab1: tuple[float, float, float],
-                 lab2: tuple[float, float, float],
-                 kL: float = 1.0, kC: float = 1.0, kH: float = 1.0) -> float:
+def delta_e_2000(
+    lab1: tuple[float, float, float],
+    lab2: tuple[float, float, float],
+    kL: float = 1.0,
+    kC: float = 1.0,
+    kH: float = 1.0,
+) -> float:
     """
     Calculate CIEDE2000 Delta E.
 
@@ -299,16 +330,19 @@ def delta_e_2000(lab1: tuple[float, float, float],
         h_prime_sum += 360
     h_prime_avg = h_prime_sum / 2
 
-    T = (1 - 0.17 * np.cos(np.radians(h_prime_avg - 30)) +
-         0.24 * np.cos(np.radians(2 * h_prime_avg)) +
-         0.32 * np.cos(np.radians(3 * h_prime_avg + 6)) -
-         0.20 * np.cos(np.radians(4 * h_prime_avg - 63)))
+    T = (
+        1
+        - 0.17 * np.cos(np.radians(h_prime_avg - 30))
+        + 0.24 * np.cos(np.radians(2 * h_prime_avg))
+        + 0.32 * np.cos(np.radians(3 * h_prime_avg + 6))
+        - 0.20 * np.cos(np.radians(4 * h_prime_avg - 63))
+    )
 
-    delta_theta = 30 * np.exp(-((h_prime_avg - 275) / 25)**2)
+    delta_theta = 30 * np.exp(-(((h_prime_avg - 275) / 25) ** 2))
 
     R_C = 2 * np.sqrt(C_prime_avg**7 / (C_prime_avg**7 + 25**7))
 
-    S_L = 1 + (0.015 * (L_prime_avg - 50)**2) / np.sqrt(20 + (L_prime_avg - 50)**2)
+    S_L = 1 + (0.015 * (L_prime_avg - 50) ** 2) / np.sqrt(20 + (L_prime_avg - 50) ** 2)
     S_C = 1 + 0.045 * C_prime_avg
     S_H = 1 + 0.015 * C_prime_avg * T
 
@@ -316,17 +350,18 @@ def delta_e_2000(lab1: tuple[float, float, float],
 
     # Final calculation
     delta_E = np.sqrt(
-        (delta_L_prime / (kL * S_L))**2 +
-        (delta_C_prime / (kC * S_C))**2 +
-        (delta_H_prime / (kH * S_H))**2 +
-        R_T * (delta_C_prime / (kC * S_C)) * (delta_H_prime / (kH * S_H))
+        (delta_L_prime / (kL * S_L)) ** 2
+        + (delta_C_prime / (kC * S_C)) ** 2
+        + (delta_H_prime / (kH * S_H)) ** 2
+        + R_T * (delta_C_prime / (kC * S_C)) * (delta_H_prime / (kH * S_H))
     )
 
     return delta_E
 
 
-def calculate_delta_components(lab1: tuple[float, float, float],
-                               lab2: tuple[float, float, float]) -> tuple[float, float, float]:
+def calculate_delta_components(
+    lab1: tuple[float, float, float], lab2: tuple[float, float, float]
+) -> tuple[float, float, float]:
     """
     Calculate Delta L, Delta C, Delta H components.
 
@@ -357,6 +392,7 @@ def calculate_delta_components(lab1: tuple[float, float, float],
 # Verification Grade Functions
 # =============================================================================
 
+
 def grade_from_delta_e(delta_e: float) -> VerificationGrade:
     """Determine verification grade from Delta E value."""
     if delta_e < 1.0:
@@ -386,6 +422,7 @@ def grade_to_string(grade: VerificationGrade) -> str:
 # ColorChecker Verification Class
 # =============================================================================
 
+
 class ColorCheckerVerifier:
     """
     ColorChecker verification engine.
@@ -411,10 +448,9 @@ class ColorCheckerVerifier:
         # Add other target types as needed
         return COLORCHECKER_CLASSIC_D50
 
-    def verify(self,
-               measured_lab: dict[str, tuple[float, float, float]],
-               display_name: str = "",
-               profile_name: str = "") -> ColorCheckerResult:
+    def verify(
+        self, measured_lab: dict[str, tuple[float, float, float]], display_name: str = "", profile_name: str = ""
+    ) -> ColorCheckerResult:
         """
         Perform ColorChecker verification.
 
@@ -491,10 +527,12 @@ class ColorCheckerVerifier:
 
         # Determine grades
         overall_grade = grade_from_delta_e(delta_e_mean)
-        grayscale_grade = category_analysis.get("grayscale",
-            CategoryAnalysis("grayscale", 0, 0, 0, 0, 0, 0, 0, 0, VerificationGrade.POOR)).grade
-        skin_tone_grade = category_analysis.get("skin_tones",
-            CategoryAnalysis("skin_tones", 0, 0, 0, 0, 0, 0, 0, 0, VerificationGrade.POOR)).grade
+        grayscale_grade = category_analysis.get(
+            "grayscale", CategoryAnalysis("grayscale", 0, 0, 0, 0, 0, 0, 0, 0, VerificationGrade.POOR)
+        ).grade
+        skin_tone_grade = category_analysis.get(
+            "skin_tones", CategoryAnalysis("skin_tones", 0, 0, 0, 0, 0, 0, 0, 0, VerificationGrade.POOR)
+        ).grade
 
         return ColorCheckerResult(
             target_type=self.target_type,
@@ -517,8 +555,7 @@ class ColorCheckerVerifier:
             profile_name=profile_name,
         )
 
-    def _analyze_categories(self,
-                           measurements: list[PatchMeasurement]) -> dict[str, CategoryAnalysis]:
+    def _analyze_categories(self, measurements: list[PatchMeasurement]) -> dict[str, CategoryAnalysis]:
         """Analyze measurements by category."""
         category_analysis: dict[str, CategoryAnalysis] = {}
 
@@ -550,11 +587,13 @@ class ColorCheckerVerifier:
 
         return category_analysis
 
-    def verify_from_xyz(self,
-                        measured_xyz: dict[str, tuple[float, float, float]],
-                        illuminant: str = "D50",
-                        display_name: str = "",
-                        profile_name: str = "") -> ColorCheckerResult:
+    def verify_from_xyz(
+        self,
+        measured_xyz: dict[str, tuple[float, float, float]],
+        illuminant: str = "D50",
+        display_name: str = "",
+        profile_name: str = "",
+    ) -> ColorCheckerResult:
         """
         Perform verification from XYZ measurements.
 
@@ -575,8 +614,7 @@ class ColorCheckerVerifier:
         return self.verify(measured_lab, display_name, profile_name)
 
 
-def xyz_to_lab(xyz: tuple[float, float, float],
-               illuminant: str = "D50") -> tuple[float, float, float]:
+def xyz_to_lab(xyz: tuple[float, float, float], illuminant: str = "D50") -> tuple[float, float, float]:
     """
     Convert XYZ to Lab.
 
@@ -605,7 +643,7 @@ def xyz_to_lab(xyz: tuple[float, float, float],
     def f(t):
         delta = 6 / 29
         if t > delta**3:
-            return t ** (1/3)
+            return t ** (1 / 3)
         else:
             return t / (3 * delta**2) + 4 / 29
 
@@ -619,6 +657,7 @@ def xyz_to_lab(xyz: tuple[float, float, float],
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def create_test_measurements() -> dict[str, tuple[float, float, float]]:
     """Create simulated measurements for testing (with small random errors)."""
@@ -661,8 +700,7 @@ def print_verification_summary(result: ColorCheckerResult) -> None:
     print()
     print("Category Analysis:")
     for cat_name, analysis in result.category_analysis.items():
-        print(f"  {cat_name.replace('_', ' ').title()}: "
-              f"Mean ΔE = {analysis.delta_e_mean:.2f} ({analysis.grade.name})")
+        print(f"  {cat_name.replace('_', ' ').title()}: Mean ΔE = {analysis.delta_e_mean:.2f} ({analysis.grade.name})")
     print("=" * 60)
 
 
@@ -674,9 +712,5 @@ if __name__ == "__main__":
     # Test verification
     verifier = ColorCheckerVerifier(ColorCheckerType.CLASSIC_24)
     test_measurements = create_test_measurements()
-    result = verifier.verify(
-        test_measurements,
-        display_name="Test Display",
-        profile_name="Test Profile"
-    )
+    result = verifier.verify(test_measurements, display_name="Test Display", profile_name="Test Profile")
     print_verification_summary(result)

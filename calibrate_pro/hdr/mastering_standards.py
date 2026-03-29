@@ -21,14 +21,16 @@ from enum import Enum
 
 class ComplianceLevel(Enum):
     """Compliance verification levels."""
-    FULL = "full"          # Meets all requirements
-    PARTIAL = "partial"    # Meets most requirements
-    FAILED = "failed"      # Does not meet requirements
+
+    FULL = "full"  # Meets all requirements
+    PARTIAL = "partial"  # Meets most requirements
+    FAILED = "failed"  # Does not meet requirements
 
 
 @dataclass
 class MasteringSpec:
     """Base mastering specification."""
+
     name: str
     description: str
 
@@ -38,7 +40,7 @@ class MasteringSpec:
 
     # Luminance
     peak_luminance: float  # cd/m²
-    min_luminance: float   # cd/m²
+    min_luminance: float  # cd/m²
     sdr_reference: float = 100.0  # SDR white reference
 
     # Gamma/EOTF
@@ -68,30 +70,32 @@ class MasteringSpec:
         issues = []
 
         # Check luminance
-        if 'peak_luminance' in measurements:
-            peak = measurements['peak_luminance']
+        if "peak_luminance" in measurements:
+            peak = measurements["peak_luminance"]
             target = self.peak_luminance
             error = abs(peak - target) / target * 100
             if error > self.luminance_tolerance_percent:
-                issues.append(f"Peak luminance {peak:.0f} nits, expected {target:.0f} (±{self.luminance_tolerance_percent}%)")
+                issues.append(
+                    f"Peak luminance {peak:.0f} nits, expected {target:.0f} (±{self.luminance_tolerance_percent}%)"
+                )
 
         # Check white point
-        if 'white_point_de' in measurements:
-            de = measurements['white_point_de']
+        if "white_point_de" in measurements:
+            de = measurements["white_point_de"]
             if de > self.white_point_tolerance_de:
                 issues.append(f"White point Delta E {de:.2f}, maximum {self.white_point_tolerance_de}")
 
         # Check primaries
-        for color in ['red', 'green', 'blue']:
-            key = f'{color}_primary_de'
+        for color in ["red", "green", "blue"]:
+            key = f"{color}_primary_de"
             if key in measurements:
                 de = measurements[key]
                 if de > self.primary_tolerance_de:
                     issues.append(f"{color.title()} primary Delta E {de:.2f}, maximum {self.primary_tolerance_de}")
 
         # Check gamma
-        if 'gamma' in measurements and self.eotf in ['gamma', 'bt1886']:
-            gamma = measurements['gamma']
+        if "gamma" in measurements and self.eotf in ["gamma", "bt1886"]:
+            gamma = measurements["gamma"]
             if abs(gamma - self.gamma) > self.gamma_tolerance:
                 issues.append(f"Gamma {gamma:.2f}, expected {self.gamma} (±{self.gamma_tolerance})")
 
@@ -107,6 +111,7 @@ class MasteringSpec:
 # =============================================================================
 # Netflix Mastering Standards
 # =============================================================================
+
 
 @dataclass
 class NetflixMasteringProfile(MasteringSpec):
@@ -126,32 +131,23 @@ class NetflixMasteringProfile(MasteringSpec):
         super().__init__(
             name="Netflix HDR",
             description="Netflix HDR/Dolby Vision Mastering Spec",
-
             # P3-D65 primaries (NOT Rec.2020)
-            primaries={
-                'red': (0.680, 0.320),
-                'green': (0.265, 0.690),
-                'blue': (0.150, 0.060)
-            },
+            primaries={"red": (0.680, 0.320), "green": (0.265, 0.690), "blue": (0.150, 0.060)},
             white_point=(0.3127, 0.3290),  # D65
-
             # Luminance
             peak_luminance=1000.0,  # Minimum mastering peak
-            min_luminance=0.0001,   # Target for OLED
+            min_luminance=0.0001,  # Target for OLED
             sdr_reference=100.0,
-
             # PQ EOTF
             eotf="pq",
-
             # Tight tolerances for professional mastering
             primary_tolerance_de=2.0,
             white_point_tolerance_de=2.0,
             gamma_tolerance=0.05,
             luminance_tolerance_percent=3.0,
-
             # Viewing environment
             surround_luminance=5.0,
-            viewing_distance_heights=3.0
+            viewing_distance_heights=3.0,
         )
 
     # Netflix viewing environment specs
@@ -160,8 +156,8 @@ class NetflixMasteringProfile(MasteringSpec):
         "viewing_distance_hd": "3-3.2 picture heights",
         "viewing_distance_uhd": "1.5-1.6 picture heights",
         "horizontal_fov_min": 90,  # degrees
-        "vertical_fov_min": 60,    # degrees
-        "ambient_light_max": 10,   # cd/m² reflected off screen
+        "vertical_fov_min": 60,  # degrees
+        "ambient_light_max": 10,  # cd/m² reflected off screen
     }
 
     # Required reference monitors
@@ -179,6 +175,7 @@ class NetflixMasteringProfile(MasteringSpec):
 # =============================================================================
 # EBU Grade 1 Standards
 # =============================================================================
+
 
 @dataclass
 class EBUGrade1Profile(MasteringSpec):
@@ -205,56 +202,38 @@ class EBUGrade1Profile(MasteringSpec):
             super().__init__(
                 name="EBU Grade 1 SDR",
                 description="EBU Tech 3320 Grade 1 SDR Broadcast Monitor",
-
                 # BT.709/sRGB primaries
-                primaries={
-                    'red': (0.640, 0.330),
-                    'green': (0.300, 0.600),
-                    'blue': (0.150, 0.060)
-                },
+                primaries={"red": (0.640, 0.330), "green": (0.300, 0.600), "blue": (0.150, 0.060)},
                 white_point=(0.3127, 0.3290),
-
                 peak_luminance=100.0,
                 min_luminance=0.05,  # <0.05 nits black
                 sdr_reference=100.0,
-
                 eotf="bt1886",
                 gamma=2.4,
-
                 primary_tolerance_de=4.0,  # In u'v' units originally
                 white_point_tolerance_de=3.0,
                 gamma_tolerance=0.10,
                 luminance_tolerance_percent=5.0,
-
                 surround_luminance=5.0,
-                viewing_distance_heights=3.2
+                viewing_distance_heights=3.2,
             )
         else:  # HDR mode
             super().__init__(
                 name="EBU Grade 1 HDR",
                 description="EBU Tech 3320 Grade 1 HDR Broadcast Monitor",
-
                 # BT.2020 primaries
-                primaries={
-                    'red': (0.708, 0.292),
-                    'green': (0.170, 0.797),
-                    'blue': (0.131, 0.046)
-                },
+                primaries={"red": (0.708, 0.292), "green": (0.170, 0.797), "blue": (0.131, 0.046)},
                 white_point=(0.3127, 0.3290),
-
                 peak_luminance=1000.0,
                 min_luminance=0.005,
                 sdr_reference=203.0,  # HLG/PQ reference white
-
                 eotf="pq",  # or "hlg"
-
                 primary_tolerance_de=4.0,
                 white_point_tolerance_de=3.0,
                 gamma_tolerance=0.05,
                 luminance_tolerance_percent=3.0,
-
                 surround_luminance=5.0,
-                viewing_distance_heights=3.2
+                viewing_distance_heights=3.2,
             )
 
     # EBU Grade 1 specific requirements
@@ -270,13 +249,14 @@ class EBUGrade1Profile(MasteringSpec):
             "contrast_ratio_min": 10000,
             "bt2020_coverage_min": 90,  # percent
             "pq_tracking_error_max": 3,  # percent
-        }
+        },
     }
 
 
 # =============================================================================
 # DCI Cinema Standards
 # =============================================================================
+
 
 @dataclass
 class DCIMasteringProfile(MasteringSpec):
@@ -294,31 +274,22 @@ class DCIMasteringProfile(MasteringSpec):
         super().__init__(
             name="DCI P3 Cinema",
             description="DCI Digital Cinema Projection Standard",
-
             # DCI-P3 primaries
-            primaries={
-                'red': (0.680, 0.320),
-                'green': (0.265, 0.690),
-                'blue': (0.150, 0.060)
-            },
+            primaries={"red": (0.680, 0.320), "green": (0.265, 0.690), "blue": (0.150, 0.060)},
             # DCI white point (NOT D65!)
             white_point=(0.314, 0.351),
-
             # Cinema luminance (14 foot-lamberts)
             peak_luminance=48.0,
             min_luminance=0.0,
             sdr_reference=48.0,
-
             eotf="gamma",
             gamma=2.6,
-
             primary_tolerance_de=4.0,
             white_point_tolerance_de=2.0,
             gamma_tolerance=0.05,
             luminance_tolerance_percent=10.0,
-
             surround_luminance=0.0,  # Dark cinema
-            viewing_distance_heights=1.5
+            viewing_distance_heights=1.5,
         )
 
     # DCI specific requirements
@@ -335,6 +306,7 @@ class DCIMasteringProfile(MasteringSpec):
 # Additional Streaming Standards
 # =============================================================================
 
+
 @dataclass
 class DisneyPlusProfile(MasteringSpec):
     """Disney+ HDR Mastering Requirements."""
@@ -343,27 +315,18 @@ class DisneyPlusProfile(MasteringSpec):
         super().__init__(
             name="Disney+ HDR",
             description="Disney+ HDR10/Dolby Vision Mastering",
-
-            primaries={
-                'red': (0.680, 0.320),
-                'green': (0.265, 0.690),
-                'blue': (0.150, 0.060)
-            },
+            primaries={"red": (0.680, 0.320), "green": (0.265, 0.690), "blue": (0.150, 0.060)},
             white_point=(0.3127, 0.3290),
-
             peak_luminance=1000.0,
             min_luminance=0.0001,
             sdr_reference=100.0,
-
             eotf="pq",
-
             primary_tolerance_de=3.0,
             white_point_tolerance_de=2.0,
             gamma_tolerance=0.05,
             luminance_tolerance_percent=5.0,
-
             surround_luminance=5.0,
-            viewing_distance_heights=3.0
+            viewing_distance_heights=3.0,
         )
 
 
@@ -375,28 +338,19 @@ class AppleTVProfile(MasteringSpec):
         super().__init__(
             name="Apple TV+ HDR",
             description="Apple TV+ Dolby Vision Mastering",
-
             # P3-D65
-            primaries={
-                'red': (0.680, 0.320),
-                'green': (0.265, 0.690),
-                'blue': (0.150, 0.060)
-            },
+            primaries={"red": (0.680, 0.320), "green": (0.265, 0.690), "blue": (0.150, 0.060)},
             white_point=(0.3127, 0.3290),
-
             peak_luminance=1000.0,
             min_luminance=0.0001,
             sdr_reference=100.0,
-
             eotf="pq",
-
             primary_tolerance_de=2.5,
             white_point_tolerance_de=2.0,
             gamma_tolerance=0.05,
             luminance_tolerance_percent=3.0,
-
             surround_luminance=5.0,
-            viewing_distance_heights=3.0
+            viewing_distance_heights=3.0,
         )
 
 
@@ -408,29 +362,20 @@ class BBCBroadcastProfile(MasteringSpec):
         super().__init__(
             name="BBC HLG",
             description="BBC HLG Broadcast Mastering",
-
             # BT.2020 primaries
-            primaries={
-                'red': (0.708, 0.292),
-                'green': (0.170, 0.797),
-                'blue': (0.131, 0.046)
-            },
+            primaries={"red": (0.708, 0.292), "green": (0.170, 0.797), "blue": (0.131, 0.046)},
             white_point=(0.3127, 0.3290),
-
             peak_luminance=1000.0,
             min_luminance=0.01,
             sdr_reference=203.0,  # HLG nominal white
-
             eotf="hlg",
             gamma=1.2,  # System gamma
-
             primary_tolerance_de=4.0,
             white_point_tolerance_de=3.0,
             gamma_tolerance=0.10,
             luminance_tolerance_percent=5.0,
-
             surround_luminance=5.0,
-            viewing_distance_heights=3.0
+            viewing_distance_heights=3.0,
         )
 
 
@@ -438,9 +383,9 @@ class BBCBroadcastProfile(MasteringSpec):
 # Validation Functions
 # =============================================================================
 
+
 def validate_mastering_compliance(
-    measurements: dict,
-    standard: str = "netflix"
+    measurements: dict, standard: str = "netflix"
 ) -> tuple[ComplianceLevel, list[str], MasteringSpec]:
     """
     Validate calibration measurements against a mastering standard.
@@ -525,10 +470,7 @@ def get_recommended_targets(use_case: str) -> dict[str, MasteringSpec]:
         raise ValueError(f"Unknown use case: {use_case}")
 
 
-def generate_compliance_report(
-    measurements: dict,
-    standards: list[str] = None
-) -> dict:
+def generate_compliance_report(measurements: dict, standards: list[str] = None) -> dict:
     """
     Generate a comprehensive compliance report against multiple standards.
 
@@ -545,23 +487,14 @@ def generate_compliance_report(
     report = {
         "measurements": measurements,
         "standards_checked": [],
-        "summary": {
-            "full_compliance": [],
-            "partial_compliance": [],
-            "failed": []
-        }
+        "summary": {"full_compliance": [], "partial_compliance": [], "failed": []},
     }
 
     for std in standards:
         try:
             level, issues, spec = validate_mastering_compliance(measurements, std)
 
-            result = {
-                "standard": std,
-                "name": spec.name,
-                "compliance": level.value,
-                "issues": issues
-            }
+            result = {"standard": std, "name": spec.name, "compliance": level.value, "issues": issues}
             report["standards_checked"].append(result)
 
             if level == ComplianceLevel.FULL:
@@ -572,9 +505,6 @@ def generate_compliance_report(
                 report["summary"]["failed"].append(std)
 
         except Exception as e:
-            report["standards_checked"].append({
-                "standard": std,
-                "error": str(e)
-            })
+            report["standards_checked"].append({"standard": std, "error": str(e)})
 
     return report

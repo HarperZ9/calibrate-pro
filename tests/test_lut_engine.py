@@ -12,6 +12,7 @@ from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
 # LUT3D.create_identity
 # -------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("size", [17, 33, 65])
 def test_identity_lut_shape(size):
     """Identity LUT should have shape (size, size, size, 3)."""
@@ -47,6 +48,7 @@ def test_identity_lut_corners():
 # LUT3D.apply (trilinear interpolation)
 # -------------------------------------------------------------------------
 
+
 def test_apply_identity_preserves_input():
     """Applying an identity LUT should return approximately the input."""
     lut = LUT3D.create_identity(33)
@@ -72,11 +74,13 @@ def test_apply_identity_white():
 def test_apply_batch():
     """LUT apply should handle (N, 3) batch input."""
     lut = LUT3D.create_identity(17)
-    batch = np.array([
-        [0.0, 0.0, 0.0],
-        [0.5, 0.5, 0.5],
-        [1.0, 1.0, 1.0],
-    ])
+    batch = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5],
+            [1.0, 1.0, 1.0],
+        ]
+    )
     result = lut.apply(batch)
     assert result.shape == (3, 3)
     np.testing.assert_allclose(result[0], [0, 0, 0], atol=1e-10)
@@ -85,6 +89,7 @@ def test_apply_batch():
 # -------------------------------------------------------------------------
 # LUT3D save/load roundtrip (.cube format)
 # -------------------------------------------------------------------------
+
 
 def test_save_load_cube_roundtrip():
     """Save a LUT to .cube then load it back; data should match."""
@@ -119,6 +124,7 @@ def test_save_load_cube_non_identity():
 # create_calibration_lut preserves neutral axis
 # -------------------------------------------------------------------------
 
+
 def test_calibration_lut_preserves_neutral_axis(srgb_panel):
     """A calibration LUT for the generic sRGB panel should preserve neutrals."""
     gen = LUTGenerator(size=17)
@@ -148,6 +154,7 @@ def test_calibration_lut_preserves_neutral_axis(srgb_panel):
 # -------------------------------------------------------------------------
 # create_oklab_perceptual_lut preserves neutral axis and black
 # -------------------------------------------------------------------------
+
 
 def test_oklab_lut_preserves_black(srgb_panel):
     """Oklab perceptual LUT must preserve (0,0,0) -> (0,0,0)."""
@@ -197,6 +204,7 @@ def test_oklab_lut_preserves_neutral(srgb_panel):
 # create_hdr_calibration_lut preserves black
 # -------------------------------------------------------------------------
 
+
 def test_hdr_lut_preserves_black(srgb_panel):
     """HDR calibration LUT must preserve black (PQ=0 -> PQ=0)."""
     gen = LUTGenerator(size=17)
@@ -220,6 +228,7 @@ def test_hdr_lut_preserves_black(srgb_panel):
 # -------------------------------------------------------------------------
 # LUT size options
 # -------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("size", [17, 33, 65])
 def test_lut_generator_sizes(size):

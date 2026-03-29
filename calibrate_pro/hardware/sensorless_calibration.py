@@ -30,9 +30,9 @@ ILLUMINANTS = {
     "D55": (0.3324, 0.3474),
     "D65": (0.3127, 0.3290),
     "D75": (0.2990, 0.3149),
-    "A": (0.4476, 0.4074),      # Incandescent
-    "F2": (0.3721, 0.3751),     # Cool White Fluorescent
-    "F11": (0.3805, 0.3769),    # Philips TL84
+    "A": (0.4476, 0.4074),  # Incandescent
+    "F2": (0.3721, 0.3751),  # Cool White Fluorescent
+    "F11": (0.3805, 0.3769),  # Philips TL84
 }
 
 # Standard illuminant XYZ (normalized to Y=1)
@@ -72,11 +72,7 @@ GAMUT_PRIMARIES = {
 }
 
 # Bradford chromatic adaptation matrix
-BRADFORD_M = np.array([
-    [0.8951, 0.2664, -0.1614],
-    [-0.7502, 1.7135, 0.0367],
-    [0.0389, -0.0685, 1.0296]
-])
+BRADFORD_M = np.array([[0.8951, 0.2664, -0.1614], [-0.7502, 1.7135, 0.0367], [0.0389, -0.0685, 1.0296]])
 
 BRADFORD_M_INV = np.linalg.inv(BRADFORD_M)
 
@@ -85,9 +81,11 @@ BRADFORD_M_INV = np.linalg.inv(BRADFORD_M)
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class CalibrationTarget:
     """Target colorimetry for calibration."""
+
     whitepoint: str = "D65"
     whitepoint_x: float = 0.3127
     whitepoint_y: float = 0.3290
@@ -101,6 +99,7 @@ class CalibrationTarget:
 @dataclass
 class DisplayState:
     """Current display state from DDC/CI readings and panel model."""
+
     # From DDC/CI
     brightness: int = 50
     contrast: int = 50
@@ -135,6 +134,7 @@ class DisplayState:
 @dataclass
 class CalibrationResult:
     """Result of sensorless calibration."""
+
     success: bool = False
 
     # DDC/CI adjustments applied
@@ -172,6 +172,7 @@ class CalibrationResult:
 # Color Math Functions
 # =============================================================================
 
+
 def xy_to_XYZ(x: float, y: float, Y: float = 1.0) -> np.ndarray:
     """Convert CIE 1931 xy chromaticity + Y luminance to XYZ."""
     if y == 0:
@@ -200,11 +201,7 @@ def XYZ_to_Lab(XYZ: np.ndarray, illuminant: str = "D65") -> np.ndarray:
     epsilon = 216 / 24389
     kappa = 24389 / 27
 
-    f = np.where(
-        xyz_n > epsilon,
-        np.cbrt(xyz_n),
-        (kappa * xyz_n + 16) / 116
-    )
+    f = np.where(xyz_n > epsilon, np.cbrt(xyz_n), (kappa * xyz_n + 16) / 116)
 
     L = 116 * f[1] - 16
     a = 500 * (f[0] - f[1])
@@ -227,7 +224,7 @@ def Lab_to_XYZ(Lab: np.ndarray, illuminant: str = "D65") -> np.ndarray:
     kappa = 24389 / 27
 
     xr = fx**3 if fx**3 > epsilon else (116 * fx - 16) / kappa
-    yr = ((L + 16) / 116)**3 if kappa * epsilon < L else L / kappa
+    yr = ((L + 16) / 116) ** 3 if kappa * epsilon < L else L / kappa
     zr = fz**3 if fz**3 > epsilon else (116 * fz - 16) / kappa
 
     return np.array([xr, yr, zr]) * ref_XYZ
@@ -285,35 +282,33 @@ def delta_E_2000(Lab1: np.ndarray, Lab2: np.ndarray) -> float:
     h_avg_prime = h_avg_prime % 360
 
     # Calculate T
-    T = (1 - 0.17 * np.cos(np.radians(h_avg_prime - 30))
-         + 0.24 * np.cos(np.radians(2 * h_avg_prime))
-         + 0.32 * np.cos(np.radians(3 * h_avg_prime + 6))
-         - 0.20 * np.cos(np.radians(4 * h_avg_prime - 63)))
+    T = (
+        1
+        - 0.17 * np.cos(np.radians(h_avg_prime - 30))
+        + 0.24 * np.cos(np.radians(2 * h_avg_prime))
+        + 0.32 * np.cos(np.radians(3 * h_avg_prime + 6))
+        - 0.20 * np.cos(np.radians(4 * h_avg_prime - 63))
+    )
 
     # Calculate weighting functions
-    SL = 1 + (0.015 * (L_avg - 50)**2) / np.sqrt(20 + (L_avg - 50)**2)
+    SL = 1 + (0.015 * (L_avg - 50) ** 2) / np.sqrt(20 + (L_avg - 50) ** 2)
     SC = 1 + 0.045 * C_avg_prime
     SH = 1 + 0.015 * C_avg_prime * T
 
     # Rotation term
-    dTheta = 30 * np.exp(-((h_avg_prime - 275) / 25)**2)
+    dTheta = 30 * np.exp(-(((h_avg_prime - 275) / 25) ** 2))
     RC = 2 * np.sqrt(C_avg_prime**7 / (C_avg_prime**7 + 25**7))
     RT = -RC * np.sin(np.radians(2 * dTheta))
 
     # Final calculation
     dE = np.sqrt(
-        (dL_prime / SL)**2
-        + (dC_prime / SC)**2
-        + (dH_prime / SH)**2
-        + RT * (dC_prime / SC) * (dH_prime / SH)
+        (dL_prime / SL) ** 2 + (dC_prime / SC) ** 2 + (dH_prime / SH) ** 2 + RT * (dC_prime / SC) * (dH_prime / SH)
     )
 
     return float(dE)
 
 
-def bradford_adapt(XYZ_source: np.ndarray,
-                   white_source: np.ndarray,
-                   white_dest: np.ndarray) -> np.ndarray:
+def bradford_adapt(XYZ_source: np.ndarray, white_source: np.ndarray, white_dest: np.ndarray) -> np.ndarray:
     """
     Apply Bradford chromatic adaptation transform.
 
@@ -351,11 +346,7 @@ def primaries_to_matrix(primaries: dict[str, tuple[float, float]]) -> np.ndarray
     Xb, Yb, Zb = xy_to_XYZ(bx, by)
 
     # Primary matrix
-    P = np.array([
-        [Xr, Xg, Xb],
-        [Yr, Yg, Yb],
-        [Zr, Zg, Zb]
-    ])
+    P = np.array([[Xr, Xg, Xb], [Yr, Yg, Yb], [Zr, Zg, Zb]])
 
     # White point XYZ
     W = xy_to_XYZ(wx, wy)
@@ -403,6 +394,7 @@ def cct_to_xy(cct: int) -> tuple[float, float]:
 # =============================================================================
 # EDID Parsing for Colorimetry
 # =============================================================================
+
 
 def parse_edid_colorimetry(edid_bytes: bytes) -> dict[str, Any] | None:
     """
@@ -508,6 +500,7 @@ def get_edid_from_registry(display_index: int = 0) -> bytes | None:
 # Sensorless Calibration Engine
 # =============================================================================
 
+
 class SensorlessCalibrationEngine:
     """
     Sensorless hardware calibration using panel characterization and colorimetric math.
@@ -567,6 +560,7 @@ class SensorlessCalibrationEngine:
         # Initialize VCGT calibrator for software-side correction
         try:
             from calibrate_pro.lut_system.vcgt_calibration import VCGTCalibrator
+
             self._vcgt_calibrator = VCGTCalibrator(display_index=display_index)
             if self._vcgt_calibrator.available:
                 self._vcgt_calibrator.backup_current_ramp()
@@ -665,9 +659,7 @@ class SensorlessCalibrationEngine:
             self._display_state.native_white_x = e["white"][0]
             self._display_state.native_white_y = e["white"][1]
 
-    def calibrate(self,
-                  target: CalibrationTarget,
-                  output_dir: Path | None = None) -> CalibrationResult:
+    def calibrate(self, target: CalibrationTarget, output_dir: Path | None = None) -> CalibrationResult:
         """
         Perform sensorless hardware calibration.
 
@@ -695,10 +687,7 @@ class SensorlessCalibrationEngine:
 
         # Step 1: Analyze native display characteristics
         self._report_progress("Analyzing display characteristics...", 0.1)
-        native_white_xy = (
-            self._display_state.native_white_x,
-            self._display_state.native_white_y
-        )
+        native_white_xy = (self._display_state.native_white_x, self._display_state.native_white_y)
         native_cct = calculate_cct(*native_white_xy)
         result.messages.append(f"Native white point: x={native_white_xy[0]:.4f}, y={native_white_xy[1]:.4f}")
         result.messages.append(f"Native CCT: {native_cct}K")
@@ -709,12 +698,12 @@ class SensorlessCalibrationEngine:
         target_cct = calculate_cct(*target_white_xy)
 
         # Calculate RGB gain adjustments using colorimetric math
-        rgb_gains = self._calculate_rgb_gains_for_whitepoint(
-            native_white_xy, target_white_xy
-        )
+        rgb_gains = self._calculate_rgb_gains_for_whitepoint(native_white_xy, target_white_xy)
         result.messages.append(f"Target white point: x={target_white_xy[0]:.4f}, y={target_white_xy[1]:.4f}")
         result.messages.append(f"Target CCT: {target_cct}K")
-        result.messages.append(f"RGB gain adjustments: R={rgb_gains[0]:.1f}, G={rgb_gains[1]:.1f}, B={rgb_gains[2]:.1f}")
+        result.messages.append(
+            f"RGB gain adjustments: R={rgb_gains[0]:.1f}, G={rgb_gains[1]:.1f}, B={rgb_gains[2]:.1f}"
+        )
 
         # Step 3: Calculate brightness for target luminance
         self._report_progress("Calculating brightness adjustment...", 0.3)
@@ -759,10 +748,7 @@ class SensorlessCalibrationEngine:
                 vcgt_r = vcgt_g = vcgt_b = 1.0
 
             vcgt_applied = self._vcgt_calibrator.apply_white_balance(
-                red_gain=vcgt_r,
-                green_gain=vcgt_g,
-                blue_gain=vcgt_b,
-                gamma=target.gamma
+                red_gain=vcgt_r, green_gain=vcgt_g, blue_gain=vcgt_b, gamma=target.gamma
             )
             self._vcgt_applied = vcgt_applied
 
@@ -820,6 +806,7 @@ class SensorlessCalibrationEngine:
 
         # Always generate profile (use output_dir or temp)
         import tempfile
+
         if output_dir:
             profile_dir = Path(output_dir)
         else:
@@ -866,9 +853,9 @@ class SensorlessCalibrationEngine:
 
         return result
 
-    def _calculate_rgb_gains_for_whitepoint(self,
-                                            native_xy: tuple[float, float],
-                                            target_xy: tuple[float, float]) -> np.ndarray:
+    def _calculate_rgb_gains_for_whitepoint(
+        self, native_xy: tuple[float, float], target_xy: tuple[float, float]
+    ) -> np.ndarray:
         """
         Calculate RGB gain adjustments to achieve target white point.
 
@@ -878,11 +865,13 @@ class SensorlessCalibrationEngine:
         # Use iterative refinement for best accuracy
         return self._iterative_white_balance(native_xy, target_xy)
 
-    def _iterative_white_balance(self,
-                                  native_xy: tuple[float, float],
-                                  target_xy: tuple[float, float],
-                                  max_iterations: int = 50,
-                                  tolerance: float = 0.00001) -> np.ndarray:
+    def _iterative_white_balance(
+        self,
+        native_xy: tuple[float, float],
+        target_xy: tuple[float, float],
+        max_iterations: int = 50,
+        tolerance: float = 0.00001,
+    ) -> np.ndarray:
         """
         Iteratively refine RGB gains to achieve target white point.
 
@@ -980,9 +969,7 @@ class SensorlessCalibrationEngine:
 
         return gains_scaled
 
-    def _calculate_rgb_gains_direct(self,
-                                     native_xy: tuple[float, float],
-                                     target_xy: tuple[float, float]) -> np.ndarray:
+    def _calculate_rgb_gains_direct(self, native_xy: tuple[float, float], target_xy: tuple[float, float]) -> np.ndarray:
         """
         Direct calculation of RGB gains using matrix math.
         """
@@ -1010,9 +997,9 @@ class SensorlessCalibrationEngine:
             gains = target_rgb / native_rgb
 
             # Normalize to center around current gains (typically 50 or 100)
-            current_center = (self._display_state.red_gain +
-                            self._display_state.green_gain +
-                            self._display_state.blue_gain) / 3
+            current_center = (
+                self._display_state.red_gain + self._display_state.green_gain + self._display_state.blue_gain
+            ) / 3
 
             # Scale gains to DDC/CI range (0-100)
             gains_normalized = gains * current_center
@@ -1028,9 +1015,9 @@ class SensorlessCalibrationEngine:
             # Fallback: simple CCT-based adjustment
             return self._calculate_rgb_gains_from_cct(native_xy, target_xy)
 
-    def _calculate_rgb_gains_from_cct(self,
-                                       native_xy: tuple[float, float],
-                                       target_xy: tuple[float, float]) -> np.ndarray:
+    def _calculate_rgb_gains_from_cct(
+        self, native_xy: tuple[float, float], target_xy: tuple[float, float]
+    ) -> np.ndarray:
         """
         Fallback: Calculate RGB gains using CCT difference.
 
@@ -1042,11 +1029,9 @@ class SensorlessCalibrationEngine:
         cct_diff = target_cct - native_cct
 
         # Current gains as baseline
-        base = np.array([
-            self._display_state.red_gain,
-            self._display_state.green_gain,
-            self._display_state.blue_gain
-        ], dtype=float)
+        base = np.array(
+            [self._display_state.red_gain, self._display_state.green_gain, self._display_state.blue_gain], dtype=float
+        )
 
         # Adjust based on CCT difference
         # Higher CCT = cooler (more blue, less red)
@@ -1090,8 +1075,7 @@ class SensorlessCalibrationEngine:
 
         return brightness
 
-    def _estimate_white_point_after_adjustment(self,
-                                                rgb_gains: np.ndarray) -> tuple[float, float]:
+    def _estimate_white_point_after_adjustment(self, rgb_gains: np.ndarray) -> tuple[float, float]:
         """
         Estimate the white point that will be achieved after RGB gain adjustment.
 
@@ -1121,8 +1105,7 @@ class SensorlessCalibrationEngine:
 
         except (np.linalg.LinAlgError, ValueError):
             # Fallback: assume linear adjustment
-            return (self._display_state.native_white_x,
-                   self._display_state.native_white_y)
+            return (self._display_state.native_white_x, self._display_state.native_white_y)
 
     def _estimate_grayscale_delta_e(self, target: CalibrationTarget) -> float:
         """
@@ -1141,9 +1124,7 @@ class SensorlessCalibrationEngine:
         target_gamma = target.gamma
 
         # Calculate average gamma error
-        gamma_error = (abs(gamma_r - target_gamma) +
-                      abs(gamma_g - target_gamma) +
-                      abs(gamma_b - target_gamma)) / 3
+        gamma_error = (abs(gamma_r - target_gamma) + abs(gamma_g - target_gamma) + abs(gamma_b - target_gamma)) / 3
 
         # Estimate Delta E contribution from gamma error
         # Roughly 0.5 Delta E per 0.05 gamma error
@@ -1237,8 +1218,7 @@ class SensorlessCalibrationEngine:
         except (KeyError, ValueError):
             return True  # Safe default
 
-    def _generate_icc_profile(self, target: CalibrationTarget,
-                              output_dir: Path) -> Path | None:
+    def _generate_icc_profile(self, target: CalibrationTarget, output_dir: Path) -> Path | None:
         """
         Generate ICC profile for the calibrated display.
 
@@ -1255,8 +1235,9 @@ class SensorlessCalibrationEngine:
             panel_name = "Unknown"
             if self._panel_profile:
                 # Use model_pattern or extract from manufacturer
-                panel_name = getattr(self._panel_profile, 'model_pattern', '') or \
-                             getattr(self._panel_profile, 'manufacturer', 'Unknown')
+                panel_name = getattr(self._panel_profile, "model_pattern", "") or getattr(
+                    self._panel_profile, "manufacturer", "Unknown"
+                )
             elif self._edid_colorimetry:
                 panel_name = self._edid_colorimetry.get("model", "Display")
 
@@ -1264,10 +1245,7 @@ class SensorlessCalibrationEngine:
 
             # Create ICC profile builder
             profile = ICCProfile(
-                description=description,
-                copyright="Generated by Calibrate Pro",
-                manufacturer="QNTA",
-                model="CALB"
+                description=description, copyright="Generated by Calibrate Pro", manufacturer="QNTA", model="CALB"
             )
 
             # Set display primaries from calibration state
@@ -1275,7 +1253,7 @@ class SensorlessCalibrationEngine:
                 red=(self._display_state.native_red_x, self._display_state.native_red_y),
                 green=(self._display_state.native_green_x, self._display_state.native_green_y),
                 blue=(self._display_state.native_blue_x, self._display_state.native_blue_y),
-                white=(target.whitepoint_x, target.whitepoint_y)
+                white=(target.whitepoint_x, target.whitepoint_y),
             )
 
             # Set target gamma for all channels
@@ -1285,16 +1263,13 @@ class SensorlessCalibrationEngine:
             if self._vcgt_calibrator and self._vcgt_applied:
                 current_curves = self._vcgt_calibrator.get_current_curves()
                 if current_curves:
-                    profile.set_vcgt(
-                        red=current_curves[0],
-                        green=current_curves[1],
-                        blue=current_curves[2]
-                    )
+                    profile.set_vcgt(red=current_curves[0], green=current_curves[1], blue=current_curves[2])
 
             # Generate profile filename with panel info
             # Sanitize name - remove all characters invalid for filenames
             import re
-            safe_name = re.sub(r'[<>:"/\\|?*\.\[\]\(\)\^$+{}]', '', panel_name)
+
+            safe_name = re.sub(r'[<>:"/\\|?*\.\[\]\(\)\^$+{}]', "", panel_name)
             safe_name = safe_name.replace(" ", "_")[:20]
             if not safe_name:
                 safe_name = "Display"
@@ -1307,12 +1282,12 @@ class SensorlessCalibrationEngine:
 
         except (ImportError, OSError, ValueError) as e:
             import traceback
+
             print(f"ICC profile generation failed: {e}")
             traceback.print_exc()
             return None
 
-    def _generate_3d_lut(self, target: CalibrationTarget,
-                         output_dir: Path) -> Path | None:
+    def _generate_3d_lut(self, target: CalibrationTarget, output_dir: Path) -> Path | None:
         """
         Generate 3D LUT for gamut mapping and color correction.
 
@@ -1354,7 +1329,7 @@ class SensorlessCalibrationEngine:
             # Build descriptive title
             panel_name = "Unknown"
             if self._panel_profile:
-                panel_name = getattr(self._panel_profile, 'manufacturer', 'Display')
+                panel_name = getattr(self._panel_profile, "manufacturer", "Display")
             elif self._edid_colorimetry:
                 panel_name = self._edid_colorimetry.get("model", "Display")
 
@@ -1371,12 +1346,13 @@ class SensorlessCalibrationEngine:
                 gamma_blue=self._display_state.gamma_blue,
                 color_matrix=correction_matrix,
                 title=lut_title,
-                target_gamma=target.gamma
+                target_gamma=target.gamma,
             )
 
             # Generate safe filename
             import re
-            safe_name = re.sub(r'[<>:"/\\|?*\.\[\]\(\)\^$+{}]', '', panel_name)
+
+            safe_name = re.sub(r'[<>:"/\\|?*\.\[\]\(\)\^$+{}]', "", panel_name)
             safe_name = safe_name.replace(" ", "_")[:20]
             if not safe_name:
                 safe_name = "Display"
@@ -1390,6 +1366,7 @@ class SensorlessCalibrationEngine:
 
         except (ImportError, OSError, ValueError) as e:
             import traceback
+
             print(f"3D LUT generation failed: {e}")
             traceback.print_exc()
             return None
@@ -1427,11 +1404,7 @@ class SensorlessCalibrationEngine:
             profile_name = Path(profile_path).name
 
             # Associate profile with display
-            success, msg = associate_profile_with_display(
-                profile_name,
-                device_name,
-                make_default=True
-            )
+            success, msg = associate_profile_with_display(profile_name, device_name, make_default=True)
 
             if not success:
                 print(f"Profile association failed: {msg}")
@@ -1451,6 +1424,7 @@ class SensorlessCalibrationEngine:
         if self._ddc_controller and self._monitor:
             try:
                 from calibrate_pro.hardware.ddc_ci import VCPCode
+
                 self._ddc_controller.set_vcp(self._monitor, VCPCode.BRIGHTNESS, value)
             except (RuntimeError, OSError):
                 pass
@@ -1512,7 +1486,7 @@ class SensorlessCalibrationEngine:
             # Use provided path or find the last generated LUT
             if lut_path is None:
                 # Look in the default profile directory
-                profile_dir = Path(os.environ.get('TEMP', '/tmp')) / "calibrate_pro_profiles"
+                profile_dir = Path(os.environ.get("TEMP", "/tmp")) / "calibrate_pro_profiles"
                 cube_files = list(profile_dir.glob("*.cube"))
                 if not cube_files:
                     print("No LUT files found")
@@ -1527,9 +1501,7 @@ class SensorlessCalibrationEngine:
 
             # Load and apply LUT
             success = controller.load_lut_file(
-                display_id=self._display_index,
-                lut_path=lut_path,
-                color_space=LUTColorSpace.SRGB
+                display_id=self._display_index, lut_path=lut_path, color_space=LUTColorSpace.SRGB
             )
 
             if success:
@@ -1577,9 +1549,7 @@ class SensorlessCalibrationEngine:
         else:
             return "NEEDS IMPROVEMENT (Delta E > 5.0)"
 
-    def quick_white_balance(self,
-                            target_x: float = 0.3127,
-                            target_y: float = 0.3290) -> CalibrationResult:
+    def quick_white_balance(self, target_x: float = 0.3127, target_y: float = 0.3290) -> CalibrationResult:
         """
         Perform quick white balance adjustment only.
 
@@ -1593,15 +1563,10 @@ class SensorlessCalibrationEngine:
             return result
 
         # Get native white point
-        native_xy = (
-            self._display_state.native_white_x,
-            self._display_state.native_white_y
-        )
+        native_xy = (self._display_state.native_white_x, self._display_state.native_white_y)
 
         # Calculate RGB gains
-        rgb_gains = self._calculate_rgb_gains_for_whitepoint(
-            native_xy, (target_x, target_y)
-        )
+        rgb_gains = self._calculate_rgb_gains_for_whitepoint(native_xy, (target_x, target_y))
 
         # Apply gains
         r = int(np.clip(rgb_gains[0], 0, 100))
@@ -1650,13 +1615,14 @@ class SensorlessCalibrationEngine:
 # Convenience Functions
 # =============================================================================
 
+
 def run_sensorless_calibration(
     display_index: int = 0,
     whitepoint: str = "D65",
     luminance: float = 120.0,
     gamma: float = 2.2,
     gamut: str = "sRGB",
-    output_dir: str | None = None
+    output_dir: str | None = None,
 ) -> CalibrationResult:
     """
     Convenience function to run sensorless calibration.
@@ -1702,15 +1668,13 @@ def run_sensorless_calibration(
     )
 
     # Run calibration
-    return engine.calibrate(
-        target,
-        Path(output_dir) if output_dir else None
-    )
+    return engine.calibrate(target, Path(output_dir) if output_dir else None)
 
 
 @dataclass
 class DisplayInfo:
     """Information about a detected display."""
+
     index: int
     name: str
     edid_model: str
@@ -1748,55 +1712,54 @@ def detect_displays() -> list[DisplayInfo]:
 
         # Get monitor name from DDC
         monitor = monitors[i]
-        name = monitor.get('name', f'Display {i}') if isinstance(monitor, dict) else f'Display {i}'
+        name = monitor.get("name", f"Display {i}") if isinstance(monitor, dict) else f"Display {i}"
 
         # Look up panel profile
-        panel = db.find_panel('PG27UCDM')  # TODO: Match by EDID
+        panel = db.find_panel("PG27UCDM")  # TODO: Match by EDID
 
         if colorimetry:
-            native_xy = (colorimetry['white'][0], colorimetry['white'][1])
-            native_cct = colorimetry.get('cct', calculate_cct(*native_xy))
+            native_xy = (colorimetry["white"][0], colorimetry["white"][1])
+            native_cct = colorimetry.get("cct", calculate_cct(*native_xy))
             primaries = {
-                'red': colorimetry['red'],
-                'green': colorimetry['green'],
-                'blue': colorimetry['blue'],
-                'white': colorimetry['white'],
+                "red": colorimetry["red"],
+                "green": colorimetry["green"],
+                "blue": colorimetry["blue"],
+                "white": colorimetry["white"],
             }
         elif panel:
             p = panel.native_primaries
             native_xy = (p.white.x, p.white.y)
             native_cct = calculate_cct(*native_xy)
             primaries = {
-                'red': (p.red.x, p.red.y),
-                'green': (p.green.x, p.green.y),
-                'blue': (p.blue.x, p.blue.y),
-                'white': (p.white.x, p.white.y),
+                "red": (p.red.x, p.red.y),
+                "green": (p.green.x, p.green.y),
+                "blue": (p.blue.x, p.blue.y),
+                "white": (p.white.x, p.white.y),
             }
         else:
-            native_xy = ILLUMINANTS['D65']
+            native_xy = ILLUMINANTS["D65"]
             native_cct = 6500
             primaries = {}
 
-        displays.append(DisplayInfo(
-            index=i,
-            name=name,
-            edid_model=name,
-            panel_type=panel.panel_type if panel else 'Unknown',
-            native_white_xy=native_xy,
-            native_cct=native_cct,
-            edid_primaries=primaries,
-            has_panel_profile=panel is not None,
-            manufacturer=panel.manufacturer if panel else '',
-        ))
+        displays.append(
+            DisplayInfo(
+                index=i,
+                name=name,
+                edid_model=name,
+                panel_type=panel.panel_type if panel else "Unknown",
+                native_white_xy=native_xy,
+                native_cct=native_cct,
+                edid_primaries=primaries,
+                has_panel_profile=panel is not None,
+                manufacturer=panel.manufacturer if panel else "",
+            )
+        )
 
     return displays
 
 
 def auto_calibrate(
-    display_index: int = 0,
-    whitepoint: str = "D65",
-    gamma: float = 2.2,
-    luminance: float = 120.0
+    display_index: int = 0, whitepoint: str = "D65", gamma: float = 2.2, luminance: float = 120.0
 ) -> tuple[bool, str, CalibrationResult | None]:
     """
     Automatically detect display and apply calibration.
@@ -1830,11 +1793,7 @@ def auto_calibrate(
 
     # Run calibration
     result = run_sensorless_calibration(
-        display_index=display_index,
-        whitepoint=whitepoint,
-        luminance=luminance,
-        gamma=gamma,
-        gamut="sRGB"
+        display_index=display_index, whitepoint=whitepoint, luminance=luminance, gamma=gamma, gamut="sRGB"
     )
 
     if result.success:
@@ -1860,6 +1819,7 @@ def auto_calibrate(
 # =============================================================================
 # System-wide LUT Functions
 # =============================================================================
+
 
 def apply_lut(lut_path: str | Path, display_index: int = 0) -> tuple[bool, str]:
     """
@@ -1892,11 +1852,7 @@ def apply_lut(lut_path: str | Path, display_index: int = 0) -> tuple[bool, str]:
         if not lut_path.exists():
             return False, f"LUT file not found: {lut_path}"
 
-        success = controller.load_lut_file(
-            display_id=display_index,
-            lut_path=lut_path,
-            color_space=LUTColorSpace.SRGB
-        )
+        success = controller.load_lut_file(display_id=display_index, lut_path=lut_path, color_space=LUTColorSpace.SRGB)
 
         if success:
             return True, f"3D LUT applied system-wide: {lut_path.name}"
@@ -1959,11 +1915,11 @@ def get_lut_status() -> dict[int, dict]:
 
         for display_id, info in active.items():
             result[display_id] = {
-                'display_name': info.display_name,
-                'lut_active': info.lut_active,
-                'lut_path': info.lut_path,
-                'lut_size': info.lut_size,
-                'color_space': info.color_space.value,
+                "display_name": info.display_name,
+                "lut_active": info.lut_active,
+                "lut_path": info.lut_path,
+                "lut_size": info.lut_size,
+                "color_space": info.color_space.value,
             }
 
         return result

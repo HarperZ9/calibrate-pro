@@ -59,6 +59,7 @@ class GamutClamp:
         # Apply via dwm_lut
         try:
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
             dwm = DwmLutController()
             if dwm.is_available:
                 if dwm.load_lut_file(self.display_index, self._lut_path):
@@ -73,6 +74,7 @@ class GamutClamp:
         """Remove the sRGB gamut clamp."""
         try:
             from calibrate_pro.lut_system.dwm_lut import remove_lut
+
             remove_lut(self.display_index)
             self._active = False
             return True

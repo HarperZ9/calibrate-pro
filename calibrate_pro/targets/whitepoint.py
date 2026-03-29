@@ -20,27 +20,28 @@ import numpy as np
 
 class WhitepointPreset(Enum):
     """Standard white point presets."""
+
     # CIE Standard Illuminants
-    D50 = "D50"           # 5003K - Print/Photography standard (ICC PCS)
-    D55 = "D55"           # 5503K - Daylight, motion picture
-    D60 = "D60"           # 6000K - ACES reference
-    D65 = "D65"           # 6504K - sRGB/Broadcast/Web standard
-    D75 = "D75"           # 7504K - North sky daylight
-    D93 = "D93"           # 9300K - Legacy CRT
+    D50 = "D50"  # 5003K - Print/Photography standard (ICC PCS)
+    D55 = "D55"  # 5503K - Daylight, motion picture
+    D60 = "D60"  # 6000K - ACES reference
+    D65 = "D65"  # 6504K - sRGB/Broadcast/Web standard
+    D75 = "D75"  # 7504K - North sky daylight
+    D93 = "D93"  # 9300K - Legacy CRT
 
     # Industry Standards
-    DCI = "DCI-P3"        # 6300K - Digital Cinema
-    ACES = "ACES"         # D60 (6000K) - Academy Color Encoding System
+    DCI = "DCI-P3"  # 6300K - Digital Cinema
+    ACES = "ACES"  # D60 (6000K) - Academy Color Encoding System
 
     # Tungsten/Studio
-    A = "Illuminant A"    # 2856K - Incandescent/Tungsten
-    B = "Illuminant B"    # 4874K - Direct sunlight
-    C = "Illuminant C"    # 6774K - Average daylight
+    A = "Illuminant A"  # 2856K - Incandescent/Tungsten
+    B = "Illuminant B"  # 4874K - Direct sunlight
+    C = "Illuminant C"  # 6774K - Average daylight
 
     # Custom
-    NATIVE = "Native"     # Display native white point
-    CUSTOM_CCT = "Custom CCT"    # User-defined CCT
-    CUSTOM_XY = "Custom xy"      # User-defined chromaticity
+    NATIVE = "Native"  # Display native white point
+    CUSTOM_CCT = "Custom CCT"  # User-defined CCT
+    CUSTOM_XY = "Custom xy"  # User-defined chromaticity
 
 
 # Standard illuminant chromaticity coordinates (x, y)
@@ -52,13 +53,11 @@ ILLUMINANT_XY: dict[str, tuple[float, float]] = {
     "D65": (0.31270, 0.32900),
     "D75": (0.29902, 0.31485),
     "D93": (0.28315, 0.29711),
-
     # Other CIE illuminants
     "A": (0.44757, 0.40745),
     "B": (0.34842, 0.35161),
     "C": (0.31006, 0.31616),
     "E": (0.33333, 0.33333),  # Equal energy
-
     # Industry
     "DCI-P3": (0.31400, 0.35100),
     "ACES": (0.32168, 0.33767),  # Same as D60
@@ -98,10 +97,12 @@ def planckian_locus_xy(cct: float) -> tuple[float, float]:
         cct = 25000
 
     # Krystek's algorithm
-    u = (0.860117757 + 1.54118254e-4 * cct + 1.28641212e-7 * cct**2) / \
-        (1 + 8.42420235e-4 * cct + 7.08145163e-7 * cct**2)
-    v = (0.317398726 + 4.22806245e-5 * cct + 4.20481691e-8 * cct**2) / \
-        (1 - 2.89741816e-5 * cct + 1.61456053e-7 * cct**2)
+    u = (0.860117757 + 1.54118254e-4 * cct + 1.28641212e-7 * cct**2) / (
+        1 + 8.42420235e-4 * cct + 7.08145163e-7 * cct**2
+    )
+    v = (0.317398726 + 4.22806245e-5 * cct + 4.20481691e-8 * cct**2) / (
+        1 - 2.89741816e-5 * cct + 1.61456053e-7 * cct**2
+    )
 
     # Convert CIE 1960 UCS to xy
     x = 3 * u / (2 * u - 8 * v + 4)
@@ -221,7 +222,7 @@ def xy_to_cct(x: float, y: float) -> tuple[float, float]:
     u_locus = 4 * x_locus / (-2 * x_locus + 12 * y_locus + 3)
     v_locus = 6 * y_locus / (-2 * x_locus + 12 * y_locus + 3)
 
-    duv = np.sqrt((u - u_locus)**2 + (v - v_locus)**2)
+    duv = np.sqrt((u - u_locus) ** 2 + (v - v_locus) ** 2)
 
     # Determine sign (+ = above locus = green, - = below = magenta)
     if v < v_locus:
@@ -273,6 +274,7 @@ class WhitepointTarget:
         use_daylight_locus: Use daylight locus for CCT conversion
         tolerance: Acceptable Delta uv for verification
     """
+
     preset: WhitepointPreset = WhitepointPreset.D65
     cct: float | None = None
     duv: float = 0.0
@@ -346,7 +348,7 @@ class WhitepointTarget:
         u_measured = 4 * measured_xy[0] / (-2 * measured_xy[0] + 12 * measured_xy[1] + 3)
         v_measured = 6 * measured_xy[1] / (-2 * measured_xy[0] + 12 * measured_xy[1] + 3)
 
-        delta_uv = np.sqrt((u_target - u_measured)**2 + (v_target - v_measured)**2)
+        delta_uv = np.sqrt((u_target - u_measured) ** 2 + (v_target - v_measured) ** 2)
 
         # Calculate CCT and Duv of measurement
         measured_cct, measured_duv = xy_to_cct(measured_xy[0], measured_xy[1])
@@ -364,7 +366,7 @@ class WhitepointTarget:
             "delta_uv": delta_uv,
             "tolerance": self.tolerance,
             "passed": passed,
-            "grade": self._grade_result(delta_uv)
+            "grade": self._grade_result(delta_uv),
         }
 
     def _grade_result(self, delta_uv: float) -> str:
@@ -388,7 +390,7 @@ class WhitepointTarget:
             "name": self.name,
             "description": self.description,
             "target_xy": self.get_xy(),
-            "target_cct": self.get_cct()
+            "target_cct": self.get_cct(),
         }
 
     @classmethod
@@ -400,7 +402,7 @@ class WhitepointTarget:
             duv=data.get("duv", 0.0),
             xy=data.get("xy"),
             name=data.get("name", ""),
-            description=data.get("description", "")
+            description=data.get("description", ""),
         )
 
 
@@ -412,35 +414,27 @@ class WhitepointTarget:
 WHITEPOINT_D50 = WhitepointTarget(
     preset=WhitepointPreset.D50,
     name="D50 (Print Standard)",
-    description="ICC Profile Connection Space, photography standard"
+    description="ICC Profile Connection Space, photography standard",
 )
 
 # Broadcast/Web
 WHITEPOINT_D65 = WhitepointTarget(
-    preset=WhitepointPreset.D65,
-    name="D65 (sRGB/Broadcast)",
-    description="sRGB, Rec.709, web content standard"
+    preset=WhitepointPreset.D65, name="D65 (sRGB/Broadcast)", description="sRGB, Rec.709, web content standard"
 )
 
 # Digital Cinema
 WHITEPOINT_DCI = WhitepointTarget(
-    preset=WhitepointPreset.DCI,
-    name="DCI-P3 (Digital Cinema)",
-    description="Digital Cinema Initiative standard"
+    preset=WhitepointPreset.DCI, name="DCI-P3 (Digital Cinema)", description="Digital Cinema Initiative standard"
 )
 
 # ACES/VFX
 WHITEPOINT_ACES = WhitepointTarget(
-    preset=WhitepointPreset.ACES,
-    name="D60 (ACES)",
-    description="Academy Color Encoding System"
+    preset=WhitepointPreset.ACES, name="D60 (ACES)", description="Academy Color Encoding System"
 )
 
 # North Sky
 WHITEPOINT_D75 = WhitepointTarget(
-    preset=WhitepointPreset.D75,
-    name="D75 (North Sky)",
-    description="North sky daylight, cooler than D65"
+    preset=WhitepointPreset.D75, name="D75 (North Sky)", description="North sky daylight, cooler than D65"
 )
 
 
@@ -459,10 +453,7 @@ def get_whitepoint_presets() -> list[WhitepointTarget]:
 
 
 def create_custom_whitepoint(
-    cct: float | None = None,
-    xy: tuple[float, float] | None = None,
-    duv: float = 0.0,
-    name: str = "Custom"
+    cct: float | None = None, xy: tuple[float, float] | None = None, duv: float = 0.0, name: str = "Custom"
 ) -> WhitepointTarget:
     """
     Create a custom white point target.
@@ -477,18 +468,8 @@ def create_custom_whitepoint(
         WhitepointTarget
     """
     if xy is not None:
-        return WhitepointTarget(
-            preset=WhitepointPreset.CUSTOM_XY,
-            xy=xy,
-            duv=duv,
-            name=name
-        )
+        return WhitepointTarget(preset=WhitepointPreset.CUSTOM_XY, xy=xy, duv=duv, name=name)
     elif cct is not None:
-        return WhitepointTarget(
-            preset=WhitepointPreset.CUSTOM_CCT,
-            cct=cct,
-            duv=duv,
-            name=name
-        )
+        return WhitepointTarget(preset=WhitepointPreset.CUSTOM_CCT, cct=cct, duv=duv, name=name)
     else:
         raise ValueError("Must specify either cct or xy")

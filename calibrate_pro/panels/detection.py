@@ -51,6 +51,7 @@ EDD_GET_DEVICE_INTERFACE_NAME = 0x00000001
 
 # Windows-specific ctypes structures (only defined on Windows)
 if sys.platform == "win32":
+
     class DISPLAY_DEVICE(ctypes.Structure):
         _fields_ = [
             ("cb", wintypes.DWORD),
@@ -103,7 +104,9 @@ if sys.platform == "win32":
             ("bottom", wintypes.LONG),
         ]
 
+
 if sys.platform == "win32":
+
     class MONITORINFO(ctypes.Structure):
         _fields_ = [
             ("cbSize", wintypes.DWORD),
@@ -125,13 +128,15 @@ if sys.platform == "win32":
 # Display Information
 # =============================================================================
 
+
 @dataclass
 class DisplayInfo:
     """Information about a connected display."""
-    device_name: str          # Windows device name (e.g., "\\\\.\\DISPLAY1")
-    device_string: str        # Friendly name (e.g., "NVIDIA GeForce RTX 4090")
-    monitor_name: str         # Monitor model from EDID
-    device_id: str            # PnP device ID
+
+    device_name: str  # Windows device name (e.g., "\\\\.\\DISPLAY1")
+    device_string: str  # Friendly name (e.g., "NVIDIA GeForce RTX 4090")
+    monitor_name: str  # Monitor model from EDID
+    device_id: str  # PnP device ID
     is_primary: bool
     is_active: bool
 
@@ -150,14 +155,14 @@ class DisplayInfo:
     year: int = 0
 
     # Enhanced detection fields
-    panel_type: str = ""           # OLED, QD-OLED, WOLED, IPS, VA, TN, Mini-LED
-    connection_type: str = ""       # HDMI, DisplayPort, USB-C, DVI
-    hdr_capable: bool = False       # HDR10/Dolby Vision support
-    wide_gamut: bool = False        # DCI-P3 or wider gamut
-    native_gamma: float = 2.2       # Native panel gamma
-    max_luminance: float = 0.0      # Peak brightness (cd/m²)
+    panel_type: str = ""  # OLED, QD-OLED, WOLED, IPS, VA, TN, Mini-LED
+    connection_type: str = ""  # HDMI, DisplayPort, USB-C, DVI
+    hdr_capable: bool = False  # HDR10/Dolby Vision support
+    wide_gamut: bool = False  # DCI-P3 or wider gamut
+    native_gamma: float = 2.2  # Native panel gamma
+    max_luminance: float = 0.0  # Peak brightness (cd/m²)
     panel_size_inches: float = 0.0  # Diagonal size in inches
-    panel_database_key: str = ""    # Matched panel database key
+    panel_database_key: str = ""  # Matched panel database key
 
     # Current ICC profile
     current_profile: str | None = None
@@ -168,12 +173,13 @@ class DisplayInfo:
 
     def get_display_number(self) -> int:
         """Extract display number from device name."""
-        match = re.search(r'DISPLAY(\d+)', self.device_name)
+        match = re.search(r"DISPLAY(\d+)", self.device_name)
         return int(match.group(1)) if match else 0
 
     def get_aspect_ratio(self) -> str:
         """Calculate aspect ratio string."""
         from math import gcd
+
         g = gcd(self.width, self.height)
         w, h = self.width // g, self.height // g
         # Normalize common ratios
@@ -228,17 +234,20 @@ class DisplayInfo:
             "max_luminance": self.max_luminance,
             "panel_size_inches": self.panel_size_inches,
             "panel_database_key": self.panel_database_key,
-            "current_profile": self.current_profile
+            "current_profile": self.current_profile,
         }
+
 
 # =============================================================================
 # Cross-Platform Display Detection
 # =============================================================================
 
+
 def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
     """Enumerate displays on macOS/Linux via the platform backend."""
     try:
         from calibrate_pro.platform import get_platform_backend
+
         backend = get_platform_backend()
         platform_displays = backend.enumerate_displays()
 
@@ -265,6 +274,7 @@ def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
 
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error("Cross-platform display detection failed: %s", e)
         return []
 
@@ -272,6 +282,7 @@ def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
 # =============================================================================
 # Display Detection
 # =============================================================================
+
 
 def enumerate_displays() -> list[DisplayInfo]:
     """
@@ -285,6 +296,7 @@ def enumerate_displays() -> list[DisplayInfo]:
         List of DisplayInfo for each active display
     """
     import sys
+
     if sys.platform != "win32":
         return _enumerate_displays_cross_platform()
 
@@ -317,8 +329,7 @@ def enumerate_displays() -> list[DisplayInfo]:
                 monitor.cb = ctypes.sizeof(monitor)
 
                 if not user32.EnumDisplayDevicesW(
-                    adapter.DeviceName, monitor_index,
-                    ctypes.byref(monitor), EDD_GET_DEVICE_INTERFACE_NAME
+                    adapter.DeviceName, monitor_index, ctypes.byref(monitor), EDD_GET_DEVICE_INTERFACE_NAME
                 ):
                     break
 
@@ -344,7 +355,7 @@ def enumerate_displays() -> list[DisplayInfo]:
                     position_x=devmode.dmPositionX,
                     position_y=devmode.dmPositionY,
                     manufacturer=manufacturer,
-                    model=model
+                    model=model,
                 )
 
                 # Get current ICC profile
@@ -371,7 +382,7 @@ def parse_device_id(device_id: str) -> tuple[str, str]:
     # Device ID formats:
     # - MONITOR\{vendor}{product}\{serial}     (e.g., MONITOR\SAM0F9E\{...})
     # - \\?\DISPLAY#{vendor}{product}#{serial} (e.g., \\?\DISPLAY#SAM72F2#...)
-    match = re.search(r'(?:MONITOR\\|DISPLAY#)([A-Z]{3})([A-F0-9]{4})', device_id, re.IGNORECASE)
+    match = re.search(r"(?:MONITOR\\|DISPLAY#)([A-Z]{3})([A-F0-9]{4})", device_id, re.IGNORECASE)
     if match:
         vendor_code = match.group(1).upper()
         product_code = match.group(2).upper()
@@ -405,6 +416,7 @@ def parse_device_id(device_id: str) -> tuple[str, str]:
 # Enhanced EDID Detection (Reads raw EDID from registry)
 # =============================================================================
 
+
 def get_edid_from_registry(device_id: str) -> bytes | None:
     """
     Read raw EDID data from Windows registry.
@@ -423,7 +435,7 @@ def get_edid_from_registry(device_id: str) -> bytes | None:
     try:
         # Extract the monitor key from device ID
         # Format: MONITOR\XXX####\{guid}_##
-        match = re.search(r'MONITOR\\([A-Z]{3}[A-F0-9]{4})\\', device_id, re.IGNORECASE)
+        match = re.search(r"MONITOR\\([A-Z]{3}[A-F0-9]{4})\\", device_id, re.IGNORECASE)
         if not match:
             return None
 
@@ -505,9 +517,9 @@ def parse_edid(edid: bytes) -> dict:
 
     # Manufacturer ID (bytes 8-9) - 3 letters encoded in 15 bits
     mfg_id = (edid[8] << 8) | edid[9]
-    char1 = ((mfg_id >> 10) & 0x1F) + ord('A') - 1
-    char2 = ((mfg_id >> 5) & 0x1F) + ord('A') - 1
-    char3 = (mfg_id & 0x1F) + ord('A') - 1
+    char1 = ((mfg_id >> 10) & 0x1F) + ord("A") - 1
+    char2 = ((mfg_id >> 5) & 0x1F) + ord("A") - 1
+    char3 = (mfg_id & 0x1F) + ord("A") - 1
     result["manufacturer_code"] = chr(char1) + chr(char2) + chr(char3)
 
     # Map manufacturer codes to names
@@ -538,7 +550,7 @@ def parse_edid(edid: bytes) -> dict:
     result["product_code"] = edid[10] | (edid[11] << 8)
 
     # Serial number (bytes 12-15, little-endian)
-    result["serial_number"] = struct.unpack('<I', edid[12:16])[0]
+    result["serial_number"] = struct.unpack("<I", edid[12:16])[0]
 
     # Week and year of manufacture (bytes 16-17)
     result["week"] = edid[16]
@@ -557,7 +569,7 @@ def parse_edid(edid: bytes) -> dict:
 
     # Preferred timing (bytes 54-71) - first detailed timing descriptor
     if len(edid) >= 71:
-        pixel_clock = struct.unpack('<H', edid[54:56])[0] * 10000  # kHz
+        pixel_clock = struct.unpack("<H", edid[54:56])[0] * 10000  # kHz
         if pixel_clock > 0:
             h_active = edid[56] | ((edid[58] & 0xF0) << 4)
             v_active = edid[59] | ((edid[61] & 0xF0) << 4)
@@ -574,17 +586,17 @@ def parse_edid(edid: bytes) -> dict:
         if len(edid) < block_start + 18:
             break
 
-        block = edid[block_start:block_start + 18]
+        block = edid[block_start : block_start + 18]
 
         # Check if this is a text descriptor (starts with 00 00 00)
         if block[0:3] == bytes([0x00, 0x00, 0x00]):
             tag = block[3]
-            text = block[5:18].decode('ascii', errors='ignore').strip()
+            text = block[5:18].decode("ascii", errors="ignore").strip()
 
             if tag == 0xFC:  # Monitor name
-                result["monitor_name"] = text.replace('\n', '').strip()
+                result["monitor_name"] = text.replace("\n", "").strip()
             elif tag == 0xFF:  # Serial string
-                result["serial_string"] = text.replace('\n', '').strip()
+                result["serial_string"] = text.replace("\n", "").strip()
 
     return result
 
@@ -614,83 +626,62 @@ DISPLAY_FINGERPRINTS = {
     # ===========================================
     # QD-OLED Monitors (Samsung Display panels)
     # ===========================================
-
     # ASUS PG27UCDM - 4K 240Hz QD-OLED 27"
     "3840x2160@240_ASUS": "PG27UCDM",
     "3840x2160@240_AUS": "PG27UCDM",
-
     # ASUS PG32UCDM - 4K 240Hz QD-OLED 32"
     "3840x2160@240_ASUS_32": "PG32UCDM",
-
     # Samsung Odyssey G8 G80SD - 4K 240Hz QD-OLED 32"
     "3840x2160@240_Samsung": "G80SD",
     "3840x2160@240_SAM": "G80SD",
-
     # Samsung Odyssey G85SB - 4K 240Hz QD-OLED 34"
     "3440x1440@175_Samsung": "G85SB",
     "3440x1440@175_SAM": "G85SB",
-
     # Dell Alienware AW3225QF - 4K 240Hz QD-OLED 32"
     "3840x2160@240_Dell": "AW3225QF",
     "3840x2160@240_DEL": "AW3225QF",
-
     # Dell Alienware AW3423DW - 3440x1440 175Hz QD-OLED 34"
     "3440x1440@175_Dell": "AW3423DW",
     "3440x1440@175_DEL": "AW3423DW",
     "3440x1440@175": "AW3423DW",
-
     # Gigabyte AORUS FO32U2P - 4K 240Hz QD-OLED 32"
     "3840x2160@240_Gigabyte": "FO32U2P",
-
     # Samsung Odyssey G95SC - 5120x1440 240Hz QD-OLED 49"
     "5120x1440@240_Samsung": "G95SC",
     "5120x1440@240_SAM": "G95SC",
-
     # MSI MEG 342C - 3440x1440 175Hz QD-OLED 34"
     "3440x1440@175_MSI": "MEG342C",
-
     # Corsair Xeneon 34 - 3440x1440 175Hz QD-OLED 34"
     "3440x1440@175_Corsair": "XENEON34",
-
     # Default for unidentified 4K 240Hz (assume QD-OLED)
     "3840x2160@240": "PG27UCDM",
-
     # ===========================================
     # WOLED Monitors (LG Display panels)
     # ===========================================
-
     # LG 27GR95QE - 2560x1440 240Hz WOLED 27"
     "2560x1440@240_LG": "27GR95QE",
     "2560x1440@240_GSM": "27GR95QE",
-
     # LG C3 OLED TVs (42/48/55")
     "3840x2160@120_LG": "LG_C3",
     "3840x2160@120_GSM": "LG_C3",
-
     # LG C4 OLED TVs (42/48/55/65")
     "3840x2160@144_LG": "LG_C4",
     "3840x2160@144_GSM": "LG_C4",
-
     # ===========================================
     # IPS/Mini-LED Monitors
     # ===========================================
-
     # Sony INZONE M9 - 4K 144Hz IPS+FALD
     "3840x2160@144_Sony": "INZONE_M9",
     "3840x2160@144_SNY": "INZONE_M9",
-
     # LG 27GP950-B - 4K 160Hz Nano-IPS
     "3840x2160@160_LG": "27GP950",
     "3840x2160@160_GSM": "27GP950",
-
     # BenQ PD3220U - 4K 60Hz IPS (Professional)
     "3840x2160@60_BenQ": "PD3220U",
     "3840x2160@60_BNQ": "PD3220U",
-
     # ASUS ProArt PA32UCG - 4K 120Hz Mini-LED
     "3840x2160@120_ASUS": "PA32UCG",
     "3840x2160@120_AUS": "PA32UCG",
-
     # Samsung Odyssey G7/G5 Ultrawides (VA)
     "3440x1440@120_Samsung": "ODYSSEY_G7_UW",
     "3440x1440@120_SAM": "ODYSSEY_G7_UW",
@@ -698,85 +689,64 @@ DISPLAY_FINGERPRINTS = {
     "3440x1440@144_SAM": "ODYSSEY_G7_UW",
     "3440x1440@165_Samsung": "ODYSSEY_G7_UW",
     "3440x1440@165_SAM": "ODYSSEY_G7_UW",
-
     # ===========================================
     # Professional / Photo Editing Monitors
     # ===========================================
-
     # Dell U2723QE - 4K 60Hz IPS (sRGB professional)
     "3840x2160@60_Dell": "U2723QE",
     "3840x2160@60_DEL": "U2723QE",
-
     # BenQ SW271C - 4K 60Hz IPS (Photo editing)
     "3840x2160@60_BenQ_SW": "SW271C",
     "3840x2160@60_BNQ_SW": "SW271C",
-
     # EIZO CG2700S - 2560x1440 60Hz IPS (Professional reference)
     "2560x1440@60_EIZO": "CG2700S",
     "2560x1440@60_EIZ": "CG2700S",
-
     # Dell U3423WE - 3440x1440 60Hz IPS (Ultrawide professional)
     "3440x1440@60_Dell": "U3423WE",
     "3440x1440@60_DEL": "U3423WE",
-
     # ViewSonic VP2786-4K - 4K 60Hz IPS (Professional)
     "3840x2160@60_ViewSonic": "VP2786",
     "3840x2160@60_VSC": "VP2786",
-
     # ===========================================
     # Gaming IPS / Nano-IPS Monitors
     # ===========================================
-
     # ASUS VG27AQ1A - 2K 170Hz IPS (Gaming)
     "2560x1440@170_ASUS": "VG27AQ1A",
     "2560x1440@170_AUS": "VG27AQ1A",
-
     # LG 27GP850-B - 2K 165Hz Nano IPS (Gaming)
     "2560x1440@165_LG": "27GP850",
     "2560x1440@165_GSM": "27GP850",
-
     # MSI MAG 274QRF-QD - 2K 165Hz QD-IPS
     "2560x1440@165_MSI": "274QRF_QD",
-
     # Gigabyte M28U - 4K 144Hz IPS (Budget 4K gaming)
     "3840x2160@144_Gigabyte": "M28U",
-
     # ===========================================
     # Gaming VA Monitors
     # ===========================================
-
     # Samsung Odyssey G7 27" - 2K 240Hz VA (Gaming)
     "2560x1440@240_Samsung": "ODYSSEY_G7_27",
     "2560x1440@240_SAM": "ODYSSEY_G7_27",
-
     # Dell S2722DGM - 2K 165Hz VA (Budget gaming)
     "2560x1440@165_Dell": "S2722DGM",
     "2560x1440@165_DEL": "S2722DGM",
-
     # ===========================================
     # QD-OLED TVs
     # ===========================================
-
     # Sony A95L - 4K 120Hz QD-OLED TV
     "3840x2160@120_Sony": "SONY_A95L",
     "3840x2160@120_SNY": "SONY_A95L",
-
     # Samsung S95D - 4K 144Hz QD-OLED TV
     "3840x2160@144_Samsung": "S95D",
     "3840x2160@144_SAM": "S95D",
-
     # ===========================================
     # QD-OLED Ultrawide Monitors
     # ===========================================
-
     # ASUS PG34WCDM - 3440x1440 240Hz QD-OLED
     "3440x1440@240_ASUS": "PG34WCDM",
     "3440x1440@240_AUS": "PG34WCDM",
-
     # ===========================================
     # WOLED Monitors
     # ===========================================
-
     # LG 32GS95UE - 4K 240Hz WOLED 32"
     "3840x2160@240_LG_32": "32GS95UE",
     "3840x2160@240_GSM_32": "32GS95UE",
@@ -789,16 +759,51 @@ DISPLAY_FINGERPRINTS = {
 # Known OLED models (for panel type detection when EDID doesn't specify)
 KNOWN_OLED_MODELS = {
     # QD-OLED
-    "PG27UCDM", "PG32UCDM", "G80SD", "G85SB", "G95SC", "AW3423DW", "AW3225QF",
-    "MEG342C", "XENEON34", "FO32U2P", "PG34WCDM", "QD-OLED",
+    "PG27UCDM",
+    "PG32UCDM",
+    "G80SD",
+    "G85SB",
+    "G95SC",
+    "AW3423DW",
+    "AW3225QF",
+    "MEG342C",
+    "XENEON34",
+    "FO32U2P",
+    "PG34WCDM",
+    "QD-OLED",
     # WOLED
-    "27GR95QE", "45GR95QE", "32GS95UE", "C1", "C2", "C3", "C4", "G1", "G2", "G3", "G4",
-    "A80K", "A90K", "A95K", "A80L", "A95L", "S95B", "S95C", "S95D",
+    "27GR95QE",
+    "45GR95QE",
+    "32GS95UE",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "A80K",
+    "A90K",
+    "A95K",
+    "A80L",
+    "A95L",
+    "S95B",
+    "S95C",
+    "S95D",
 }
 
 KNOWN_MINI_LED_MODELS = {
-    "PA32UCG", "XDR", "Pro Display XDR", "INZONE_M9", "M32U", "PG32UCDP",
-    "PD32M", "U32R59", "M80C", "NEO G9",
+    "PA32UCG",
+    "XDR",
+    "Pro Display XDR",
+    "INZONE_M9",
+    "M32U",
+    "PG32UCDP",
+    "PD32M",
+    "U32R59",
+    "M80C",
+    "NEO G9",
 }
 
 
@@ -832,7 +837,9 @@ def detect_panel_type(model_name: str, manufacturer: str, edid_info: dict = None
     for known in KNOWN_OLED_MODELS:
         if known.upper() in model_upper:
             # Determine QD-OLED vs WOLED
-            if any(x in mfg_upper for x in ["SAMSUNG", "SAM", "DELL", "DEL", "ASUS", "AUS", "MSI", "CORSAIR", "GIGABYTE"]):
+            if any(
+                x in mfg_upper for x in ["SAMSUNG", "SAM", "DELL", "DEL", "ASUS", "AUS", "MSI", "CORSAIR", "GIGABYTE"]
+            ):
                 return "QD-OLED"
             elif any(x in mfg_upper for x in ["LG", "GSM", "SONY", "SNY"]):
                 return "WOLED"
@@ -906,9 +913,10 @@ def calculate_panel_size(h_cm: int, v_cm: int) -> float:
         Diagonal size in inches
     """
     import math
+
     if h_cm <= 0 or v_cm <= 0:
         return 0.0
-    diagonal_cm = math.sqrt(h_cm ** 2 + v_cm ** 2)
+    diagonal_cm = math.sqrt(h_cm**2 + v_cm**2)
     return round(diagonal_cm / 2.54, 1)
 
 
@@ -945,11 +953,7 @@ def enrich_display_info(display: DisplayInfo) -> DisplayInfo:
     display.panel_size_inches = calculate_panel_size(h_cm, v_cm)
 
     # Detect panel type
-    display.panel_type = detect_panel_type(
-        display.monitor_name,
-        display.manufacturer,
-        edid_info
-    )
+    display.panel_type = detect_panel_type(display.monitor_name, display.manufacturer, edid_info)
 
     # Detect connection type
     display.connection_type = detect_connection_type(display.device_id)
@@ -1128,6 +1132,7 @@ def get_display_by_number(number: int) -> DisplayInfo | None:
             return display
     return None
 
+
 # =============================================================================
 # ICC Profile Management
 # =============================================================================
@@ -1259,13 +1264,16 @@ def list_installed_profiles() -> list[Path]:
         return list(color_dir.glob("*.icc")) + list(color_dir.glob("*.icm"))
     return []
 
+
 # =============================================================================
 # Gamma Ramp
 # =============================================================================
 
 if sys.platform == "win32":
+
     class GAMMA_RAMP(ctypes.Structure):
         """Windows gamma ramp structure (256 entries per channel)."""
+
         _fields_ = [
             ("Red", wintypes.WORD * 256),
             ("Green", wintypes.WORD * 256),
@@ -1291,6 +1299,7 @@ def get_gamma_ramp(device_name: str) -> tuple | None:
 
             if result:
                 import numpy as np
+
                 red = np.array(ramp.Red[:], dtype=np.uint16)
                 green = np.array(ramp.Green[:], dtype=np.uint16)
                 blue = np.array(ramp.Blue[:], dtype=np.uint16)
@@ -1304,12 +1313,7 @@ def get_gamma_ramp(device_name: str) -> tuple | None:
     return None
 
 
-def set_gamma_ramp(
-    device_name: str,
-    red: np.ndarray,
-    green: np.ndarray,
-    blue: np.ndarray
-) -> bool:
+def set_gamma_ramp(device_name: str, red: np.ndarray, green: np.ndarray, blue: np.ndarray) -> bool:
     """
     Set the gamma ramp for a display.
 
@@ -1354,6 +1358,7 @@ def set_gamma_ramp(
 def reset_gamma_ramp(device_name: str) -> bool:
     """Reset gamma ramp to linear (identity)."""
     import numpy as np
+
     linear = np.linspace(0, 65535, 256, dtype=np.uint16)
     return set_gamma_ramp(device_name, linear, linear, linear)
 
@@ -1361,6 +1366,7 @@ def reset_gamma_ramp(device_name: str) -> bool:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def get_display_name(display: DisplayInfo) -> str:
     """
@@ -1381,6 +1387,7 @@ def get_display_name(display: DisplayInfo) -> str:
     panel_key = identify_display(display)
     if panel_key:
         from calibrate_pro.panels.database import PanelDatabase
+
         db = PanelDatabase()
         panel = db.get_panel(panel_key)
         if panel and panel.manufacturer != "Generic":
@@ -1411,6 +1418,7 @@ def print_display_info():
         panel_key = identify_display(display)
         if panel_key:
             from calibrate_pro.panels.database import PanelDatabase
+
             db = PanelDatabase()
             panel = db.get_panel(panel_key)
             if panel:

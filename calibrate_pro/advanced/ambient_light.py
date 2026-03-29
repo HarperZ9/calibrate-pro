@@ -21,47 +21,53 @@ from enum import Enum, auto
 # Enums
 # =============================================================================
 
+
 class AmbientCondition(Enum):
     """Ambient lighting conditions."""
-    DARK = auto()           # <50 lux (home theater, night)
-    DIM = auto()            # 50-200 lux (dim room, evening)
-    OFFICE = auto()         # 200-500 lux (typical office)
-    BRIGHT = auto()         # 500-1000 lux (bright office, daylight)
-    VERY_BRIGHT = auto()    # >1000 lux (direct sunlight)
+
+    DARK = auto()  # <50 lux (home theater, night)
+    DIM = auto()  # 50-200 lux (dim room, evening)
+    OFFICE = auto()  # 200-500 lux (typical office)
+    BRIGHT = auto()  # 500-1000 lux (bright office, daylight)
+    VERY_BRIGHT = auto()  # >1000 lux (direct sunlight)
 
 
 class AdaptationMode(Enum):
     """Adaptation behavior mode."""
-    MANUAL = auto()         # User manually switches profiles
-    AUTO_SENSOR = auto()    # Automatic based on light sensor
-    SCHEDULED = auto()      # Time-based scheduling
-    CIRCADIAN = auto()      # Follows circadian rhythm
-    HYBRID = auto()         # Sensor + schedule combined
+
+    MANUAL = auto()  # User manually switches profiles
+    AUTO_SENSOR = auto()  # Automatic based on light sensor
+    SCHEDULED = auto()  # Time-based scheduling
+    CIRCADIAN = auto()  # Follows circadian rhythm
+    HYBRID = auto()  # Sensor + schedule combined
 
 
 class ProfileType(Enum):
     """Display profile type for different conditions."""
-    DAY = auto()            # Daytime/bright conditions
-    NIGHT = auto()          # Nighttime/dark conditions
-    HDR = auto()            # HDR content
-    SDR = auto()            # SDR content
-    CINEMA = auto()         # Dark room movie watching
-    PHOTO = auto()          # Photo editing (D50/D65)
-    VIDEO = auto()          # Video editing (D65)
-    GAMING = auto()         # Gaming optimized
-    READING = auto()        # Reduced blue light
-    CUSTOM = auto()         # User-defined
+
+    DAY = auto()  # Daytime/bright conditions
+    NIGHT = auto()  # Nighttime/dark conditions
+    HDR = auto()  # HDR content
+    SDR = auto()  # SDR content
+    CINEMA = auto()  # Dark room movie watching
+    PHOTO = auto()  # Photo editing (D50/D65)
+    VIDEO = auto()  # Video editing (D65)
+    GAMING = auto()  # Gaming optimized
+    READING = auto()  # Reduced blue light
+    CUSTOM = auto()  # User-defined
 
 
 # =============================================================================
 # Data Classes
 # =============================================================================
 
+
 @dataclass
 class AmbientReading:
     """Single ambient light sensor reading."""
+
     timestamp: datetime
-    lux: float              # Illuminance in lux
+    lux: float  # Illuminance in lux
     cct: float | None = None  # Color temperature if available
     condition: AmbientCondition = AmbientCondition.OFFICE
 
@@ -72,14 +78,15 @@ class AmbientReading:
 @dataclass
 class DisplayProfile:
     """Display calibration profile."""
+
     name: str
     profile_type: ProfileType
 
     # Target parameters
-    whitepoint_cct: float = 6500    # Target CCT in Kelvin
-    gamma: float = 2.2              # Target gamma
-    luminance: float = 120          # Target peak luminance cd/m²
-    black_level: float = 0.5        # Target black level cd/m²
+    whitepoint_cct: float = 6500  # Target CCT in Kelvin
+    gamma: float = 2.2  # Target gamma
+    luminance: float = 120  # Target peak luminance cd/m²
+    black_level: float = 0.5  # Target black level cd/m²
 
     # ICC profile path
     icc_path: str | None = None
@@ -89,7 +96,7 @@ class DisplayProfile:
 
     # Conditions when this profile should be active
     min_lux: float = 0
-    max_lux: float = float('inf')
+    max_lux: float = float("inf")
     start_time: time | None = None
     end_time: time | None = None
 
@@ -107,6 +114,7 @@ class DisplayProfile:
 @dataclass
 class ScheduleEntry:
     """Time-based profile schedule entry."""
+
     start_time: time
     end_time: time
     profile_name: str
@@ -129,6 +137,7 @@ class ScheduleEntry:
 @dataclass
 class CircadianSettings:
     """Circadian rhythm adaptation settings."""
+
     enabled: bool = True
 
     # Transition times
@@ -152,6 +161,7 @@ class CircadianSettings:
 @dataclass
 class AdaptationState:
     """Current adaptation system state."""
+
     mode: AdaptationMode
     active_profile: DisplayProfile | None = None
     current_lux: float = 300
@@ -180,7 +190,7 @@ LUX_THRESHOLDS = {
     AmbientCondition.DIM: (50, 200),
     AmbientCondition.OFFICE: (200, 500),
     AmbientCondition.BRIGHT: (500, 1000),
-    AmbientCondition.VERY_BRIGHT: (1000, float('inf')),
+    AmbientCondition.VERY_BRIGHT: (1000, float("inf")),
 }
 
 
@@ -215,7 +225,7 @@ PRESET_PROFILES: dict[str, DisplayProfile] = {
         gamma=2.2,
         luminance=120,
         min_lux=200,
-        max_lux=float('inf'),
+        max_lux=float("inf"),
         blue_light_filter=0,
         priority=10,
     ),
@@ -281,6 +291,7 @@ PRESET_PROFILES: dict[str, DisplayProfile] = {
 # Ambient Light Sensor Interface
 # =============================================================================
 
+
 class AmbientSensor:
     """
     Abstract ambient light sensor interface.
@@ -343,6 +354,7 @@ class SimulatedSensor(AmbientSensor):
     def read(self) -> AmbientReading:
         """Read simulated ambient light."""
         import random
+
         # Add some variation
         lux = self.base_lux + random.gauss(0, self.base_lux * 0.1)
         lux = max(1, lux)
@@ -424,6 +436,7 @@ class WindowsLightSensor(AmbientSensor):
 # Adaptation Controller
 # =============================================================================
 
+
 class AdaptationController:
     """
     Controls automatic display adaptation based on ambient conditions.
@@ -432,9 +445,7 @@ class AdaptationController:
     between different display states.
     """
 
-    def __init__(self,
-                 mode: AdaptationMode = AdaptationMode.MANUAL,
-                 sensor: AmbientSensor | None = None):
+    def __init__(self, mode: AdaptationMode = AdaptationMode.MANUAL, sensor: AmbientSensor | None = None):
         """
         Initialize adaptation controller.
 
@@ -460,7 +471,7 @@ class AdaptationController:
 
         # Smoothing parameters
         self.smoothing_window = 5  # Number of readings to average
-        self.hysteresis_lux = 50   # Lux change required to switch
+        self.hysteresis_lux = 50  # Lux change required to switch
 
         # Callbacks
         self._profile_changed_callbacks: list[Callable[[DisplayProfile], None]] = []
@@ -524,8 +535,7 @@ class AdaptationController:
     # Circadian Adaptation
     # =========================================================================
 
-    def calculate_circadian_settings(self,
-                                     dt: datetime | None = None) -> dict[str, float]:
+    def calculate_circadian_settings(self, dt: datetime | None = None) -> dict[str, float]:
         """
         Calculate display settings based on circadian rhythm.
 
@@ -643,7 +653,7 @@ class AdaptationController:
 
     def _get_profile_center_lux(self, profile: DisplayProfile) -> float:
         """Get center lux value for a profile's range."""
-        if profile.max_lux == float('inf'):
+        if profile.max_lux == float("inf"):
             return profile.min_lux + 500
         return (profile.min_lux + profile.max_lux) / 2
 
@@ -674,13 +684,11 @@ class AdaptationController:
     # Callbacks
     # =========================================================================
 
-    def add_profile_changed_callback(self,
-                                     callback: Callable[[DisplayProfile], None]) -> None:
+    def add_profile_changed_callback(self, callback: Callable[[DisplayProfile], None]) -> None:
         """Add callback for profile changes."""
         self._profile_changed_callbacks.append(callback)
 
-    def remove_profile_changed_callback(self,
-                                        callback: Callable[[DisplayProfile], None]) -> None:
+    def remove_profile_changed_callback(self, callback: Callable[[DisplayProfile], None]) -> None:
         """Remove callback."""
         if callback in self._profile_changed_callbacks:
             self._profile_changed_callbacks.remove(callback)
@@ -732,21 +740,23 @@ class AdaptationController:
                     "icc_path": profile.icc_path,
                     "lut_path": profile.lut_path,
                     "min_lux": profile.min_lux,
-                    "max_lux": profile.max_lux if profile.max_lux != float('inf') else None,
+                    "max_lux": profile.max_lux if profile.max_lux != float("inf") else None,
                     "blue_light_filter": profile.blue_light_filter,
                     "priority": profile.priority,
                 }
 
         # Save schedule
         for entry in self.schedule:
-            config["schedule"].append({
-                "start_time": entry.start_time.isoformat(),
-                "end_time": entry.end_time.isoformat(),
-                "profile_name": entry.profile_name,
-                "days": entry.days,
-            })
+            config["schedule"].append(
+                {
+                    "start_time": entry.start_time.isoformat(),
+                    "end_time": entry.end_time.isoformat(),
+                    "profile_name": entry.profile_name,
+                    "days": entry.days,
+                }
+            )
 
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(config, f, indent=2)
 
     def load_config(self, path: str) -> None:
@@ -786,7 +796,7 @@ class AdaptationController:
                 icc_path=pdata.get("icc_path"),
                 lut_path=pdata.get("lut_path"),
                 min_lux=pdata.get("min_lux", 0),
-                max_lux=pdata.get("max_lux") or float('inf'),
+                max_lux=pdata.get("max_lux") or float("inf"),
                 blue_light_filter=pdata.get("blue_light_filter", 0),
                 priority=pdata.get("priority", 0),
             )
@@ -811,6 +821,7 @@ class AdaptationController:
 # =============================================================================
 # Utility Functions
 # =============================================================================
+
 
 def create_default_schedule() -> list[ScheduleEntry]:
     """Create a default day/night schedule."""
@@ -863,10 +874,7 @@ def print_adaptation_status(controller: AdaptationController) -> None:
 
 if __name__ == "__main__":
     # Test adaptation controller
-    controller = AdaptationController(
-        mode=AdaptationMode.AUTO_SENSOR,
-        sensor=SimulatedSensor(base_lux=300)
-    )
+    controller = AdaptationController(mode=AdaptationMode.AUTO_SENSOR, sensor=SimulatedSensor(base_lux=300))
 
     # Add schedule
     for entry in create_default_schedule():
@@ -884,7 +892,9 @@ if __name__ == "__main__":
         if profile:
             print(f"Lux {lux} -> Switched to: {profile.name}")
         else:
-            print(f"Lux {lux} -> No change (current: {controller.active_profile.name if controller.active_profile else 'None'})")
+            print(
+                f"Lux {lux} -> No change (current: {controller.active_profile.name if controller.active_profile else 'None'})"
+            )
 
     print_adaptation_status(controller)
 
@@ -893,6 +903,8 @@ if __name__ == "__main__":
     for hour in [0, 6, 7, 12, 19, 20, 21]:
         dt = datetime.now().replace(hour=hour, minute=0)
         settings = controller.calculate_circadian_settings(dt)
-        print(f"  {hour:02d}:00 - CCT: {settings['cct']:.0f}K, "
-              f"Lum: {settings['luminance']:.0f}, "
-              f"Blend: {settings['blend']:.1%}")
+        print(
+            f"  {hour:02d}:00 - CCT: {settings['cct']:.0f}K, "
+            f"Lum: {settings['luminance']:.0f}, "
+            f"Blend: {settings['blend']:.1%}"
+        )

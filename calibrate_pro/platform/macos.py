@@ -39,6 +39,7 @@ def _have_quartz() -> bool:
     """Check if Quartz (CoreGraphics) bindings are available."""
     try:
         import Quartz  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -60,16 +61,11 @@ class MacOSBackend(PlatformBackend):
         try:
             import Quartz
         except ImportError:
-            logger.error(
-                "pyobjc-framework-Quartz not installed. "
-                "Run: pip install pyobjc-framework-Quartz"
-            )
+            logger.error("pyobjc-framework-Quartz not installed. Run: pip install pyobjc-framework-Quartz")
             return []
 
         max_displays = 16
-        (err, display_ids, count) = Quartz.CGGetActiveDisplayList(
-            max_displays, None, None
-        )
+        (err, display_ids, count) = Quartz.CGGetActiveDisplayList(max_displays, None, None)
         if err != 0:
             logger.error("CGGetActiveDisplayList failed: error %d", err)
             return []
@@ -108,22 +104,24 @@ class MacOSBackend(PlatformBackend):
             # Current ICC profile
             icc_path = self._get_colorsync_profile_path(did)
 
-            results.append(PlatformDisplayInfo(
-                index=i,
-                name=name,
-                device_path=str(did),
-                is_primary=(did == main_display),
-                width=width,
-                height=height,
-                refresh_rate=int(refresh),
-                bit_depth=Quartz.CGDisplayBitsPerPixel(did) if hasattr(Quartz, 'CGDisplayBitsPerPixel') else 8,
-                position_x=pos_x,
-                position_y=pos_y,
-                manufacturer=manufacturer,
-                model=model,
-                serial=serial,
-                current_icc_profile=icc_path,
-            ))
+            results.append(
+                PlatformDisplayInfo(
+                    index=i,
+                    name=name,
+                    device_path=str(did),
+                    is_primary=(did == main_display),
+                    width=width,
+                    height=height,
+                    refresh_rate=int(refresh),
+                    bit_depth=Quartz.CGDisplayBitsPerPixel(did) if hasattr(Quartz, "CGDisplayBitsPerPixel") else 8,
+                    position_x=pos_x,
+                    position_y=pos_y,
+                    manufacturer=manufacturer,
+                    model=model,
+                    serial=serial,
+                    current_icc_profile=icc_path,
+                )
+            )
 
         return results
 
@@ -155,9 +153,7 @@ class MacOSBackend(PlatformBackend):
         g_table = [g / 65535.0 for g in green]
         b_table = [b / 65535.0 for b in blue]
 
-        err = Quartz.CGSetDisplayTransferByTable(
-            did, table_size, r_table, g_table, b_table
-        )
+        err = Quartz.CGSetDisplayTransferByTable(did, table_size, r_table, g_table, b_table)
         if err != 0:
             logger.error("CGSetDisplayTransferByTable failed: error %d", err)
             return False
@@ -210,7 +206,8 @@ class MacOSBackend(PlatformBackend):
         except Exception as e:
             logger.warning(
                 "Profile copied but could not auto-associate: %s. "
-                "Set it manually in System Settings > Displays > Color.", e
+                "Set it manually in System Settings > Displays > Color.",
+                e,
             )
 
         return True
@@ -230,10 +227,9 @@ class MacOSBackend(PlatformBackend):
         """Get CGDirectDisplayID for a display index."""
         try:
             import Quartz
+
             max_displays = 16
-            (err, display_ids, count) = Quartz.CGGetActiveDisplayList(
-                max_displays, None, None
-            )
+            (err, display_ids, count) = Quartz.CGGetActiveDisplayList(max_displays, None, None)
             if err == 0 and display_index < count:
                 return display_ids[display_index]
         except Exception as e:
@@ -255,10 +251,18 @@ class MacOSBackend(PlatformBackend):
 
             # Map common vendor IDs (PNP ID encoded as big-endian)
             vendor_map = {
-                1128: "Apple", 1262: "Samsung", 2513: "Acer",
-                3502: "BenQ", 4098: "HP", 4137: "LG",
-                4268: "Dell", 4743: "Lenovo", 5765: "Sony",
-                6476: "ViewSonic", 7789: "ASUS", 8478: "Gigabyte",
+                1128: "Apple",
+                1262: "Samsung",
+                2513: "Acer",
+                3502: "BenQ",
+                4098: "HP",
+                4137: "LG",
+                4268: "Dell",
+                4743: "Lenovo",
+                5765: "Sony",
+                6476: "ViewSonic",
+                7789: "ASUS",
+                8478: "Gigabyte",
                 1189: "EIZO",
             }
             manufacturer = vendor_map.get(vendor_id, "")
@@ -268,9 +272,7 @@ class MacOSBackend(PlatformBackend):
                 # CGDisplayIOServicePort is deprecated but still works on macOS < 14
                 service = Quartz.CGDisplayIOServicePort(display_id)
                 if service:
-                    info = Quartz.IODisplayCreateInfoDictionary(
-                        service, Quartz.kIODisplayOnlyPreferredName
-                    )
+                    info = Quartz.IODisplayCreateInfoDictionary(service, Quartz.kIODisplayOnlyPreferredName)
                     if info:
                         names = info.get("DisplayProductName", {})
                         if names:
@@ -293,6 +295,7 @@ class MacOSBackend(PlatformBackend):
         """Get the current ColorSync profile path for a display."""
         try:
             import Quartz
+
             # CGDisplayCopyColorSpace returns a CGColorSpaceRef
             # We can get the ICC profile data from it
             colorspace = Quartz.CGDisplayCopyColorSpace(display_id)
@@ -333,12 +336,11 @@ class MacOSBackend(PlatformBackend):
                 return
 
             profile_url = NSURL.fileURLWithPath_(str(profile_path))
-            profile_info = NSDictionary.dictionaryWithObject_forKey_(
-                profile_url, kColorSyncDeviceDefaultProfileID
-            )
+            profile_info = NSDictionary.dictionaryWithObject_forKey_(profile_url, kColorSyncDeviceDefaultProfileID)
 
             # Create UUID from display ID
             import uuid
+
             display_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"display-{did}"))
 
             ColorSyncDeviceSetCustomProfiles(
@@ -358,6 +360,7 @@ class MacOSBackend(PlatformBackend):
 # macOS Startup Persistence (launchd)
 # =============================================================================
 
+
 def enable_macos_startup(silent: bool = True) -> bool:
     """Register Calibrate Pro as a macOS login item via launchd plist."""
     import plistlib
@@ -367,11 +370,10 @@ def enable_macos_startup(silent: bool = True) -> bool:
     plist_dir.mkdir(parents=True, exist_ok=True)
     plist_path = plist_dir / "com.quantauniverse.calibratepro.plist"
 
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         program = [str(Path(sys.executable))]
     else:
-        program = [sys.executable, "-m", "calibrate_pro.startup.calibration_loader",
-                    "start-service"]
+        program = [sys.executable, "-m", "calibrate_pro.startup.calibration_loader", "start-service"]
         if silent:
             program.append("--silent")
 

@@ -31,9 +31,11 @@ logger = logging.getLogger("CalibratePro.AmbientLight")
 # Lighting presets for manual mode
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class LightingPreset:
     """A named ambient lighting environment."""
+
     name: str
     description: str
     lux_low: float
@@ -85,6 +87,7 @@ LIGHTING_PRESETS: dict[str, LightingPreset] = {
 # ---------------------------------------------------------------------------
 # Sensor backends
 # ---------------------------------------------------------------------------
+
 
 class _WindowsSensorBackend:
     """Read ambient light from the Windows WMI light sensor."""
@@ -158,10 +161,7 @@ class _USBSensorBackend:
         devices like the X-Rite i1Display Pro or Datacolor SpyderX via
         their USB HID interface (or via ArgyllCMS ``spotread``).
         """
-        logger.warning(
-            "USB ambient light sensor support is not yet implemented. "
-            "Use 'manual' mode instead."
-        )
+        logger.warning("USB ambient light sensor support is not yet implemented. Use 'manual' mode instead.")
         return None
 
 
@@ -182,10 +182,7 @@ class _ManualBackend:
             ``"living_room"``, ``"dark_room"``.
         """
         if preset_name not in LIGHTING_PRESETS:
-            raise ValueError(
-                f"Unknown preset '{preset_name}'. "
-                f"Valid presets: {list(LIGHTING_PRESETS.keys())}"
-            )
+            raise ValueError(f"Unknown preset '{preset_name}'. Valid presets: {list(LIGHTING_PRESETS.keys())}")
         self._preset = LIGHTING_PRESETS[preset_name]
         logger.info("Manual ambient light set to '%s'", preset_name)
 
@@ -199,6 +196,7 @@ class _ManualBackend:
 # ---------------------------------------------------------------------------
 # Public AmbientLightService
 # ---------------------------------------------------------------------------
+
 
 class AmbientLightService:
     """
@@ -223,10 +221,7 @@ class AmbientLightService:
         elif self.sensor_type == "manual":
             self._backend = _ManualBackend()
         else:
-            raise ValueError(
-                f"Unknown sensor_type '{sensor_type}'. "
-                f"Valid types: 'windows', 'usb', 'manual'."
-            )
+            raise ValueError(f"Unknown sensor_type '{sensor_type}'. Valid types: 'windows', 'usb', 'manual'.")
 
     # --- Manual-mode helpers ---
 
@@ -243,9 +238,7 @@ class AmbientLightService:
             ``"living_room"``, ``"dark_room"``.
         """
         if not isinstance(self._backend, _ManualBackend):
-            raise RuntimeError(
-                "set_manual_preset() is only available in 'manual' mode."
-            )
+            raise RuntimeError("set_manual_preset() is only available in 'manual' mode.")
         self._backend.set_preset(preset_name)
 
     # --- Core API ---
@@ -413,7 +406,4 @@ class AmbientLightService:
         dict
             ``{preset_name: description}``
         """
-        return {
-            name: preset.description
-            for name, preset in LIGHTING_PRESETS.items()
-        }
+        return {name: preset.description for name, preset in LIGHTING_PRESETS.items()}

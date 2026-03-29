@@ -22,24 +22,27 @@ import numpy as np
 # Data Structures
 # =============================================================================
 
+
 class CalibrationPhase(Enum):
     """Phases of hardware calibration."""
+
     INITIALIZE = auto()
-    MEASURE_NATIVE = auto()          # Measure display in native state
-    ADJUST_BRIGHTNESS = auto()       # Set target luminance
-    ADJUST_CONTRAST = auto()         # Set contrast/black level
-    ADJUST_WHITE_BALANCE = auto()    # Adjust RGB gains for D65
-    ADJUST_GRAYSCALE = auto()        # Fine-tune grayscale tracking
-    MEASURE_PRIMARIES = auto()       # Measure R, G, B primaries
-    GENERATE_PROFILE = auto()        # Create ICC profile
-    GENERATE_LUT = auto()            # Create 3D LUT for gamut mapping
-    VERIFY = auto()                  # Final verification measurements
+    MEASURE_NATIVE = auto()  # Measure display in native state
+    ADJUST_BRIGHTNESS = auto()  # Set target luminance
+    ADJUST_CONTRAST = auto()  # Set contrast/black level
+    ADJUST_WHITE_BALANCE = auto()  # Adjust RGB gains for D65
+    ADJUST_GRAYSCALE = auto()  # Fine-tune grayscale tracking
+    MEASURE_PRIMARIES = auto()  # Measure R, G, B primaries
+    GENERATE_PROFILE = auto()  # Create ICC profile
+    GENERATE_LUT = auto()  # Create 3D LUT for gamut mapping
+    VERIFY = auto()  # Final verification measurements
     COMPLETE = auto()
 
 
 @dataclass
 class CalibrationTargets:
     """Target values for calibration."""
+
     # White point
     whitepoint: str = "D65"
     whitepoint_x: float = 0.3127
@@ -58,17 +61,18 @@ class CalibrationTargets:
     gamut: str = "sRGB"
 
     # Tolerances
-    delta_e_target: float = 1.0      # Maximum acceptable Delta E
+    delta_e_target: float = 1.0  # Maximum acceptable Delta E
     luminance_tolerance: float = 0.02  # 2% luminance tolerance
-    cct_tolerance: int = 100          # +/- 100K CCT tolerance
+    cct_tolerance: int = 100  # +/- 100K CCT tolerance
 
     # Grayscale tracking
-    grayscale_steps: int = 21         # Number of grayscale test points
+    grayscale_steps: int = 21  # Number of grayscale test points
 
 
 @dataclass
 class MeasurementResult:
     """Result from a single color measurement."""
+
     # Input RGB (0-255)
     r: int = 0
     g: int = 0
@@ -106,6 +110,7 @@ class MeasurementResult:
 @dataclass
 class GrayscaleAnalysis:
     """Analysis of grayscale tracking."""
+
     # Per-step measurements
     measurements: list[MeasurementResult] = field(default_factory=list)
 
@@ -128,6 +133,7 @@ class GrayscaleAnalysis:
 @dataclass
 class CalibrationState:
     """Current state of DDC/CI settings."""
+
     brightness: int = 50
     contrast: int = 50
     red_gain: int = 100
@@ -143,6 +149,7 @@ class CalibrationState:
 @dataclass
 class HardwareCalibrationResult:
     """Results from hardware calibration process."""
+
     success: bool = False
     phase: CalibrationPhase = CalibrationPhase.INITIALIZE
     message: str = ""
@@ -180,11 +187,13 @@ D65_X = 95.047
 D65_Y = 100.0
 D65_Z = 108.883
 
+
 def xyz_to_lab(X: float, Y: float, Z: float) -> tuple[float, float, float]:
     """Convert XYZ to CIE Lab (D65 reference)."""
+
     def f(t):
         if t > 0.008856:
-            return t ** (1/3)
+            return t ** (1 / 3)
         else:
             return (903.3 * t + 16) / 116
 
@@ -253,28 +262,26 @@ def delta_e_2000(lab1: tuple[float, float, float], lab2: tuple[float, float, flo
     else:
         h_avg = (h1_prime + h2_prime - 360) / 2
 
-    T = (1 - 0.17 * np.cos(np.radians(h_avg - 30))
-         + 0.24 * np.cos(np.radians(2 * h_avg))
-         + 0.32 * np.cos(np.radians(3 * h_avg + 6))
-         - 0.20 * np.cos(np.radians(4 * h_avg - 63)))
+    T = (
+        1
+        - 0.17 * np.cos(np.radians(h_avg - 30))
+        + 0.24 * np.cos(np.radians(2 * h_avg))
+        + 0.32 * np.cos(np.radians(3 * h_avg + 6))
+        - 0.20 * np.cos(np.radians(4 * h_avg - 63))
+    )
 
-    dTheta = 30 * np.exp(-((h_avg - 275) / 25)**2)
+    dTheta = 30 * np.exp(-(((h_avg - 275) / 25) ** 2))
 
     R_C = 2 * np.sqrt(C_avg_prime**7 / (C_avg_prime**7 + 25**7))
 
-    S_L = 1 + (0.015 * (L_avg - 50)**2) / np.sqrt(20 + (L_avg - 50)**2)
+    S_L = 1 + (0.015 * (L_avg - 50) ** 2) / np.sqrt(20 + (L_avg - 50) ** 2)
     S_C = 1 + 0.045 * C_avg_prime
     S_H = 1 + 0.015 * C_avg_prime * T
 
     R_T = -np.sin(np.radians(2 * dTheta)) * R_C
 
     # Final calculation (kL = kC = kH = 1 for standard conditions)
-    dE = np.sqrt(
-        (dL / S_L)**2 +
-        (dC / S_C)**2 +
-        (dH / S_H)**2 +
-        R_T * (dC / S_C) * (dH / S_H)
-    )
+    dE = np.sqrt((dL / S_L) ** 2 + (dC / S_C) ** 2 + (dH / S_H) ** 2 + R_T * (dC / S_C) * (dH / S_H))
 
     return dE
 
@@ -289,13 +296,13 @@ def xy_to_cct(x: float, y: float) -> float:
 def cct_to_xy(cct: float) -> tuple[float, float]:
     """Calculate chromaticity from CCT (Planckian locus approximation)."""
     if cct < 4000:
-        x = -0.2661239e9/cct**3 - 0.2343589e6/cct**2 + 0.8776956e3/cct + 0.179910
+        x = -0.2661239e9 / cct**3 - 0.2343589e6 / cct**2 + 0.8776956e3 / cct + 0.179910
     elif cct < 7000:
-        x = -4.6070e9/cct**3 + 2.9678e6/cct**2 + 0.09911e3/cct + 0.244063
+        x = -4.6070e9 / cct**3 + 2.9678e6 / cct**2 + 0.09911e3 / cct + 0.244063
     else:
-        x = -2.0064e9/cct**3 + 1.9018e6/cct**2 + 0.24748e3/cct + 0.237040
+        x = -2.0064e9 / cct**3 + 1.9018e6 / cct**2 + 0.24748e3 / cct + 0.237040
 
-    y = -3.000*x**2 + 2.870*x - 0.275
+    y = -3.000 * x**2 + 2.870 * x - 0.275
 
     return (x, y)
 
@@ -303,6 +310,7 @@ def cct_to_xy(cct: float) -> tuple[float, float]:
 # =============================================================================
 # Hardware Calibration Engine
 # =============================================================================
+
 
 class HardwareCalibrationEngine:
     """
@@ -332,12 +340,7 @@ class HardwareCalibrationEngine:
         if self._progress_callback:
             self._progress_callback(msg, progress, phase)
 
-    def initialize(
-        self,
-        colorimeter=None,
-        ddc_controller=None,
-        display_index: int = 0
-    ) -> bool:
+    def initialize(self, colorimeter=None, ddc_controller=None, display_index: int = 0) -> bool:
         """
         Initialize calibration with measurement device and DDC controller.
 
@@ -375,7 +378,6 @@ class HardwareCalibrationEngine:
             return state
 
         try:
-
             settings = self._ddc_controller.get_settings(self._monitor)
             state.brightness = settings.brightness
             state.contrast = settings.contrast
@@ -396,6 +398,7 @@ class HardwareCalibrationEngine:
         if not self._ddc_controller or not self._monitor:
             return False
         from calibrate_pro.hardware.ddc_ci import VCPCode
+
         return self._ddc_controller.set_vcp(self._monitor, VCPCode.BRIGHTNESS, value)
 
     def _set_contrast(self, value: int) -> bool:
@@ -403,6 +406,7 @@ class HardwareCalibrationEngine:
         if not self._ddc_controller or not self._monitor:
             return False
         from calibrate_pro.hardware.ddc_ci import VCPCode
+
         return self._ddc_controller.set_vcp(self._monitor, VCPCode.CONTRAST, value)
 
     def _set_rgb_gain(self, r: int, g: int, b: int) -> bool:
@@ -430,19 +434,19 @@ class HardwareCalibrationEngine:
 
             if measurement:
                 result = MeasurementResult(
-                    r=r, g=g, b=b,
+                    r=r,
+                    g=g,
+                    b=b,
                     X=measurement.X,
                     Y=measurement.Y,
                     Z=measurement.Z,
                     x=measurement.x,
                     y=measurement.y,
-                    cct=measurement.cct if hasattr(measurement, 'cct') else 0
+                    cct=measurement.cct if hasattr(measurement, "cct") else 0,
                 )
 
                 # Calculate Lab
-                result.L, result.a, result.b = xyz_to_lab(
-                    measurement.X, measurement.Y, measurement.Z
-                )
+                result.L, result.a, result.b = xyz_to_lab(measurement.X, measurement.Y, measurement.Z)
 
                 return result
         except Exception:
@@ -451,11 +455,7 @@ class HardwareCalibrationEngine:
         return None
 
     def _calculate_white_balance_adjustment(
-        self,
-        measured_x: float,
-        measured_y: float,
-        target_x: float = 0.3127,
-        target_y: float = 0.3290
+        self, measured_x: float, measured_y: float, target_x: float = 0.3127, target_y: float = 0.3290
     ) -> tuple[int, int, int]:
         """
         Calculate RGB gain adjustments needed to reach target white point.
@@ -493,10 +493,7 @@ class HardwareCalibrationEngine:
         return (r_adj, g_adj, b_adj)
 
     def _calculate_brightness_for_luminance(
-        self,
-        current_luminance: float,
-        target_luminance: float,
-        current_brightness: int
+        self, current_luminance: float, target_luminance: float, current_brightness: int
     ) -> int:
         """
         Calculate brightness setting needed to reach target luminance.
@@ -514,9 +511,7 @@ class HardwareCalibrationEngine:
         return max(0, min(100, new_brightness))
 
     def run_hardware_calibration(
-        self,
-        targets: CalibrationTargets | None = None,
-        output_dir: Path | None = None
+        self, targets: CalibrationTargets | None = None, output_dir: Path | None = None
     ) -> HardwareCalibrationResult:
         """
         Run full hardware calibration with colorimeter feedback.
@@ -557,7 +552,9 @@ class HardwareCalibrationEngine:
             result.initial_state = self._read_current_state()
             result.phase = CalibrationPhase.INITIALIZE
             result.adjustments_log.append(f"Initial brightness: {result.initial_state.brightness}")
-            result.adjustments_log.append(f"Initial RGB gains: R={result.initial_state.red_gain}, G={result.initial_state.green_gain}, B={result.initial_state.blue_gain}")
+            result.adjustments_log.append(
+                f"Initial RGB gains: R={result.initial_state.red_gain}, G={result.initial_state.green_gain}, B={result.initial_state.blue_gain}"
+            )
 
             # Phase 2: Measure native white point
             self._report("Measuring native white point...", 0.10, CalibrationPhase.MEASURE_NATIVE)
@@ -620,7 +617,7 @@ class HardwareCalibrationEngine:
                     error = np.sqrt(dx**2 + dy**2)
 
                     if error < 0.003:  # Close enough to target
-                        result.adjustments_log.append(f"White balance converged after {iteration+1} iterations")
+                        result.adjustments_log.append(f"White balance converged after {iteration + 1} iterations")
                         break
 
                     # Calculate adjustment
@@ -661,7 +658,7 @@ class HardwareCalibrationEngine:
                         target_lab = xyz_to_lab(
                             targets.whitepoint_x * measurement.Y / targets.whitepoint_y,
                             measurement.Y,
-                            (1 - targets.whitepoint_x - targets.whitepoint_y) * measurement.Y / targets.whitepoint_y
+                            (1 - targets.whitepoint_x - targets.whitepoint_y) * measurement.Y / targets.whitepoint_y,
                         )
                         measured_lab = (measurement.L, measurement.a, measurement.b)
                         measurement.delta_e = delta_e_2000(target_lab, measured_lab)
@@ -689,16 +686,13 @@ class HardwareCalibrationEngine:
                     measurement = self._measure_patch(*rgb)
                     if measurement:
                         primaries[name] = (measurement.x, measurement.y, measurement.Y)
-                        result.adjustments_log.append(
-                            f"Primary {name}: x={measurement.x:.4f}, y={measurement.y:.4f}"
-                        )
+                        result.adjustments_log.append(f"Primary {name}: x={measurement.x:.4f}, y={measurement.y:.4f}")
 
             # Phase 7: Generate ICC profile
             self._report("Generating ICC profile...", 0.80, CalibrationPhase.GENERATE_PROFILE)
             result.phase = CalibrationPhase.GENERATE_PROFILE
 
             try:
-
                 profile_path = output_dir / "HardwareCalibrated.icc"
                 # Generate profile based on measurements or panel database
                 result.icc_profile_path = str(profile_path)
@@ -756,9 +750,7 @@ class HardwareCalibrationEngine:
         return result
 
     def run_quick_white_balance(
-        self,
-        target_x: float = 0.3127,
-        target_y: float = 0.3290
+        self, target_x: float = 0.3127, target_y: float = 0.3290
     ) -> tuple[bool, str, tuple[int, int, int]]:
         """
         Quick white balance adjustment using colorimeter.
@@ -788,12 +780,14 @@ class HardwareCalibrationEngine:
             error = np.sqrt(dx**2 + dy**2)
 
             if error < 0.003:
-                return True, f"White balance achieved after {iteration+1} iterations", (current_r, current_g, current_b)
+                return (
+                    True,
+                    f"White balance achieved after {iteration + 1} iterations",
+                    (current_r, current_g, current_b),
+                )
 
             # Calculate and apply adjustment
-            r_adj, g_adj, b_adj = self._calculate_white_balance_adjustment(
-                white.x, white.y, target_x, target_y
-            )
+            r_adj, g_adj, b_adj = self._calculate_white_balance_adjustment(white.x, white.y, target_x, target_y)
 
             current_r = max(0, min(100, current_r + r_adj))
             current_g = max(0, min(100, current_g + g_adj))
@@ -809,6 +803,7 @@ class HardwareCalibrationEngine:
 # Sensorless Estimation (when no colorimeter available)
 # =============================================================================
 
+
 class SensorlessEstimator:
     """
     Estimates calibration settings when no colorimeter is available.
@@ -818,10 +813,7 @@ class SensorlessEstimator:
     """
 
     @staticmethod
-    def estimate_rgb_gains_for_d65(
-        panel_type: str = "IPS",
-        native_cct: int = 6500
-    ) -> tuple[int, int, int]:
+    def estimate_rgb_gains_for_d65(panel_type: str = "IPS", native_cct: int = 6500) -> tuple[int, int, int]:
         """
         Estimate RGB gains needed to achieve D65 white point.
 
@@ -849,9 +841,7 @@ class SensorlessEstimator:
 
     @staticmethod
     def estimate_brightness_for_luminance(
-        panel_type: str,
-        target_luminance: float,
-        max_luminance: float = 400.0
+        panel_type: str, target_luminance: float, max_luminance: float = 400.0
     ) -> int:
         """
         Estimate brightness setting for target luminance.

@@ -59,8 +59,8 @@ class CalibrationProfileCard(QFrame):
     def _setup_ui(self):
         self.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 12px;
             }}
         """)
@@ -80,7 +80,7 @@ class CalibrationProfileCard(QFrame):
 
         self.status_label = QLabel("Loading...")
         self.status_label.setStyleSheet(f"""
-            background-color: {COLORS['surface_alt']};
+            background-color: {COLORS["surface_alt"]};
             padding: 6px 12px;
             border-radius: 12px;
             font-weight: 600;
@@ -138,8 +138,8 @@ class CalibrationProfileCard(QFrame):
         self.correction_table.setMaximumHeight(150)
         self.correction_table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {COLORS['surface_alt']};
-                border: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface_alt"]};
+                border: 1px solid {COLORS["border"]};
                 border-radius: 6px;
             }}
         """)
@@ -177,6 +177,7 @@ class CalibrationProfileCard(QFrame):
         """Load calibration profile data for this display."""
         try:
             import sys
+
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
@@ -203,7 +204,7 @@ class CalibrationProfileCard(QFrame):
             if profile.is_calibrated:
                 self.status_label.setText("CALIBRATED")
                 self.status_label.setStyleSheet(f"""
-                    background-color: {COLORS['success']};
+                    background-color: {COLORS["success"]};
                     color: white;
                     padding: 6px 12px;
                     border-radius: 12px;
@@ -212,7 +213,7 @@ class CalibrationProfileCard(QFrame):
             else:
                 self.status_label.setText("NOT CALIBRATED")
                 self.status_label.setStyleSheet(f"""
-                    background-color: {COLORS['warning']};
+                    background-color: {COLORS["warning"]};
                     color: white;
                     padding: 6px 12px;
                     border-radius: 12px;
@@ -275,7 +276,7 @@ class CalibrationProfileCard(QFrame):
         """Show message when no profile is available."""
         self.status_label.setText("NO PROFILE")
         self.status_label.setStyleSheet(f"""
-            background-color: {COLORS['error']};
+            background-color: {COLORS["error"]};
             color: white;
             padding: 6px 12px;
             border-radius: 12px;
@@ -286,19 +287,14 @@ class CalibrationProfileCard(QFrame):
         """Fill the corrections table with color data."""
         colors = ["Red", "Green", "Blue", "White"]
 
-        srgb = {
-            "Red": (0.64, 0.33),
-            "Green": (0.30, 0.60),
-            "Blue": (0.15, 0.06),
-            "White": (0.3127, 0.3290)
-        }
+        srgb = {"Red": (0.64, 0.33), "Green": (0.30, 0.60), "Blue": (0.15, 0.06), "White": (0.3127, 0.3290)}
 
         if panel:
             native = {
                 "Red": (panel.native_primaries.red.x, panel.native_primaries.red.y),
                 "Green": (panel.native_primaries.green.x, panel.native_primaries.green.y),
                 "Blue": (panel.native_primaries.blue.x, panel.native_primaries.blue.y),
-                "White": (panel.native_primaries.white.x, panel.native_primaries.white.y)
+                "White": (panel.native_primaries.white.x, panel.native_primaries.white.y),
             }
         else:
             native = srgb
@@ -313,10 +309,11 @@ class CalibrationProfileCard(QFrame):
             self.correction_table.setItem(i, 2, QTableWidgetItem(f"({sx:.3f}, {sy:.3f})"))
 
             import math
-            delta = math.sqrt((sx - nx)**2 + (sy - ny)**2)
+
+            delta = math.sqrt((sx - nx) ** 2 + (sy - ny) ** 2)
             delta_item = QTableWidgetItem(f"{delta:.4f}")
             if delta > 0.01:
-                delta_item.setForeground(QColor(COLORS['warning']))
+                delta_item.setForeground(QColor(COLORS["warning"]))
             self.correction_table.setItem(i, 3, delta_item)
 
     def _reload_lut(self):
@@ -332,15 +329,14 @@ class CalibrationProfileCard(QFrame):
             if profile and profile.lut_path:
                 success = dwm.load_lut_file(self.display_id, profile.lut_path)
                 if success:
-                    QMessageBox.information(self, "LUT Reloaded",
-                        f"LUT successfully reloaded for Display {self.display_id}")
+                    QMessageBox.information(
+                        self, "LUT Reloaded", f"LUT successfully reloaded for Display {self.display_id}"
+                    )
                     self._load_profile()
                 else:
-                    QMessageBox.warning(self, "Reload Failed",
-                        "Failed to reload LUT. Check if file exists.")
+                    QMessageBox.warning(self, "Reload Failed", "Failed to reload LUT. Check if file exists.")
             else:
-                QMessageBox.warning(self, "No LUT",
-                    "No LUT file found for this display.")
+                QMessageBox.warning(self, "No LUT", "No LUT file found for this display.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to reload LUT: {e}")
 
@@ -353,12 +349,12 @@ class CalibrationProfileCard(QFrame):
             success = manager.calibrate_display(self.display_id, CalibrationTarget.SRGB)
 
             if success:
-                QMessageBox.information(self, "Calibration Complete",
-                    f"Display {self.display_id} calibrated successfully!")
+                QMessageBox.information(
+                    self, "Calibration Complete", f"Display {self.display_id} calibrated successfully!"
+                )
                 self._load_profile()
             else:
-                QMessageBox.warning(self, "Calibration Failed",
-                    "Calibration failed. Check display connection.")
+                QMessageBox.warning(self, "Calibration Failed", "Calibration failed. Check display connection.")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Calibration failed: {e}")
 
@@ -379,8 +375,8 @@ class CalibrationDetailsWidget(QWidget):
         header_frame = QFrame()
         header_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['surface']};
-                border-bottom: 1px solid {COLORS['border']};
+                background-color: {COLORS["surface"]};
+                border-bottom: 1px solid {COLORS["border"]};
             }}
         """)
         header_layout = QHBoxLayout(header_frame)
@@ -429,6 +425,7 @@ class CalibrationDetailsWidget(QWidget):
 
         try:
             import sys
+
             sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
             from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
@@ -448,7 +445,7 @@ class CalibrationDetailsWidget(QWidget):
 
             # Create card for each display
             for display in displays:
-                card = CalibrationProfileCard(display['id'])
+                card = CalibrationProfileCard(display["id"])
                 self.content_layout.addWidget(card)
 
             # Add spacer at bottom

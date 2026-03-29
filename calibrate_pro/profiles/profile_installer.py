@@ -55,7 +55,7 @@ try:
         wintypes.LPCWSTR,
         wintypes.DWORD,
         ctypes.POINTER(_DISPLAY_DEVICE),
-        wintypes.DWORD
+        wintypes.DWORD,
     ]
     user32.EnumDisplayDevicesW.restype = wintypes.BOOL
 
@@ -69,14 +69,16 @@ except Exception:
 # Profile scope
 class ProfileScope(IntEnum):
     """Profile installation scope."""
-    SYSTEM = 0      # All users (requires admin)
-    USER = 1        # Current user only
+
+    SYSTEM = 0  # All users (requires admin)
+    USER = 1  # Current user only
 
 
 # Profile association type
 class ProfileAssociation(IntEnum):
     """Profile association type."""
-    DEFAULT = 0     # Default profile for device
+
+    DEFAULT = 0  # Default profile for device
     PERCEPTUAL = 1
     RELATIVE = 2
     SATURATION = 3
@@ -86,6 +88,7 @@ class ProfileAssociation(IntEnum):
 # Color profile type
 class ColorProfileType(IntEnum):
     """Color profile type."""
+
     INPUT = 1
     DISPLAY = 2
     OUTPUT = 3
@@ -99,13 +102,15 @@ class ColorProfileType(IntEnum):
 # Display Information
 # =============================================================================
 
+
 @dataclass
 class DisplayDevice:
     """Information about a display device."""
-    device_name: str          # e.g., "\\\\.\\DISPLAY1"
-    device_string: str        # Friendly name
-    device_id: str           # Hardware ID
-    device_key: str          # Registry key
+
+    device_name: str  # e.g., "\\\\.\\DISPLAY1"
+    device_string: str  # Friendly name
+    device_id: str  # Hardware ID
+    device_key: str  # Registry key
     is_primary: bool
     is_active: bool
     is_attached: bool
@@ -124,6 +129,7 @@ class DisplayDevice:
 @dataclass
 class MonitorInfo:
     """Extended monitor information."""
+
     device: DisplayDevice
     edid_manufacturer: str = ""
     edid_model: str = ""
@@ -152,15 +158,17 @@ def enumerate_displays() -> list[DisplayDevice]:
     i = 0
     while user32.EnumDisplayDevicesW(None, i, ctypes.byref(device), 0):
         if device.StateFlags & 0x00000001:  # DISPLAY_DEVICE_ACTIVE
-            displays.append(DisplayDevice(
-                device_name=device.DeviceName,
-                device_string=device.DeviceString,
-                device_id=device.DeviceID,
-                device_key=device.DeviceKey,
-                is_primary=bool(device.StateFlags & 0x00000004),
-                is_active=bool(device.StateFlags & 0x00000001),
-                is_attached=bool(device.StateFlags & 0x00000002)
-            ))
+            displays.append(
+                DisplayDevice(
+                    device_name=device.DeviceName,
+                    device_string=device.DeviceString,
+                    device_id=device.DeviceID,
+                    device_key=device.DeviceKey,
+                    is_primary=bool(device.StateFlags & 0x00000004),
+                    is_active=bool(device.StateFlags & 0x00000001),
+                    is_attached=bool(device.StateFlags & 0x00000002),
+                )
+            )
 
             # Get monitor info
             monitor = _DISPLAY_DEVICE()
@@ -232,21 +240,22 @@ def get_monitor_info(device: DisplayDevice) -> MonitorInfo:
 # Profile Installation
 # =============================================================================
 
+
 def get_profile_directory() -> Path:
     """Get the system color profile directory."""
     import os
 
     # Get Windows system directory
-    system_root = os.environ.get('SystemRoot', r'C:\Windows')
-    color_dir = Path(system_root) / 'System32' / 'spool' / 'drivers' / 'color'
+    system_root = os.environ.get("SystemRoot", r"C:\Windows")
+    color_dir = Path(system_root) / "System32" / "spool" / "drivers" / "color"
 
     if color_dir.exists():
         return color_dir
 
     # Fallback locations
     fallbacks = [
-        Path(r'C:\Windows\System32\spool\drivers\color'),
-        Path(r'C:\WINDOWS\system32\spool\drivers\color'),
+        Path(r"C:\Windows\System32\spool\drivers\color"),
+        Path(r"C:\WINDOWS\system32\spool\drivers\color"),
     ]
 
     for fallback in fallbacks:
@@ -254,13 +263,10 @@ def get_profile_directory() -> Path:
             return fallback
 
     # Return default even if not exists
-    return Path(r'C:\Windows\System32\spool\drivers\color')
+    return Path(r"C:\Windows\System32\spool\drivers\color")
 
 
-def install_profile(
-    profile_path: str | Path,
-    scope: ProfileScope = ProfileScope.SYSTEM
-) -> tuple[bool, str]:
+def install_profile(profile_path: str | Path, scope: ProfileScope = ProfileScope.SYSTEM) -> tuple[bool, str]:
     """
     Install ICC profile to system.
 
@@ -279,7 +285,7 @@ def install_profile(
     # Validate profile
     try:
         data = profile_path.read_bytes()
-        if len(data) < 128 or data[36:40] != b'acsp':
+        if len(data) < 128 or data[36:40] != b"acsp":
             return False, "Invalid ICC profile"
     except Exception as e:
         return False, f"Cannot read profile: {e}"
@@ -345,11 +351,8 @@ def uninstall_profile(profile_name: str) -> tuple[bool, str]:
 # Profile Association
 # =============================================================================
 
-def associate_profile_with_display(
-    profile_name: str,
-    device_name: str,
-    make_default: bool = True
-) -> tuple[bool, str]:
+
+def associate_profile_with_display(profile_name: str, device_name: str, make_default: bool = True) -> tuple[bool, str]:
     """
     Associate ICC profile with a display.
 
@@ -374,8 +377,8 @@ def associate_profile_with_display(
         # Associate profile with device
         result = mscms.WcsAssociateColorProfileWithDevice(
             0,  # scope
-            profile_name.encode('utf-16-le') + b'\x00\x00',
-            device_name.encode('utf-16-le') + b'\x00\x00'
+            profile_name.encode("utf-16-le") + b"\x00\x00",
+            device_name.encode("utf-16-le") + b"\x00\x00",
         )
 
         if not result:
@@ -385,11 +388,11 @@ def associate_profile_with_display(
             # Set as default
             result = mscms.WcsSetDefaultColorProfile(
                 0,  # scope
-                device_name.encode('utf-16-le') + b'\x00\x00',
+                device_name.encode("utf-16-le") + b"\x00\x00",
                 2,  # display device type
                 0,  # subtype
                 0,  # profile ID
-                profile_name.encode('utf-16-le') + b'\x00\x00'
+                profile_name.encode("utf-16-le") + b"\x00\x00",
             )
 
         return True, f"Profile {profile_name} associated with {device_name}"
@@ -398,10 +401,7 @@ def associate_profile_with_display(
         return False, f"Association error: {e}"
 
 
-def disassociate_profile_from_display(
-    profile_name: str,
-    device_name: str
-) -> tuple[bool, str]:
+def disassociate_profile_from_display(profile_name: str, device_name: str) -> tuple[bool, str]:
     """
     Remove profile association from display.
 
@@ -417,9 +417,7 @@ def disassociate_profile_from_display(
 
     try:
         result = mscms.WcsDisassociateColorProfileFromDevice(
-            0,
-            profile_name.encode('utf-16-le') + b'\x00\x00',
-            device_name.encode('utf-16-le') + b'\x00\x00'
+            0, profile_name.encode("utf-16-le") + b"\x00\x00", device_name.encode("utf-16-le") + b"\x00\x00"
         )
 
         if result:
@@ -450,12 +448,12 @@ def get_display_profile(device_name: str) -> str | None:
 
         result = mscms.WcsGetDefaultColorProfile(
             0,  # scope
-            device_name.encode('utf-16-le') + b'\x00\x00',
+            device_name.encode("utf-16-le") + b"\x00\x00",
             2,  # display device type
             0,  # subtype
             0,  # profile ID
             size,
-            buffer
+            buffer,
         )
 
         if result:
@@ -505,25 +503,21 @@ def get_associated_profiles(device_name: str) -> list[str]:
 # Profile Backup and Restore
 # =============================================================================
 
+
 @dataclass
 class ProfileBackup:
     """Profile backup data."""
+
     timestamp: str
     profiles: dict[str, str]  # display_name -> profile_name
     profile_data: dict[str, bytes]  # profile_name -> bytes
 
     def to_dict(self) -> dict:
         """Convert to dictionary (profiles only, not bytes)."""
-        return {
-            "timestamp": self.timestamp,
-            "profiles": self.profiles
-        }
+        return {"timestamp": self.timestamp, "profiles": self.profiles}
 
 
-def backup_profiles(
-    backup_dir: str | Path,
-    include_data: bool = True
-) -> tuple[bool, str]:
+def backup_profiles(backup_dir: str | Path, include_data: bool = True) -> tuple[bool, str]:
     """
     Backup current display profile assignments.
 
@@ -557,10 +551,7 @@ def backup_profiles(
                     profile_data[profile] = profile_path.read_bytes()
 
     # Save backup
-    backup_info = {
-        "timestamp": timestamp,
-        "profiles": profiles
-    }
+    backup_info = {"timestamp": timestamp, "profiles": profiles}
 
     info_path = backup_dir / f"{backup_name}.json"
     info_path.write_text(json.dumps(backup_info, indent=2))
@@ -575,10 +566,7 @@ def backup_profiles(
     return True, f"Backup created: {backup_name}"
 
 
-def restore_profiles(
-    backup_path: str | Path,
-    restore_data: bool = True
-) -> tuple[bool, str]:
+def restore_profiles(backup_path: str | Path, restore_data: bool = True) -> tuple[bool, str]:
     """
     Restore profile assignments from backup.
 
@@ -640,7 +628,7 @@ def list_installed_profiles() -> list[str]:
 
     profiles = []
 
-    for ext in ['*.icc', '*.icm']:
+    for ext in ["*.icc", "*.icm"]:
         profiles.extend([p.name for p in color_dir.glob(ext)])
 
     return sorted(profiles)
@@ -650,10 +638,8 @@ def list_installed_profiles() -> list[str]:
 # Profile Loader (VCGT/Gamma Ramp)
 # =============================================================================
 
-def load_profile_vcgt(
-    profile_path: str | Path,
-    display_id: int = 0
-) -> tuple[bool, str]:
+
+def load_profile_vcgt(profile_path: str | Path, display_id: int = 0) -> tuple[bool, str]:
     """
     Load VCGT from profile and apply to display gamma ramp.
 
@@ -709,11 +695,9 @@ def reset_display_gamma(display_id: int = 0) -> tuple[bool, str]:
 # Convenience Functions
 # =============================================================================
 
+
 def quick_calibrate_display(
-    profile_path: str | Path,
-    display_id: int = 0,
-    make_default: bool = True,
-    apply_vcgt: bool = True
+    profile_path: str | Path, display_id: int = 0, make_default: bool = True, apply_vcgt: bool = True
 ) -> tuple[bool, str]:
     """
     Quick display calibration: install profile, set as default, apply VCGT.
@@ -749,11 +733,7 @@ def quick_calibrate_display(
 
     # Associate with display
     if make_default:
-        success, msg = associate_profile_with_display(
-            profile_name,
-            device.device_name,
-            make_default=True
-        )
+        success, msg = associate_profile_with_display(profile_name, device.device_name, make_default=True)
         messages.append(msg)
 
     # Apply VCGT
@@ -785,7 +765,7 @@ def get_display_calibration_status() -> list[dict]:
             "refresh_rate": info.refresh_rate,
             "current_profile": info.current_profile,
             "calibrated": info.current_profile is not None,
-            "hdr_supported": info.hdr_supported
+            "hdr_supported": info.hdr_supported,
         }
 
         status.append(entry)

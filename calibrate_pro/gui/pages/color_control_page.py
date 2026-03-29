@@ -46,13 +46,13 @@ class SoftwareColorControlPage(QWidget):
         self.displays = []
 
         # Current adjustment values
-        self._brightness = 1.0      # 0.5 to 2.0 (1.0 = normal)
-        self._contrast = 1.0        # 0.5 to 2.0 (1.0 = normal)
-        self._gamma = 2.2           # 1.0 to 3.0 (2.2 = sRGB)
-        self._red_gain = 1.0        # 0.5 to 1.5 (1.0 = normal)
+        self._brightness = 1.0  # 0.5 to 2.0 (1.0 = normal)
+        self._contrast = 1.0  # 0.5 to 2.0 (1.0 = normal)
+        self._gamma = 2.2  # 1.0 to 3.0 (2.2 = sRGB)
+        self._red_gain = 1.0  # 0.5 to 1.5 (1.0 = normal)
         self._green_gain = 1.0
         self._blue_gain = 1.0
-        self._black_level = 0.0     # 0.0 to 0.1 (lift shadows)
+        self._black_level = 0.0  # 0.0 to 0.1 (lift shadows)
 
         self._updating = False
         self._setup_ui()
@@ -83,8 +83,7 @@ class SoftwareColorControlPage(QWidget):
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet(
-            f"color: {COLORS['success']}; padding: 12px; "
-            f"background-color: rgba(100,255,100,0.1); border-radius: 6px;"
+            f"color: {COLORS['success']}; padding: 12px; background-color: rgba(100,255,100,0.1); border-radius: 6px;"
         )
         layout.addWidget(info_label)
 
@@ -120,31 +119,24 @@ class SoftwareColorControlPage(QWidget):
         bc_layout.addWidget(bc_info)
 
         self.brightness_slider = self._create_float_slider(
-            "Brightness", 0.5, 2.0, 1.0,
-            "Increases/decreases overall luminance (1.0 = no change)"
+            "Brightness", 0.5, 2.0, 1.0, "Increases/decreases overall luminance (1.0 = no change)"
         )
-        bc_layout.addLayout(self.brightness_slider['layout'])
-        self.brightness_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('brightness', v / 100.0)
+        bc_layout.addLayout(self.brightness_slider["layout"])
+        self.brightness_slider["slider"].valueChanged.connect(
+            lambda v: self._on_slider_changed("brightness", v / 100.0)
         )
 
         self.contrast_slider = self._create_float_slider(
-            "Contrast", 0.5, 2.0, 1.0,
-            "Adjusts the difference between dark and light (1.0 = no change)"
+            "Contrast", 0.5, 2.0, 1.0, "Adjusts the difference between dark and light (1.0 = no change)"
         )
-        bc_layout.addLayout(self.contrast_slider['layout'])
-        self.contrast_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('contrast', v / 100.0)
-        )
+        bc_layout.addLayout(self.contrast_slider["layout"])
+        self.contrast_slider["slider"].valueChanged.connect(lambda v: self._on_slider_changed("contrast", v / 100.0))
 
         self.gamma_slider = self._create_float_slider(
-            "Gamma", 1.0, 3.0, 2.2,
-            "Display gamma curve (2.2 = sRGB, 2.4 = BT.1886)"
+            "Gamma", 1.0, 3.0, 2.2, "Display gamma curve (2.2 = sRGB, 2.4 = BT.1886)"
         )
-        bc_layout.addLayout(self.gamma_slider['layout'])
-        self.gamma_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('gamma', v / 100.0)
-        )
+        bc_layout.addLayout(self.gamma_slider["layout"])
+        self.gamma_slider["slider"].valueChanged.connect(lambda v: self._on_slider_changed("gamma", v / 100.0))
 
         scroll_layout.addWidget(bc_group)
 
@@ -162,34 +154,24 @@ class SoftwareColorControlPage(QWidget):
         rgb_layout.addWidget(rgb_info)
 
         self.red_gain_slider = self._create_float_slider(
-            "Red", 0.5, 1.5, 1.0,
-            "Red channel gain (1.0 = no change)",
-            value_color="#ff6b6b"
+            "Red", 0.5, 1.5, 1.0, "Red channel gain (1.0 = no change)", value_color="#ff6b6b"
         )
-        rgb_layout.addLayout(self.red_gain_slider['layout'])
-        self.red_gain_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('red_gain', v / 100.0)
-        )
+        rgb_layout.addLayout(self.red_gain_slider["layout"])
+        self.red_gain_slider["slider"].valueChanged.connect(lambda v: self._on_slider_changed("red_gain", v / 100.0))
 
         self.green_gain_slider = self._create_float_slider(
-            "Green", 0.5, 1.5, 1.0,
-            "Green channel gain (1.0 = no change)",
-            value_color="#69db7c"
+            "Green", 0.5, 1.5, 1.0, "Green channel gain (1.0 = no change)", value_color="#69db7c"
         )
-        rgb_layout.addLayout(self.green_gain_slider['layout'])
-        self.green_gain_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('green_gain', v / 100.0)
+        rgb_layout.addLayout(self.green_gain_slider["layout"])
+        self.green_gain_slider["slider"].valueChanged.connect(
+            lambda v: self._on_slider_changed("green_gain", v / 100.0)
         )
 
         self.blue_gain_slider = self._create_float_slider(
-            "Blue", 0.5, 1.5, 1.0,
-            "Blue channel gain (1.0 = no change)",
-            value_color="#74c0fc"
+            "Blue", 0.5, 1.5, 1.0, "Blue channel gain (1.0 = no change)", value_color="#74c0fc"
         )
-        rgb_layout.addLayout(self.blue_gain_slider['layout'])
-        self.blue_gain_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('blue_gain', v / 100.0)
-        )
+        rgb_layout.addLayout(self.blue_gain_slider["layout"])
+        self.blue_gain_slider["slider"].valueChanged.connect(lambda v: self._on_slider_changed("blue_gain", v / 100.0))
 
         scroll_layout.addWidget(rgb_group)
 
@@ -198,12 +180,11 @@ class SoftwareColorControlPage(QWidget):
         shadow_layout = QVBoxLayout(shadow_group)
 
         self.black_level_slider = self._create_float_slider(
-            "Black Level", 0.0, 0.15, 0.0,
-            "Lifts shadow detail (0.0 = true black)"
+            "Black Level", 0.0, 0.15, 0.0, "Lifts shadow detail (0.0 = true black)"
         )
-        shadow_layout.addLayout(self.black_level_slider['layout'])
-        self.black_level_slider['slider'].valueChanged.connect(
-            lambda v: self._on_slider_changed('black_level', v / 1000.0)
+        shadow_layout.addLayout(self.black_level_slider["layout"])
+        self.black_level_slider["slider"].valueChanged.connect(
+            lambda v: self._on_slider_changed("black_level", v / 1000.0)
         )
 
         scroll_layout.addWidget(shadow_group)
@@ -261,8 +242,9 @@ class SoftwareColorControlPage(QWidget):
         self.status_label.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 8px;")
         layout.addWidget(self.status_label)
 
-    def _create_float_slider(self, label: str, min_val: float, max_val: float,
-                              default: float, tooltip: str, value_color: str = None) -> dict:
+    def _create_float_slider(
+        self, label: str, min_val: float, max_val: float, default: float, tooltip: str, value_color: str = None
+    ) -> dict:
         """Create a slider for float values."""
         layout = QHBoxLayout()
         layout.setSpacing(12)
@@ -278,7 +260,7 @@ class SoftwareColorControlPage(QWidget):
         slider.setToolTip(tooltip)
         layout.addWidget(slider, stretch=1)
 
-        color = value_color or COLORS['text_primary']
+        color = value_color or COLORS["text_primary"]
         value_lbl = QLabel(f"{default:.2f}")
         value_lbl.setMinimumWidth(50)
         value_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -290,12 +272,13 @@ class SoftwareColorControlPage(QWidget):
 
         slider.valueChanged.connect(update_label)
 
-        return {'layout': layout, 'slider': slider, 'value_label': value_lbl}
+        return {"layout": layout, "slider": slider, "value_label": value_lbl}
 
     def _initialize(self):
         """Initialize color loader."""
         try:
             from calibrate_pro.lut_system.color_loader import ColorLoader
+
             self.color_loader = ColorLoader()
             self._refresh_displays()
             self.status_label.setText("\u2713 Ready - Adjust sliders and click Apply")
@@ -313,7 +296,7 @@ class SoftwareColorControlPage(QWidget):
         self.displays = self.color_loader.enumerate_displays()
 
         for _i, d in enumerate(self.displays):
-            primary = " (Primary)" if d.get('primary') else ""
+            primary = " (Primary)" if d.get("primary") else ""
             self.display_combo.addItem(f"{d.get('monitor', 'Display')} - {d.get('adapter', 'GPU')}{primary}")
 
         if self.displays:
@@ -329,7 +312,7 @@ class SoftwareColorControlPage(QWidget):
         if self._updating:
             return
 
-        setattr(self, f'_{param}', value)
+        setattr(self, f"_{param}", value)
 
         # Auto-apply on slider change for immediate feedback
         self._apply_settings()
@@ -373,12 +356,7 @@ class SoftwareColorControlPage(QWidget):
                     ramp[i, c] = int(v * 65535)
 
             # Apply to display
-            success = self.color_loader.set_gamma_ramp(
-                self.current_display,
-                ramp[:, 0],
-                ramp[:, 1],
-                ramp[:, 2]
-            )
+            success = self.color_loader.set_gamma_ramp(self.current_display, ramp[:, 0], ramp[:, 1], ramp[:, 2])
 
             if success:
                 self.status_label.setText(
@@ -406,13 +384,13 @@ class SoftwareColorControlPage(QWidget):
         self._blue_gain = 1.0
         self._black_level = 0.0
 
-        self.brightness_slider['slider'].setValue(100)
-        self.contrast_slider['slider'].setValue(100)
-        self.gamma_slider['slider'].setValue(220)
-        self.red_gain_slider['slider'].setValue(100)
-        self.green_gain_slider['slider'].setValue(100)
-        self.blue_gain_slider['slider'].setValue(100)
-        self.black_level_slider['slider'].setValue(0)
+        self.brightness_slider["slider"].setValue(100)
+        self.contrast_slider["slider"].setValue(100)
+        self.gamma_slider["slider"].setValue(220)
+        self.red_gain_slider["slider"].setValue(100)
+        self.green_gain_slider["slider"].setValue(100)
+        self.blue_gain_slider["slider"].setValue(100)
+        self.black_level_slider["slider"].setValue(0)
 
         self._updating = False
 
@@ -494,38 +472,35 @@ class SoftwareColorControlPage(QWidget):
 
     def _update_sliders_from_values(self):
         """Update slider positions from current values."""
-        self.brightness_slider['slider'].setValue(int(self._brightness * 100))
-        self.contrast_slider['slider'].setValue(int(self._contrast * 100))
-        self.gamma_slider['slider'].setValue(int(self._gamma * 100))
-        self.red_gain_slider['slider'].setValue(int(self._red_gain * 100))
-        self.green_gain_slider['slider'].setValue(int(self._green_gain * 100))
-        self.blue_gain_slider['slider'].setValue(int(self._blue_gain * 100))
-        self.black_level_slider['slider'].setValue(int(self._black_level * 1000))
+        self.brightness_slider["slider"].setValue(int(self._brightness * 100))
+        self.contrast_slider["slider"].setValue(int(self._contrast * 100))
+        self.gamma_slider["slider"].setValue(int(self._gamma * 100))
+        self.red_gain_slider["slider"].setValue(int(self._red_gain * 100))
+        self.green_gain_slider["slider"].setValue(int(self._green_gain * 100))
+        self.blue_gain_slider["slider"].setValue(int(self._blue_gain * 100))
+        self.black_level_slider["slider"].setValue(int(self._black_level * 1000))
 
     def _save_profile(self):
         """Save current settings as a profile."""
         import json
 
-        filename, _ = QFileDialog.getSaveFileName(
-            self, "Save Color Profile",
-            "", "Color Profile (*.json)"
-        )
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Color Profile", "", "Color Profile (*.json)")
 
         if filename:
-            if not filename.endswith('.json'):
-                filename += '.json'
+            if not filename.endswith(".json"):
+                filename += ".json"
 
             profile = {
-                'brightness': self._brightness,
-                'contrast': self._contrast,
-                'gamma': self._gamma,
-                'red_gain': self._red_gain,
-                'green_gain': self._green_gain,
-                'blue_gain': self._blue_gain,
-                'black_level': self._black_level,
+                "brightness": self._brightness,
+                "contrast": self._contrast,
+                "gamma": self._gamma,
+                "red_gain": self._red_gain,
+                "green_gain": self._green_gain,
+                "blue_gain": self._blue_gain,
+                "black_level": self._black_level,
             }
 
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 json.dump(profile, f, indent=2)
 
             self.status_label.setText(f"\u2713 Saved profile: {filename}")
@@ -534,23 +509,20 @@ class SoftwareColorControlPage(QWidget):
         """Load settings from a profile."""
         import json
 
-        filename, _ = QFileDialog.getOpenFileName(
-            self, "Load Color Profile",
-            "", "Color Profile (*.json)"
-        )
+        filename, _ = QFileDialog.getOpenFileName(self, "Load Color Profile", "", "Color Profile (*.json)")
 
         if filename:
             with open(filename) as f:
                 profile = json.load(f)
 
             self._updating = True
-            self._brightness = profile.get('brightness', 1.0)
-            self._contrast = profile.get('contrast', 1.0)
-            self._gamma = profile.get('gamma', 2.2)
-            self._red_gain = profile.get('red_gain', 1.0)
-            self._green_gain = profile.get('green_gain', 1.0)
-            self._blue_gain = profile.get('blue_gain', 1.0)
-            self._black_level = profile.get('black_level', 0.0)
+            self._brightness = profile.get("brightness", 1.0)
+            self._contrast = profile.get("contrast", 1.0)
+            self._gamma = profile.get("gamma", 2.2)
+            self._red_gain = profile.get("red_gain", 1.0)
+            self._green_gain = profile.get("green_gain", 1.0)
+            self._blue_gain = profile.get("blue_gain", 1.0)
+            self._black_level = profile.get("black_level", 0.0)
             self._update_sliders_from_values()
             self._updating = False
 

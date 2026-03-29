@@ -12,6 +12,7 @@ This is the final calibration pipeline:
 3. Build full correction LUT (TRC + gamut, no chroma-adaptive hack needed)
 4. Verify via pre-corrected patches
 """
+
 import os
 import struct
 import sys
@@ -36,52 +37,66 @@ from calibrate_pro.core.color_math import (
     xyz_to_lab,
 )
 
-OLED_MATRIX = np.array([
-    [0.03836831, -0.02175997, 0.01696057],
-    [0.01449629,  0.01611903, 0.00057150],
-    [-0.00004481, 0.00035042, 0.08032401],
-])
+OLED_MATRIX = np.array(
+    [
+        [0.03836831, -0.02175997, 0.01696057],
+        [0.01449629, 0.01611903, 0.00057150],
+        [-0.00004481, 0.00035042, 0.08032401],
+    ]
+)
 
 COLORCHECKER = [
-    ("Dark Skin",    0.453, 0.317, 0.264),
-    ("Light Skin",   0.779, 0.577, 0.505),
-    ("Blue Sky",     0.355, 0.480, 0.611),
-    ("Foliage",      0.352, 0.422, 0.253),
-    ("Blue Flower",  0.508, 0.502, 0.691),
+    ("Dark Skin", 0.453, 0.317, 0.264),
+    ("Light Skin", 0.779, 0.577, 0.505),
+    ("Blue Sky", 0.355, 0.480, 0.611),
+    ("Foliage", 0.352, 0.422, 0.253),
+    ("Blue Flower", 0.508, 0.502, 0.691),
     ("Bluish Green", 0.362, 0.745, 0.675),
-    ("Orange",       0.879, 0.485, 0.183),
-    ("Purplish Blue",0.266, 0.358, 0.667),
+    ("Orange", 0.879, 0.485, 0.183),
+    ("Purplish Blue", 0.266, 0.358, 0.667),
     ("Moderate Red", 0.778, 0.321, 0.381),
-    ("Purple",       0.367, 0.227, 0.414),
+    ("Purple", 0.367, 0.227, 0.414),
     ("Yellow Green", 0.623, 0.741, 0.246),
-    ("Orange Yellow",0.904, 0.634, 0.154),
-    ("Blue",         0.139, 0.248, 0.577),
-    ("Green",        0.262, 0.584, 0.291),
-    ("Red",          0.752, 0.197, 0.178),
-    ("Yellow",       0.938, 0.857, 0.159),
-    ("Magenta",      0.752, 0.313, 0.577),
-    ("Cyan",         0.121, 0.544, 0.659),
-    ("White",        0.961, 0.961, 0.961),
-    ("Neutral 8",    0.784, 0.784, 0.784),
-    ("Neutral 6.5",  0.584, 0.584, 0.584),
-    ("Neutral 5",    0.420, 0.420, 0.420),
-    ("Neutral 3.5",  0.258, 0.258, 0.258),
-    ("Black",        0.085, 0.085, 0.085),
+    ("Orange Yellow", 0.904, 0.634, 0.154),
+    ("Blue", 0.139, 0.248, 0.577),
+    ("Green", 0.262, 0.584, 0.291),
+    ("Red", 0.752, 0.197, 0.178),
+    ("Yellow", 0.938, 0.857, 0.159),
+    ("Magenta", 0.752, 0.313, 0.577),
+    ("Cyan", 0.121, 0.544, 0.659),
+    ("White", 0.961, 0.961, 0.961),
+    ("Neutral 8", 0.784, 0.784, 0.784),
+    ("Neutral 6.5", 0.584, 0.584, 0.584),
+    ("Neutral 5", 0.420, 0.420, 0.420),
+    ("Neutral 3.5", 0.258, 0.258, 0.258),
+    ("Black", 0.085, 0.085, 0.085),
 ]
 
 REF_LAB = {
-    "Dark Skin": (37.986, 13.555, 14.059), "Light Skin": (65.711, 18.130, 17.810),
-    "Blue Sky": (49.927, -4.880, -21.925), "Foliage": (43.139, -13.095, 21.905),
-    "Blue Flower": (55.112, 8.844, -25.399), "Bluish Green": (70.719, -33.397, -0.199),
-    "Orange": (62.661, 36.067, 57.096), "Purplish Blue": (40.020, 10.410, -45.964),
-    "Moderate Red": (51.124, 48.239, 16.248), "Purple": (30.325, 22.976, -21.587),
-    "Yellow Green": (72.532, -23.709, 57.255), "Orange Yellow": (71.941, 19.363, 67.857),
-    "Blue": (28.778, 14.179, -50.297), "Green": (55.261, -38.342, 31.370),
-    "Red": (42.101, 53.378, 28.190), "Yellow": (81.733, 4.039, 79.819),
-    "Magenta": (51.935, 49.986, -14.574), "Cyan": (51.038, -28.631, -28.638),
-    "White": (96.539, -0.425, 1.186), "Neutral 8": (81.257, -0.638, -0.335),
-    "Neutral 6.5": (66.766, -0.734, -0.504), "Neutral 5": (50.867, -0.153, -0.270),
-    "Neutral 3.5": (35.656, -0.421, -1.231), "Black": (20.461, -0.079, -0.973),
+    "Dark Skin": (37.986, 13.555, 14.059),
+    "Light Skin": (65.711, 18.130, 17.810),
+    "Blue Sky": (49.927, -4.880, -21.925),
+    "Foliage": (43.139, -13.095, 21.905),
+    "Blue Flower": (55.112, 8.844, -25.399),
+    "Bluish Green": (70.719, -33.397, -0.199),
+    "Orange": (62.661, 36.067, 57.096),
+    "Purplish Blue": (40.020, 10.410, -45.964),
+    "Moderate Red": (51.124, 48.239, 16.248),
+    "Purple": (30.325, 22.976, -21.587),
+    "Yellow Green": (72.532, -23.709, 57.255),
+    "Orange Yellow": (71.941, 19.363, 67.857),
+    "Blue": (28.778, 14.179, -50.297),
+    "Green": (55.261, -38.342, 31.370),
+    "Red": (42.101, 53.378, 28.190),
+    "Yellow": (81.733, 4.039, 79.819),
+    "Magenta": (51.935, 49.986, -14.574),
+    "Cyan": (51.038, -28.631, -28.638),
+    "White": (96.539, -0.425, 1.186),
+    "Neutral 8": (81.257, -0.638, -0.335),
+    "Neutral 6.5": (66.766, -0.734, -0.504),
+    "Neutral 5": (50.867, -0.153, -0.270),
+    "Neutral 3.5": (35.656, -0.421, -1.231),
+    "Black": (20.461, -0.079, -0.973),
 }
 
 M_MASK = 0xFFFFFFFF
@@ -89,9 +104,11 @@ M_MASK = 0xFFFFFFFF
 
 def compute_ccmx():
     """CCMX from sensor vs EDID primaries."""
+
     def xy_to_XYZ(x, y, Y=1.0):
-        if y == 0: return np.array([0, 0, 0])
-        return np.array([(Y/y)*x, Y, (Y/y)*(1-x-y)])
+        if y == 0:
+            return np.array([0, 0, 0])
+        return np.array([(Y / y) * x, Y, (Y / y) * (1 - x - y)])
 
     def build_matrix(r_xy, g_xy, b_xy, w_xy):
         R, G, B = xy_to_XYZ(*r_xy), xy_to_XYZ(*g_xy), xy_to_XYZ(*b_xy)
@@ -100,55 +117,72 @@ def compute_ccmx():
         S = np.linalg.solve(M, W)
         return M * S[np.newaxis, :]
 
-    M_sensor = build_matrix(
-        (0.6835, 0.3060), (0.2622, 0.7006),
-        (0.1481, 0.0575), (0.3134, 0.3240))
-    M_true = build_matrix(
-        (0.6835, 0.3164), (0.2373, 0.7080),
-        (0.1396, 0.0527), (0.3134, 0.3291))
+    M_sensor = build_matrix((0.6835, 0.3060), (0.2622, 0.7006), (0.1481, 0.0575), (0.3134, 0.3240))
+    M_true = build_matrix((0.6835, 0.3164), (0.2373, 0.7080), (0.1396, 0.0527), (0.3134, 0.3291))
     return M_true @ np.linalg.inv(M_sensor)
 
 
 def unlock_device(device):
-    k0, k1 = 0xa9119479, 0x5b168761
-    cmd = bytearray(65); cmd[0] = 0; cmd[1] = 0x99
-    device.write(cmd); time.sleep(0.2)
+    k0, k1 = 0xA9119479, 0x5B168761
+    cmd = bytearray(65)
+    cmd[0] = 0
+    cmd[1] = 0x99
+    device.write(cmd)
+    time.sleep(0.2)
     c = bytes(device.read(64, timeout_ms=3000))
     sc = bytearray(8)
-    for i in range(8): sc[i] = c[3] ^ c[35 + i]
-    ci0 = (sc[3]<<24)+(sc[0]<<16)+(sc[4]<<8)+sc[6]
-    ci1 = (sc[1]<<24)+(sc[7]<<16)+(sc[2]<<8)+sc[5]
+    for i in range(8):
+        sc[i] = c[3] ^ c[35 + i]
+    ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
+    ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
     nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
-    co = [(nk0-ci1)&M_MASK, (nk1-ci0)&M_MASK, (ci1*nk0)&M_MASK, (ci0*nk1)&M_MASK]
+    co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
     s = sum(sc)
-    for sh in [0, 8, 16, 24]: s += (nk0>>sh)&0xFF; s += (nk1>>sh)&0xFF
+    for sh in [0, 8, 16, 24]:
+        s += (nk0 >> sh) & 0xFF
+        s += (nk1 >> sh) & 0xFF
     s0, s1 = s & 0xFF, (s >> 8) & 0xFF
     sr = bytearray(16)
-    sr[0]=(((co[0]>>16)&0xFF)+s0)&0xFF; sr[1]=(((co[2]>>8)&0xFF)-s1)&0xFF
-    sr[2]=((co[3]&0xFF)+s1)&0xFF; sr[3]=(((co[1]>>16)&0xFF)+s0)&0xFF
-    sr[4]=(((co[2]>>16)&0xFF)-s1)&0xFF; sr[5]=(((co[3]>>16)&0xFF)-s0)&0xFF
-    sr[6]=(((co[1]>>24)&0xFF)-s0)&0xFF; sr[7]=((co[0]&0xFF)-s1)&0xFF
-    sr[8]=(((co[3]>>8)&0xFF)+s0)&0xFF; sr[9]=(((co[2]>>24)&0xFF)-s1)&0xFF
-    sr[10]=(((co[0]>>8)&0xFF)+s0)&0xFF; sr[11]=(((co[1]>>8)&0xFF)-s1)&0xFF
-    sr[12]=((co[1]&0xFF)+s1)&0xFF; sr[13]=(((co[3]>>24)&0xFF)+s1)&0xFF
-    sr[14]=((co[2]&0xFF)+s0)&0xFF; sr[15]=(((co[0]>>24)&0xFF)-s0)&0xFF
-    rb = bytearray(65); rb[0] = 0; rb[1] = 0x9A
-    for i in range(16): rb[25+i] = c[2] ^ sr[i]
-    device.write(rb); time.sleep(0.3); device.read(64, timeout_ms=3000)
+    sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
+    sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
+    sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
+    sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
+    sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
+    sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
+    sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
+    sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
+    sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
+    sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
+    sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
+    sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
+    sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
+    sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
+    sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
+    sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
+    rb = bytearray(65)
+    rb[0] = 0
+    rb[1] = 0x9A
+    for i in range(16):
+        rb[25 + i] = c[2] ^ sr[i]
+    device.write(rb)
+    time.sleep(0.3)
+    device.read(64, timeout_ms=3000)
 
 
 def measure_freq(device, integration=1.0):
     intclks = int(integration * 12000000)
-    cmd = bytearray(65); cmd[0] = 0x00; cmd[1] = 0x01
-    struct.pack_into('<I', cmd, 2, intclks)
+    cmd = bytearray(65)
+    cmd[0] = 0x00
+    cmd[1] = 0x01
+    struct.pack_into("<I", cmd, 2, intclks)
     device.write(cmd)
     resp = device.read(64, timeout_ms=int((integration + 3) * 1000))
     if resp and resp[0] == 0x00 and resp[1] == 0x01:
-        r = struct.unpack('<I', bytes(resp[2:6]))[0]
-        g = struct.unpack('<I', bytes(resp[6:10]))[0]
-        b = struct.unpack('<I', bytes(resp[10:14]))[0]
+        r = struct.unpack("<I", bytes(resp[2:6]))[0]
+        g = struct.unpack("<I", bytes(resp[6:10]))[0]
+        b = struct.unpack("<I", bytes(resp[10:14]))[0]
         t = intclks / 12000000.0
-        return np.array([0.5*(r+0.5)/t, 0.5*(g+0.5)/t, 0.5*(b+0.5)/t])
+        return np.array([0.5 * (r + 0.5) / t, 0.5 * (g + 0.5) / t, 0.5 * (b + 0.5) / t])
     return None
 
 
@@ -170,6 +204,7 @@ if __name__ == "__main__":
     print("  Sensor unlocked.")
 
     from calibrate_pro.panels.detection import enumerate_displays
+
     displays = enumerate_displays()
     dx, dy, dw, dh = 0, 0, 3840, 2160
     for d in displays:
@@ -243,17 +278,25 @@ if __name__ == "__main__":
     black = white_ramp[0].copy()
     for arr in [white_ramp, red_ramp, green_ramp, blue_ramp]:
         arr -= black
-    white_ramp[0] = 0; red_ramp[0] = 0; green_ramp[0] = 0; blue_ramp[0] = 0
+    white_ramp[0] = 0
+    red_ramp[0] = 0
+    green_ramp[0] = 0
+    blue_ramp[0] = 0
 
     profile_white_Y = white_ramp[-1][1]
-    R_xyz = red_ramp[-1]; G_xyz = green_ramp[-1]; B_xyz = blue_ramp[-1]
+    R_xyz = red_ramp[-1]
+    G_xyz = green_ramp[-1]
+    B_xyz = blue_ramp[-1]
     M_display = np.column_stack([R_xyz, G_xyz, B_xyz])
 
     def normalize_trc(xyz_arr, primary_Y):
         trc = np.maximum(xyz_arr[:, 1], 0)
-        if primary_Y > 0: trc /= primary_Y
-        trc[0] = 0.0; trc[-1] = 1.0
-        for i in range(1, len(trc)): trc[i] = max(trc[i], trc[i-1])
+        if primary_Y > 0:
+            trc /= primary_Y
+        trc[0] = 0.0
+        trc[-1] = 1.0
+        for i in range(1, len(trc)):
+            trc[i] = max(trc[i], trc[i - 1])
         return trc
 
     trc_r = normalize_trc(red_ramp, R_xyz[1])
@@ -262,11 +305,11 @@ if __name__ == "__main__":
 
     def _xy(xyz):
         s = np.sum(xyz)
-        return (xyz[0]/s, xyz[1]/s) if s > 0 else (0, 0)
+        return (xyz[0] / s, xyz[1] / s) if s > 0 else (0, 0)
 
     def est_gamma(trc):
-        mid = trc[n_steps//2]
-        return np.log(mid)/np.log(0.5) if 0 < mid < 1 else 2.2
+        mid = trc[n_steps // 2]
+        return np.log(mid) / np.log(0.5) if 0 < mid < 1 else 2.2
 
     print(f"    White Y:   {profile_white_Y:.1f} cd/m2")
     print(f"    White WP:  ({_xy(white_ramp[-1])[0]:.4f}, {_xy(white_ramp[-1])[1]:.4f})")
@@ -282,15 +325,17 @@ if __name__ == "__main__":
     M_norm = M_display / display_white[1]
     inv_M = np.linalg.inv(M_norm)
 
-    inv_trc_r = interp1d(trc_r, levels, kind='linear', bounds_error=False, fill_value=(0, 1))
-    inv_trc_g = interp1d(trc_g, levels, kind='linear', bounds_error=False, fill_value=(0, 1))
-    inv_trc_b = interp1d(trc_b, levels, kind='linear', bounds_error=False, fill_value=(0, 1))
+    inv_trc_r = interp1d(trc_r, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
+    inv_trc_g = interp1d(trc_g, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
+    inv_trc_b = interp1d(trc_b, levels, kind="linear", bounds_error=False, fill_value=(0, 1))
 
     srgb_white = SRGB_TO_XYZ @ np.array([1.0, 1.0, 1.0])
     dw_norm = display_white / display_white[1]
     sw_norm = srgb_white / srgb_white[1]
-    wp_shift = ((dw_norm[0]/sum(dw_norm) - sw_norm[0]/sum(sw_norm))**2 +
-                (dw_norm[1]/sum(dw_norm) - sw_norm[1]/sum(sw_norm))**2)**0.5
+    wp_shift = (
+        (dw_norm[0] / sum(dw_norm) - sw_norm[0] / sum(sw_norm)) ** 2
+        + (dw_norm[1] / sum(dw_norm) - sw_norm[1] / sum(sw_norm)) ** 2
+    ) ** 0.5
 
     if wp_shift > 0.003:
         source_cone = BRADFORD_MATRIX @ sw_norm
@@ -306,11 +351,17 @@ if __name__ == "__main__":
         linear = srgb_gamma_expand(rgb_in)
         target_xyz = adapt @ (SRGB_TO_XYZ @ linear)
         display_linear = np.clip(inv_M @ target_xyz, 0.0, 1.0)
-        corrected = np.clip(np.array([
-            float(inv_trc_r(display_linear[0])),
-            float(inv_trc_g(display_linear[1])),
-            float(inv_trc_b(display_linear[2])),
-        ]), 0.0, 1.0)
+        corrected = np.clip(
+            np.array(
+                [
+                    float(inv_trc_r(display_linear[0])),
+                    float(inv_trc_g(display_linear[1])),
+                    float(inv_trc_b(display_linear[2])),
+                ]
+            ),
+            0.0,
+            1.0,
+        )
 
         # Near-black protection
         lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -322,8 +373,12 @@ if __name__ == "__main__":
 
     # Show correction examples
     print("\n  Correction examples:")
-    for name, r, g, b in [("White", 0.961, 0.961, 0.961), ("Mid gray", 0.5, 0.5, 0.5),
-                           ("Red", 0.752, 0.197, 0.178), ("Green", 0.262, 0.584, 0.291)]:
+    for name, r, g, b in [
+        ("White", 0.961, 0.961, 0.961),
+        ("Mid gray", 0.5, 0.5, 0.5),
+        ("Red", 0.752, 0.197, 0.178),
+        ("Green", 0.262, 0.584, 0.291),
+    ]:
         cr, cg, cb = correct(r, g, b)
         print(f"    {name:10s}: ({r:.3f},{g:.3f},{b:.3f}) -> ({cr:.3f},{cg:.3f},{cb:.3f})")
 

@@ -29,22 +29,23 @@ from PyQt6.QtWidgets import (
 # Windows Display & Gamma Controller
 # ============================================================================
 
+
 class DISPLAY_DEVICE(Structure):
     _fields_ = [
-        ('cb', wintypes.DWORD),
-        ('DeviceName', wintypes.WCHAR * 32),
-        ('DeviceString', wintypes.WCHAR * 128),
-        ('StateFlags', wintypes.DWORD),
-        ('DeviceID', wintypes.WCHAR * 128),
-        ('DeviceKey', wintypes.WCHAR * 128),
+        ("cb", wintypes.DWORD),
+        ("DeviceName", wintypes.WCHAR * 32),
+        ("DeviceString", wintypes.WCHAR * 128),
+        ("StateFlags", wintypes.DWORD),
+        ("DeviceID", wintypes.WCHAR * 128),
+        ("DeviceKey", wintypes.WCHAR * 128),
     ]
 
 
 class GAMMA_RAMP(Structure):
     _fields_ = [
-        ('Red', ctypes.c_ushort * 256),
-        ('Green', ctypes.c_ushort * 256),
-        ('Blue', ctypes.c_ushort * 256),
+        ("Red", ctypes.c_ushort * 256),
+        ("Green", ctypes.c_ushort * 256),
+        ("Blue", ctypes.c_ushort * 256),
     ]
 
 
@@ -71,12 +72,14 @@ class GammaController:
         while self.user32.EnumDisplayDevicesW(None, i, byref(dd), 0):
             if dd.StateFlags & self.DISPLAY_DEVICE_ACTIVE:
                 is_primary = bool(dd.StateFlags & self.DISPLAY_DEVICE_PRIMARY)
-                self.displays.append({
-                    'name': dd.DeviceName,
-                    'string': dd.DeviceString,
-                    'primary': is_primary,
-                    'index': len(self.displays)
-                })
+                self.displays.append(
+                    {
+                        "name": dd.DeviceName,
+                        "string": dd.DeviceString,
+                        "primary": is_primary,
+                        "index": len(self.displays),
+                    }
+                )
                 # Store original gamma ramp
                 self._store_original_ramp(dd.DeviceName)
             i += 1
@@ -101,7 +104,7 @@ class GammaController:
         if display_idx >= len(self.displays):
             return None
 
-        display_name = self.displays[display_idx]['name']
+        display_name = self.displays[display_idx]["name"]
         hdc = self.gdi32.CreateDCW(display_name, None, None, None)
         if not hdc:
             return None
@@ -117,7 +120,7 @@ class GammaController:
         if display_idx >= len(self.displays):
             return False
 
-        display_name = self.displays[display_idx]['name']
+        display_name = self.displays[display_idx]["name"]
         hdc = self.gdi32.CreateDCW(display_name, None, None, None)
         if not hdc:
             return False
@@ -126,10 +129,18 @@ class GammaController:
         self.gdi32.DeleteDC(hdc)
         return bool(result)
 
-    def create_calibration_ramp(self, brightness: int = 100, contrast: int = 100,
-                                  r_gain: int = 100, g_gain: int = 100, b_gain: int = 100,
-                                  r_offset: int = 0, g_offset: int = 0, b_offset: int = 0,
-                                  gamma: float = 2.2) -> GAMMA_RAMP:
+    def create_calibration_ramp(
+        self,
+        brightness: int = 100,
+        contrast: int = 100,
+        r_gain: int = 100,
+        g_gain: int = 100,
+        b_gain: int = 100,
+        r_offset: int = 0,
+        g_offset: int = 0,
+        b_offset: int = 0,
+        gamma: float = 2.2,
+    ) -> GAMMA_RAMP:
         """Create a calibrated gamma ramp with all adjustments."""
         ramp = GAMMA_RAMP()
 
@@ -172,14 +183,22 @@ class GammaController:
 
         return ramp
 
-    def apply_calibration(self, display_idx: int, brightness: int = 100, contrast: int = 100,
-                          r_gain: int = 100, g_gain: int = 100, b_gain: int = 100,
-                          r_offset: int = 0, g_offset: int = 0, b_offset: int = 0,
-                          gamma: float = 2.2) -> bool:
+    def apply_calibration(
+        self,
+        display_idx: int,
+        brightness: int = 100,
+        contrast: int = 100,
+        r_gain: int = 100,
+        g_gain: int = 100,
+        b_gain: int = 100,
+        r_offset: int = 0,
+        g_offset: int = 0,
+        b_offset: int = 0,
+        gamma: float = 2.2,
+    ) -> bool:
         """Apply calibration settings to a display."""
         ramp = self.create_calibration_ramp(
-            brightness, contrast, r_gain, g_gain, b_gain,
-            r_offset, g_offset, b_offset, gamma
+            brightness, contrast, r_gain, g_gain, b_gain, r_offset, g_offset, b_offset, gamma
         )
         return self.set_gamma_ramp(display_idx, ramp)
 
@@ -188,7 +207,7 @@ class GammaController:
         if display_idx >= len(self.displays):
             return False
 
-        display_name = self.displays[display_idx]['name']
+        display_name = self.displays[display_idx]["name"]
         if display_name in self.original_ramps:
             return self.set_gamma_ramp(display_idx, self.original_ramps[display_name])
 
@@ -200,6 +219,7 @@ class GammaController:
 # ============================================================================
 # Color Widgets
 # ============================================================================
+
 
 class ColorSwatch(QFrame):
     """A colored rectangle widget."""
@@ -249,7 +269,7 @@ class GrayRamp(QFrame):
 
         for i in range(self.steps):
             linear = i / (self.steps - 1)
-            value = int(255 * (linear ** (1/self.gamma)))
+            value = int(255 * (linear ** (1 / self.gamma)))
             color = QColor(value, value, value)
 
             x = int(i * step_width)
@@ -262,7 +282,7 @@ class GrayRamp(QFrame):
 class ColorGradient(QFrame):
     """RGB gradient bar."""
 
-    def __init__(self, channel: str = 'R', parent=None):
+    def __init__(self, channel: str = "R", parent=None):
         super().__init__(parent)
         self.channel = channel
         self.gain = 100
@@ -282,13 +302,13 @@ class ColorGradient(QFrame):
 
         gain_factor = self.gain / 100.0
 
-        if self.channel == 'R':
+        if self.channel == "R":
             gradient.setColorAt(0, QColor(0, 0, 0))
             gradient.setColorAt(1, QColor(int(255 * gain_factor), 0, 0))
-        elif self.channel == 'G':
+        elif self.channel == "G":
             gradient.setColorAt(0, QColor(0, 0, 0))
             gradient.setColorAt(1, QColor(0, int(255 * gain_factor), 0))
-        elif self.channel == 'B':
+        elif self.channel == "B":
             gradient.setColorAt(0, QColor(0, 0, 0))
             gradient.setColorAt(1, QColor(0, 0, int(255 * gain_factor)))
 
@@ -325,8 +345,9 @@ class WhitePointIndicator(QFrame):
         text_color = Qt.GlobalColor.black if (r + g + b) / 3 > 128 else Qt.GlobalColor.white
         painter.setPen(text_color)
         painter.setFont(QFont("Segoe UI", 9))
-        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
-                        f"WHITE\nR:{self.r_gain} G:{self.g_gain} B:{self.b_gain}")
+        painter.drawText(
+            self.rect(), Qt.AlignmentFlag.AlignCenter, f"WHITE\nR:{self.r_gain} G:{self.g_gain} B:{self.b_gain}"
+        )
 
         painter.end()
 
@@ -335,14 +356,30 @@ class ColorChecker(QFrame):
     """Mini ColorChecker-style grid."""
 
     COLORS = [
-        (115, 82, 68), (194, 150, 130), (98, 122, 157), (87, 108, 67),
-        (133, 128, 177), (103, 189, 170),
-        (214, 126, 44), (80, 91, 166), (193, 90, 99), (94, 60, 108),
-        (157, 188, 64), (224, 163, 46),
-        (56, 61, 150), (70, 148, 73), (175, 54, 60), (231, 199, 31),
-        (187, 86, 149), (8, 133, 161),
-        (243, 243, 242), (200, 200, 200), (160, 160, 160), (122, 122, 121),
-        (85, 85, 85), (52, 52, 52),
+        (115, 82, 68),
+        (194, 150, 130),
+        (98, 122, 157),
+        (87, 108, 67),
+        (133, 128, 177),
+        (103, 189, 170),
+        (214, 126, 44),
+        (80, 91, 166),
+        (193, 90, 99),
+        (94, 60, 108),
+        (157, 188, 64),
+        (224, 163, 46),
+        (56, 61, 150),
+        (70, 148, 73),
+        (175, 54, 60),
+        (231, 199, 31),
+        (187, 86, 149),
+        (8, 133, 161),
+        (243, 243, 242),
+        (200, 200, 200),
+        (160, 160, 160),
+        (122, 122, 121),
+        (85, 85, 85),
+        (52, 52, 52),
     ]
 
     def __init__(self, parent=None):
@@ -375,6 +412,7 @@ class ColorChecker(QFrame):
 # ============================================================================
 # Main Application Window
 # ============================================================================
+
 
 class CalibrationTestWindow(QMainWindow):
     """Main calibration test window using Windows Gamma Ramp API."""
@@ -463,7 +501,7 @@ class CalibrationTestWindow(QMainWindow):
 
         self.monitor_combo = QComboBox()
         for disp in self.gamma_ctrl.displays:
-            primary = " (Primary)" if disp['primary'] else ""
+            primary = " (Primary)" if disp["primary"] else ""
             self.monitor_combo.addItem(f"{disp['name']} - {disp['string']}{primary}")
         self.monitor_combo.currentIndexChanged.connect(self.on_display_changed)
         monitor_layout.addWidget(self.monitor_combo)
@@ -594,15 +632,15 @@ class CalibrationTestWindow(QMainWindow):
         preset_btn_layout1 = QHBoxLayout()
 
         self.preset_d65_btn = QPushButton("D65 (6500K)")
-        self.preset_d65_btn.clicked.connect(lambda: self.apply_preset('D65'))
+        self.preset_d65_btn.clicked.connect(lambda: self.apply_preset("D65"))
         preset_btn_layout1.addWidget(self.preset_d65_btn)
 
         self.preset_d55_btn = QPushButton("D55 (5500K)")
-        self.preset_d55_btn.clicked.connect(lambda: self.apply_preset('D55'))
+        self.preset_d55_btn.clicked.connect(lambda: self.apply_preset("D55"))
         preset_btn_layout1.addWidget(self.preset_d55_btn)
 
         self.preset_d50_btn = QPushButton("D50 (5000K)")
-        self.preset_d50_btn.clicked.connect(lambda: self.apply_preset('D50'))
+        self.preset_d50_btn.clicked.connect(lambda: self.apply_preset("D50"))
         preset_btn_layout1.addWidget(self.preset_d50_btn)
 
         preset_layout.addLayout(preset_btn_layout1)
@@ -615,15 +653,15 @@ class CalibrationTestWindow(QMainWindow):
         preset_btn_layout2 = QHBoxLayout()
 
         self.preset_srgb_btn = QPushButton("sRGB (2.2)")
-        self.preset_srgb_btn.clicked.connect(lambda: self.apply_preset('sRGB'))
+        self.preset_srgb_btn.clicked.connect(lambda: self.apply_preset("sRGB"))
         preset_btn_layout2.addWidget(self.preset_srgb_btn)
 
         self.preset_bt1886_btn = QPushButton("BT.1886 (2.4)")
-        self.preset_bt1886_btn.clicked.connect(lambda: self.apply_preset('BT1886'))
+        self.preset_bt1886_btn.clicked.connect(lambda: self.apply_preset("BT1886"))
         preset_btn_layout2.addWidget(self.preset_bt1886_btn)
 
         self.preset_linear_btn = QPushButton("Linear (1.0)")
-        self.preset_linear_btn.clicked.connect(lambda: self.apply_preset('Linear'))
+        self.preset_linear_btn.clicked.connect(lambda: self.apply_preset("Linear"))
         preset_btn_layout2.addWidget(self.preset_linear_btn)
 
         preset_layout.addLayout(preset_btn_layout2)
@@ -671,9 +709,9 @@ class CalibrationTestWindow(QMainWindow):
         gradients_group = QGroupBox("RGB Channel Gradients")
         gradients_layout = QVBoxLayout(gradients_group)
 
-        self.red_gradient = ColorGradient('R')
-        self.green_gradient = ColorGradient('G')
-        self.blue_gradient = ColorGradient('B')
+        self.red_gradient = ColorGradient("R")
+        self.green_gradient = ColorGradient("G")
+        self.blue_gradient = ColorGradient("B")
 
         gradients_layout.addWidget(QLabel("Red Channel"))
         gradients_layout.addWidget(self.red_gradient)
@@ -716,10 +754,15 @@ class CalibrationTestWindow(QMainWindow):
         """Apply current calibration settings to the display."""
         result = self.gamma_ctrl.apply_calibration(
             self.current_display,
-            self.brightness, self.contrast,
-            self.r_gain, self.g_gain, self.b_gain,
-            self.r_offset, self.g_offset, self.b_offset,
-            self.gamma
+            self.brightness,
+            self.contrast,
+            self.r_gain,
+            self.g_gain,
+            self.b_gain,
+            self.r_offset,
+            self.g_offset,
+            self.b_offset,
+            self.gamma,
         )
 
         if result:
@@ -793,12 +836,12 @@ class CalibrationTestWindow(QMainWindow):
     def apply_preset(self, preset_name: str):
         """Apply a calibration preset."""
         presets = {
-            'D65': {'r': 100, 'g': 100, 'b': 100, 'gamma': 2.2},
-            'D55': {'r': 100, 'g': 98, 'b': 90, 'gamma': 2.2},
-            'D50': {'r': 100, 'g': 96, 'b': 82, 'gamma': 2.2},
-            'sRGB': {'r': 100, 'g': 100, 'b': 100, 'gamma': 2.2},
-            'BT1886': {'r': 100, 'g': 100, 'b': 100, 'gamma': 2.4},
-            'Linear': {'r': 100, 'g': 100, 'b': 100, 'gamma': 1.0},
+            "D65": {"r": 100, "g": 100, "b": 100, "gamma": 2.2},
+            "D55": {"r": 100, "g": 98, "b": 90, "gamma": 2.2},
+            "D50": {"r": 100, "g": 96, "b": 82, "gamma": 2.2},
+            "sRGB": {"r": 100, "g": 100, "b": 100, "gamma": 2.2},
+            "BT1886": {"r": 100, "g": 100, "b": 100, "gamma": 2.4},
+            "Linear": {"r": 100, "g": 100, "b": 100, "gamma": 1.0},
         }
 
         if preset_name not in presets:
@@ -812,15 +855,15 @@ class CalibrationTestWindow(QMainWindow):
         self.blue_slider.blockSignals(True)
         self.gamma_slider.blockSignals(True)
 
-        self.r_gain = p['r']
-        self.g_gain = p['g']
-        self.b_gain = p['b']
-        self.gamma = p['gamma']
+        self.r_gain = p["r"]
+        self.g_gain = p["g"]
+        self.b_gain = p["b"]
+        self.gamma = p["gamma"]
 
-        self.red_slider.setValue(p['r'])
-        self.green_slider.setValue(p['g'])
-        self.blue_slider.setValue(p['b'])
-        self.gamma_slider.setValue(int(p['gamma'] * 10))
+        self.red_slider.setValue(p["r"])
+        self.green_slider.setValue(p["g"])
+        self.blue_slider.setValue(p["b"])
+        self.gamma_slider.setValue(int(p["gamma"] * 10))
 
         self.red_label.setText(f"{p['r']}%")
         self.green_label.setText(f"{p['g']}%")
@@ -871,7 +914,7 @@ class CalibrationTestWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')
+    app.setStyle("Fusion")
 
     window = CalibrationTestWindow()
     window.show()
@@ -879,5 +922,5 @@ def main():
     sys.exit(app.exec())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

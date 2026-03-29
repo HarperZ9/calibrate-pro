@@ -25,48 +25,53 @@ import numpy as np
 # =============================================================================
 
 # Profile signatures
-ICC_MAGIC = b'acsp'
+ICC_MAGIC = b"acsp"
 ICC_VERSION_4_4 = 0x04400000
+
 
 # Profile/Device class signatures
 class ProfileClass(IntEnum):
     """ICC profile classes."""
-    INPUT = 0x73636E72      # 'scnr' - Scanner/Camera
-    DISPLAY = 0x6D6E7472    # 'mntr' - Display
-    OUTPUT = 0x70727472     # 'prtr' - Printer
-    LINK = 0x6C696E6B       # 'link' - Device Link
-    SPACE = 0x73706163      # 'spac' - Color Space
-    ABSTRACT = 0x61627374   # 'abst' - Abstract
+
+    INPUT = 0x73636E72  # 'scnr' - Scanner/Camera
+    DISPLAY = 0x6D6E7472  # 'mntr' - Display
+    OUTPUT = 0x70727472  # 'prtr' - Printer
+    LINK = 0x6C696E6B  # 'link' - Device Link
+    SPACE = 0x73706163  # 'spac' - Color Space
+    ABSTRACT = 0x61627374  # 'abst' - Abstract
     NAMED_COLOR = 0x6E6D636C  # 'nmcl' - Named Color
 
 
 # Color space signatures
 class ColorSpace(IntEnum):
     """ICC color space signatures."""
-    XYZ = 0x58595A20       # 'XYZ '
-    LAB = 0x4C616220       # 'Lab '
-    LUV = 0x4C757620       # 'Luv '
-    YCBCR = 0x59436272     # 'YCbr'
-    YXY = 0x59787920       # 'Yxy '
-    RGB = 0x52474220       # 'RGB '
-    GRAY = 0x47524159      # 'GRAY'
-    HSV = 0x48535620       # 'HSV '
-    HLS = 0x484C5320       # 'HLS '
-    CMYK = 0x434D594B      # 'CMYK'
+
+    XYZ = 0x58595A20  # 'XYZ '
+    LAB = 0x4C616220  # 'Lab '
+    LUV = 0x4C757620  # 'Luv '
+    YCBCR = 0x59436272  # 'YCbr'
+    YXY = 0x59787920  # 'Yxy '
+    RGB = 0x52474220  # 'RGB '
+    GRAY = 0x47524159  # 'GRAY'
+    HSV = 0x48535620  # 'HSV '
+    HLS = 0x484C5320  # 'HLS '
+    CMYK = 0x434D594B  # 'CMYK'
 
 
 # Platform signatures
 class Platform(IntEnum):
     """Platform signatures."""
-    APPLE = 0x4150504C     # 'APPL'
-    MICROSOFT = 0x4D534654 # 'MSFT'
+
+    APPLE = 0x4150504C  # 'APPL'
+    MICROSOFT = 0x4D534654  # 'MSFT'
     SILICON_GRAPHICS = 0x53474920  # 'SGI '
-    SUN = 0x53554E57       # 'SUNW'
+    SUN = 0x53554E57  # 'SUNW'
 
 
 # Rendering intent
 class RenderingIntent(IntEnum):
     """Rendering intent values."""
+
     PERCEPTUAL = 0
     RELATIVE_COLORIMETRIC = 1
     SATURATION = 2
@@ -76,82 +81,82 @@ class RenderingIntent(IntEnum):
 # Tag signatures
 class TagSignature:
     """Common ICC tag signatures."""
+
     # Required tags
-    PROFILE_DESCRIPTION = b'desc'
-    COPYRIGHT = b'cprt'
-    MEDIA_WHITE_POINT = b'wtpt'
-    CHROMATIC_ADAPTATION = b'chad'
+    PROFILE_DESCRIPTION = b"desc"
+    COPYRIGHT = b"cprt"
+    MEDIA_WHITE_POINT = b"wtpt"
+    CHROMATIC_ADAPTATION = b"chad"
 
     # Colorimetric tags
-    RED_MATRIX_COLUMN = b'rXYZ'
-    GREEN_MATRIX_COLUMN = b'gXYZ'
-    BLUE_MATRIX_COLUMN = b'bXYZ'
-    RED_TRC = b'rTRC'
-    GREEN_TRC = b'gTRC'
-    BLUE_TRC = b'bTRC'
+    RED_MATRIX_COLUMN = b"rXYZ"
+    GREEN_MATRIX_COLUMN = b"gXYZ"
+    BLUE_MATRIX_COLUMN = b"bXYZ"
+    RED_TRC = b"rTRC"
+    GREEN_TRC = b"gTRC"
+    BLUE_TRC = b"bTRC"
 
     # LUT tags
-    A2B0 = b'A2B0'  # Perceptual
-    A2B1 = b'A2B1'  # Relative colorimetric
-    A2B2 = b'A2B2'  # Saturation
-    B2A0 = b'B2A0'
-    B2A1 = b'B2A1'
-    B2A2 = b'B2A2'
+    A2B0 = b"A2B0"  # Perceptual
+    A2B1 = b"A2B1"  # Relative colorimetric
+    A2B2 = b"A2B2"  # Saturation
+    B2A0 = b"B2A0"
+    B2A1 = b"B2A1"
+    B2A2 = b"B2A2"
 
     # Gamut tag
-    GAMUT = b'gamt'
+    GAMUT = b"gamt"
 
     # Measurement tags
-    MEASUREMENT = b'meas'
+    MEASUREMENT = b"meas"
 
     # Video Card Gamma Table
-    VCGT = b'vcgt'
+    VCGT = b"vcgt"
 
     # Windows HDR
-    MHC2 = b'MHC2'
+    MHC2 = b"MHC2"
 
     # Viewing conditions
-    VIEWING_CONDITIONS = b'view'
-    VIEWING_COND_DESC = b'vued'
+    VIEWING_CONDITIONS = b"view"
+    VIEWING_COND_DESC = b"vued"
 
     # Technology
-    TECHNOLOGY = b'tech'
+    TECHNOLOGY = b"tech"
 
     # Calibration
-    CALIBRATION_DATE_TIME = b'calt'
-    CHAR_TARGET = b'targ'
+    CALIBRATION_DATE_TIME = b"calt"
+    CHAR_TARGET = b"targ"
 
     # Multi-localized strings
-    DEVICE_MFG_DESC = b'dmnd'
-    DEVICE_MODEL_DESC = b'dmdd'
+    DEVICE_MFG_DESC = b"dmnd"
+    DEVICE_MODEL_DESC = b"dmdd"
 
 
 # =============================================================================
 # Data Structures
 # =============================================================================
 
+
 @dataclass
 class XYZNumber:
     """CIE XYZ values in ICC format (s15Fixed16)."""
+
     X: float = 0.0
     Y: float = 0.0
     Z: float = 0.0
 
     def to_bytes(self) -> bytes:
         """Convert to ICC s15Fixed16 format."""
+
         def to_s15f16(val: float) -> int:
             return int(round(val * 65536)) & 0xFFFFFFFF
 
-        return struct.pack('>III',
-            to_s15f16(self.X),
-            to_s15f16(self.Y),
-            to_s15f16(self.Z)
-        )
+        return struct.pack(">III", to_s15f16(self.X), to_s15f16(self.Y), to_s15f16(self.Z))
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'XYZNumber':
+    def from_bytes(cls, data: bytes) -> "XYZNumber":
         """Parse from ICC format."""
-        x, y, z = struct.unpack('>III', data[:12])
+        x, y, z = struct.unpack(">III", data[:12])
 
         def from_s15f16(val: int) -> float:
             if val >= 0x80000000:
@@ -164,6 +169,7 @@ class XYZNumber:
 @dataclass
 class DateTimeNumber:
     """ICC dateTimeNumber."""
+
     year: int = 2024
     month: int = 1
     day: int = 1
@@ -172,13 +178,10 @@ class DateTimeNumber:
     second: int = 0
 
     def to_bytes(self) -> bytes:
-        return struct.pack('>HHHHHH',
-            self.year, self.month, self.day,
-            self.hour, self.minute, self.second
-        )
+        return struct.pack(">HHHHHH", self.year, self.month, self.day, self.hour, self.minute, self.second)
 
     @classmethod
-    def now(cls) -> 'DateTimeNumber':
+    def now(cls) -> "DateTimeNumber":
         now = datetime.now()
         return cls(now.year, now.month, now.day, now.hour, now.minute, now.second)
 
@@ -186,42 +189,43 @@ class DateTimeNumber:
 @dataclass
 class MultiLocalizedString:
     """Multi-localized Unicode string (mluc type)."""
+
     strings: dict[tuple[str, str], str] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.strings:
-            self.strings = {('en', 'US'): 'Default'}
+            self.strings = {("en", "US"): "Default"}
 
-    def set_string(self, text: str, language: str = 'en', country: str = 'US'):
+    def set_string(self, text: str, language: str = "en", country: str = "US"):
         """Set string for a locale."""
         self.strings[(language, country)] = text
 
     def to_bytes(self) -> bytes:
         """Serialize to ICC mluc format."""
         # Tag type signature
-        data = b'mluc' + b'\x00\x00\x00\x00'  # Type + reserved
+        data = b"mluc" + b"\x00\x00\x00\x00"  # Type + reserved
 
         # Number of records
         num_records = len(self.strings)
-        data += struct.pack('>I', num_records)
+        data += struct.pack(">I", num_records)
 
         # Record size (always 12)
-        data += struct.pack('>I', 12)
+        data += struct.pack(">I", 12)
 
         # Calculate string offsets
         header_size = 16 + 12 * num_records
-        string_data = b''
+        string_data = b""
         records = []
 
         for (lang, country), text in self.strings.items():
             # Encode as UTF-16BE
-            encoded = text.encode('utf-16-be')
+            encoded = text.encode("utf-16-be")
             offset = header_size + len(string_data)
             length = len(encoded)
 
             # Language and country codes
-            lang_code = lang.encode('ascii').ljust(2, b'\x00')[:2]
-            country_code = country.encode('ascii').ljust(2, b'\x00')[:2]
+            lang_code = lang.encode("ascii").ljust(2, b"\x00")[:2]
+            country_code = country.encode("ascii").ljust(2, b"\x00")[:2]
 
             records.append((lang_code, country_code, offset, length))
             string_data += encoded
@@ -229,14 +233,14 @@ class MultiLocalizedString:
         # Write records
         for lang_code, country_code, offset, length in records:
             data += lang_code + country_code
-            data += struct.pack('>II', length, offset)
+            data += struct.pack(">II", length, offset)
 
         # Write strings
         data += string_data
 
         # Pad to 4-byte boundary
         while len(data) % 4 != 0:
-            data += b'\x00'
+            data += b"\x00"
 
         return data
 
@@ -244,6 +248,7 @@ class MultiLocalizedString:
 @dataclass
 class ParametricCurve:
     """Parametric curve (para type)."""
+
     function_type: int = 0
     gamma: float = 2.2
     a: float = 1.0
@@ -254,38 +259,29 @@ class ParametricCurve:
     f: float = 0.0
 
     @classmethod
-    def srgb(cls) -> 'ParametricCurve':
+    def srgb(cls) -> "ParametricCurve":
         """Create sRGB transfer function."""
-        return cls(
-            function_type=3,
-            gamma=2.4,
-            a=1.0 / 1.055,
-            b=0.055 / 1.055,
-            c=1.0 / 12.92,
-            d=0.04045,
-            e=0.0,
-            f=0.0
-        )
+        return cls(function_type=3, gamma=2.4, a=1.0 / 1.055, b=0.055 / 1.055, c=1.0 / 12.92, d=0.04045, e=0.0, f=0.0)
 
     @classmethod
-    def gamma(cls, gamma: float) -> 'ParametricCurve':  # noqa: F811
+    def gamma(cls, gamma: float) -> "ParametricCurve":  # noqa: F811
         """Create simple gamma curve."""
         return cls(function_type=0, gamma=gamma)
 
     @classmethod
-    def bt1886(cls, gamma: float = 2.4) -> 'ParametricCurve':
+    def bt1886(cls, gamma: float = 2.4) -> "ParametricCurve":
         """Create BT.1886 transfer function."""
         return cls(function_type=0, gamma=gamma)
 
     def to_bytes(self) -> bytes:
         """Serialize to ICC para format."""
-        data = b'para' + b'\x00\x00\x00\x00'  # Type + reserved
-        data += struct.pack('>H', self.function_type)
-        data += b'\x00\x00'  # Reserved
+        data = b"para" + b"\x00\x00\x00\x00"  # Type + reserved
+        data += struct.pack(">H", self.function_type)
+        data += b"\x00\x00"  # Reserved
 
         def to_s15f16(val: float) -> bytes:
             ival = int(round(val * 65536)) & 0xFFFFFFFF
-            return struct.pack('>I', ival)
+            return struct.pack(">I", ival)
 
         # Parameters based on function type
         data += to_s15f16(self.gamma)
@@ -310,50 +306,51 @@ class ParametricCurve:
 @dataclass
 class CurveData:
     """TRC curve data (curv type)."""
+
     values: np.ndarray = field(default_factory=lambda: np.array([]))
     gamma: float | None = None  # If set, use gamma instead of table
 
     @classmethod
-    def from_gamma(cls, gamma: float) -> 'CurveData':
+    def from_gamma(cls, gamma: float) -> "CurveData":
         """Create gamma curve."""
         return cls(gamma=gamma)
 
     @classmethod
-    def from_table(cls, values: np.ndarray) -> 'CurveData':
+    def from_table(cls, values: np.ndarray) -> "CurveData":
         """Create from table values."""
         return cls(values=values)
 
     @classmethod
-    def identity(cls) -> 'CurveData':
+    def identity(cls) -> "CurveData":
         """Create identity curve (gamma 1.0)."""
         return cls(gamma=1.0)
 
     def to_bytes(self) -> bytes:
         """Serialize to ICC curv format."""
-        data = b'curv' + b'\x00\x00\x00\x00'  # Type + reserved
+        data = b"curv" + b"\x00\x00\x00\x00"  # Type + reserved
 
         if self.gamma is not None:
             # Gamma value encoded as u8Fixed8
-            data += struct.pack('>I', 1)  # Count = 1
+            data += struct.pack(">I", 1)  # Count = 1
             gamma_u8f8 = int(round(self.gamma * 256)) & 0xFFFF
-            data += struct.pack('>H', gamma_u8f8)
-            data += b'\x00\x00'  # Pad
+            data += struct.pack(">H", gamma_u8f8)
+            data += b"\x00\x00"  # Pad
         elif len(self.values) == 0:
             # Identity
-            data += struct.pack('>I', 0)
+            data += struct.pack(">I", 0)
         else:
             # Table
             count = len(self.values)
-            data += struct.pack('>I', count)
+            data += struct.pack(">I", count)
 
             # Convert to 16-bit
             values_u16 = (np.clip(self.values, 0, 1) * 65535).astype(np.uint16)
             for v in values_u16:
-                data += struct.pack('>H', v)
+                data += struct.pack(">H", v)
 
             # Pad to 4-byte boundary
             if count % 2 != 0:
-                data += b'\x00\x00'
+                data += b"\x00\x00"
 
         return data
 
@@ -361,6 +358,7 @@ class CurveData:
 @dataclass
 class MeasurementData:
     """Measurement data for profile."""
+
     observer: int = 1  # 1 = CIE 1931
     backing: XYZNumber = field(default_factory=lambda: XYZNumber(0, 0, 0))
     geometry: int = 0  # 0 = unknown
@@ -369,16 +367,16 @@ class MeasurementData:
 
     def to_bytes(self) -> bytes:
         """Serialize to ICC meas format."""
-        data = b'meas' + b'\x00\x00\x00\x00'
-        data += struct.pack('>I', self.observer)
+        data = b"meas" + b"\x00\x00\x00\x00"
+        data += struct.pack(">I", self.observer)
         data += self.backing.to_bytes()
-        data += struct.pack('>I', self.geometry)
+        data += struct.pack(">I", self.geometry)
 
         # Flare as u16Fixed16
         flare_u16f16 = int(round(self.flare * 65536)) & 0xFFFFFFFF
-        data += struct.pack('>I', flare_u16f16)
+        data += struct.pack(">I", flare_u16f16)
 
-        data += struct.pack('>I', self.illuminant)
+        data += struct.pack(">I", self.illuminant)
 
         return data
 
@@ -387,9 +385,11 @@ class MeasurementData:
 # 3D LUT Support (mft2/mAB/mBA types)
 # =============================================================================
 
+
 @dataclass
 class CLUT:
     """Color Look-Up Table for A2B/B2A tags."""
+
     data: np.ndarray  # Shape: (size, size, size, channels)
     input_channels: int = 3
     output_channels: int = 3
@@ -397,38 +397,38 @@ class CLUT:
 
     def to_bytes_mft2(self) -> bytes:
         """Serialize to mft2 format (16-bit precision)."""
-        data = b'mft2' + b'\x00\x00\x00\x00'
+        data = b"mft2" + b"\x00\x00\x00\x00"
 
         # Channels and grid
-        data += struct.pack('>BBB', self.input_channels, self.output_channels, self.grid_points)
-        data += b'\x00'  # Reserved
+        data += struct.pack(">BBB", self.input_channels, self.output_channels, self.grid_points)
+        data += b"\x00"  # Reserved
 
         # Identity matrix (for RGB to RGB)
         identity = [1, 0, 0, 0, 1, 0, 0, 0, 1]
         for val in identity:
             s15f16 = int(round(val * 65536)) & 0xFFFFFFFF
-            data += struct.pack('>I', s15f16)
+            data += struct.pack(">I", s15f16)
 
         # Input table entries (256 per channel)
-        data += struct.pack('>H', 256)
+        data += struct.pack(">H", 256)
         # Output table entries
-        data += struct.pack('>H', 256)
+        data += struct.pack(">H", 256)
 
         # Input tables (identity)
         for _ in range(self.input_channels):
             for i in range(256):
-                data += struct.pack('>H', i * 257)  # 0-65535
+                data += struct.pack(">H", i * 257)  # 0-65535
 
         # CLUT data
         clut_flat = self.data.flatten()
         clut_u16 = (np.clip(clut_flat, 0, 1) * 65535).astype(np.uint16)
         for v in clut_u16:
-            data += struct.pack('>H', v)
+            data += struct.pack(">H", v)
 
         # Output tables (identity)
         for _ in range(self.output_channels):
             for i in range(256):
-                data += struct.pack('>H', i * 257)
+                data += struct.pack(">H", i * 257)
 
         return data
 
@@ -437,6 +437,7 @@ class CLUT:
 # ICC Profile Class
 # =============================================================================
 
+
 @dataclass
 class ICCProfile:
     """
@@ -444,6 +445,7 @@ class ICCProfile:
 
     Supports display, input, and output profiles with full tag support.
     """
+
     # Header fields
     profile_class: ProfileClass = ProfileClass.DISPLAY
     color_space: ColorSpace = ColorSpace.RGB
@@ -499,21 +501,21 @@ class ICCProfile:
         header = bytearray(128)
 
         # Profile size (offset 0)
-        struct.pack_into('>I', header, 0, profile_size)
+        struct.pack_into(">I", header, 0, profile_size)
 
         # Preferred CMM (offset 4) - leave as 0
 
         # Version (offset 8) - v4.4
-        struct.pack_into('>I', header, 8, ICC_VERSION_4_4)
+        struct.pack_into(">I", header, 8, ICC_VERSION_4_4)
 
         # Profile/Device class (offset 12)
-        struct.pack_into('>I', header, 12, self.profile_class)
+        struct.pack_into(">I", header, 12, self.profile_class)
 
         # Color space (offset 16)
-        struct.pack_into('>I', header, 16, self.color_space)
+        struct.pack_into(">I", header, 16, self.color_space)
 
         # PCS (offset 20)
-        struct.pack_into('>I', header, 20, self.pcs)
+        struct.pack_into(">I", header, 20, self.pcs)
 
         # Date/time (offset 24)
         header[24:36] = self.creation_date.to_bytes()
@@ -522,26 +524,26 @@ class ICCProfile:
         header[36:40] = ICC_MAGIC
 
         # Platform (offset 40)
-        struct.pack_into('>I', header, 40, Platform.MICROSOFT)
+        struct.pack_into(">I", header, 40, Platform.MICROSOFT)
 
         # Flags (offset 44) - embedded, use with embedded data only
-        struct.pack_into('>I', header, 44, 0x00000001)
+        struct.pack_into(">I", header, 44, 0x00000001)
 
         # Device manufacturer (offset 48)
         # Device model (offset 52)
 
         # Device attributes (offset 56)
-        struct.pack_into('>Q', header, 56, 0)
+        struct.pack_into(">Q", header, 56, 0)
 
         # Rendering intent (offset 64)
-        struct.pack_into('>I', header, 64, self.rendering_intent)
+        struct.pack_into(">I", header, 64, self.rendering_intent)
 
         # PCS illuminant (offset 68) - D50
         d50 = XYZNumber(0.9642, 1.0, 0.8249)
         header[68:80] = d50.to_bytes()
 
         # Creator signature (offset 80)
-        header[80:84] = b'CALP'  # Calibrate Pro
+        header[80:84] = b"CALP"  # Calibrate Pro
 
         # Profile ID (offset 84) - filled later with MD5
 
@@ -551,36 +553,32 @@ class ICCProfile:
 
     def _build_tag_table(self, tags: list[tuple[bytes, int, int]]) -> bytes:
         """Build tag table."""
-        data = struct.pack('>I', len(tags))
+        data = struct.pack(">I", len(tags))
 
         for sig, offset, size in tags:
             data += sig
-            data += struct.pack('>II', offset, size)
+            data += struct.pack(">II", offset, size)
 
         return data
 
     def _build_xyz_tag(self, xyz: XYZNumber) -> bytes:
         """Build XYZ tag."""
-        return b'XYZ ' + b'\x00\x00\x00\x00' + xyz.to_bytes()
+        return b"XYZ " + b"\x00\x00\x00\x00" + xyz.to_bytes()
 
     def _build_chad_tag(self) -> bytes:
         """Build chromatic adaptation tag."""
-        data = b'sf32' + b'\x00\x00\x00\x00'
+        data = b"sf32" + b"\x00\x00\x00\x00"
 
         if self.chromatic_adaptation is not None:
             matrix = self.chromatic_adaptation
         else:
             # Bradford matrix for D65 to D50
-            matrix = np.array([
-                [1.0479, 0.0229, -0.0502],
-                [0.0296, 0.9904, -0.0171],
-                [-0.0092, 0.0151, 0.7519]
-            ])
+            matrix = np.array([[1.0479, 0.0229, -0.0502], [0.0296, 0.9904, -0.0171], [-0.0092, 0.0151, 0.7519]])
 
         for row in matrix:
             for val in row:
                 s15f16 = int(round(val * 65536)) & 0xFFFFFFFF
-                data += struct.pack('>I', s15f16)
+                data += struct.pack(">I", s15f16)
 
         return data
 
@@ -601,36 +599,36 @@ class ICCProfile:
         if self.vcgt_red is None:
             return None
 
-        data = b'vcgt' + b'\x00\x00\x00\x00'
+        data = b"vcgt" + b"\x00\x00\x00\x00"
 
         # Type 0 = table
-        data += struct.pack('>I', 0)
+        data += struct.pack(">I", 0)
 
         # Number of channels
-        data += struct.pack('>H', 3)
+        data += struct.pack(">H", 3)
 
         # Entries per channel
         num_entries = len(self.vcgt_red)
-        data += struct.pack('>H', num_entries)
+        data += struct.pack(">H", num_entries)
 
         # Entry size (2 = 16-bit)
-        data += struct.pack('>H', 2)
+        data += struct.pack(">H", 2)
 
         # Red channel
         for v in self.vcgt_red:
-            data += struct.pack('>H', int(np.clip(v, 0, 1) * 65535))
+            data += struct.pack(">H", int(np.clip(v, 0, 1) * 65535))
 
         # Green channel
         for v in self.vcgt_green:
-            data += struct.pack('>H', int(np.clip(v, 0, 1) * 65535))
+            data += struct.pack(">H", int(np.clip(v, 0, 1) * 65535))
 
         # Blue channel
         for v in self.vcgt_blue:
-            data += struct.pack('>H', int(np.clip(v, 0, 1) * 65535))
+            data += struct.pack(">H", int(np.clip(v, 0, 1) * 65535))
 
         # Pad to 4-byte boundary
         while len(data) % 4 != 0:
-            data += b'\x00'
+            data += b"\x00"
 
         return data
 
@@ -709,12 +707,12 @@ class ICCProfile:
 
         current_offset = header_size + tag_table_size
         tag_entries = []
-        tag_data_block = b''
+        tag_data_block = b""
 
         for sig, data in tags_data:
             # Align to 4 bytes
             padding = (4 - (len(tag_data_block) % 4)) % 4
-            tag_data_block += b'\x00' * padding
+            tag_data_block += b"\x00" * padding
 
             offset = current_offset + len(tag_data_block)
             tag_entries.append((sig, offset, len(data)))
@@ -722,7 +720,7 @@ class ICCProfile:
 
         # Final padding
         padding = (4 - (len(tag_data_block) % 4)) % 4
-        tag_data_block += b'\x00' * padding
+        tag_data_block += b"\x00" * padding
 
         # Total size
         profile_size = header_size + tag_table_size + len(tag_data_block)
@@ -734,8 +732,8 @@ class ICCProfile:
 
         # Calculate and embed profile ID (MD5)
         profile_for_hash = bytearray(profile)
-        profile_for_hash[44:48] = b'\x00\x00\x00\x00'  # Clear flags
-        profile_for_hash[84:100] = b'\x00' * 16  # Clear profile ID
+        profile_for_hash[44:48] = b"\x00\x00\x00\x00"  # Clear flags
+        profile_for_hash[84:100] = b"\x00" * 16  # Clear profile ID
 
         md5_hash = hashlib.md5(bytes(profile_for_hash)).digest()
 
@@ -751,7 +749,7 @@ class ICCProfile:
         path.write_bytes(data)
 
     @classmethod
-    def create_srgb(cls) -> 'ICCProfile':
+    def create_srgb(cls) -> "ICCProfile":
         """Create standard sRGB profile."""
         return cls(
             description="sRGB IEC61966-2.1",
@@ -767,7 +765,7 @@ class ICCProfile:
         )
 
     @classmethod
-    def create_display_p3(cls) -> 'ICCProfile':
+    def create_display_p3(cls) -> "ICCProfile":
         """Create Display P3 profile."""
         return cls(
             description="Display P3",
@@ -783,7 +781,7 @@ class ICCProfile:
         )
 
     @classmethod
-    def create_bt2020(cls) -> 'ICCProfile':
+    def create_bt2020(cls) -> "ICCProfile":
         """Create BT.2020 profile."""
         return cls(
             description="ITU-R BT.2020",
@@ -803,6 +801,7 @@ class ICCProfile:
 # Profile Creation Helpers
 # =============================================================================
 
+
 def create_calibration_profile(
     red_xyz: tuple[float, float, float],
     green_xyz: tuple[float, float, float],
@@ -812,7 +811,7 @@ def create_calibration_profile(
     trc_green: np.ndarray,
     trc_blue: np.ndarray,
     description: str = "Calibration Profile",
-    include_vcgt: bool = True
+    include_vcgt: bool = True,
 ) -> ICCProfile:
     """
     Create calibration profile from measurements.
@@ -850,11 +849,7 @@ def create_calibration_profile(
     return profile
 
 
-def create_lut_profile(
-    lut_data: np.ndarray,
-    description: str = "3D LUT Profile",
-    grid_size: int = 17
-) -> ICCProfile:
+def create_lut_profile(lut_data: np.ndarray, description: str = "3D LUT Profile", grid_size: int = 17) -> ICCProfile:
     """
     Create profile with embedded 3D LUT.
 
@@ -868,9 +863,6 @@ def create_lut_profile(
     """
     profile = ICCProfile(description=description)
 
-    profile.a2b0 = CLUT(
-        data=lut_data,
-        grid_points=grid_size
-    )
+    profile.a2b0 = CLUT(data=lut_data, grid_points=grid_size)
 
     return profile

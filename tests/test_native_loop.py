@@ -34,14 +34,17 @@ class TestDisplayProfile:
         levels = np.linspace(0, 1, n)
         # sRGB gamma ~2.2
         trc = np.power(levels, 2.2)
-        trc[0] = 0.0; trc[-1] = 1.0
+        trc[0] = 0.0
+        trc[-1] = 1.0
 
         # sRGB primaries matrix (exact)
         M = SRGB_TO_XYZ.copy()
 
         return DisplayProfile(
             levels=levels,
-            trc_r=trc.copy(), trc_g=trc.copy(), trc_b=trc.copy(),
+            trc_r=trc.copy(),
+            trc_g=trc.copy(),
+            trc_b=trc.copy(),
             M_display=M,
             white_Y=100.0,
             black_xyz=np.zeros(3),
@@ -49,7 +52,9 @@ class TestDisplayProfile:
             red_xy=(0.6400, 0.3300),
             green_xy=(0.3000, 0.6000),
             blue_xy=(0.1500, 0.0600),
-            gamma_r=2.2, gamma_g=2.2, gamma_b=2.2,
+            gamma_r=2.2,
+            gamma_g=2.2,
+            gamma_b=2.2,
         )
 
     def test_identity_lut_for_srgb_display(self):
@@ -72,11 +77,13 @@ class TestDisplayProfile:
         """A wide-gamut display should produce a LUT that compresses gamut."""
         profile = self._make_srgb_profile()
         # Make primaries wider (like QD-OLED)
-        profile.M_display = np.array([
-            [0.5, 0.2, 0.2],
-            [0.25, 0.7, 0.05],
-            [0.0, 0.03, 1.0],
-        ])
+        profile.M_display = np.array(
+            [
+                [0.5, 0.2, 0.2],
+                [0.25, 0.7, 0.05],
+                [0.0, 0.03, 1.0],
+            ]
+        )
         profile.red_xy = (0.68, 0.31)
         profile.green_xy = (0.26, 0.70)
         profile.blue_xy = (0.15, 0.06)
@@ -93,9 +100,7 @@ class TestDisplayProfile:
         """Black (0,0,0) should always pass through unchanged."""
         profile = self._make_srgb_profile()
         lut = build_correction_lut(profile, size=5)
-        np.testing.assert_array_almost_equal(
-            lut.data[0, 0, 0], [0.0, 0.0, 0.0], decimal=6
-        )
+        np.testing.assert_array_almost_equal(lut.data[0, 0, 0], [0.0, 0.0, 0.0], decimal=6)
 
 
 class TestComputeDe:
@@ -140,8 +145,10 @@ class TestCCMX:
 
     def test_ccmx_preserves_white(self):
         """CCMX should map sensor white to true white."""
+
         def xy_to_XYZ(x, y):
-            return np.array([x/y, 1.0, (1-x-y)/y])
+            return np.array([x / y, 1.0, (1 - x - y) / y])
+
         sensor_w = xy_to_XYZ(0.3134, 0.3240)
         xy_to_XYZ(0.3134, 0.3291)
         corrected = QDOLED_CCMX @ sensor_w

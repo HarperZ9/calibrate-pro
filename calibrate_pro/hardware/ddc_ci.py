@@ -30,6 +30,7 @@ from typing import Any
 # DDC/CI VCP (Virtual Control Panel) Codes - VESA MCCS Standard
 # =============================================================================
 
+
 class VCPCode(IntEnum):
     """
     VESA Monitor Control Command Set (MCCS) VCP codes.
@@ -37,6 +38,7 @@ class VCPCode(IntEnum):
     Comprehensive list of all standard and common manufacturer codes.
     Not all monitors support all codes - use get_vcp to test.
     """
+
     # =========================================================================
     # Preset Operations (0x00-0x0F)
     # =========================================================================
@@ -55,11 +57,11 @@ class VCPCode(IntEnum):
     # =========================================================================
     # Image Adjustment (0x10-0x1F)
     # =========================================================================
-    BRIGHTNESS = 0x10          # Luminance
+    BRIGHTNESS = 0x10  # Luminance
     CONTRAST = 0x12
-    BACKLIGHT = 0x13           # Backlight control (LED displays)
-    COLOR_PRESET = 0x14        # Color temperature preset
-    RED_GAIN = 0x16            # Video gain (drive) - highlights
+    BACKLIGHT = 0x13  # Backlight control (LED displays)
+    COLOR_PRESET = 0x14  # Color temperature preset
+    RED_GAIN = 0x16  # Video gain (drive) - highlights
     GREEN_GAIN = 0x18
     BLUE_GAIN = 0x1A
 
@@ -111,7 +113,7 @@ class VCPCode(IntEnum):
     AUDIO_MICROPHONE_VOLUME = 0x64
     AMBIENT_LIGHT_SENSOR = 0x66
     REMOTE_PROCEDURE_CALL = 0x6A
-    RED_BLACK_LEVEL = 0x6C     # Video black level (offset) - shadows
+    RED_BLACK_LEVEL = 0x6C  # Video black level (offset) - shadows
     GREEN_BLACK_LEVEL = 0x6E
     BLUE_BLACK_LEVEL = 0x70
 
@@ -134,12 +136,12 @@ class VCPCode(IntEnum):
     AUDIO_TREBLE = 0x8C
     AUDIO_BASS = 0x8E
     SHARPNESS = 0x87
-    SATURATION = 0x8A           # Color saturation
+    SATURATION = 0x8A  # Color saturation
     TV_SHARPNESS = 0x8C
     TV_CONTRAST = 0x8E
     FLESH_TONE_ENHANCEMENT = 0x90
     TV_BLACK_LEVEL = 0x92
-    WINDOW_CONTROL = 0x9B       # Window position/size
+    WINDOW_CONTROL = 0x9B  # Window position/size
     WINDOW_SELECT = 0x9C
     WINDOW_SIZE = 0x9D
     WINDOW_TRANSPARENCY = 0x9E
@@ -168,10 +170,10 @@ class VCPCode(IntEnum):
     # =========================================================================
     ASSET_TAG = 0xD2
     DISPLAY_USAGE_TIME = 0xC0
-    POWER_MODE = 0xD6           # DPMS power state
+    POWER_MODE = 0xD6  # DPMS power state
     AUXILIARY_POWER_OUTPUT = 0xD7
-    SCAN_MODE = 0xDA            # Interlaced/Progressive
-    IMAGE_MODE = 0xDB           # Picture mode preset
+    SCAN_MODE = 0xDA  # Interlaced/Progressive
+    IMAGE_MODE = 0xDB  # Picture mode preset
     DISPLAY_APPLICATION = 0xDC  # Application mode
 
     # =========================================================================
@@ -194,7 +196,7 @@ class VCPCode(IntEnum):
     MANUFACTURER_SPECIFIC_ED = 0xED
     MANUFACTURER_SPECIFIC_EE = 0xEE
     MANUFACTURER_SPECIFIC_EF = 0xEF
-    GAMMA = 0xF2                # Manufacturer-specific gamma selection
+    GAMMA = 0xF2  # Manufacturer-specific gamma selection
     MANUFACTURER_SPECIFIC_F4 = 0xF4
     MANUFACTURER_SPECIFIC_F5 = 0xF5
     MANUFACTURER_SPECIFIC_F6 = 0xF6
@@ -259,6 +261,7 @@ VCP_DESCRIPTIONS = {
 
 class ColorPreset(IntEnum):
     """Standard color temperature/mode presets."""
+
     NATIVE = 0x01
     SRGB = 0x02
     COLOR_TEMP_4000K = 0x03
@@ -278,6 +281,7 @@ class ColorPreset(IntEnum):
 # Windows Physical Monitor API
 # =============================================================================
 
+
 class PHYSICAL_MONITOR(ctypes.Structure):
     _fields_ = [
         ("hPhysicalMonitor", wintypes.HANDLE),
@@ -288,6 +292,7 @@ class PHYSICAL_MONITOR(ctypes.Structure):
 @dataclass
 class MonitorCapabilities:
     """DDC/CI capabilities for a monitor."""
+
     model: str = ""
     supported_vcp_codes: list[int] = field(default_factory=list)
     color_temp_range: tuple[int, int] = (0, 0)
@@ -312,23 +317,35 @@ class MonitorCapabilities:
     def summary(self) -> str:
         """Human-readable capability summary."""
         features = []
-        if self.has_brightness: features.append("Brightness")
-        if self.has_contrast: features.append("Contrast")
-        if self.has_rgb_gain: features.append("RGB Gain")
-        if self.has_rgb_black_level: features.append("RGB Offset")
-        if self.has_image_mode: features.append("Picture Mode")
-        if self.has_color_preset: features.append("Color Preset")
-        if self.has_gamma: features.append("Gamma")
-        if self.has_saturation: features.append("Saturation")
-        if self.has_six_axis_saturation: features.append("6-Axis Saturation")
-        if self.has_six_axis_hue: features.append("6-Axis Hue")
-        if self.has_input_source: features.append("Input Select")
+        if self.has_brightness:
+            features.append("Brightness")
+        if self.has_contrast:
+            features.append("Contrast")
+        if self.has_rgb_gain:
+            features.append("RGB Gain")
+        if self.has_rgb_black_level:
+            features.append("RGB Offset")
+        if self.has_image_mode:
+            features.append("Picture Mode")
+        if self.has_color_preset:
+            features.append("Color Preset")
+        if self.has_gamma:
+            features.append("Gamma")
+        if self.has_saturation:
+            features.append("Saturation")
+        if self.has_six_axis_saturation:
+            features.append("6-Axis Saturation")
+        if self.has_six_axis_hue:
+            features.append("6-Axis Hue")
+        if self.has_input_source:
+            features.append("Input Select")
         return ", ".join(features) if features else "No DDC/CI features detected"
 
 
 @dataclass
 class MonitorSettings:
     """Current monitor hardware settings."""
+
     brightness: int = 0
     contrast: int = 0
     red_gain: int = 0
@@ -399,37 +416,29 @@ class DDCCIController:
 
         # Callback for EnumDisplayMonitors
         MONITORENUMPROC = ctypes.WINFUNCTYPE(
-            wintypes.BOOL,
-            wintypes.HMONITOR,
-            wintypes.HDC,
-            ctypes.POINTER(wintypes.RECT),
-            wintypes.LPARAM
+            wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC, ctypes.POINTER(wintypes.RECT), wintypes.LPARAM
         )
 
         def monitor_callback(hMonitor, hdcMonitor, lprcMonitor, dwData):
             try:
                 # Get number of physical monitors
                 num_physical = wintypes.DWORD()
-                if self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR(
-                    hMonitor, ctypes.byref(num_physical)
-                ):
+                if self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, ctypes.byref(num_physical)):
                     # Get physical monitor handles
                     physical_monitors = (PHYSICAL_MONITOR * num_physical.value)()
-                    if self.dxva2.GetPhysicalMonitorsFromHMONITOR(
-                        hMonitor, num_physical.value, physical_monitors
-                    ):
+                    if self.dxva2.GetPhysicalMonitorsFromHMONITOR(hMonitor, num_physical.value, physical_monitors):
                         for pm in physical_monitors:
                             monitor_info = {
-                                'handle': pm.hPhysicalMonitor,
-                                'name': pm.szPhysicalMonitorDescription,
-                                'hmonitor': hMonitor,
-                                'capabilities': None
+                                "handle": pm.hPhysicalMonitor,
+                                "name": pm.szPhysicalMonitorDescription,
+                                "hmonitor": hMonitor,
+                                "capabilities": None,
                             }
 
                             # Try to get capabilities
                             try:
                                 caps = self._get_capabilities(pm.hPhysicalMonitor)
-                                monitor_info['capabilities'] = caps
+                                monitor_info["capabilities"] = caps
                             except OSError:
                                 pass
 
@@ -454,17 +463,16 @@ class DDCCIController:
 
         # Get capabilities string
         caps_str = ctypes.create_string_buffer(caps_len.value + 1)
-        if not self.dxva2.CapabilitiesRequestAndCapabilitiesReply(
-            handle, caps_str, caps_len.value
-        ):
+        if not self.dxva2.CapabilitiesRequestAndCapabilitiesReply(handle, caps_str, caps_len.value):
             return caps
 
-        caps.raw_capabilities = caps_str.value.decode('ascii', errors='ignore')
+        caps.raw_capabilities = caps_str.value.decode("ascii", errors="ignore")
 
         # Parse VCP codes from capabilities string
         # Format: "(vcp(10 12 16 18 1A ...))"
         import re
-        vcp_match = re.search(r'vcp\(([^)]+)\)', caps.raw_capabilities, re.IGNORECASE)
+
+        vcp_match = re.search(r"vcp\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
         if vcp_match:
             vcp_str = vcp_match.group(1)
             for code in vcp_str.split():
@@ -480,9 +488,7 @@ class DDCCIController:
         caps.has_brightness = VCPCode.BRIGHTNESS in codes
         caps.has_contrast = VCPCode.CONTRAST in codes
         caps.has_backlight = VCPCode.BACKLIGHT in codes
-        caps.has_rgb_gain = all(
-            c in codes for c in [VCPCode.RED_GAIN, VCPCode.GREEN_GAIN, VCPCode.BLUE_GAIN]
-        )
+        caps.has_rgb_gain = all(c in codes for c in [VCPCode.RED_GAIN, VCPCode.GREEN_GAIN, VCPCode.BLUE_GAIN])
         caps.has_rgb_black_level = all(
             c in codes for c in [VCPCode.RED_BLACK_LEVEL, VCPCode.GREEN_BLACK_LEVEL, VCPCode.BLUE_BLACK_LEVEL]
         )
@@ -491,15 +497,25 @@ class DDCCIController:
         caps.has_gamma = VCPCode.GAMMA in codes
         caps.has_saturation = VCPCode.SATURATION in codes
         caps.has_six_axis_saturation = all(
-            c in codes for c in [
-                VCPCode.SIX_AXIS_SATURATION_RED, VCPCode.SIX_AXIS_SATURATION_GREEN, VCPCode.SIX_AXIS_SATURATION_BLUE,
-                VCPCode.SIX_AXIS_SATURATION_CYAN, VCPCode.SIX_AXIS_SATURATION_MAGENTA, VCPCode.SIX_AXIS_SATURATION_YELLOW,
+            c in codes
+            for c in [
+                VCPCode.SIX_AXIS_SATURATION_RED,
+                VCPCode.SIX_AXIS_SATURATION_GREEN,
+                VCPCode.SIX_AXIS_SATURATION_BLUE,
+                VCPCode.SIX_AXIS_SATURATION_CYAN,
+                VCPCode.SIX_AXIS_SATURATION_MAGENTA,
+                VCPCode.SIX_AXIS_SATURATION_YELLOW,
             ]
         )
         caps.has_six_axis_hue = all(
-            c in codes for c in [
-                VCPCode.SIX_AXIS_HUE_RED, VCPCode.SIX_AXIS_HUE_GREEN, VCPCode.SIX_AXIS_HUE_BLUE,
-                VCPCode.SIX_AXIS_HUE_CYAN, VCPCode.SIX_AXIS_HUE_MAGENTA, VCPCode.SIX_AXIS_HUE_YELLOW,
+            c in codes
+            for c in [
+                VCPCode.SIX_AXIS_HUE_RED,
+                VCPCode.SIX_AXIS_HUE_GREEN,
+                VCPCode.SIX_AXIS_HUE_BLUE,
+                VCPCode.SIX_AXIS_HUE_CYAN,
+                VCPCode.SIX_AXIS_HUE_MAGENTA,
+                VCPCode.SIX_AXIS_HUE_YELLOW,
             ]
         )
         caps.has_input_source = VCPCode.INPUT_SOURCE in codes
@@ -507,12 +523,12 @@ class DDCCIController:
         caps.has_osd_control = VCPCode.OSD_ENABLED in codes
 
         # Parse model name
-        model_match = re.search(r'model\(([^)]+)\)', caps.raw_capabilities, re.IGNORECASE)
+        model_match = re.search(r"model\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
         if model_match:
             caps.model = model_match.group(1).strip()
 
         # Parse VCP version
-        vcp_ver_match = re.search(r'mccs_ver\(([^)]+)\)', caps.raw_capabilities, re.IGNORECASE)
+        vcp_ver_match = re.search(r"mccs_ver\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
         if vcp_ver_match:
             caps.vcp_version = vcp_ver_match.group(1).strip()
 
@@ -525,6 +541,7 @@ class DDCCIController:
     def _rate_limit(self):
         """Enforce minimum interval between DDC/CI commands."""
         import time
+
         now = time.time() * 1000
         elapsed = now - self._last_command_time
         if elapsed < self._MIN_COMMAND_INTERVAL_MS:
@@ -555,11 +572,7 @@ class DDCCIController:
 
             try:
                 if self.dxva2.GetVCPFeatureAndVCPFeatureReply(
-                    monitor['handle'],
-                    code,
-                    ctypes.byref(vcp_type),
-                    ctypes.byref(current),
-                    ctypes.byref(maximum)
+                    monitor["handle"], code, ctypes.byref(vcp_type), ctypes.byref(current), ctypes.byref(maximum)
                 ):
                     return (current.value, maximum.value)
             except OSError:
@@ -602,7 +615,7 @@ class DDCCIController:
             self._rate_limit()
 
             try:
-                if self.dxva2.SetVCPFeature(monitor['handle'], code, value):
+                if self.dxva2.SetVCPFeature(monitor["handle"], code, value):
                     return True
             except OSError:
                 pass
@@ -659,27 +672,41 @@ class DDCCIController:
         """Detect the video connection type (HDMI, DisplayPort, etc.) via WMI."""
         try:
             import subprocess
+
             result = subprocess.run(
-                ["powershell", "-Command",
-                 "Get-CimInstance -Namespace root/wmi -ClassName WmiMonitorConnectionParams "
-                 "| Select-Object InstanceName, VideoOutputTechnology "
-                 "| ConvertTo-Json"],
-                capture_output=True, text=True, timeout=5,
+                [
+                    "powershell",
+                    "-Command",
+                    "Get-CimInstance -Namespace root/wmi -ClassName WmiMonitorConnectionParams "
+                    "| Select-Object InstanceName, VideoOutputTechnology "
+                    "| ConvertTo-Json",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if result.returncode == 0 and result.stdout.strip():
                 import json
+
                 data = json.loads(result.stdout)
                 if not isinstance(data, list):
                     data = [data]
 
                 # Map VideoOutputTechnology to human-readable names
                 tech_map = {
-                    0: "VGA", 2: "S-Video", 3: "Composite",
-                    4: "Component", 5: "HDMI", 6: "LVDS",
-                    8: "D-Sub JPN", 10: "DisplayPort",
-                    11: "DisplayPort (embedded)", 12: "UDI",
-                    14: "SDI", 15: "DisplayPort (internal)",
+                    0: "VGA",
+                    2: "S-Video",
+                    3: "Composite",
+                    4: "Component",
+                    5: "HDMI",
+                    6: "LVDS",
+                    8: "D-Sub JPN",
+                    10: "DisplayPort",
+                    11: "DisplayPort (embedded)",
+                    12: "UDI",
+                    14: "SDI",
+                    15: "DisplayPort (internal)",
                 }
 
                 # Find matching monitor by name in InstanceName
@@ -698,10 +725,16 @@ class DDCCIController:
         """Fallback: read brightness via WMI (works when DXVA2 doesn't)."""
         try:
             import subprocess
+
             result = subprocess.run(
-                ["powershell", "-Command",
-                 "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness"],
-                capture_output=True, text=True, timeout=5,
+                [
+                    "powershell",
+                    "-Command",
+                    "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             if result.returncode == 0 and result.stdout.strip():
@@ -714,22 +747,24 @@ class DDCCIController:
         """Fallback: set brightness via WMI."""
         try:
             import subprocess
+
             result = subprocess.run(
-                ["powershell", "-Command",
-                 f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
-                 f".WmiSetBrightness(1,{value})"],
-                capture_output=True, text=True, timeout=5,
+                [
+                    "powershell",
+                    "-Command",
+                    f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
+                    f".WmiSetBrightness(1,{value})",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             return result.returncode == 0
         except (subprocess.SubprocessError, OSError):
             return False
 
-    def scan_all_vcp_codes(
-        self,
-        monitor: dict,
-        progress_callback=None
-    ) -> dict[int, tuple[int, int]]:
+    def scan_all_vcp_codes(self, monitor: dict, progress_callback=None) -> dict[int, tuple[int, int]]:
         """
         Scan ALL VCP codes (0x00-0xFF) to discover what the monitor supports.
 
@@ -759,11 +794,7 @@ class DDCCIController:
                 vcp_type = wintypes.DWORD()
 
                 if self.dxva2.GetVCPFeatureAndVCPFeatureReply(
-                    monitor['handle'],
-                    code,
-                    ctypes.byref(vcp_type),
-                    ctypes.byref(current),
-                    ctypes.byref(maximum)
+                    monitor["handle"], code, ctypes.byref(vcp_type), ctypes.byref(current), ctypes.byref(maximum)
                 ):
                     # Some monitors return success but max=0 for unsupported
                     if maximum.value > 0 or current.value > 0:
@@ -790,11 +821,7 @@ class DDCCIController:
             vcp_type = wintypes.DWORD()
 
             can_read = self.dxva2.GetVCPFeatureAndVCPFeatureReply(
-                monitor['handle'],
-                code,
-                ctypes.byref(vcp_type),
-                ctypes.byref(current),
-                ctypes.byref(maximum)
+                monitor["handle"], code, ctypes.byref(vcp_type), ctypes.byref(current), ctypes.byref(maximum)
             )
 
             if not can_read:
@@ -807,21 +834,18 @@ class DDCCIController:
                 value = maximum.value
 
             # Try to set
-            result = self.dxva2.SetVCPFeature(monitor['handle'], code, value)
+            result = self.dxva2.SetVCPFeature(monitor["handle"], code, value)
 
             if not result:
                 return False, f"SetVCPFeature failed for 0x{code:02X}"
 
             # Read back to verify
             import time
+
             time.sleep(0.1)  # Give monitor time to apply
 
             if self.dxva2.GetVCPFeatureAndVCPFeatureReply(
-                monitor['handle'],
-                code,
-                ctypes.byref(vcp_type),
-                ctypes.byref(current),
-                ctypes.byref(maximum)
+                monitor["handle"], code, ctypes.byref(vcp_type), ctypes.byref(current), ctypes.byref(maximum)
             ):
                 new_value = current.value
                 if new_value == value:
@@ -967,6 +991,7 @@ class DDCCIController:
             List of applied changes
         """
         import logging
+
         logger = logging.getLogger(__name__)
         changes = []
 
@@ -1039,10 +1064,7 @@ class DDCCIController:
                 log("Contrast -> 80")
 
             # Try to set RGB gains to max (neutral)
-            for code, name in [
-                (VCPCode.RED_GAIN, "Red"), (VCPCode.GREEN_GAIN, "Green"),
-                (VCPCode.BLUE_GAIN, "Blue")
-            ]:
+            for code, name in [(VCPCode.RED_GAIN, "Red"), (VCPCode.GREEN_GAIN, "Green"), (VCPCode.BLUE_GAIN, "Blue")]:
                 try:
                     _, max_val = self.get_vcp(monitor, code)
                     if max_val > 0:
@@ -1058,7 +1080,7 @@ class DDCCIController:
         if self._available:
             for monitor in self._monitors:
                 try:
-                    self.dxva2.DestroyPhysicalMonitor(monitor['handle'])
+                    self.dxva2.DestroyPhysicalMonitor(monitor["handle"])
                 except OSError:
                     pass
         self._monitors = []
@@ -1068,9 +1090,11 @@ class DDCCIController:
 # Hardware Calibration Engine
 # =============================================================================
 
+
 @dataclass
 class HardwareCalibrationTarget:
     """Target values for hardware calibration."""
+
     white_point_x: float = 0.3127  # D65
     white_point_y: float = 0.3290
     target_brightness: float = 120.0  # cd/m²
@@ -1081,6 +1105,7 @@ class HardwareCalibrationTarget:
 @dataclass
 class HardwareCalibrationResult:
     """Results from hardware calibration."""
+
     success: bool = False
     rgb_gain: tuple[int, int, int] = (100, 100, 100)
     rgb_black: tuple[int, int, int] = (50, 50, 50)
@@ -1127,7 +1152,7 @@ class HardwareCalibrator:
         monitor: dict,
         target: HardwareCalibrationTarget,
         max_iterations: int = 20,
-        tolerance: float = 0.002  # xy chromaticity tolerance
+        tolerance: float = 0.002,  # xy chromaticity tolerance
     ) -> HardwareCalibrationResult:
         """
         Iteratively adjust RGB gain to achieve target white point.
@@ -1150,7 +1175,7 @@ class HardwareCalibrator:
             result.message = "No measurement callback set - cannot calibrate"
             return result
 
-        caps = monitor.get('capabilities')
+        caps = monitor.get("capabilities")
         if not caps or not caps.has_rgb_gain:
             result.message = "Monitor does not support RGB gain adjustment via DDC/CI"
             return result
@@ -1237,7 +1262,7 @@ class HardwareCalibrator:
         u_meas = 4 * result.measured_white_x / (-2 * result.measured_white_x + 12 * result.measured_white_y + 3)
         v_meas = 9 * result.measured_white_y / (-2 * result.measured_white_x + 12 * result.measured_white_y + 3)
 
-        result.delta_e = ((u_target - u_meas)**2 + (v_target - v_meas)**2)**0.5 * 100
+        result.delta_e = ((u_target - u_meas) ** 2 + (v_target - v_meas) ** 2) ** 0.5 * 100
 
         return result
 
@@ -1245,7 +1270,7 @@ class HardwareCalibrator:
         self,
         monitor: dict,
         target_nits: float,
-        tolerance: float = 5.0  # cd/m² tolerance
+        tolerance: float = 5.0,  # cd/m² tolerance
     ) -> tuple[bool, int]:
         """
         Adjust monitor brightness to target luminance.
@@ -1259,7 +1284,7 @@ class HardwareCalibrator:
         # Binary search for correct brightness
         low, high = 0, 100
         best_brightness = 50
-        best_diff = float('inf')
+        best_diff = float("inf")
 
         for _ in range(10):  # Max 10 iterations
             mid = (low + high) // 2
@@ -1292,6 +1317,7 @@ class HardwareCalibrator:
 # Professional Monitor Hardware LUT Support
 # =============================================================================
 
+
 class HardwareLUTUploader:
     """
     Upload calibration LUTs directly to professional monitors.
@@ -1316,12 +1342,7 @@ class HardwareLUTUploader:
         # using USB HID or proprietary DDC extensions
         pass
 
-    def upload_lut(
-        self,
-        monitor_id: str,
-        lut_data: bytes,
-        lut_size: int = 4096
-    ) -> bool:
+    def upload_lut(self, monitor_id: str, lut_data: bytes, lut_size: int = 4096) -> bool:
         """
         Upload a 1D or 3D LUT to the monitor's hardware.
 
@@ -1351,6 +1372,7 @@ class HardwareLUTUploader:
 # Convenience Functions
 # =============================================================================
 
+
 def detect_ddc_monitors() -> list[dict]:
     """Quick detection of all DDC/CI capable monitors."""
     controller = DDCCIController()
@@ -1361,7 +1383,7 @@ def detect_ddc_monitors() -> list[dict]:
 def print_monitor_capabilities(monitor: dict):
     """Print monitor DDC/CI capabilities for debugging."""
     print(f"\nMonitor: {monitor['name']}")
-    caps = monitor.get('capabilities')
+    caps = monitor.get("capabilities")
     if caps:
         print(f"  Model: {caps.model}")
         print(f"  RGB Gain: {'Yes' if caps.has_rgb_gain else 'No'}")

@@ -177,7 +177,6 @@ __all__ = [
     "SoftwareColorControlPage",
     "DDCControlPage",
     "SettingsPage",
-
     # Calibration Wizard
     "CalibrationWizard",
     "CalibrationConfig",
@@ -192,7 +191,6 @@ __all__ = [
     "MeasurementStep",
     "ProfileGenerationStep",
     "VerificationStep",
-
     # Display Selection
     "DisplaySelector",
     "DisplayLayoutPreview",
@@ -201,7 +199,6 @@ __all__ = [
     "DisplayInfo",
     "DisplayTechnology",
     "CalibrationStatus",
-
     # Pattern Window
     "PatternWindow",
     "PatternCanvas",
@@ -209,7 +206,6 @@ __all__ = [
     "PatternSequencer",
     "PatternType",
     "PatternConfig",
-
     # Measurement View
     "MeasurementView",
     "Measurement",
@@ -217,14 +213,12 @@ __all__ = [
     "DeltaEDisplay",
     "ValuesPanel",
     "MeasurementHistoryTable",
-
     # LUT Preview
     "LUTPreviewWidget",
     "LUTCubeView",
     "LUTSliceView",
     "BeforeAfterView",
     "LUT3D",
-
     # Report Viewer
     "ReportViewer",
     "ReportSummaryPanel",
@@ -233,14 +227,12 @@ __all__ = [
     "GrayscaleResult",
     "ColorCheckerResult",
     "GamutCoverage",
-
     # CIE Diagram Widget
     "CIEDiagramWidget",
     "MeasuredPoint",
     "SPECTRAL_LOCUS",
     "WHITE_POINTS",
     "GAMUTS",
-
     # Gamma Curve Widget
     "GammaCurveWidget",
     "GammaInfoPanel",
@@ -250,7 +242,6 @@ __all__ = [
     "bt1886_eotf",
     "power_law_eotf",
     "l_star_eotf",
-
     # Delta E Chart Widget
     "DeltaEBarChart",
     "DeltaEStatsPanel",
@@ -258,7 +249,6 @@ __all__ = [
     "DeltaEQuality",
     "classify_delta_e",
     "get_delta_e_color",
-
     # Color Swatch Widgets
     "ColorSwatch",
     "ComparisonSwatch",

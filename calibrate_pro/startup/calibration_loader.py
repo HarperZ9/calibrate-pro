@@ -49,9 +49,7 @@ def _get_logger() -> logging.Logger:
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / "calibration_service.log"
         handler = logging.FileHandler(log_file, encoding="utf-8")
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-        )
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
         _LOG_INITIALIZED = True
@@ -61,6 +59,7 @@ def _get_logger() -> logging.Logger:
 # ---------------------------------------------------------------------------
 # Win32 structures & helpers
 # ---------------------------------------------------------------------------
+
 
 class DISPLAY_DEVICE(ctypes.Structure):
     _fields_ = [
@@ -116,6 +115,7 @@ def _enumerate_active_displays() -> list[dict]:
 # ---------------------------------------------------------------------------
 # LUT application helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_dwm_lut_dir() -> Path:
     """Return the directory where dwm_lut expects .cube files."""
@@ -225,9 +225,15 @@ def _apply_vcgt_gamma_ramp(lut_path: str, display_state: DisplayCalibrationState
         frac = lut_idx - idx_low
 
         # Extract from the neutral diagonal (R=G=B), not single-channel axes
-        r_curve[i] = lut.data[idx_low, idx_low, idx_low, 0] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 0] * frac
-        g_curve[i] = lut.data[idx_low, idx_low, idx_low, 1] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 1] * frac
-        b_curve[i] = lut.data[idx_low, idx_low, idx_low, 2] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 2] * frac
+        r_curve[i] = (
+            lut.data[idx_low, idx_low, idx_low, 0] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 0] * frac
+        )
+        g_curve[i] = (
+            lut.data[idx_low, idx_low, idx_low, 1] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 1] * frac
+        )
+        b_curve[i] = (
+            lut.data[idx_low, idx_low, idx_low, 2] * (1.0 - frac) + lut.data[idx_high, idx_high, idx_high, 2] * frac
+        )
 
     # Apply gamma ramp via platform backend (works on Windows, macOS, Linux)
     red_int = [int(np.clip(r_curve[i], 0.0, 1.0) * 65535) for i in range(256)]
@@ -236,6 +242,7 @@ def _apply_vcgt_gamma_ramp(lut_path: str, display_state: DisplayCalibrationState
 
     try:
         from calibrate_pro.platform import get_platform_backend
+
         backend = get_platform_backend()
         ok = backend.apply_gamma_ramp(display_state.display_id, red_int, green_int, blue_int)
         if ok:
@@ -278,6 +285,7 @@ def _apply_single_calibration(display_state: DisplayCalibrationState) -> bool:
         # Ensure DwmLutGUI is running so the placed LUT file is active
         try:
             from calibrate_pro.lut_system.dwm_lut import DwmLutController
+
             dwm = DwmLutController()
             if dwm.is_available and not dwm._is_dwm_lut_running():
                 dwm.start_dwm_lut_gui()
@@ -292,6 +300,7 @@ def _apply_single_calibration(display_state: DisplayCalibrationState) -> bool:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def apply_saved_calibrations() -> bool:
     """
@@ -347,9 +356,7 @@ def run_service(silent: bool = True) -> None:
     if not silent:
         # Add a console handler so the user sees output
         console = logging.StreamHandler(sys.stdout)
-        console.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-        )
+        console.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(console)
 
     logger.info("=" * 60)
@@ -400,6 +407,7 @@ def run_service(silent: bool = True) -> None:
 # ---------------------------------------------------------------------------
 # start-service command handler
 # ---------------------------------------------------------------------------
+
 
 def start_service_command(args: list[str] | None = None) -> None:
     """

@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DriftReading:
     """A reference patch measurement for drift tracking."""
+
     timestamp: float
     xyz: np.ndarray
     patch_index: int  # Index in the overall measurement sequence
@@ -38,6 +39,7 @@ class DriftReading:
 @dataclass
 class DriftStats:
     """Drift statistics for a profiling session."""
+
     total_readings: int = 0
     reference_count: int = 0
     max_drift_pct: float = 0.0
@@ -75,11 +77,13 @@ class DriftCompensator:
     def set_initial_reference(self, xyz: np.ndarray):
         """Set the initial reference measurement (first white)."""
         self._initial_xyz = xyz.copy()
-        self._references.append(DriftReading(
-            timestamp=time.time(),
-            xyz=xyz.copy(),
-            patch_index=0,
-        ))
+        self._references.append(
+            DriftReading(
+                timestamp=time.time(),
+                xyz=xyz.copy(),
+                patch_index=0,
+            )
+        )
         logger.info("Drift compensation: initial reference Y=%.2f", xyz[1])
 
     def should_measure_reference(self, patch_index: int) -> bool:
@@ -88,18 +92,17 @@ class DriftCompensator:
 
     def add_reference(self, xyz: np.ndarray, patch_index: int):
         """Add a reference measurement during the session."""
-        self._references.append(DriftReading(
-            timestamp=time.time(),
-            xyz=xyz.copy(),
-            patch_index=patch_index,
-        ))
+        self._references.append(
+            DriftReading(
+                timestamp=time.time(),
+                xyz=xyz.copy(),
+                patch_index=patch_index,
+            )
+        )
 
         if self._initial_xyz is not None:
             drift = np.abs(xyz - self._initial_xyz) / np.maximum(self._initial_xyz, 1e-6) * 100
-            logger.debug(
-                "Drift at patch %d: X=%.2f%% Y=%.2f%% Z=%.2f%%",
-                patch_index, drift[0], drift[1], drift[2]
-            )
+            logger.debug("Drift at patch %d: X=%.2f%% Y=%.2f%% Z=%.2f%%", patch_index, drift[0], drift[1], drift[2])
 
     def compensate(self, xyz: np.ndarray, patch_index: int) -> np.ndarray:
         """
@@ -132,11 +135,7 @@ class DriftCompensator:
         interp_ref = before.xyz * (1 - t) + after.xyz * t
 
         # Drift ratio: how much the reference has shifted from initial
-        drift_ratio = np.where(
-            interp_ref > 1e-6,
-            self._initial_xyz / interp_ref,
-            1.0
-        )
+        drift_ratio = np.where(interp_ref > 1e-6, self._initial_xyz / interp_ref, 1.0)
 
         # Apply inverse drift
         compensated = xyz * drift_ratio
