@@ -492,8 +492,8 @@ class DDCCIController:
         caps.has_saturation = VCPCode.SATURATION in codes
         caps.has_six_axis_saturation = all(
             c in codes for c in [
-                VCPCode.SIX_AXIS_SAT_RED, VCPCode.SIX_AXIS_SAT_GREEN, VCPCode.SIX_AXIS_SAT_BLUE,
-                VCPCode.SIX_AXIS_SAT_CYAN, VCPCode.SIX_AXIS_SAT_MAGENTA, VCPCode.SIX_AXIS_SAT_YELLOW,
+                VCPCode.SIX_AXIS_SATURATION_RED, VCPCode.SIX_AXIS_SATURATION_GREEN, VCPCode.SIX_AXIS_SATURATION_BLUE,
+                VCPCode.SIX_AXIS_SATURATION_CYAN, VCPCode.SIX_AXIS_SATURATION_MAGENTA, VCPCode.SIX_AXIS_SATURATION_YELLOW,
             ]
         )
         caps.has_six_axis_hue = all(

@@ -7,7 +7,7 @@ name = "calibrate-pro"
 version = "1.0.0"
 description = "Professional sensorless display calibration"
 readme = "README.md"
-license = {text = "Proprietary"}
+license = {text = "MIT"}
 authors = [
     { name = "Zain Dana Harper" },
 ]
