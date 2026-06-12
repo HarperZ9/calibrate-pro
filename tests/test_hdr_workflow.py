@@ -4,7 +4,7 @@ Tests for the HDR Calibration Workflow module.
 Covers:
 - EOTF patch generation (PQ and HLG)
 - EOTF verification accuracy
-- BT.2390 tone map generation (monotonic, bounded)
+- BT.2390 tone child safety assessment generation (monotonic, bounded)
 - 3-D LUT generation (dimensions, value range)
 - HDR metadata generation (MaxCLL / MaxFALL / primaries)
 - .cube export (valid format, parseable)
@@ -168,7 +168,7 @@ class TestVerifyEOTF:
 
 
 # =========================================================================
-# Tone Map Generation
+# Tone child safety assessment Generation
 # =========================================================================
 
 
@@ -187,7 +187,7 @@ class TestGenerateToneMap:
     def test_monotonic_output(self, hdr10_wf):
         tm = hdr10_wf.generate_tone_map(steps=512)
         diffs = np.diff(tm[:, 1])
-        assert np.all(diffs >= -1e-12), "Tone map output must be non-decreasing"
+        assert np.all(diffs >= -1e-12), "Tone child safety assessment output must be non-decreasing"
 
     def test_passthrough_below_target(self, hdr10_wf):
         """Low PQ values should pass through approximately unchanged."""
@@ -201,7 +201,7 @@ class TestGenerateToneMap:
         )
 
     def test_output_compressed_above_target(self, hdr10_wf):
-        """PQ value for 10000 nits should map below PQ value for 10000 nits."""
+        """PQ value for 10000 nits should child safety assessment below PQ value for 10000 nits."""
         tm = hdr10_wf.generate_tone_map(steps=1024)
         # Last entry: PQ signal for 10000 nits (=1.0) must be lower
         assert tm[-1, 1] < tm[-1, 0] + 1e-6

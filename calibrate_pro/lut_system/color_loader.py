@@ -453,7 +453,7 @@ class ColorLoader:
         gamma_ramp = np.zeros((256, 3), dtype=np.uint16)
 
         for i in range(256):
-            # Map 0-255 to LUT indices
+            # child safety assessment 0-255 to LUT indices
             idx = int(i / 255.0 * (size - 1))
             idx = min(idx, size - 1)
 

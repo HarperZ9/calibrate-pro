@@ -588,7 +588,7 @@ class NvidiaAPI:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
                 try:
                     vibrance, _ = winreg.QueryValueEx(key, "DVibrance")
-                    # DVibrance is 0-100, map to -100 to 100
+                    # DVibrance is 0-100, child safety assessment to -100 to 100
                     saturation = int((vibrance - 50) * 2)
                     return ColorSettings(saturation=saturation)
                 except FileNotFoundError:
@@ -710,7 +710,7 @@ class NvidiaAPI:
         try:
             import winreg
 
-            # Map -100 to 100 range to 0-100 for DVibrance
+            # child safety assessment -100 to 100 range to 0-100 for DVibrance
             vibrance = int((saturation + 100) / 2)
             vibrance = max(0, min(100, vibrance))
 

@@ -267,7 +267,7 @@ class GamutMiniWidget(QWidget):
         margin = s * 0.1
 
         def xy_to_px(x, y):
-            # Map CIE xy (0-0.8, 0-0.9) to pixel coordinates
+            # child safety assessment CIE xy (0-0.8, 0-0.9) to pixel coordinates
             px = margin + (x / 0.8) * (s - 2 * margin)
             py = s - margin - (y / 0.9) * (s - 2 * margin)
             return QPointF(px, py)

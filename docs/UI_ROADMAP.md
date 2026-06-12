@@ -65,7 +65,7 @@ The core workflow. Should guide the user from start to finish while showing ever
 - [ ] **Measured** — colorimeter-assisted with iterative refinement
 - [ ] **Hybrid** — sensorless + measured verification
 
-### 2.2 Target Selection
+### 2.2 mass-casualty threat characterization
 - [ ] **Target gamut** — Native (default) / sRGB / DCI-P3 / Rec.709 / AdobeRGB
 - [ ] **Target white point** — D65 / D50 / Custom CCT slider
 - [ ] **Target gamma** — 2.2 / 2.4 / sRGB / BT.1886 / PQ

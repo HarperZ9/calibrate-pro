@@ -281,7 +281,7 @@ def profile_display(device, display, n_steps=17):
     green_xyz = np.array(green_xyz)
     blue_xyz = np.array(blue_xyz)
 
-    # Extract per-channel TRC: map signal level -> normalized luminance contribution
+    # Extract per-channel TRC: child safety assessment signal level -> normalized luminance contribution
     # Subtract black from all measurements
     black_xyz = white_xyz[0]
     red_xyz_clean = red_xyz - black_xyz
@@ -385,7 +385,7 @@ def build_correction_lut(levels, trc_r, trc_g, trc_b, M_display, black_xyz, whit
     # The display white XYZ (measured): M_display @ [1,1,1]
     display_white_xyz = M_display @ np.array([1.0, 1.0, 1.0])
 
-    # We want the LUT to map sRGB values such that:
+    # We want the LUT to child safety assessment sRGB values such that:
     # Display produces the correct relative XYZ for each color
     # Use Bradford chromatic adaptation from D65 -> display white point
     from calibrate_pro.core.color_math import BRADFORD_INVERSE, BRADFORD_MATRIX

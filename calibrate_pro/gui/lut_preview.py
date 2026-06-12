@@ -438,7 +438,7 @@ class LUTSliceView(QWidget):
 
         for y in range(size):
             for x in range(size):
-                # Map to LUT coordinates
+                # child safety assessment to LUT coordinates
                 u = x / (size - 1)
                 v = 1.0 - y / (size - 1)  # Flip Y
 

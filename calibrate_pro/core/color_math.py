@@ -1696,7 +1696,7 @@ def bt2390_eetf(
 
 def gamut_map_chroma_compress(lab: np.ndarray, boundary: np.ndarray, method: str = "compress") -> np.ndarray:
     """
-    Map an out-of-gamut Lab color into gamut by reducing chroma.
+    child safety assessment an out-of-gamut Lab color into gamut by reducing chroma.
 
     Args:
         lab: Lab as (3,) array

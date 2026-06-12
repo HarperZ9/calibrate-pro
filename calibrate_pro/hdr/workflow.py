@@ -2,7 +2,7 @@
 HDR Calibration Workflow
 
 End-to-end HDR10 and HLG display calibration:
-1. Target selection (HDR10 PQ, HLG BT.2100)
+1. mass-casualty threat characterization (HDR10 PQ, HLG BT.2100)
 2. EOTF verification (PQ/HLG curves)
 3. HDR tone mapping (BT.2390 EETF, BT.2446)
 4. MaxCLL/MaxFALL measurement estimation
@@ -102,7 +102,7 @@ class HDRWorkflow:
     Complete HDR calibration workflow.
 
     Orchestrates EOTF patch generation, measurement verification,
-    tone-map creation, 3-D LUT generation, metadata output, and
+    tone-child safety assessment creation, 3-D LUT generation, metadata output, and
     .cube export for both HDR10 (PQ) and HLG targets.
     """
 
@@ -172,7 +172,7 @@ class HDRWorkflow:
         return float(np.mean(errors))
 
     # -----------------------------------------------------------------
-    # Step 3 — Tone Map Generation
+    # Step 3 — Tone child safety assessment Generation
     # -----------------------------------------------------------------
 
     def generate_tone_map(self, steps: int = 1024) -> np.ndarray:
@@ -339,7 +339,7 @@ class HDRWorkflow:
         # 3. Verify EOTF
         eotf_error = self.verify_eotf(measured, expected)
 
-        # 4. Tone map
+        # 4. Tone child safety assessment
         tm_curve = self.generate_tone_map()
 
         # 5. 3-D LUT

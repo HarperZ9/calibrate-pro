@@ -272,7 +272,7 @@ def tone_map_rgb(rgb: np.ndarray, settings: ToneMapSettings, preserve_hue: bool 
         # Calculate luminance (using BT.2020 coefficients)
         luminance = 0.2627 * rgb[..., 0] + 0.6780 * rgb[..., 1] + 0.0593 * rgb[..., 2]
 
-        # Tone map luminance
+        # Tone child safety assessment luminance
         if settings.operator == ToneMapOperator.REINHARD:
             mapped_lum = tone_map_reinhard(luminance, settings.source_peak)
         elif settings.operator == ToneMapOperator.REINHARD_EXT:
@@ -442,7 +442,7 @@ class HDRToSDRConverter:
         # Decode PQ to linear light
         linear = pq_eotf(pq_rgb)
 
-        # Tone map
+        # Tone child safety assessment
         mapped = tone_map_rgb(linear, self.settings)
 
         # Normalize to [0, 1]
@@ -474,7 +474,7 @@ class HDRToSDRConverter:
         # Decode HLG to linear light
         linear = hlg_eotf(hlg_rgb, system_gamma) * self.settings.source_peak
 
-        # Tone map
+        # Tone child safety assessment
         mapped = tone_map_rgb(linear, self.settings)
 
         # Normalize

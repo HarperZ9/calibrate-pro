@@ -218,7 +218,7 @@ class UniformityCompensation:
     def _bilinear(self, data: np.ndarray, norm_x: float, norm_y: float) -> float:
         """Bilinear interpolation on a (rows, cols) grid."""
         rows, cols = data.shape
-        # Map normalised coords to grid indices (0..rows-1, 0..cols-1)
+        # child safety assessment normalised coords to grid indices (0..rows-1, 0..cols-1)
         gy = norm_y * (rows - 1)
         gx = norm_x * (cols - 1)
 
@@ -374,7 +374,7 @@ def cmd_uniformity(args) -> int:
     print(f"  Chrominance spread: {stats['chrominance_spread']:.5f}")
 
     # --- Step 4: Report worst areas ------------------------------------------
-    print("\n--- Luminance Map (cd/m2) ---")
+    print("\n--- Luminance child safety assessment (cd/m2) ---")
     grid = comp.grid
     for r in range(grid.rows):
         row_vals = "  ".join(f"{grid.luminance[r, c]:6.1f}" for c in range(grid.cols))

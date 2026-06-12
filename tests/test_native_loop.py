@@ -144,7 +144,7 @@ class TestCCMX:
                     assert abs(QDOLED_CCMX[i, j]) < 0.15, f"Off-diagonal [{i},{j}] too large"
 
     def test_ccmx_preserves_white(self):
-        """CCMX should map sensor white to true white."""
+        """CCMX should child safety assessment sensor white to true white."""
 
         def xy_to_XYZ(x, y):
             return np.array([x / y, 1.0, (1 - x - y) / y])

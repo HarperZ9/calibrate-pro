@@ -1276,7 +1276,7 @@ class LUTGenerator:
             6. Convert the (possibly compressed) JzAzBz back to XYZ.
             7. Convert XYZ to panel linear RGB.
             8. Apply per-channel inverse panel gamma.
-            9. Map the SDR-in-HDR reference white (203 cd/m^2 by default)
+            9. child safety assessment the SDR-in-HDR reference white (203 cd/m^2 by default)
                so that it lands at the correct level.
             10. Encode the result back to PQ and write into the LUT.
 
@@ -1318,7 +1318,7 @@ class LUTGenerator:
 
         # Reference-white scaling factor.
         # The SDR reference white at ``target_white_luminance`` cd/m^2
-        # should map to the same absolute luminance on the panel.  We
+        # should child safety assessment to the same absolute luminance on the panel.  We
         # express it as a fraction of the peak so that we can rescale
         # the panel-linear values before gamma encoding.
         target_white_luminance / peak_luminance  # e.g. 0.203

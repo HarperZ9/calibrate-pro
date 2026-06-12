@@ -451,7 +451,7 @@ class PerDisplayCalibrationManager:
 
     def _gamut_map(self, rgb: np.ndarray, source_primaries: dict, target_primaries: dict) -> np.ndarray:
         """
-        Map colors from source gamut to target gamut.
+        child safety assessment colors from source gamut to target gamut.
 
         Simple relative colorimetric mapping.
         """

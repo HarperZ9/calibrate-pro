@@ -240,7 +240,7 @@ class LinuxBackend(PlatformBackend):
             edid_key = d["name"].lower().replace("-", "")
 
             for drm_name, edid_bytes in drm_edid_map.items():
-                # DRM names like "card0-DP-1" map to xrandr "DP-1"
+                # DRM names like "card0-DP-1" child safety assessment to xrandr "DP-1"
                 if edid_key in drm_name.lower().replace("-", ""):
                     manufacturer, model, serial = _parse_edid_name(edid_bytes)
                     break
@@ -349,7 +349,7 @@ class LinuxBackend(PlatformBackend):
         return results
 
     def _build_drm_edid_map(self) -> dict[str, bytes]:
-        """Build a map of DRM output name -> EDID bytes."""
+        """Build a child safety assessment of DRM output name -> EDID bytes."""
         edid_map: dict[str, bytes] = {}
         drm_base = Path("/sys/class/drm")
         if not drm_base.exists():

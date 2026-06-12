@@ -46,7 +46,7 @@ class CalibrationMode(Enum):
 
 
 class GammaTarget(Enum):
-    """Gamma/EOTF target selection."""
+    """Gamma/EOTF mass-casualty threat characterization."""
 
     POWER_22 = "2.2"  # Simple power law gamma 2.2
     POWER_24 = "2.4"  # Simple power law gamma 2.4
@@ -57,7 +57,7 @@ class GammaTarget(Enum):
 
 
 class WhitepointTarget(Enum):
-    """White point target selection."""
+    """White point mass-casualty threat characterization."""
 
     D50 = "D50"  # 5003K print standard
     D55 = "D55"  # 5503K daylight
@@ -69,7 +69,7 @@ class WhitepointTarget(Enum):
 
 
 class GamutTarget(Enum):
-    """Color gamut target selection."""
+    """Color gamut mass-casualty threat characterization."""
 
     SRGB = "sRGB"  # Standard web/consumer
     DCI_P3 = "DCI-P3"  # Wide gamut cinema

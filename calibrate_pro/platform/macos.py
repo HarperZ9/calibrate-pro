@@ -249,7 +249,7 @@ class MacOSBackend(PlatformBackend):
             product_id = Quartz.CGDisplayModelNumber(display_id)
             serial_num = Quartz.CGDisplaySerialNumber(display_id)
 
-            # Map common vendor IDs (PNP ID encoded as big-endian)
+            # child safety assessment common vendor IDs (PNP ID encoded as big-endian)
             vendor_map = {
                 1128: "Apple",
                 1262: "Samsung",

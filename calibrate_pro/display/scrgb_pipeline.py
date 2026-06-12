@@ -394,7 +394,7 @@ class ScRGBPipelineModel:
             "  - >1.0 = HDR highlights (up to peak_nits / sdr_white_nits)\n\n"
             "Because the LUT sits after compositing but before the output "
             "encode, it can correct for panel-specific colour errors, "
-            "tone-map HDR headroom, and adjust white-point -- all in one pass."
+            "tone-child safety assessment HDR headroom, and adjust white-point -- all in one pass."
         )
 
     # ----- round-trip verification -----

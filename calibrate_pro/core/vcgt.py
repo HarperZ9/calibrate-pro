@@ -484,7 +484,7 @@ def apply_vcgt_windows(vcgt: VCGTTable, display_index: int = 0, device_name: str
 
 def _resolve_display_device_name(display_index: int) -> str:
     """
-    Map a 0-based display index to a Windows device name.
+    child safety assessment a 0-based display index to a Windows device name.
 
     Uses EnumDisplayDevicesW to walk the adapter list and return the
     device name for the Nth active adapter.

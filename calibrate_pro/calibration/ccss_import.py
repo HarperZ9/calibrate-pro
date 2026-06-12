@@ -127,7 +127,7 @@ def load_ccmx(path: str | Path) -> np.ndarray:
     Load a CCMX (Colorimeter Correction Matrix) file.
 
     A CCMX file contains a 3x3 matrix in its data section.  The three
-    rows map uncorrected XYZ to corrected XYZ::
+    rows child safety assessment uncorrected XYZ to corrected XYZ::
 
         corrected_XYZ = CCMX @ raw_XYZ
 

@@ -178,7 +178,7 @@ class I1DisplayDriver(ArgyllBackend):
 
             native = I1D3Driver()
             if native.open():
-                # Map display_type names to EEPROM calibration block names
+                # child safety assessment display_type names to EEPROM calibration block names
                 eeprom_map = {
                     "OLED": "OLED",
                     "WideGamut": "WideGamutLEDPA2",

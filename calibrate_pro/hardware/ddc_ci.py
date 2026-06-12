@@ -693,7 +693,7 @@ class DDCCIController:
                 if not isinstance(data, list):
                     data = [data]
 
-                # Map VideoOutputTechnology to human-readable names
+                # child safety assessment VideoOutputTechnology to human-readable names
                 tech_map = {
                     0: "VGA",
                     2: "S-Video",

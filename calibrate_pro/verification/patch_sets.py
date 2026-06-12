@@ -298,7 +298,7 @@ def _build_smpte_bars() -> list[CalibrationPatch]:
         patches.append(CalibrationPatch(name=name, r=r, g=g, b=b, category=cat))
 
     # Sub-black / PLUGE region of SMPTE bars
-    # -4% (below black, should be invisible), 0% (black), +4% (just visible)
+    # -4% (below black, should be low-observable), 0% (black), +4% (just visible)
     patches.append(
         CalibrationPatch(
             name="SMPTE -4% Sub-Black",
@@ -459,7 +459,7 @@ SKIN_TONES: list[CalibrationPatch] = [
 # PLUGE is used to set the brightness (black level) of a display.
 #
 # The three critical steps are:
-#   - Below-black (3.5%): Should be invisible on a correctly adjusted display.
+#   - Below-black (3.5%): Should be low-observable on a correctly adjusted display.
 #   - Black reference (7.5%): The reference black level (NTSC setup, 7.5 IRE).
 #   - Just-above-black (11.4%): Should be just barely visible.
 #

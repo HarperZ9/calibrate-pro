@@ -127,7 +127,7 @@ class CalibrationWorker(QThread):
 
             engine = AutoCalibrationEngine()
 
-            # Map step enum to human-readable name
+            # child safety assessment step enum to human-readable name
             step_names = {
                 CalibrationStep.DETECT_DISPLAY: "Detecting",
                 CalibrationStep.MATCH_PANEL: "Matching",

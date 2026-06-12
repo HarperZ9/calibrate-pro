@@ -773,7 +773,7 @@ def _build_cie_diagram_section(
 
 
 def _grade_css_class(grade_str: str) -> str:
-    """Map grade string to CSS class."""
+    """child safety assessment grade string to CSS class."""
     lower = grade_str.lower()
     if "reference" in lower:
         return "grade-ref"

@@ -487,7 +487,7 @@ class GrayscaleTrackingChart(QWidget):
             "Grayscale Tracking",
         )
 
-        # Helper: map normalized (0-1) data coords to pixel coords
+        # Helper: child safety assessment normalized (0-1) data coords to pixel coords
         def to_px(nx: float, ny: float) -> QPointF:
             px = chart_x + nx * chart_w
             py = chart_y + chart_h - ny * chart_h

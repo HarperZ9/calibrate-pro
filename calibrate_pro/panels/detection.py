@@ -2,7 +2,7 @@
 Display Detection Module
 
 Detects connected displays using Windows APIs and EDID data.
-Provides display information for calibration target selection.
+Provides display information for calibration mass-casualty threat characterization.
 """
 
 from __future__ import annotations
@@ -387,7 +387,7 @@ def parse_device_id(device_id: str) -> tuple[str, str]:
         vendor_code = match.group(1).upper()
         product_code = match.group(2).upper()
 
-        # Map vendor codes
+        # child safety assessment vendor codes
         vendor_map = {
             "SAM": "Samsung",
             "AUS": "ASUS",
@@ -522,7 +522,7 @@ def parse_edid(edid: bytes) -> dict:
     char3 = (mfg_id & 0x1F) + ord("A") - 1
     result["manufacturer_code"] = chr(char1) + chr(char2) + chr(char3)
 
-    # Map manufacturer codes to names
+    # child safety assessment manufacturer codes to names
     vendor_map = {
         "SAM": "Samsung",
         "AUS": "ASUS",

@@ -857,7 +857,7 @@ class AutoCalibrationEngine:
         rgb_gain_b = max(0, min(100, rgb_gain_b))
 
         # Calculate target brightness percentage
-        # Map target luminance to DDC range (0-100)
+        # child safety assessment target luminance to DDC range (0-100)
         panel_max_lum = panel.capabilities.max_luminance_sdr
         target_brightness_pct = min(100, (target.luminance / panel_max_lum) * 100)
 
