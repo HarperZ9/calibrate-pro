@@ -62,7 +62,7 @@ Run `calibrate-pro --help` for the full 26-command list.
 
 Built-in USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display). No ArgyllCMS required.
 
-Native USB HID driver for the i1Display3 family reads per-unit calibration matrices from each device's EEPROM — 9 stored matrices for different display technologies (OLED, WhiteLED, CCFL, WideGamut, etc.). Falls back to approximate constants if EEPROM reading fails.
+Native USB HID driver for the i1Display3 family reads per-unit calibration matrices from each device's EEPROM - 9 stored matrices for different display technologies (OLED, WhiteLED, CCFL, WideGamut, etc.). Falls back to approximate constants if EEPROM reading fails.
 
 ## Supported Displays
 
