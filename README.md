@@ -1,6 +1,8 @@
 # Calibrate Pro
 
-Professional display calibration for Windows. Sensorless or measured.
+Calibrate Pro is a Windows display-calibration toolkit for sensorless profiles,
+measured workflows, DDC/CI monitor control, ICC/3D-LUT output, and verification
+reports.
 
 Calibrate Pro detects your monitors, identifies their panel characteristics from a database of 58 characterized displays, and applies color corrections via DDC/CI hardware adjustments and 3D LUTs. Works without a colorimeter (sensorless mode) or with an i1Display3 for measured accuracy with CCMX spectral correction.
 

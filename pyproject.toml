@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "calibrate-pro"
 version = "1.0.0"
-description = "Professional sensorless display calibration"
+description = "Windows display calibration toolkit with sensorless profiles, measured workflows, DDC/CI, ICC/LUT output, and reports"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
