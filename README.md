@@ -46,6 +46,8 @@ calibrate-pro patterns          # Display fullscreen test patterns
 
 Run `calibrate-pro --help` for the full 26-command list.
 
+See [USAGE.md](USAGE.md) for installation, every command, worked examples with expected output, and a runnable demo under [`examples/`](examples/).
+
 ## How It Works
 
 1. **Configures** monitor OSD via DDC/CI (picture mode, color preset, gamma)
