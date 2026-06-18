@@ -1,8 +1,12 @@
 # Calibrate Pro
 
-Calibrate Pro is a Windows display-calibration toolkit for sensorless profiles,
-measured workflows, DDC/CI monitor control, ICC/3D-LUT output, and verification
-reports.
+> Windows display-calibration toolkit for sensorless profiles, measured workflows, DDC/CI monitor control, ICC/3D-LUT output, and verification reports.
+
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![version](https://img.shields.io/badge/version-1.0.0-informational.svg)
+[![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
+[![part of: Quanta apps](https://img.shields.io/badge/part_of-Quanta_apps-c0468a.svg)](https://github.com/HarperZ9/quanta-universe)
 
 Calibrate Pro detects your monitors, identifies their panel characteristics from a database of 58 characterized displays, and applies color corrections via DDC/CI hardware adjustments and 3D LUTs. Works without a colorimeter (sensorless mode) or with an i1Display3 for measured accuracy with CCMX spectral correction.
 
@@ -140,4 +144,4 @@ pyinstaller calibrate-pro.spec
 
 ## License
 
-Copyright (c) 2022-2026 Zain Dana Harper. All rights reserved.
+MIT License. Copyright (c) 2022-2026 Zain Dana Harper. See [LICENSE](LICENSE).
