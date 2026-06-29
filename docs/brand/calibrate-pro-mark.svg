@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 440" role="img" aria-label="Project Telos mark for Calibrate Pro, measured display color.">
+  <title>calibrate-pro mark</title>
+  <desc>Project Telos mark for Calibrate Pro, measured display color.</desc>
+  <rect width="520" height="440" rx="44" fill="#f4f3ef"/>
+  <rect x="100" y="92" width="320" height="208" rx="18" fill="none" stroke="#0b0c0e" stroke-width="14"/>
+  <path d="M260 300 V344 M198 348 H322" fill="none" stroke="#0b0c0e" stroke-width="14" stroke-linecap="round"/>
+  <path d="M140 150 H380 M140 196 H380 M140 242 H316" stroke="#4636e8" stroke-width="14" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" role="img" aria-label="Calibrate Pro README hero for Project Telos. Profile the panel, correct the color, and keep drift on the record.">
+  <title>Calibrate Pro Project Telos hero</title>
+  <desc>Calibrate Pro README hero for Project Telos. Profile the panel, correct the color, and keep drift on the record.</desc>
+  <rect width="1280" height="520" rx="34" fill="#f4f3ef"/>
+  <path d="M80 96 H1200 M80 424 H1200" stroke="#0b0c0e" stroke-opacity=".14"/>
+  <text x="80" y="86" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" letter-spacing="6" fill="#585c64">PROJECT TELOS / MEASURED DISPLAY COLOR</text>
+  <text x="76" y="334" font-family="Arial Black, Impact, system-ui, sans-serif" font-size="182" letter-spacing="0" fill="#0b0c0e" fill-opacity=".08">CALIBRATE</text>
+  <text font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#0b0c0e">
+    <tspan x="84" y="188">Profile the panel, correct the color,</tspan>
+    <tspan x="84" dy="48">and keep drift on the record.</tspan>
+  </text>
+  <text x="86" y="290" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#2f3238">PANEL DB / DDC·CI / 3D LUT / VERIFIED</text>
+  <g transform="translate(878 78) scale(.70)">
+    <rect x="100" y="92" width="320" height="208" rx="18" fill="none" stroke="#0b0c0e" stroke-width="14"/>
+    <path d="M260 300 V344 M198 348 H322" fill="none" stroke="#0b0c0e" stroke-width="14" stroke-linecap="round"/>
+    <path d="M140 150 H380 M140 196 H380 M140 242 H316" stroke="#4636e8" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>

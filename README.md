@@ -1,14 +1,48 @@
+<p align="center">
+  <img src="docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
+</p>
+<!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
+
 # Calibrate Pro
 
-> Windows display-calibration toolkit for sensorless profiles, measured workflows, DDC/CI monitor control, ICC/3D-LUT output, and verification reports.
+> Make screens match the work with profiles, LUTs, monitor control, and verification reports.
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
+
+[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](LICENSE)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![version](https://img.shields.io/badge/version-1.0.0-informational.svg)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
-[![part of: Quanta apps](https://img.shields.io/badge/part_of-Quanta_apps-c0468a.svg)](https://github.com/HarperZ9/quanta-universe)
+[![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
 Calibrate Pro detects your monitors, identifies their panel characteristics from a database of 58 characterized displays, and applies color corrections via DDC/CI hardware adjustments and 3D LUTs. Works without a colorimeter (sensorless mode) or with an i1Display3 for measured accuracy with CCMX spectral correction.
+
+## Try it
+
+```bash
+calibrate-pro detect
+calibrate-pro status
+calibrate-pro verify
+```
+
+Install from the Windows release build or run from source with `pip install -e ".[all]"`.
+
+## Why it matters
+
+Display color is part of the creative pipeline. If the screen is wrong, every design, render, photo, video grade, and model-generated visual can be judged against a bad reference. Calibrate Pro gives a practical path to better display behavior, records what changed, and keeps verification close to the profile.
+
+## What to test first
+
+- Run `calibrate-pro detect` and confirm the tool identifies your displays and available DDC/CI controls.
+- Run `calibrate-pro status` to check whether an existing profile is present and how old it is.
+- Run `calibrate-pro verify` after calibration and inspect the report instead of trusting the adjustment blindly.
+
+## Current status
+
+- **Release:** Calibrate Pro 1.0.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; standalone `.exe` available.
+- **Operator surface:** the `calibrate-pro` CLI exposes a 26-command surface (`auto`, `detect`, `ddc-info`, `verify`, `status`, `native-calibrate`, `restore`, `list-panels`, `patterns`, and more) alongside an 8-page PyQt6 GUI. Within Project Telos it reaches host agents through the `telos.display.calibration` MCP contract, so a model can request a calibration, read the verification report, and recheck drift through the same action envelope the other flagships use. CLI and MCP share one surface.
+- **Public role:** the measured-color flagship of Project Telos: panel database, DDC/CI control, 3D-LUT and ICC v4 output, and CIEDE2000 verification, with calibration drift kept on the record.
+- **Housekeeping:** [CHANGELOG.md](CHANGELOG.md) tracks the Project Telos presentation and operator-surface pass under Unreleased.
 
 ## Install
 
@@ -146,4 +180,4 @@ pyinstaller calibrate-pro.spec
 
 ## License
 
-MIT License. Copyright (c) 2022-2026 Zain Dana Harper. See [LICENSE](LICENSE).
+Calibrate Pro Fair-Source License, Version 1.0. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See [LICENSE](LICENSE).

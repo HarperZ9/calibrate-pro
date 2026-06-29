@@ -7,7 +7,7 @@ name = "calibrate-pro"
 version = "1.0.0"
 description = "Windows display calibration toolkit with sensorless profiles, measured workflows, DDC/CI, ICC/LUT output, and reports"
 readme = "README.md"
-license = {text = "MIT"}
+license = { file = "LICENSE" }
 authors = [
     { name = "Zain Dana Harper" },
 ]

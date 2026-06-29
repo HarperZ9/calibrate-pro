@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Project Telos presentation and operator-surface pass: README hero, brand assets under `docs/brand/`, cross-flagship navigation, and Current status / Operator surface blocks.
+- Documented the operator surface across the CLI and the `telos.display.calibration` MCP contract.
+- Relicensed to the Calibrate Pro Fair-Source License v1.0 as part of Project Telos flagship promotion.
+
 ## v1.0.0 (2026-03-22)
 
 ### Features
