@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, a Project Telos flagship for measured display color">
+  <img src="docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
 </p>
 <!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
 
 # Calibrate Pro
 
-> Windows display-calibration toolkit for sensorless profiles, measured workflows, DDC/CI monitor control, ICC/3D-LUT output, and verification reports.
+> Make screens match the work with profiles, LUTs, monitor control, and verification reports.
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
 
@@ -16,6 +16,26 @@
 [![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
 Calibrate Pro detects your monitors, identifies their panel characteristics from a database of 58 characterized displays, and applies color corrections via DDC/CI hardware adjustments and 3D LUTs. Works without a colorimeter (sensorless mode) or with an i1Display3 for measured accuracy with CCMX spectral correction.
+
+## Try it
+
+```bash
+calibrate-pro detect
+calibrate-pro status
+calibrate-pro verify
+```
+
+Install from the Windows release build or run from source with `pip install -e ".[all]"`.
+
+## Why it matters
+
+Display color is part of the creative pipeline. If the screen is wrong, every design, render, photo, video grade, and model-generated visual can be judged against a bad reference. Calibrate Pro gives a practical path to better display behavior, records what changed, and keeps verification close to the profile.
+
+## What to test first
+
+- Run `calibrate-pro detect` and confirm the tool identifies your displays and available DDC/CI controls.
+- Run `calibrate-pro status` to check whether an existing profile is present and how old it is.
+- Run `calibrate-pro verify` after calibration and inspect the report instead of trusting the adjustment blindly.
 
 ## Current status
 
