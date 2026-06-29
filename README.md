@@ -181,3 +181,12 @@ pyinstaller calibrate-pro.spec
 ## License
 
 Calibrate Pro Fair-Source License, Version 1.0. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See [LICENSE](LICENSE).
+
+## For developers
+
+Keep the public README, package metadata, and examples aligned with current behavior. Before opening a PR or pushing a release, run the local package verification path.
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest
+```
