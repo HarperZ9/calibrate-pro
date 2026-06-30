@@ -323,7 +323,7 @@ class MacOSBackend(PlatformBackend):
     def _associate_profile_with_display(self, profile_path: Path, display_index: int):
         """Associate an ICC profile with a display via ColorSync."""
         try:
-            import Quartz  # noqa: F401 — ensure pyobjc-framework-Quartz is available
+            import Quartz  # noqa: F401 -- ensure pyobjc-framework-Quartz is available
             from ColorSync import (
                 ColorSyncDeviceSetCustomProfiles,
                 kColorSyncDeviceDefaultProfileID,

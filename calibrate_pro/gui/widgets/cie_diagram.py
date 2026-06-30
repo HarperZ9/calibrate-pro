@@ -234,7 +234,7 @@ def _xy_to_srgb(cx: float, cy: float) -> tuple[int, int, int]:
 
 
 def _is_inside_locus(cx: float, cy: float) -> bool:
-    """Quick test — is (cx, cy) inside the spectral locus horseshoe?"""
+    """Quick test -- is (cx, cy) inside the spectral locus horseshoe?"""
     poly = [(x, y) for _, x, y in SPECTRAL_LOCUS]
     n = len(poly)
     inside = False
@@ -574,7 +574,7 @@ class CIEDiagramWidget(QWidget):
     # -- Gamut triangles ----------------------------------------------------
 
     def _paint_srgb_triangle(self, p: QPainter):
-        """sRGB reference triangle — thin dashed line in TEXT3."""
+        """sRGB reference triangle -- thin dashed line in TEXT3."""
         gamut = GAMUTS["sRGB"]
         pts = [
             self._xy_to_px(*gamut["R"]),
@@ -624,7 +624,7 @@ class CIEDiagramWidget(QWidget):
     # -- White point markers ------------------------------------------------
 
     def _paint_white_points(self, p: QPainter):
-        # D65 reference — labeled dot
+        # D65 reference -- labeled dot
         d65 = WHITE_POINTS["D65"]
         pt = self._xy_to_px(*d65)
         p.setPen(QPen(QColor(C.TEXT), 1.5))
@@ -634,7 +634,7 @@ class CIEDiagramWidget(QWidget):
         p.setPen(QColor(C.TEXT))
         p.drawText(int(pt.x()) + 6, int(pt.y()) + 4, "D65")
 
-        # Measured white point — small cross / diamond
+        # Measured white point -- small cross / diamond
         if self._display_wp:
             wp = self._xy_to_px(*self._display_wp)
             sz = 5

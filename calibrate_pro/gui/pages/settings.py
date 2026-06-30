@@ -1,5 +1,5 @@
 """
-Calibrate Pro — Settings Page
+Calibrate Pro -- Settings Page
 
 Application settings: general preferences, calibration defaults,
 file paths, and about information.
@@ -511,7 +511,7 @@ class SettingsPage(QWidget):
         if idx >= 0:
             profile_combo.setCurrentIndex(idx)
         else:
-            # Custom profile path — add it as an option
+            # Custom profile path -- add it as an option
             profile_combo.addItem(profile)
             profile_combo.setCurrentText(profile)
         profile_combo.currentTextChanged.connect(lambda _: self._save_app_rules())

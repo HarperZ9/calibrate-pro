@@ -114,7 +114,7 @@ class HDRWorkflow:
         self._result: HDRCalibrationResult | None = None
 
     # -----------------------------------------------------------------
-    # Step 1 — EOTF Verification Patches
+    # Step 1 -- EOTF Verification Patches
     # -----------------------------------------------------------------
 
     def generate_eotf_patches(self, steps: int = 21) -> np.ndarray:
@@ -139,7 +139,7 @@ class HDRWorkflow:
         return np.column_stack([signals, luminances])
 
     # -----------------------------------------------------------------
-    # Step 2 — EOTF Verification
+    # Step 2 -- EOTF Verification
     # -----------------------------------------------------------------
 
     def verify_eotf(
@@ -172,7 +172,7 @@ class HDRWorkflow:
         return float(np.mean(errors))
 
     # -----------------------------------------------------------------
-    # Step 3 — Tone Map Generation
+    # Step 3 -- Tone Map Generation
     # -----------------------------------------------------------------
 
     def generate_tone_map(self, steps: int = 1024) -> np.ndarray:
@@ -197,7 +197,7 @@ class HDRWorkflow:
         return np.column_stack([pq_in, pq_out])
 
     # -----------------------------------------------------------------
-    # Step 4 — 3-D LUT Generation
+    # Step 4 -- 3-D LUT Generation
     # -----------------------------------------------------------------
 
     def generate_hdr_lut(self, size: int = 33) -> np.ndarray:
@@ -236,7 +236,7 @@ class HDRWorkflow:
         return np.clip(out.reshape(size, size, size, 3), 0.0, 1.0)
 
     # -----------------------------------------------------------------
-    # Step 5 — HDR Metadata
+    # Step 5 -- HDR Metadata
     # -----------------------------------------------------------------
 
     def generate_hdr_metadata(self) -> dict:
@@ -265,7 +265,7 @@ class HDRWorkflow:
         }
 
     # -----------------------------------------------------------------
-    # Step 6 — .cube Export
+    # Step 6 -- .cube Export
     # -----------------------------------------------------------------
 
     def export_cube(self, path: str, lut: np.ndarray) -> None:
@@ -306,7 +306,7 @@ class HDRWorkflow:
             fh.write("\n")
 
     # -----------------------------------------------------------------
-    # run() — Full Orchestration
+    # run() -- Full Orchestration
     # -----------------------------------------------------------------
 
     def run(

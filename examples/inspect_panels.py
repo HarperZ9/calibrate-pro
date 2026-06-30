@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Best-effort demo — not runtime-verified by author.
+"""Best-effort demo -- not runtime-verified by author.
 
 Hardware-free Calibrate Pro demo. Exercises only the read-only panel database
 and the public package metadata, so it runs without admin rights, a connected

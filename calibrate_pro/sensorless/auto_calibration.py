@@ -689,7 +689,7 @@ class AutoCalibrationEngine:
         if panel is None:
             logger.warning(
                 "No panel database match and no EDID chromaticity for '%s'. "
-                "Falling back to generic sRGB profile — calibration accuracy will be limited. "
+                "Falling back to generic sRGB profile -- calibration accuracy will be limited. "
                 "Consider adding this display via Settings > Add Display Profile.",
                 name or "Unknown",
             )
@@ -1097,7 +1097,7 @@ class AutoCalibrationEngine:
                 dest = color_dir / profile_path.name
                 shutil.copy2(str(profile_path), str(dest))
         except PermissionError:
-            pass  # Need admin — non-fatal, the profile is still usable from its output location
+            pass  # Need admin -- non-fatal, the profile is still usable from its output location
         except OSError:
             pass
 

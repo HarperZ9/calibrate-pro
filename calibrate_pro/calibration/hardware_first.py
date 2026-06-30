@@ -92,7 +92,7 @@ def run_hardware_first_calibration(
             progress_fn(msg, frac)
 
     # =====================================================================
-    # Phase 1: SETUP — Configure monitor OSD
+    # Phase 1: SETUP -- Configure monitor OSD
     # =====================================================================
     report("Phase 1: Configuring monitor hardware...", 0.0)
 
@@ -163,7 +163,7 @@ def run_hardware_first_calibration(
             result.ddc_adjustments.append(change)
 
         # =====================================================================
-        # Phase 2: HARDWARE CALIBRATION — Iterative DDC with measurements
+        # Phase 2: HARDWARE CALIBRATION -- Iterative DDC with measurements
         # =====================================================================
 
         if measure_fn is None or display_fn is None:
@@ -282,7 +282,7 @@ def run_hardware_first_calibration(
                     result.white_point_achieved = (xyz[0] / s, xyz[1] / s)
 
         # =====================================================================
-        # Phase 3: PROFILE — Measure the hardware-calibrated display
+        # Phase 3: PROFILE -- Measure the hardware-calibrated display
         # =====================================================================
         report("Phase 3: Profiling hardware-calibrated display...", 0.60)
 

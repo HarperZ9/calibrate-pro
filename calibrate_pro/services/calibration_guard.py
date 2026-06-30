@@ -1,5 +1,5 @@
 """
-Calibration Guard — Windows Calibration Protection Service
+Calibration Guard -- Windows Calibration Protection Service
 
 Windows 11 (especially 24H2) actively sabotages display calibration by:
 - Resetting VCGT gamma ramp data when you visit Settings > Display
@@ -144,7 +144,7 @@ class CalibrationGuard:
         is_matching = self._ramps_match(current_r, display.vcgt_red)
 
         if is_linear and not self._is_linear_ramp(display.vcgt_red):
-            # Windows reset our calibration to linear — restore it
+            # Windows reset our calibration to linear -- restore it
             self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
             self._restore_count += 1
             if self.on_restore:
@@ -152,7 +152,7 @@ class CalibrationGuard:
             return True
 
         if not is_matching and not is_linear:
-            # Something else changed the ramp — could be another tool, restore ours
+            # Something else changed the ramp -- could be another tool, restore ours
             self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
             self._restore_count += 1
             if self.on_restore:

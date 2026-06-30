@@ -1,8 +1,8 @@
-# Calibrate Pro — Usage Guide
+# Calibrate Pro -- Usage Guide
 
 Calibrate Pro is a Windows display-calibration toolkit. It detects monitors,
 identifies panels from a 58-entry database, and applies color corrections via
-DDC/CI hardware adjustments and 3D LUTs — with no colorimeter (sensorless) or
+DDC/CI hardware adjustments and 3D LUTs -- with no colorimeter (sensorless) or
 with an X-Rite i1Display3 family device (measured).
 
 This guide covers installation, the CLI command set, worked examples with
@@ -78,7 +78,7 @@ list. The most common ones:
 calibrate-pro list-panels
 ```
 
-Expected output (truncated — 58 profiles total):
+Expected output (truncated -- 58 profiles total):
 
 ```
 Calibrate Pro v1.0.0

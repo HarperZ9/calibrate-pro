@@ -1,5 +1,5 @@
 """
-Verify Page — Calibration verification with ColorChecker grid and stats.
+Verify Page -- Calibration verification with ColorChecker grid and stats.
 
 Shows a 6x4 ColorChecker grid (reference vs. predicted), Delta E statistics,
 accuracy grade, and gamut coverage bars. Runs verification in a QThread.
@@ -284,7 +284,7 @@ class ColorPatchWidget(QWidget):
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(1, 1, w - 2, h - 2, 4, 4)
 
-        # Top half — reference color
+        # Top half -- reference color
         ref_color = QColor(
             int(max(0, min(1, self._ref[0])) * 255),
             int(max(0, min(1, self._ref[1])) * 255),
@@ -294,7 +294,7 @@ class ColorPatchWidget(QWidget):
         p.setBrush(ref_color)
         p.drawRoundedRect(3, 3, w - 6, (h - 6) // 2, 2, 2)
 
-        # Bottom half — predicted color
+        # Bottom half -- predicted color
         pred_color = QColor(
             int(max(0, min(1, self._pred[0])) * 255),
             int(max(0, min(1, self._pred[1])) * 255),
@@ -361,7 +361,7 @@ class ColorCheckerGrid(QWidget):
     def _lab_to_approx_srgb(lab: tuple) -> tuple:
         """
         Quick Lab D50 to approximate sRGB for display purposes.
-        Uses simplified conversion — exact results are in the engine.
+        Uses simplified conversion -- exact results are in the engine.
         """
         try:
             import numpy as np
@@ -981,13 +981,13 @@ class VerifyPage(QWidget):
         for s in steps:
             target_y = s**target_gamma
             if s == 0.0:
-                # Black level — slight offset simulating backlight bleed
+                # Black level -- slight offset simulating backlight bleed
                 deviation = random.uniform(0.001, 0.005)
             elif s < 0.3:
-                # Shadows — slightly more deviation
+                # Shadows -- slightly more deviation
                 deviation = random.uniform(-0.015, 0.02)
             else:
-                # Mid to highlights — tight tracking
+                # Mid to highlights -- tight tracking
                 deviation = random.uniform(-0.008, 0.012)
             meas_y = max(0.0, min(1.0, target_y + deviation))
             measured.append(meas_y)
@@ -1140,7 +1140,7 @@ class VerifyPage(QWidget):
             max_color = C.RED
         self._stat_max_de.set_value(f"{max_de:.2f}", max_color)
 
-        # Grade — compute from avg dE with defined scale
+        # Grade -- compute from avg dE with defined scale
         if avg_de < 1.0:
             grade_text = "Excellent"
             grade_color = C.GREEN_HI
@@ -1155,7 +1155,7 @@ class VerifyPage(QWidget):
             grade_color = C.RED
         self._stat_grade.set_value(grade_text, grade_color)
 
-        # Method label — show method and avg dE result
+        # Method label -- show method and avg dE result
         method = results.get("method", "")
         accuracy_note = results.get("accuracy_note", "")
         if method == "native_measured" or "Measured" in accuracy_note:
@@ -1174,7 +1174,7 @@ class VerifyPage(QWidget):
         bt2020_pct = gamut.get("bt2020_pct", 0)
         self._gamut_section.set_values(srgb_pct, p3_pct, bt2020_pct)
 
-        # CIE 1931 chromaticity diagram — populate with display primaries
+        # CIE 1931 chromaticity diagram -- populate with display primaries
         dp = results.get("display_primaries")
         if dp:
             self._cie_diagram.set_display_gamut(dp["R"], dp["G"], dp["B"], dp.get("W"))
@@ -1182,7 +1182,7 @@ class VerifyPage(QWidget):
             # Clear previous overlay if no primaries available
             self._cie_diagram.set_display_gamut((0.640, 0.330), (0.300, 0.600), (0.150, 0.060))
 
-        # Grayscale tracking chart — use data from results if available,
+        # Grayscale tracking chart -- use data from results if available,
         # otherwise generate from the grayscale patches in the results.
         gs_data = results.get("grayscale")
         if gs_data:

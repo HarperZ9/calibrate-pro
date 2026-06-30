@@ -76,7 +76,7 @@ class HybridCalibrationResult:
     measured_patches: list[dict] = field(default_factory=list)
 
 
-# Standard verification patches — subset of ColorChecker for fast measurement
+# Standard verification patches -- subset of ColorChecker for fast measurement
 # These 12 patches cover: neutrals, primaries, secondaries, skin tones
 QUICK_VERIFY_PATCHES = [
     ("White", (0.95, 0.95, 0.95)),
@@ -375,7 +375,7 @@ class HybridCalibrationEngine:
         # For each entry: linearize, apply correction, re-encode
         for i in range(flat.shape[0]):
             rgb = flat[i]
-            # Linearize (approximate — LUT values are already partially corrected)
+            # Linearize (approximate -- LUT values are already partially corrected)
             rgb_linear = np.power(np.clip(rgb, 1e-10, 1.0), 2.2)
 
             # Convert to XYZ, apply residual, convert back

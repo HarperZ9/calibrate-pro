@@ -1,4 +1,4 @@
-# Calibrate Pro — Technical Documentation
+# Calibrate Pro -- Technical Documentation
 
 ## Calibration Pipeline
 
@@ -16,11 +16,11 @@ Each stage uses specific algorithms chosen for their fitness to the problem, not
 
 Monitors are identified through three methods in priority order:
 
-1. **EDID model name** — parsed from the monitor's EDID data block (bytes 54-125, descriptor tag 0xFC)
-2. **Fingerprint matching** — resolution + refresh rate + manufacturer code mapped to known panels
-3. **EDID chromaticity extraction** — raw 10-bit CIE xy coordinates from EDID bytes 25-34, used to construct a dynamic panel characterization for unknown displays
+1. **EDID model name** -- parsed from the monitor's EDID data block (bytes 54-125, descriptor tag 0xFC)
+2. **Fingerprint matching** -- resolution + refresh rate + manufacturer code mapped to known panels
+3. **EDID chromaticity extraction** -- raw 10-bit CIE xy coordinates from EDID bytes 25-34, used to construct a dynamic panel characterization for unknown displays
 
-The panel database stores measured primaries, per-channel gamma, and capabilities — not fabricated correction matrices. All color correction matrices are computed at runtime from the actual primaries using `primaries_to_xyz_matrix()`.
+The panel database stores measured primaries, per-channel gamma, and capabilities -- not fabricated correction matrices. All color correction matrices are computed at runtime from the actual primaries using `primaries_to_xyz_matrix()`.
 
 ### Stage 2: DDC-CI Hardware Pre-Calibration
 
@@ -39,7 +39,7 @@ Three LUT generation modes:
 
 **sRGB Target:** Compresses the panel's gamut to sRGB using Oklab perceptual gamut mapping (Ottosson, 2020). Binary search in Oklab space finds the maximum achievable chroma at each hue angle, preserving hue while reducing saturation smoothly. This avoids the blue→purple hue shift that Lab-space compression produces.
 
-**HDR (PQ):** Operates in PQ signal space (SMPTE ST.2084). Uses BT.2390 EETF (hermite spline) for luminance mapping from source peak to display peak. Gamut mapping in JzAzBz space (Safdar et al., 2017) which is perceptually uniform across the full HDR luminance range — unlike Oklab which was designed for SDR.
+**HDR (PQ):** Operates in PQ signal space (SMPTE ST.2084). Uses BT.2390 EETF (hermite spline) for luminance mapping from source peak to display peak. Gamut mapping in JzAzBz space (Safdar et al., 2017) which is perceptually uniform across the full HDR luminance range -- unlike Oklab which was designed for SDR.
 
 ### Stage 4: OLED-Specific Compensation
 
@@ -100,13 +100,13 @@ Bradford cone-response model (Lam, 1985; Süsstrunk et al., 2000). Used for:
 
 Sensorless calibration uses panel database characteristics to predict corrections. The accuracy depends on:
 
-1. **How close your specific panel is to the database values.** Panel-to-panel variation within the same model can be ±0.003 in chromaticity. Our database stores nominal values — your unit may differ.
+1. **How close your specific panel is to the database values.** Panel-to-panel variation within the same model can be ±0.003 in chromaticity. Our database stores nominal values -- your unit may differ.
 
 2. **Gamma accuracy.** Per-channel gamma is stored as a single power value. Real panels have complex TRC shapes that deviate from a pure power law, especially in the near-black region.
 
 3. **Temperature and age.** OLED panels shift in color and brightness as they warm up (first 30 minutes) and as they age (over months/years).
 
-**What sensorless calibration CAN do:** Get you within predicted dE < 1.0 for a panel in the database. This is meaningful — most uncalibrated displays have dE 5-15.
+**What sensorless calibration CAN do:** Get you within predicted dE < 1.0 for a panel in the database. This is meaningful -- most uncalibrated displays have dE 5-15.
 
 **What sensorless calibration CANNOT do:** Guarantee measured accuracy. Only a colorimeter measurement on YOUR specific panel tells you the actual result.
 

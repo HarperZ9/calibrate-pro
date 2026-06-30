@@ -28,7 +28,7 @@ CalMAN's main advantage over free tools is "beautiful reports for customers." Ou
 Wide-gamut displays show oversaturated colors in non-color-managed apps (games, browsers, desktop). Users desperately need:
 - A system-wide sRGB clamp that works for ALL applications (via dwm_lut)
 - Toggle in the tray: "sRGB Clamp ON/OFF"
-- Option to exclude specific apps (Resolve, Photoshop — they manage their own color)
+- Option to exclude specific apps (Resolve, Photoshop -- they manage their own color)
 
 ### 5. DaVinci Resolve Integration Guide
 The #1 question on every color forum: "How do I use my calibration in Resolve?" Build:

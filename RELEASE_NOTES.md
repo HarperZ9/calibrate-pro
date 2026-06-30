@@ -4,7 +4,7 @@ Professional display calibration for Windows. Sensorless or measured.
 
 ## Download
 
-- **calibrate-pro.exe** (233 MB) — Standalone Windows executable. No Python required. Requests admin for DWM LUT and DDC/CI access.
+- **calibrate-pro.exe** (233 MB) -- Standalone Windows executable. No Python required. Requests admin for DWM LUT and DDC/CI access.
 
 ## What's Included
 

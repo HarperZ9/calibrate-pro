@@ -1,5 +1,5 @@
 """
-Calibrate Pro — Profiles Page
+Calibrate Pro -- Profiles Page
 
 Profile management: view, activate, export, and delete calibration profiles.
 Scans ~/Documents/Calibrate Pro/Calibrations/ for .cube and .icc file pairs.
@@ -75,7 +75,7 @@ def _scan_profiles() -> list[dict]:
 
         profiles.append(
             {
-                "name": stem.replace("_", " ").replace("-", " — ", 1),
+                "name": stem.replace("_", " ").replace("-", " -- ", 1),
                 "stem": stem,
                 "cube_path": cube,
                 "icc_path": icc_path,
@@ -93,7 +93,7 @@ def _scan_profiles() -> list[dict]:
             mod_time = datetime.fromtimestamp(icc_stat.st_mtime)
             profiles.append(
                 {
-                    "name": icc.stem.replace("_", " ").replace("-", " — ", 1),
+                    "name": icc.stem.replace("_", " ").replace("-", " -- ", 1),
                     "stem": icc.stem,
                     "cube_path": None,
                     "icc_path": icc,
@@ -109,7 +109,7 @@ def _scan_profiles() -> list[dict]:
 def _format_size(size_bytes: int) -> str:
     """Human-readable file size."""
     if size_bytes == 0:
-        return "—"
+        return "--"
     if size_bytes < 1024:
         return f"{size_bytes} B"
     if size_bytes < 1024 * 1024:

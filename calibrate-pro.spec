@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Calibrate Pro — PyInstaller build spec
+# Calibrate Pro -- PyInstaller build spec
 # Targets <300MB by excluding ML frameworks and unused packages
 
 a = Analysis(
@@ -20,7 +20,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # ML frameworks (4.5GB+ — not used by calibrate-pro)
+        # ML frameworks (4.5GB+ -- not used by calibrate-pro)
         'torch', 'torchvision', 'torchaudio',
         'transformers', 'diffusers', 'accelerate', 'safetensors',
         'huggingface_hub', 'tokenizers',

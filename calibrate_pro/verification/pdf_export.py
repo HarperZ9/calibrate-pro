@@ -1,5 +1,5 @@
 """
-PDF Export — Calibrate Pro
+PDF Export -- Calibrate Pro
 
 Exports HTML verification/calibration reports to PDF.
 
