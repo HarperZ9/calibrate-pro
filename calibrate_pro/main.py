@@ -108,7 +108,7 @@ def cmd_detect(args):
     print("=" * 50)
     print_display_info()
 
-    # Detect colorimeters — native USB first, then ArgyllCMS
+    # Detect colorimeters -- native USB first, then ArgyllCMS
     sensor_found = False
     try:
         from calibrate_pro.hardware.i1d3_native import I1D3Driver
@@ -2170,7 +2170,7 @@ def main():
 
         return cmd_import_panel(args)
     else:
-        # No command specified — launch the GUI
+        # No command specified -- launch the GUI
         return cmd_gui(args)
 
 

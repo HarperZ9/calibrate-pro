@@ -37,6 +37,7 @@ gui = ["PyQt6>=6.5,<7", "quanta-ui>=1.0.0"]
 tray = ["pystray>=0.19.4", "Pillow>=10.0,<11"]
 sensor = ["hidapi>=0.14,<1"]
 macos = ["pyobjc-framework-Quartz>=9.0,<11", "pyobjc-framework-CoreFoundation>=9.0,<11"]
+test = ["pytest>=8.0"]
 all = ["PyQt6>=6.5,<7", "pystray>=0.19.4", "Pillow>=10.0,<11", "hidapi>=0.14,<1"]
 
 [project.scripts]

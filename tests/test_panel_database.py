@@ -1,4 +1,4 @@
-"""Tests for calibrate_pro.panels.database — PanelDatabase and PanelCharacterization."""
+"""Tests for calibrate_pro.panels.database -- PanelDatabase and PanelCharacterization."""
 
 import json
 

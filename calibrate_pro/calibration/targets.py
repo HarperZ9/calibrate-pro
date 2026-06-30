@@ -111,7 +111,7 @@ REC709_BT1886 = CalibrationTarget(
     delta_e_target=1.0,
     standard="ITU-R BT.1886",
     category="broadcast",
-    notes="Standard for SDR broadcast grading. BT.1886 is not pure gamma 2.4 — "
+    notes="Standard for SDR broadcast grading. BT.1886 is not pure gamma 2.4 -- "
     "it models black level offset for CRT-like response.",
 )
 

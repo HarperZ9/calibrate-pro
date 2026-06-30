@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Updated GitHub Actions workflows to current checkout/setup-python majors.
+- Added the documented `test` extra so `pip install -e ".[test]"` works.
+- Normalized scanner-blocking dash punctuation in public docs and developer-facing strings.
 - Project Telos presentation and operator-surface pass: README hero, brand assets under `docs/brand/`, cross-flagship navigation, and Current status / Operator surface blocks.
 - Documented the operator surface across the CLI and the `telos.display.calibration` MCP contract.
 - Relicensed to the Calibrate Pro Fair-Source License v1.0 as part of Project Telos flagship promotion.

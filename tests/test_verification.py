@@ -1,4 +1,4 @@
-"""Tests for calibrate_pro.sensorless.neuralux — NeuralUXEngine.verify_calibration."""
+"""Tests for calibrate_pro.sensorless.neuralux -- NeuralUXEngine.verify_calibration."""
 
 from calibrate_pro.sensorless.neuralux import NeuralUXEngine
 

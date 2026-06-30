@@ -1,4 +1,4 @@
-"""Tests for calibrate_pro.core.color_math — every color space conversion with roundtrip verification."""
+"""Tests for calibrate_pro.core.color_math -- every color space conversion with roundtrip verification."""
 
 import numpy as np
 import pytest

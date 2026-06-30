@@ -22,7 +22,7 @@ class DisplayTarget:
 
     # Matched targets (common across all displays)
     target_white_xy: tuple[float, float]
-    target_luminance: float  # cd/m2 — limited to weakest display's capability
+    target_luminance: float  # cd/m2 -- limited to weakest display's capability
     target_gamma: float
 
     # Per-display adjustments needed

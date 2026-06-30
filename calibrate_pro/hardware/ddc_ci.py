@@ -652,7 +652,7 @@ class DDCCIController:
         except RuntimeError:
             pass
 
-        # DDC/CI failed — provide specific troubleshooting
+        # DDC/CI failed -- provide specific troubleshooting
         diag.append("DDC/CI: Not responding")
         diag.append("")
         diag.append("Troubleshooting:")
@@ -1052,7 +1052,7 @@ class DDCCIController:
                 log(f"Note: {rec.notes}")
 
         else:
-            # Generic defaults — safe for most monitors
+            # Generic defaults -- safe for most monitors
             log("No panel-specific DDC recommendations. Using generic defaults.")
 
             ok, _ = self.try_set_vcp(monitor, VCPCode.BRIGHTNESS, 50)

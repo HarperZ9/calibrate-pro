@@ -1,4 +1,4 @@
-"""Tests for calibrate_pro.sensorless.auto_calibration — AutoCalibrationEngine."""
+"""Tests for calibrate_pro.sensorless.auto_calibration -- AutoCalibrationEngine."""
 
 import sys
 import tempfile

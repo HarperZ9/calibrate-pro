@@ -2,7 +2,7 @@
 System-Wide sRGB Gamut Clamp
 
 Wide-gamut displays (QD-OLED, P3, etc.) show oversaturated colors in
-non-color-managed applications — games, browsers, the Windows desktop.
+non-color-managed applications -- games, browsers, the Windows desktop.
 This is the single most common complaint from wide-gamut display owners.
 
 This service applies a system-wide sRGB gamut clamp via dwm_lut that

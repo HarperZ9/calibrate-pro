@@ -505,7 +505,7 @@ def xyz_to_rgb_matrix(rgb_to_xyz: np.ndarray) -> np.ndarray:
 
 
 # =============================================================================
-# Oklab / Oklch — Perceptually Uniform Color Space (Björn Ottosson)
+# Oklab / Oklch -- Perceptually Uniform Color Space (Björn Ottosson)
 # =============================================================================
 
 
@@ -547,7 +547,7 @@ def oklch_to_oklab(lch: np.ndarray) -> np.ndarray:
 
 
 # =============================================================================
-# JzAzBz / JzCzhz — HDR Perceptual Color Space
+# JzAzBz / JzCzhz -- HDR Perceptual Color Space
 # =============================================================================
 
 # JzAzBz constants
@@ -690,7 +690,7 @@ def jzczhz_to_jzazbz(jzczhz: np.ndarray) -> np.ndarray:
 
 
 # =============================================================================
-# ICtCp — Dolby HDR Perceptual Space
+# ICtCp -- Dolby HDR Perceptual Space
 # =============================================================================
 
 
@@ -1500,7 +1500,7 @@ def cam16_to_ucs(J: float, M: float, h: float) -> np.ndarray:
     """
     Convert CAM16 (J, M, h) to CAM16-UCS coordinates (J', a', b').
 
-    CAM16-UCS is the most perceptually uniform space available —
+    CAM16-UCS is the most perceptually uniform space available --
     Euclidean distance in this space corresponds to perceived color difference.
     """
     Jp = (1.0 + 100.0 * _CAM16_UCS_C1) * J / (1.0 + _CAM16_UCS_C1 * J)
@@ -1633,7 +1633,7 @@ def bt2390_eetf(
     target_black_nits: float = 0.0,
 ) -> np.ndarray:
     """
-    BT.2390 EETF — maps HDR PQ signals from a source peak luminance to a
+    BT.2390 EETF -- maps HDR PQ signals from a source peak luminance to a
     target display peak luminance using a hermite spline in the PQ domain.
 
     This is the standard tone-mapping method specified in ITU-R BT.2390 for

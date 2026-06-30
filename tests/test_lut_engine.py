@@ -1,4 +1,4 @@
-"""Tests for calibrate_pro.core.lut_engine — LUT3D and LUTGenerator."""
+"""Tests for calibrate_pro.core.lut_engine -- LUT3D and LUTGenerator."""
 
 import tempfile
 from pathlib import Path

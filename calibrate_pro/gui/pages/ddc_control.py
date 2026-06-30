@@ -1,5 +1,5 @@
 """
-Calibrate Pro — DDC Control Page
+Calibrate Pro -- DDC Control Page
 
 Hardware DDC/CI monitor control: brightness, contrast, RGB gain, RGB offset.
 Communicates directly with the display over the DDC/CI protocol.
@@ -91,7 +91,7 @@ def _make_slider_row(
     initial: int = 50,
     label_color: str = C.TEXT,
 ):
-    """Create a horizontal row: label — slider — value label."""
+    """Create a horizontal row: label -- slider -- value label."""
     row = QHBoxLayout()
     row.setSpacing(12)
 

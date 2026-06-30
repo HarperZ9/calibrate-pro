@@ -377,7 +377,7 @@ class I1D3Driver:
 
     # Offset from the start of each calibration block to the 3x3 matrix data.
     # The block starts with a header; the matrix is at +0x80 from block start
-    # for most entries (may vary — this is the common layout).
+    # for most entries (may vary -- this is the common layout).
     CAL_MATRIX_OFFSET = 0x80
 
     def _read_calibration(self):

@@ -89,7 +89,7 @@ def get_resolve_instructions(monitor_count: int = 1) -> str:
    - This applies to the Color page viewer
 
 Note: With a single monitor, use the "Color Viewer" LUT path.
-Do NOT use "3D Video Monitor LUT" — that's for dedicated
+Do NOT use "3D Video Monitor LUT" -- that's for dedicated
 monitoring output only.
 
 Warning: If using ACES, the monitor LUT may conflict with

@@ -1,5 +1,5 @@
 """
-Calibrate Page — Professional calibration workflow.
+Calibrate Page -- Professional calibration workflow.
 
 Display selector, mode cards, target settings, progress tracking.
 Runs AutoCalibrationEngine in a QThread with live progress updates.
@@ -741,7 +741,7 @@ class CalibratePage(QWidget):
         """
         label_style = f"font-size: 12px; color: {C.TEXT2};"
 
-        # Row 0 — Gamut
+        # Row 0 -- Gamut
         lbl_gamut = QLabel("Target Gamut")
         lbl_gamut.setStyleSheet(label_style)
         target_lay.addWidget(lbl_gamut, 0, 0)
@@ -751,7 +751,7 @@ class CalibratePage(QWidget):
         self._combo_gamut.setStyleSheet(combo_style)
         target_lay.addWidget(self._combo_gamut, 0, 1)
 
-        # Row 1 — White point
+        # Row 1 -- White point
         lbl_wp = QLabel("White Point")
         lbl_wp.setStyleSheet(label_style)
         target_lay.addWidget(lbl_wp, 1, 0)
@@ -792,7 +792,7 @@ class CalibratePage(QWidget):
         wp_row.addStretch()
         target_lay.addLayout(wp_row, 1, 1)
 
-        # Row 2 — Gamma
+        # Row 2 -- Gamma
         lbl_gamma = QLabel("Gamma")
         lbl_gamma.setStyleSheet(label_style)
         target_lay.addWidget(lbl_gamma, 2, 0)
@@ -801,7 +801,7 @@ class CalibratePage(QWidget):
         self._combo_gamma.setStyleSheet(combo_style)
         target_lay.addWidget(self._combo_gamma, 2, 1)
 
-        # Row 3 — HDR
+        # Row 3 -- HDR
         lbl_hdr = QLabel("HDR Mode")
         lbl_hdr.setStyleSheet(label_style)
         target_lay.addWidget(lbl_hdr, 3, 0)

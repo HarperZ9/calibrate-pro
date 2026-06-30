@@ -1,5 +1,5 @@
 """
-Calibrate Pro — Main Application
+Calibrate Pro -- Main Application
 
 Clean, professional GUI built for display calibration professionals.
 Every widget has proper layout constraints. Every panel resizes correctly.
@@ -146,7 +146,7 @@ def make_app_icon() -> QIcon:
     """
     Create the application icon programmatically.
 
-    A stylized display monitor with a color calibration arc —
+    A stylized display monitor with a color calibration arc --
     navy blue frame, olive green check, subtle color band.
     Generated at multiple sizes for crisp rendering at any DPI.
     """
@@ -161,7 +161,7 @@ def make_app_icon() -> QIcon:
         s = size
         m = s * 0.08  # margin
 
-        # Monitor body — rounded rectangle, warm brown
+        # Monitor body -- rounded rectangle, warm brown
         body_rect = (m, m, s - 2 * m, s * 0.72)
         p.setPen(QPen(QColor("#b07878"), max(1, s * 0.04)))
         p.setBrush(QColor("#f7f3ee"))
@@ -169,7 +169,7 @@ def make_app_icon() -> QIcon:
             int(body_rect[0]), int(body_rect[1]), int(body_rect[2]), int(body_rect[3]), s * 0.08, s * 0.08
         )
 
-        # Screen area — slightly inset, dark
+        # Screen area -- slightly inset, dark
         inset = s * 0.14
         screen_x = inset
         screen_y = inset
@@ -179,7 +179,7 @@ def make_app_icon() -> QIcon:
         p.setBrush(QColor("#f0ebe4"))
         p.drawRoundedRect(int(screen_x), int(screen_y), int(screen_w), int(screen_h), s * 0.04, s * 0.04)
 
-        # Color calibration arc on screen — three subtle bands (R, G, B)
+        # Color calibration arc on screen -- three subtle bands (R, G, B)
         cx = s * 0.5
         cy = s * 0.42
         radius = s * 0.18
@@ -193,7 +193,7 @@ def make_app_icon() -> QIcon:
             arc_rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
             p.drawArc(arc_rect, angle_start * 16, 35 * 16)
 
-        # Monitor stand — small trapezoid
+        # Monitor stand -- small trapezoid
         stand_top = s * 0.76
         stand_w = s * 0.22
         stand_h = s * 0.08
@@ -214,7 +214,7 @@ def make_app_icon() -> QIcon:
         base_w = s * 0.30
         p.drawRoundedRect(int(cx - base_w / 2), int(base_y), int(base_w), int(s * 0.04), s * 0.02, s * 0.02)
 
-        # Small check mark — olive green, bottom right of screen
+        # Small check mark -- olive green, bottom right of screen
         if size >= 24:
             check_x = screen_x + screen_w * 0.65
             check_y = screen_y + screen_h * 0.55
@@ -524,7 +524,7 @@ class LiveSensorCard(Card):
 
         # Header
         header = QHBoxLayout()
-        self._title = QLabel("Colorimeter — Live Readout")
+        self._title = QLabel("Colorimeter -- Live Readout")
         self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.GREEN_HI};")
         header.addWidget(self._title)
         header.addStretch()
@@ -540,9 +540,9 @@ class LiveSensorCard(Card):
         readings = QHBoxLayout()
         readings.setSpacing(24)
 
-        self._lum_stat = Stat("Luminance", "—", C.TEXT)
-        self._cct_stat = Stat("CCT", "—", C.TEXT)
-        self._xyz_label = QLabel("X — Y — Z —")
+        self._lum_stat = Stat("Luminance", "--", C.TEXT)
+        self._cct_stat = Stat("CCT", "--", C.TEXT)
+        self._xyz_label = QLabel("X -- Y -- Z --")
         self._xyz_label.setStyleSheet(
             f"font-size: 11px; color: {C.TEXT2}; font-family: 'Cascadia Code', 'Consolas', monospace;"
         )
@@ -566,13 +566,13 @@ class LiveSensorCard(Card):
 
             self._driver = I1D3Driver()
             if not self._driver.open():
-                self._title.setText("Colorimeter — Failed to open")
+                self._title.setText("Colorimeter -- Failed to open")
                 self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.RED};")
                 return
 
             self._running = True
             self._toggle_btn.setText("Stop")
-            self._title.setText("Colorimeter — Live")
+            self._title.setText("Colorimeter -- Live")
 
             self._timer = QTimer()
             self._timer.timeout.connect(self._take_reading)
@@ -590,7 +590,7 @@ class LiveSensorCard(Card):
             self._driver.close()
             self._driver = None
         self._toggle_btn.setText("Start")
-        self._title.setText("Colorimeter — Stopped")
+        self._title.setText("Colorimeter -- Stopped")
         self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.TEXT2};")
 
     def _take_reading(self):
@@ -600,7 +600,7 @@ class LiveSensorCard(Card):
             m = self._driver.measure(integration_time=0.5)
             if m and (m.X > 0 or m.Y > 0 or m.Z > 0):
                 self._lum_stat.set_value(f"{m.luminance:.1f}", C.TEXT)
-                self._cct_stat.set_value(f"{m.cct:.0f}K" if m.cct > 1000 else "—", C.TEXT)
+                self._cct_stat.set_value(f"{m.cct:.0f}K" if m.cct > 1000 else "--", C.TEXT)
                 self._xyz_label.setText(f"X {m.X:.2f}   Y {m.Y:.2f}   Z {m.Z:.2f}")
             else:
                 self._xyz_label.setText("No light detected")
@@ -1112,7 +1112,7 @@ class AddDisplayDialog(QDialog):
 
 
 class DashboardPage(QWidget):
-    """Main dashboard — display overview and quick actions."""
+    """Main dashboard -- display overview and quick actions."""
 
     navigate_to_calibrate = pyqtSignal(int)  # emits display index
     calibrate_all_requested = pyqtSignal()
@@ -1175,11 +1175,11 @@ class DashboardPage(QWidget):
         # Stats row
         stats_row = QHBoxLayout()
         stats_row.setSpacing(24)
-        self._stat_panels = Stat("Panel Profiles", "—")
-        self._stat_sensor = Stat("Sensor", "—")
-        self._stat_lut = Stat("Active LUT", "—")
-        self._stat_guard = Stat("Guard", "—")
-        self._stat_startup = Stat("Auto-Start", "—")
+        self._stat_panels = Stat("Panel Profiles", "--")
+        self._stat_sensor = Stat("Sensor", "--")
+        self._stat_lut = Stat("Active LUT", "--")
+        self._stat_guard = Stat("Guard", "--")
+        self._stat_startup = Stat("Auto-Start", "--")
         stats_row.addWidget(self._stat_panels)
         stats_row.addWidget(self._stat_sensor)
         stats_row.addWidget(self._stat_lut)
@@ -1586,7 +1586,7 @@ class CalibrateProWindow(QMainWindow):
         _build_menubar via QAction.setShortcut so they appear in the menus.
         This method adds only the non-menu shortcuts.
         """
-        # Escape — Minimize to tray or minimize window
+        # Escape -- Minimize to tray or minimize window
         sc_escape = QShortcut(QKeySequence("Escape"), self)
         sc_escape.activated.connect(self._escape_action)
 
@@ -1628,7 +1628,7 @@ class CalibrateProWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(QAction("E&xit", self, shortcut="Alt+F4", triggered=self.close))
 
-        # View — page navigation shortcuts
+        # View -- page navigation shortcuts
         view = mb.addMenu("&View")
         page_names = ["&Dashboard", "&Calibrate", "&Verify", "&Profiles", "DD&C Control", "&Settings"]
         page_shortcuts = ["Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+5", "Ctrl+6"]
@@ -1742,7 +1742,7 @@ class CalibrateProWindow(QMainWindow):
 
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self._app_icon)
-        self._tray.setToolTip(f"{APP_NAME} — Display Calibration")
+        self._tray.setToolTip(f"{APP_NAME} -- Display Calibration")
 
         menu = QMenu()
         menu.setStyleSheet(STYLE)
@@ -2077,7 +2077,7 @@ class CalibrateProWindow(QMainWindow):
 
 def launch():
     """Launch the Calibrate Pro GUI."""
-    # Windows taskbar icon fix — set app user model ID
+    # Windows taskbar icon fix -- set app user model ID
     try:
         import ctypes
 

@@ -1007,7 +1007,7 @@ class LUTGenerator:
 
         The correction is: linearize with panel gamma, apply white point
         correction via Bradford adaptation, re-encode with target gamma.
-        No gamut compression occurs — colors that the panel can display
+        No gamut compression occurs -- colors that the panel can display
         natively remain unchanged in chromaticity.
 
         Args:

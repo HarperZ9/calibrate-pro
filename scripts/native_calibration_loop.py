@@ -158,7 +158,7 @@ def unlock_device(device):
 
 
 def measure_freq(device, integration=1.0):
-    """Frequency measurement mode — returns raw RGB sensor counts/sec."""
+    """Frequency measurement mode -- returns raw RGB sensor counts/sec."""
     intclks = int(integration * 12000000)
     cmd = bytearray(65)
     cmd[0] = 0x00
