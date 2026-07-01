@@ -1,8 +1,8 @@
 name: Release
 
-# NOTE: publishing is gated. Calibrate Pro's runtime color dependency (build-color /
-# quanta-color) must be resolvable on PyPI before a public release, otherwise end-user
-# `pip install calibrate-pro` cannot resolve it. Cut the color library release first.
+# NOTE: publishing is gated. Calibrate Pro's runtime color dependency (build-color)
+# must be resolvable on PyPI before a public release, otherwise end-user
+# `pip install calibrate-pro` cannot resolve it. Cut the build-color release first.
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
         run: |
           python -m venv /tmp/v
           # Runtime color dependency is git-hosted until its own PyPI release lands.
-          /tmp/v/bin/pip install "numpy>=1.24" "scipy>=1.10" git+https://github.com/HarperZ9/quanta-color.git
+          /tmp/v/bin/pip install "numpy>=1.24" "scipy>=1.10" git+https://github.com/HarperZ9/build-color.git
           /tmp/v/bin/pip install --no-deps dist/*.whl
           /tmp/v/bin/python -c "import importlib.metadata as m; print('calibrate-pro', m.version('calibrate-pro'))"
       - uses: actions/upload-artifact@v7
