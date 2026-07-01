@@ -145,7 +145,7 @@ class CalibrationGuard:
 
         if is_linear and not self._is_linear_ramp(display.vcgt_red):
             # Windows reset our calibration to linear -- restore it
-            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
+            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)  # type: ignore[arg-type]  # numpy/dynamic typing
             self._restore_count += 1
             if self.on_restore:
                 self.on_restore(display.display_name, "Windows reset gamma ramp to linear")
@@ -153,7 +153,7 @@ class CalibrationGuard:
 
         if not is_matching and not is_linear:
             # Something else changed the ramp -- could be another tool, restore ours
-            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)
+            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)  # type: ignore[arg-type]  # numpy/dynamic typing
             self._restore_count += 1
             if self.on_restore:
                 self.on_restore(display.display_name, "Gamma ramp was modified by another process")

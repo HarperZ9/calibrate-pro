@@ -11,12 +11,13 @@ Defines compliance specifications for major streaming and broadcast standards:
 These specifications are used for calibration target validation
 and professional compliance verification.
 
-Author: Zain Dana / Quanta
-License: MIT
+Author: Zain Dana / Build
+License: Fair-Source (see LICENSE)
 """
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class ComplianceLevel(Enum):
@@ -470,7 +471,7 @@ def get_recommended_targets(use_case: str) -> dict[str, MasteringSpec]:
         raise ValueError(f"Unknown use case: {use_case}")
 
 
-def generate_compliance_report(measurements: dict, standards: list[str] = None) -> dict:
+def generate_compliance_report(measurements: dict[str, Any], standards: list[str] | None = None) -> dict[str, Any]:
     """
     Generate a comprehensive compliance report against multiple standards.
 
@@ -484,7 +485,7 @@ def generate_compliance_report(measurements: dict, standards: list[str] = None) 
     if standards is None:
         standards = ["netflix", "ebu_sdr", "ebu_hdr", "dci", "disney", "apple", "bbc"]
 
-    report = {
+    report: dict[str, Any] = {
         "measurements": measurements,
         "standards_checked": [],
         "summary": {"full_compliance": [], "partial_compliance": [], "failed": []},

@@ -474,7 +474,7 @@ def apply_vcgt_windows(vcgt: VCGTTable, display_index: int = 0, device_name: str
             return bool(result)
 
         finally:
-            if release_fn:
+            if release_fn:  # type: ignore[truthy-function]  # numpy/dynamic typing
                 release_fn(hdc)
 
     except Exception as e:

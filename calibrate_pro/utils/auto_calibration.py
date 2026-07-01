@@ -14,7 +14,7 @@ import os
 import sys
 import time
 from ctypes import POINTER, Structure, byref, wintypes
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -250,11 +250,7 @@ class CalibrationProfile:
 
     version: str = "1.0"
     name: str = "Default"
-    monitors: dict[int, MonitorCalibration] = None
-
-    def __post_init__(self):
-        if self.monitors is None:
-            self.monitors = {}
+    monitors: dict[int, MonitorCalibration] = field(default_factory=dict)
 
 
 class AutoCalibrationManager:

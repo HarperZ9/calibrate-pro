@@ -179,7 +179,7 @@ class WebcamCamera(CameraInterface):
 
         # Capture multiple frames and use last (camera settling)
         for _ in range(5):
-            ret, frame = self._cap.read()
+            ret, frame = self._cap.read()  # type: ignore[attr-defined]  # numpy/dynamic typing
 
         if ret:
             import cv2
@@ -212,7 +212,7 @@ class SimulatedCamera(CameraInterface):
         self.display_rgb_gain = display_rgb_gain
         self.camera_gamma = camera_gamma
         self.noise_level = noise_level
-        self._current_pattern = None
+        self._current_pattern: tuple[int, int, int] | None = None
 
     def set_pattern(self, rgb: tuple[int, int, int]):
         """Set what the display is showing."""

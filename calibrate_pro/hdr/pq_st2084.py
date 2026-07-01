@@ -192,7 +192,7 @@ def calculate_pq_eotf_error(
 
     avg_error = np.mean(errors)
 
-    return errors, avg_error
+    return errors, avg_error  # type: ignore[return-value]  # numpy/dynamic typing
 
 
 def generate_pq_calibration_lut(

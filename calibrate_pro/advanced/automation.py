@@ -974,18 +974,18 @@ def run_cli(args: list[str] | None = None) -> int:
 
     elif parsed.command == "workflow":
         workflow = api.load_workflow(parsed.path)
-        result = api.run(workflow)
-        print(f"Workflow {result.state.name}")
-        if result.errors:
-            print(f"Errors: {result.errors}")
-        return 0 if result.state == WorkflowState.COMPLETED else 1
+        completed_workflow = api.run(workflow)
+        print(f"Workflow {completed_workflow.state.name}")
+        if completed_workflow.errors:
+            print(f"Errors: {completed_workflow.errors}")
+        return 0 if completed_workflow.state == WorkflowState.COMPLETED else 1
 
     elif parsed.command == "batch":
         display_ids = [int(d) for d in parsed.displays.split(",")]
         for display_id in display_ids:
-            workflow = api.create_calibration_workflow(display_id)
-            result = api.run(workflow)
-            print(f"Display {display_id}: {result.state.name}")
+            batch_workflow = api.create_calibration_workflow(display_id)
+            completed_batch = api.run(batch_workflow)
+            print(f"Display {display_id}: {completed_batch.state.name}")
         return 0
 
     else:

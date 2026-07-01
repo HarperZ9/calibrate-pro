@@ -24,7 +24,7 @@ REM Build the executable
     --hidden-import "calibrate_pro.panels" ^
     --hidden-import "calibrate_pro.panels.builtin_panels" ^
     --hidden-import "calibrate_pro.panels.database" ^
-    --hidden-import "quanta_color" ^
+    --hidden-import "build_color" ^
     --hidden-import "numpy" ^
     --hidden-import "scipy" ^
     --collect-submodules "calibrate_pro" ^

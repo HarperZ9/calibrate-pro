@@ -1,0 +1,165 @@
+calibrate_pro\advanced\ambient_light.py:304: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\ambient_light.py:305: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\automation.py:397: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\automation.py:408: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\automation.py:411: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\automation.py:625: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\advanced\automation.py:626: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\verification\gamut_volume.py:853: error: Argument "mean_distance" to "OutOfGamutAnalysis" has incompatible type "floating[Any] | float"; expected "float"  [arg-type]
+calibrate_pro\services\calibration_guard.py:148: error: Argument 3 to "_apply_vcgt" of "CalibrationGuard" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\services\calibration_guard.py:148: error: Argument 4 to "_apply_vcgt" of "CalibrationGuard" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\services\calibration_guard.py:156: error: Argument 3 to "_apply_vcgt" of "CalibrationGuard" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\services\calibration_guard.py:156: error: Argument 4 to "_apply_vcgt" of "CalibrationGuard" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\sensorless\camera_calibration.py:182: error: "None" has no attribute "read"  [attr-defined]
+calibrate_pro\sensorless\camera_calibration.py:219: error: Incompatible types in assignment (expression has type "tuple[int, int, int]", variable has type "None")  [assignment]
+calibrate_pro\profiles\icc_v4.py:266: error: Name "gamma" already defined on line 253  [no-redef]
+calibrate_pro\profiles\icc_v4.py:622: error: Item "None" of "ndarray[tuple[Any, ...], dtype[Any]] | None" has no attribute "__iter__" (not iterable)  [union-attr]
+calibrate_pro\profiles\icc_v4.py:626: error: Item "None" of "ndarray[tuple[Any, ...], dtype[Any]] | None" has no attribute "__iter__" (not iterable)  [union-attr]
+calibrate_pro\profiles\icc_v4.py:794: error: "float" not callable  [operator]
+calibrate_pro\profiles\icc_v4.py:795: error: "float" not callable  [operator]
+calibrate_pro\profiles\icc_v4.py:796: error: "float" not callable  [operator]
+calibrate_pro\hdr\pq_st2084.py:195: error: Incompatible return value type (got "tuple[ndarray[tuple[Any, ...], dtype[float64]], floating[Any]]", expected "tuple[ndarray[tuple[Any, ...], dtype[Any]], float]")  [return-value]
+calibrate_pro\core\vcgt.py:477: error: Function "release_fn" could always be true in boolean context  [truthy-function]
+calibrate_pro\core\color_models.py:173: error: Incompatible default for parameter "viewing_conditions" (default has type "None", parameter has type "CAM16ViewingConditions")  [assignment]
+calibrate_pro\core\color_models.py:173: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\color_models.py:173: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\core\color_models.py:261: error: Incompatible return value type (got "list[dict[Any, Any]]", expected "dict[Any, Any]")  [return-value]
+calibrate_pro\core\color_models.py:515: error: Incompatible types in assignment (expression has type "ndarray[tuple[Any, ...], dtype[Any]]", variable has type "list[ndarray[tuple[Any, ...], dtype[Any]]]")  [assignment]
+calibrate_pro\core\color_models.py:518: error: Incompatible return value type (got "list[ndarray[tuple[Any, ...], dtype[Any]]]", expected "ndarray[tuple[Any, ...], dtype[Any]]")  [return-value]
+calibrate_pro\core\color_models.py:585: error: Incompatible types in assignment (expression has type "ndarray[tuple[Any, ...], dtype[Any]]", variable has type "list[ndarray[tuple[Any, ...], dtype[Any]]]")  [assignment]
+calibrate_pro\core\color_models.py:588: error: Incompatible return value type (got "list[ndarray[tuple[Any, ...], dtype[Any]]]", expected "ndarray[tuple[Any, ...], dtype[Any]]")  [return-value]
+calibrate_pro\core\color_models.py:741: error: Incompatible types in assignment (expression has type "ndarray[tuple[Any, ...], dtype[Any]]", variable has type "list[ndarray[tuple[Any, ...], dtype[Any]]]")  [assignment]
+calibrate_pro\core\color_models.py:744: error: Incompatible return value type (got "list[ndarray[tuple[Any, ...], dtype[Any]]]", expected "ndarray[tuple[Any, ...], dtype[Any]]")  [return-value]
+calibrate_pro\core\color_models.py:780: error: Incompatible types in assignment (expression has type "ndarray[tuple[Any, ...], dtype[float64]]", variable has type "list[ndarray[tuple[Any, ...], dtype[Any]]]")  [assignment]
+calibrate_pro\core\color_models.py:784: error: "list[ndarray[tuple[Any, ...], dtype[Any]]]" has no attribute "T"  [attr-defined]
+calibrate_pro\core\color_models.py:789: error: Incompatible return value type (got "list[ndarray[tuple[Any, ...], dtype[Any]]]", expected "ndarray[tuple[Any, ...], dtype[Any]]")  [return-value]
+calibrate_pro\core\color_models.py:834: error: Incompatible default for parameter "viewing_conditions" (default has type "None", parameter has type "CAM16ViewingConditions")  [assignment]
+calibrate_pro\core\color_models.py:834: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\color_models.py:834: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\core\color_models.py:930: error: Argument 1 to "delta_E_cam16" of "CAM16" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]]"; expected "tuple[float, float, float]"  [arg-type]
+calibrate_pro\core\color_models.py:930: error: Argument 2 to "delta_E_cam16" of "CAM16" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]]"; expected "tuple[float, float, float]"  [arg-type]
+calibrate_pro\core\color_math.py:1326: error: Incompatible default for parameter "white_xyz" (default has type "None", parameter has type "ndarray[tuple[Any, ...], dtype[Any]]")  [assignment]
+calibrate_pro\core\color_math.py:1326: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\color_math.py:1326: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\profiles\profile_installer.py:33: error: Incompatible types in assignment (expression has type "None", variable has type "WinDLL")  [assignment]
+calibrate_pro\profiles\profile_installer.py:63: error: Incompatible types in assignment (expression has type "None", variable has type "WinDLL")  [assignment]
+calibrate_pro\profiles\profile_installer.py:64: error: Incompatible types in assignment (expression has type "None", variable has type "WinDLL")  [assignment]
+calibrate_pro\profiles\profile_installer.py:66: error: Cannot assign to a type  [misc]
+calibrate_pro\profiles\profile_installer.py:66: error: Incompatible types in assignment (expression has type "None", variable has type "type[_DISPLAY_DEVICE]")  [assignment]
+calibrate_pro\display\hdr_detect.py:38: error: Need type annotation for "states" (hint: "states: list[<type>] = ...")  [var-annotated]
+calibrate_pro\profiles\mhc2.py:419: error: Item "None" of "MHC2ToneCurve | None" has no attribute "to_bytes"  [union-attr]
+calibrate_pro\profiles\mhc2.py:420: error: Item "None" of "MHC2ToneCurve | None" has no attribute "to_bytes"  [union-attr]
+calibrate_pro\profiles\mhc2.py:421: error: Item "None" of "MHC2ToneCurve | None" has no attribute "to_bytes"  [union-attr]
+calibrate_pro\profiles\mhc2.py:1016: error: Incompatible types in assignment (expression has type "Path", variable has type "str")  [assignment]
+calibrate_pro\profiles\mhc2.py:1017: error: "str" has no attribute "exists"  [attr-defined]
+calibrate_pro\profiles\mhc2.py:1022: error: "str" has no attribute "read_bytes"  [attr-defined]
+calibrate_pro\profiles\mhc2.py:1035: error: "str" has no attribute "name"  [attr-defined]
+calibrate_pro\profiles\mhc2.py:1087: error: "str" has no attribute "name"  [attr-defined]
+calibrate_pro\core\aces.py:437: error: Incompatible return value type (got "list[tuple[int, Any, int]]", expected "list[tuple[float, float, float]]")  [return-value]
+calibrate_pro\core\aces.py:437: note: "list" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+calibrate_pro\core\aces.py:437: note: Consider using "Sequence" instead, which is covariant
+calibrate_pro\core\aces.py:437: note: Perhaps you need a type annotation for "edges"? Suggestion: "list[tuple[float, float, float]]"
+calibrate_pro\core\aces.py:586: error: Incompatible types in assignment (expression has type "ndarray[tuple[Any, ...], dtype[Any]]", variable has type "list[ndarray[tuple[Any, ...], dtype[Any]]]")  [assignment]
+calibrate_pro\core\aces.py:589: error: Incompatible return value type (got "list[ndarray[tuple[Any, ...], dtype[Any]]]", expected "ndarray[tuple[Any, ...], dtype[Any]]")  [return-value]
+calibrate_pro\core\lut_engine.py:508: error: Incompatible types in assignment (expression has type "tuple[float, ...]", variable has type "tuple[float, float, float]")  [assignment]
+calibrate_pro\core\lut_engine.py:511: error: Incompatible types in assignment (expression has type "tuple[float, ...]", variable has type "tuple[float, float, float]")  [assignment]
+calibrate_pro\core\lut_engine.py:825: error: Incompatible default for parameter "target_primaries" (default has type "None", parameter has type "tuple[tuple[float, float], ...]")  [assignment]
+calibrate_pro\core\lut_engine.py:825: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\lut_engine.py:825: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\core\lut_engine.py:1115: error: Incompatible default for parameter "target_primaries" (default has type "None", parameter has type "tuple[tuple[float, float], ...]")  [assignment]
+calibrate_pro\core\lut_engine.py:1115: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\lut_engine.py:1115: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\core\icc_profile.py:98: error: Incompatible types in assignment (expression has type "None", variable has type "datetime")  [assignment]
+calibrate_pro\core\icc_profile.py:178: error: Need type annotation for "tags" (hint: "tags: dict[<type>, <type>] = ...")  [var-annotated]
+calibrate_pro\core\icc_profile.py:409: error: Argument 1 to "_build_curv_tag" of "ICCProfile" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "float | ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\core\icc_profile.py:410: error: Argument 1 to "_build_curv_tag" of "ICCProfile" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "float | ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\hdr\tone_mapping.py:99: error: Incompatible default for parameter "white_point" (default has type "None", parameter has type "float")  [assignment]
+calibrate_pro\hdr\tone_mapping.py:99: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\tone_mapping.py:99: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:168: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:168: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:168: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:318: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:318: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:318: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:373: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:373: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:373: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:439: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:439: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:439: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:448: error: Incompatible types in assignment (expression has type "HLGCalibration", variable has type "HDR10Calibration")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:471: error: Incompatible types in assignment (expression has type "dict[str, object]", target has type "ndarray[tuple[Any, ...], dtype[Any]]")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:569: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:569: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:569: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\hdr\hdr_calibration.py:594: error: Incompatible default for parameter "config" (default has type "None", parameter has type "HDRCalibrationConfig")  [assignment]
+calibrate_pro\hdr\hdr_calibration.py:594: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\hdr\hdr_calibration.py:594: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\verification\measured_verify.py:209: error: Unsupported left operand type for / ("None")  [operator]
+calibrate_pro\verification\measured_verify.py:209: note: Left operand is of type "Path | None"
+calibrate_pro\verification\measured_verify.py:233: error: Incompatible types in assignment (expression has type "Path", variable has type "str")  [assignment]
+calibrate_pro\verification\measured_verify.py:234: error: "str" has no attribute "exists"  [attr-defined]
+calibrate_pro\verification\measured_verify.py:251: error: Name "_argyll_backend_cache" is not defined  [name-defined]
+calibrate_pro\verification\measured_verify.py:255: error: Name "_argyll_backend_cache" is not defined  [name-defined]
+calibrate_pro\verification\measured_verify.py:256: error: Name "_argyll_backend_cache" is not defined  [name-defined]
+calibrate_pro\verification\measured_verify.py:259: error: Name "_argyll_backend_cache" is not defined  [name-defined]
+calibrate_pro\verification\measured_verify.py:261: error: Name "_argyll_backend_cache" is not defined  [name-defined]
+calibrate_pro\verification\measured_verify.py:414: error: "None" not callable  [misc]
+calibrate_pro\services\app_switcher.py:342: error: "DwmLutController" has no attribute "clear_lut"  [attr-defined]
+calibrate_pro\core\lut_engine_advanced.py:212: error: Incompatible default for parameter "num_threads" (default has type "None", parameter has type "int")  [assignment]
+calibrate_pro\core\lut_engine_advanced.py:212: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\lut_engine_advanced.py:212: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\core\lut_engine_advanced.py:493: error: Incompatible default for parameter "targets" (default has type "None", parameter has type "list[str]")  [assignment]
+calibrate_pro\core\lut_engine_advanced.py:493: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\core\lut_engine_advanced.py:493: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\sensorless\neuralux.py:540: error: Incompatible types in assignment (expression has type "float | ndarray[tuple[Any, ...], dtype[Any]]", variable has type "float")  [assignment]
+calibrate_pro\sensorless\neuralux.py:542: error: "object" has no attribute "append"  [attr-defined]
+calibrate_pro\sensorless\neuralux.py:552: error: "object" has no attribute "append"  [attr-defined]
+calibrate_pro\sensorless\neuralux.py:553: error: "object" has no attribute "append"  [attr-defined]
+calibrate_pro\sensorless\neuralux.py:565: error: No overload variant of "max" matches argument types "object", "object"  [call-overload]
+calibrate_pro\sensorless\neuralux.py:565: note: Possible overload variants:
+calibrate_pro\sensorless\neuralux.py:565: note:     def [SupportsRichComparisonT: SupportsDunderLT[Any] | SupportsDunderGT[Any]] max(SupportsRichComparisonT, SupportsRichComparisonT, /, *_args: SupportsRichComparisonT, key: None = ...) -> SupportsRichComparisonT
+calibrate_pro\sensorless\neuralux.py:565: note:     def [_T] max(_T, _T, /, *_args: _T, key: Callable[[_T], SupportsDunderLT[Any] | SupportsDunderGT[Any]]) -> _T
+calibrate_pro\sensorless\neuralux.py:565: note:     def [SupportsRichComparisonT: SupportsDunderLT[Any] | SupportsDunderGT[Any]] max(Iterable[SupportsRichComparisonT], /, *, key: None = ...) -> SupportsRichComparisonT
+calibrate_pro\sensorless\neuralux.py:565: note:     def [_T] max(Iterable[_T], /, *, key: Callable[[_T], SupportsDunderLT[Any] | SupportsDunderGT[Any]]) -> _T
+calibrate_pro\sensorless\neuralux.py:565: note:     def [SupportsRichComparisonT: SupportsDunderLT[Any] | SupportsDunderGT[Any], _T] max(Iterable[SupportsRichComparisonT], /, *, key: None = ..., default: _T) -> SupportsRichComparisonT | _T
+calibrate_pro\sensorless\neuralux.py:565: note:     def [_T1, _T2] max(Iterable[_T1], /, *, key: Callable[[_T1], SupportsDunderLT[Any] | SupportsDunderGT[Any]], default: _T2) -> _T1 | _T2
+calibrate_pro\sensorless\neuralux.py:763: error: Unsupported target for indexed assignment ("Collection[str]")  [index]
+calibrate_pro\sensorless\neuralux.py:770: error: Unsupported target for indexed assignment ("Collection[str]")  [index]
+calibrate_pro\sensorless\neuralux.py:916: error: Argument 1 to "mean" has incompatible type "list[float | ndarray[tuple[Any, ...], dtype[Any]]]"; expected "_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]] | _NestedSequence[_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]]] | float | _NestedSequence[float]"  [arg-type]
+calibrate_pro\calibration\ccss_import.py:361: error: "object" not callable  [operator]
+calibrate_pro\services\gamut_clamp.py:40: error: Incompatible default for parameter "panel_key" (default has type "None", parameter has type "str")  [assignment]
+calibrate_pro\services\gamut_clamp.py:40: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\services\gamut_clamp.py:40: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\services\gamut_clamp.py:84: error: Incompatible default for parameter "panel_key" (default has type "None", parameter has type "str")  [assignment]
+calibrate_pro\services\gamut_clamp.py:84: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\services\gamut_clamp.py:84: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\services\gamut_clamp.py:93: error: Incompatible default for parameter "panel_key" (default has type "None", parameter has type "str")  [assignment]
+calibrate_pro\services\gamut_clamp.py:93: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+calibrate_pro\services\gamut_clamp.py:93: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+calibrate_pro\sensorless\auto_calibration.py:181: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\sensorless\auto_calibration.py:182: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\sensorless\auto_calibration.py:183: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+calibrate_pro\sensorless\auto_calibration.py:571: error: Unsupported right operand type for in ("object")  [operator]
+calibrate_pro\sensorless\auto_calibration.py:944: error: Incompatible types in assignment (expression has type "dict[str, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:958: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:963: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:986: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:996: error: Incompatible types in assignment (expression has type "tuple[int, Any]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1008: error: Incompatible types in assignment (expression has type "tuple[int, Any]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1012: error: Incompatible types in assignment (expression has type "tuple[int, Any]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1016: error: Incompatible types in assignment (expression has type "tuple[int, Any]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1035: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1039: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1043: error: Incompatible types in assignment (expression has type "tuple[int, int]", target has type "str")  [assignment]
+calibrate_pro\sensorless\auto_calibration.py:1223: error: Argument 3 to "set_gamma_ramp" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\sensorless\auto_calibration.py:1223: error: Argument 4 to "set_gamma_ramp" has incompatible type "ndarray[tuple[Any, ...], dtype[Any]] | None"; expected "ndarray[tuple[Any, ...], dtype[Any]]"  [arg-type]
+calibrate_pro\core\calibration_engine.py:707: error: Value of type "ColorPatch" is not indexable  [index]
+calibrate_pro\core\calibration_engine.py:717: error: Value of type "ColorPatch" is not indexable  [index]
+calibrate_pro\core\calibration_engine.py:724: error: Argument 1 to "mean" has incompatible type "list[float | ndarray[tuple[Any, ...], dtype[Any]]]"; expected "_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]] | _NestedSequence[_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]]] | float | _NestedSequence[float]"  [arg-type]
+calibrate_pro\core\calibration_engine.py:725: error: Need type annotation for "max_de"  [var-annotated]
+calibrate_pro\core\calibration_engine.py:725: error: Argument 1 has incompatible type "list[float | ndarray[tuple[Any, ...], dtype[Any]]]"; expected "_SupportsArray[dtype[Never]] | _NestedSequence[_SupportsArray[dtype[Never]]]"  [arg-type]
+calibrate_pro\core\calibration_engine.py:727: error: Incompatible types in assignment (expression has type "int", variable has type "floating[Any]")  [assignment]
+calibrate_pro\community\database.py:251: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+Found 108 errors in 24 files (checked 164 source files)

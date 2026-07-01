@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, time
 from enum import Enum, auto
+from typing import Any
 
 # =============================================================================
 # Enums
@@ -633,13 +634,15 @@ class AdaptationController:
                 continue
 
             # Check time range if applicable
-            if profile.is_time_based:
+            if profile.start_time is not None and profile.end_time is not None:
                 current_time = now.time()
-                if profile.start_time <= profile.end_time:
-                    if not (profile.start_time <= current_time <= profile.end_time):
+                start_time = profile.start_time
+                end_time = profile.end_time
+                if start_time <= end_time:
+                    if not (start_time <= current_time <= end_time):
                         continue
                 else:
-                    if not (current_time >= profile.start_time or current_time <= profile.end_time):
+                    if not (current_time >= start_time or current_time <= end_time):
                         continue
 
             candidates.append((profile.priority, profile))
@@ -707,7 +710,7 @@ class AdaptationController:
 
     def save_config(self, path: str) -> None:
         """Save configuration to JSON file."""
-        config = {
+        config: dict[str, Any] = {
             "mode": self.mode.name,
             "profiles": {},
             "schedule": [],

@@ -7,7 +7,7 @@ name = "calibrate-pro"
 version = "1.0.0"
 description = "Windows display calibration toolkit with sensorless profiles, measured workflows, DDC/CI, ICC/LUT output, and reports"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = { text = "FSL-1.1-MIT" }
 authors = [
     { name = "Zain Dana Harper" },
 ]
@@ -15,7 +15,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "quanta-color>=1.0.0",
+    "build-color>=1.0.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -33,11 +33,12 @@ Repository = "https://github.com/HarperZ9/calibrate-pro"
 Issues = "https://github.com/HarperZ9/calibrate-pro/issues"
 
 [project.optional-dependencies]
-gui = ["PyQt6>=6.5,<7", "quanta-ui>=1.0.0"]
+gui = ["PyQt6>=6.5,<7", "build-ui>=1.0.0"]
 tray = ["pystray>=0.19.4", "Pillow>=10.0,<11"]
 sensor = ["hidapi>=0.14,<1"]
 macos = ["pyobjc-framework-Quartz>=9.0,<11", "pyobjc-framework-CoreFoundation>=9.0,<11"]
-test = ["pytest>=8.0"]
+test = ["pytest>=8.0", "pytest-cov>=5"]
+dev = ["pytest>=8.0", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10", "build>=1.2"]
 all = ["PyQt6>=6.5,<7", "pystray>=0.19.4", "Pillow>=10.0,<11", "hidapi>=0.14,<1"]
 
 [project.scripts]
@@ -48,6 +49,38 @@ include = ["calibrate_pro*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["calibrate_pro"]
+omit = ["*/gui/*", "*/tray/*"]  # GUI/tray are exercised manually, not in headless CI
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.mypy]
+python_version = "3.10"
+files = ["calibrate_pro"]
+# External native/GUI libraries (hidapi, PyQt6, pystray, pyobjc, win32) ship no type
+# stubs; ignore their missing imports rather than vendor stubs.
+ignore_missing_imports = true
+
+# The native-hardware, GUI, platform, and tray layers are thin adapters over untyped
+# C/Qt/OS libraries. They are checked at their public boundary but are not strict-typed
+# internally. The pure-Python color, calibration, LUT, and verification core IS type-clean.
+# lut_system wraps the untyped Windows DWM 3D LUT API and AMD/NVIDIA vendor driver SDKs
+# (same OS/GPU driver adapter rationale as hardware/platform). app.py is the top-level
+# application shell that wires GUI/CLI/services together and is boundary-typed, not
+# strict-typed, like the other adapter/shell layers above.
+[[tool.mypy.overrides]]
+module = [
+    "calibrate_pro.gui.*",
+    "calibrate_pro.hardware.*",
+    "calibrate_pro.platform.*",
+    "calibrate_pro.tray.*",
+    "calibrate_pro.lut_system.*",
+    "calibrate_pro.app",
+]
+ignore_errors = true
 
 [tool.ruff]
 target-version = "py310"

@@ -368,7 +368,7 @@ def enable_macos_startup(silent: bool = True) -> bool:
 
     plist_dir = Path.home() / "Library" / "LaunchAgents"
     plist_dir.mkdir(parents=True, exist_ok=True)
-    plist_path = plist_dir / "com.quantauniverse.calibratepro.plist"
+    plist_path = plist_dir / "com.builduniverse.calibratepro.plist"
 
     if getattr(sys, "frozen", False):
         program = [str(Path(sys.executable))]
@@ -378,7 +378,7 @@ def enable_macos_startup(silent: bool = True) -> bool:
             program.append("--silent")
 
     plist = {
-        "Label": "com.quantauniverse.calibratepro",
+        "Label": "com.builduniverse.calibratepro",
         "ProgramArguments": program,
         "RunAtLoad": True,
         "KeepAlive": False,
@@ -398,7 +398,7 @@ def enable_macos_startup(silent: bool = True) -> bool:
 
 def disable_macos_startup() -> bool:
     """Remove Calibrate Pro from macOS login items."""
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.quantauniverse.calibratepro.plist"
+    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.builduniverse.calibratepro.plist"
     try:
         if plist_path.exists():
             plist_path.unlink()
@@ -411,5 +411,5 @@ def disable_macos_startup() -> bool:
 
 def is_macos_startup_enabled() -> bool:
     """Check if Calibrate Pro is registered as a macOS login item."""
-    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.quantauniverse.calibratepro.plist"
+    plist_path = Path.home() / "Library" / "LaunchAgents" / "com.builduniverse.calibratepro.plist"
     return plist_path.exists()

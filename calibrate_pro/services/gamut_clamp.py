@@ -37,7 +37,7 @@ class GamutClamp:
     def is_active(self) -> bool:
         return self._active
 
-    def enable(self, panel_key: str = None) -> bool:
+    def enable(self, panel_key: str | None = None) -> bool:
         """
         Enable sRGB gamut clamp for the display.
 
@@ -81,7 +81,7 @@ class GamutClamp:
         except Exception:
             return False
 
-    def toggle(self, panel_key: str = None) -> bool:
+    def toggle(self, panel_key: str | None = None) -> bool:
         """Toggle the clamp on/off. Returns new state."""
         if self._active:
             self.disable()
@@ -90,7 +90,7 @@ class GamutClamp:
             self.enable(panel_key)
             return True
 
-    def _generate_clamp_lut(self, panel_key: str = None) -> Path | None:
+    def _generate_clamp_lut(self, panel_key: str | None = None) -> Path | None:
         """Generate an sRGB compression LUT for the panel."""
         try:
             from calibrate_pro.panels.database import PanelDatabase

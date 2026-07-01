@@ -96,7 +96,7 @@ def tone_map_reinhard(luminance: np.ndarray, source_peak: float = 1000.0, mid_gr
 
 
 def tone_map_reinhard_extended(
-    luminance: np.ndarray, source_peak: float = 1000.0, target_peak: float = 100.0, white_point: float = None
+    luminance: np.ndarray, source_peak: float = 1000.0, target_peak: float = 100.0, white_point: float | None = None
 ) -> np.ndarray:
     """
     Extended Reinhard with white point control.

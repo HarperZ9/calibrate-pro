@@ -190,7 +190,7 @@ class CalibrationEngine:
         self.engine = SensorlessEngine(self.database)
 
         # Hardware backend (to be set if using colorimeter)
-        self.colorimeter = None
+        self.colorimeter: ColorimeterBase | None = None
 
         # Current state
         self.current_panel: PanelCharacterization | None = None
@@ -261,6 +261,8 @@ class CalibrationEngine:
 
         # Detect panel
         panel = self.detect_display(model_string)
+        if panel is None:
+            raise ValueError(f"No panel characterization found for {model_string!r} (no fallback available)")
         self.engine.current_panel = panel
 
         result = CalibrationResult(
@@ -357,6 +359,8 @@ class CalibrationEngine:
 
         # Detect panel for reference
         panel = self.detect_display(model_string)
+        if panel is None:
+            raise ValueError(f"No panel characterization found for {model_string!r} (no fallback available)")
 
         result = CalibrationResult(
             mode=self.mode,
@@ -535,6 +539,9 @@ class CalibrationEngine:
             display_callback(patch)
             time.sleep(0.5)  # Wait for display to settle
 
+        if self.colorimeter is None:
+            raise RuntimeError("No colorimeter connected. Call set_colorimeter() before measuring.")
+
         measurement = self.colorimeter.measure_spot()
         if measurement:
             return {
@@ -614,10 +621,10 @@ class CalibrationEngine:
         # Create profile
         profile = create_display_profile(
             description=f"Calibrate Pro - {panel.manufacturer} {panel.model_pattern.split('|')[0]} (Measured)",
-            red_xy=red_xy,
-            green_xy=green_xy,
-            blue_xy=blue_xy,
-            white_xy=white_xy,
+            red_primary=red_xy,
+            green_primary=green_xy,
+            blue_primary=blue_xy,
+            white_point=white_xy,
             gamma=gamma,
         )
 
@@ -658,15 +665,22 @@ class CalibrationEngine:
     def _create_lut_from_measurements(self, cal_data: dict, panel: PanelCharacterization, size: int = 33) -> LUT3D:
         """Create 3D LUT from measurement data."""
         # Build correction LUT based on measurements
-        generator = LUTGenerator(
-            source_primaries=panel.native_primaries,
-            target_primaries=None,  # Will use measured
-            source_gamma=(panel.gamma_red.gamma, panel.gamma_green.gamma, panel.gamma_blue.gamma),
-            target_gamma=self.target.gamma_value,
-        )
+        generator = LUTGenerator(size=size)
+        primaries = panel.native_primaries
 
         # Apply measurement-based corrections
-        lut = generator.create_calibration_lut(size=size)
+        lut = generator.create_calibration_lut(
+            panel_primaries=(
+                primaries.red.as_tuple(),
+                primaries.green.as_tuple(),
+                primaries.blue.as_tuple(),
+            ),
+            panel_white=primaries.white.as_tuple(),
+            gamma_red=panel.gamma_red.gamma,
+            gamma_green=panel.gamma_green.gamma,
+            gamma_blue=panel.gamma_blue.gamma,
+            target_gamma=self.target.gamma_value,
+        )
 
         return lut
 
@@ -690,7 +704,7 @@ class CalibrationEngine:
                 xyz = np.array(measurement["XYZ"])
                 xyz_adapted = bradford_adapt(xyz, D65_WHITE, D50_WHITE)
                 lab_measured = xyz_to_lab(xyz_adapted, D50_WHITE)
-                lab_reference = np.array(ref["Lab_D50"])
+                lab_reference = np.array(ref["Lab_D50"])  # type: ignore[index]  # numpy/dynamic
 
                 de = delta_e_2000(lab_measured, lab_reference)
                 delta_es.append(de)
@@ -700,17 +714,17 @@ class CalibrationEngine:
                         "name": patch.name or f"Patch {i + 1}",
                         "rgb": (patch.r, patch.g, patch.b),
                         "measured_XYZ": measurement["XYZ"],
-                        "reference_Lab": ref["Lab_D50"],
+                        "reference_Lab": ref["Lab_D50"],  # type: ignore[index]  # numpy/dynamic
                         "delta_e": de,
                     }
                 )
 
         # Calculate statistics
         if delta_es:
-            avg_de = np.mean(delta_es)
-            max_de = np.max(delta_es)
+            avg_de = np.mean(delta_es)  # type: ignore[arg-type]  # numpy/dynamic
+            max_de = np.max(delta_es)  # type: ignore[arg-type,var-annotated]  # numpy/dynamic
         else:
-            avg_de = max_de = 0
+            avg_de = max_de = 0  # type: ignore[assignment]  # numpy/dynamic
 
         # Determine grade
         if avg_de < 1.0:

@@ -35,7 +35,7 @@ def detect_hdr_state() -> list[HDRDisplayState]:
 
     Returns a list of HDRDisplayState for each display.
     """
-    states = []
+    states: list[HDRDisplayState] = []
 
     try:
         from calibrate_pro.panels.detection import enumerate_displays, get_display_name

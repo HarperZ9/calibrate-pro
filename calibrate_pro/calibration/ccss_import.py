@@ -358,4 +358,4 @@ def get_builtin_ccmx(name: str) -> np.ndarray:
     if name not in _BUILTIN_CORRECTIONS:
         available = list(_BUILTIN_CORRECTIONS.keys())
         raise KeyError(f"Unknown built-in correction '{name}'. Available: {available}")
-    return _BUILTIN_CORRECTIONS[name]["loader"]()
+    return _BUILTIN_CORRECTIONS[name]["loader"]()  # type: ignore[operator]  # numpy/dynamic

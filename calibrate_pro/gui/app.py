@@ -11,6 +11,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from build_ui.theme import STYLE, C
+from build_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
 from PyQt6.QtCore import (
     QPointF,
     QRectF,
@@ -41,12 +43,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from quanta_ui.theme import STYLE, C
-from quanta_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
 
 APP_NAME = "Calibrate Pro"
 APP_VERSION = "1.0.0"
-APP_ORG = "Quanta Universe"
+APP_ORG = "Build Universe"
 
 
 def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
@@ -2081,7 +2081,7 @@ def launch():
     try:
         import ctypes
 
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("quanta.calibratepro.1")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("build.calibratepro.1")
     except (AttributeError, OSError):
         pass
 

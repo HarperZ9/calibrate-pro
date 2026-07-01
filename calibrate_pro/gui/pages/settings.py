@@ -33,7 +33,7 @@ from calibrate_pro.gui.app import C, Card, Heading
 
 # Constants
 
-APP_ORG = "Quanta Universe"
+APP_ORG = "Build Universe"
 APP_NAME = "Calibrate Pro"
 APP_VERSION = "1.0.0"
 
@@ -464,7 +464,7 @@ class SettingsPage(QWidget):
         author_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
         about_layout.addWidget(author_label)
 
-        copyright_label = QLabel("Copyright 2022-2026 Quanta Universe. All rights reserved.")
+        copyright_label = QLabel("Copyright 2022-2026 Build Universe. All rights reserved.")
         copyright_label.setStyleSheet(f"font-size: 10px; color: {C.TEXT3};")
         about_layout.addWidget(copyright_label)
 
