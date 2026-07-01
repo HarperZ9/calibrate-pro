@@ -850,7 +850,7 @@ class GamutAnalyzer:
             out_of_gamut_count=oog_count,
             out_of_gamut_percent=oog_percent,
             max_distance=max_distance,
-            mean_distance=mean_distance,
+            mean_distance=mean_distance,  # type: ignore[arg-type]  # numpy/dynamic typing
             severe_count=severe_count,
             problem_regions=problem_regions[:10],  # Limit to top 10
         )

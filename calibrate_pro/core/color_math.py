@@ -11,14 +11,14 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
-from quanta_color import adaptation as _qc_adapt
-from quanta_color import difference as _qc_diff
-from quanta_color import gamut as _qc_gamut
-from quanta_color import spaces as _qc_spaces
+from build_color import adaptation as _qc_adapt
+from build_color import difference as _qc_diff
+from build_color import gamut as _qc_gamut
+from build_color import spaces as _qc_spaces
 
 
 def _illuminant_to_array(ill: "Illuminant") -> np.ndarray:
-    """Convert Calibrate Pro Illuminant to numpy array for quanta_color."""
+    """Convert Calibrate Pro Illuminant to numpy array for build_color."""
     return np.array([ill.X, ill.Y, ill.Z])
 
 
@@ -1323,7 +1323,7 @@ class CAM16Env:
 
 
 def cam16_environment(
-    white_xyz: np.ndarray = None, La: float = 64.0, Yb: float = 20.0, surround: tuple = CAM16_SURROUND_AVERAGE
+    white_xyz: np.ndarray | None = None, La: float = 64.0, Yb: float = 20.0, surround: tuple = CAM16_SURROUND_AVERAGE
 ) -> CAM16Env:
     """
     Pre-compute CAM16 viewing condition parameters.

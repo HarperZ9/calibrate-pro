@@ -23,8 +23,15 @@ from __future__ import annotations
 import logging
 import subprocess
 from dataclasses import dataclass
+from typing import Protocol
 
 logger = logging.getLogger("CalibratePro.AmbientLight")
+
+
+class _SensorBackend(Protocol):
+    """Common interface implemented by all ambient-light sensor backends."""
+
+    def read_lux(self) -> float | None: ...
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +221,7 @@ class AmbientLightService:
     def __init__(self, sensor_type: str = "windows") -> None:
         self.sensor_type = sensor_type.lower().strip()
 
+        self._backend: _SensorBackend
         if self.sensor_type == "windows":
             self._backend = _WindowsSensorBackend()
         elif self.sensor_type == "usb":

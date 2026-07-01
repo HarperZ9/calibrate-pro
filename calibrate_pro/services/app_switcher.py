@@ -339,7 +339,7 @@ class AppProfileSwitcher:
                         return True
                 else:
                     # No LUT file -- clear to identity (native)
-                    if dwm.clear_lut(self._display_index):
+                    if dwm.clear_lut(self._display_index):  # type: ignore[attr-defined]  # numpy/dynamic
                         logger.info("Cleared DWM LUT for profile '%s'", profile_name)
                         return True
         except Exception as exc:

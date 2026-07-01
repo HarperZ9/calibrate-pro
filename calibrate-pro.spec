@@ -14,7 +14,7 @@ a = Analysis(
         'calibrate_pro.gui.dialogs',
         'calibrate_pro.panels.panel_types',
         'calibrate_pro.panels.builtin_panels',
-        'quanta_color',
+        'build_color',
     ],
     hookspath=[],
     hooksconfig={},

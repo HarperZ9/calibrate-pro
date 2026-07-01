@@ -263,7 +263,7 @@ class ParametricCurve:
         """Create sRGB transfer function."""
         return cls(function_type=3, gamma=2.4, a=1.0 / 1.055, b=0.055 / 1.055, c=1.0 / 12.92, d=0.04045, e=0.0, f=0.0)
 
-    @classmethod
+    @classmethod  # type: ignore[no-redef]  # numpy/dynamic
     def gamma(cls, gamma: float) -> "ParametricCurve":  # noqa: F811
         """Create simple gamma curve."""
         return cls(function_type=0, gamma=gamma)
@@ -598,6 +598,8 @@ class ICCProfile:
         """Build VCGT tag."""
         if self.vcgt_red is None:
             return None
+        assert self.vcgt_green is not None
+        assert self.vcgt_blue is not None
 
         data = b"vcgt" + b"\x00\x00\x00\x00"
 
@@ -791,9 +793,9 @@ class ICCProfile:
             green_primary=XYZNumber(0.1446, 0.6780, 0.0281),
             blue_primary=XYZNumber(0.1689, 0.0593, 1.0694),
             white_point=XYZNumber(0.9505, 1.0, 1.0890),  # D65
-            red_trc=ParametricCurve.gamma(2.4),  # BT.1886
-            green_trc=ParametricCurve.gamma(2.4),
-            blue_trc=ParametricCurve.gamma(2.4),
+            red_trc=ParametricCurve.gamma(2.4),  # type: ignore[operator]  # numpy/dynamic typing
+            green_trc=ParametricCurve.gamma(2.4),  # type: ignore[operator]  # numpy/dynamic typing
+            blue_trc=ParametricCurve.gamma(2.4),  # type: ignore[operator]  # numpy/dynamic typing
         )
 
 

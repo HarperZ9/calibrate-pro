@@ -173,7 +173,7 @@ class LUTReader:
     """
 
     @staticmethod
-    def detect_format(filepath: Path) -> LUTFormat:
+    def detect_format(filepath: Path) -> LUTFormat | None:
         """Detect LUT format from file extension and content."""
         suffix = filepath.suffix.lower()
 
@@ -226,9 +226,9 @@ class LUTReader:
         size_1d = None
         size_3d = None
         title = "Cube LUT"
-        domain_min = (0.0, 0.0, 0.0)
-        domain_max = (1.0, 1.0, 1.0)
-        values = []
+        domain_min: tuple[float, float, float] = (0.0, 0.0, 0.0)
+        domain_max: tuple[float, float, float] = (1.0, 1.0, 1.0)
+        values: list[list[float]] = []
         comments = []
 
         with open(filepath, encoding="utf-8", errors="ignore") as f:
@@ -258,11 +258,13 @@ class LUTReader:
 
                 elif upper.startswith("DOMAIN_MIN"):
                     parts = line.split()[1:]
-                    domain_min = tuple(float(p) for p in parts[:3])
+                    dmin = tuple(float(p) for p in parts[:3])
+                    domain_min = (dmin[0], dmin[1], dmin[2])
 
                 elif upper.startswith("DOMAIN_MAX"):
                     parts = line.split()[1:]
-                    domain_max = tuple(float(p) for p in parts[:3])
+                    dmax = tuple(float(p) for p in parts[:3])
+                    domain_max = (dmax[0], dmax[1], dmax[2])
 
                 elif line[0].lstrip("-").replace(".", "").isdigit():
                     # Data line
@@ -270,10 +272,12 @@ class LUTReader:
                     if len(parts) >= 3:
                         values.append([float(parts[0]), float(parts[1]), float(parts[2])])
                     elif len(parts) == 1:
-                        values.append(float(parts[0]))
+                        values.append([float(parts[0])])
 
         if size_1d:
             data = np.array(values[:size_1d], dtype=np.float64)
+            if data.ndim == 2 and data.shape[1] == 1:
+                data = data[:, 0]
             if data.ndim == 1:
                 data = np.stack([data, data, data], axis=1)
             return LUT1D(size=size_1d, data=data, title=title)
@@ -388,7 +392,7 @@ class LUTReader:
         lines = content.strip().split("\n")
 
         title = "ArgyllCMS Calibration"
-        data = []
+        data: list[list[float]] = []
 
         in_data = False
         for line in lines:

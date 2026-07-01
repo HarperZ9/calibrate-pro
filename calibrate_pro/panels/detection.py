@@ -253,22 +253,24 @@ def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
 
         results = []
         for pd in platform_displays:
-            di = DisplayInfo()
-            di.device_name = pd.device_path
-            di.adapter_name = ""
-            di.monitor_name = pd.name
+            di = DisplayInfo(
+                device_name=pd.device_path,
+                device_string=pd.name,
+                monitor_name=pd.name,
+                device_id=pd.device_path,
+                is_primary=pd.is_primary,
+                is_active=True,
+                width=pd.width,
+                height=pd.height,
+                refresh_rate=pd.refresh_rate,
+                bit_depth=pd.bit_depth,
+                position_x=pd.position_x,
+                position_y=pd.position_y,
+            )
             di.manufacturer = pd.manufacturer
             di.model = pd.model
             di.serial = pd.serial
-            di.width = pd.width
-            di.height = pd.height
-            di.refresh_rate = pd.refresh_rate
-            di.bit_depth = pd.bit_depth
-            di.position_x = pd.position_x
-            di.position_y = pd.position_y
-            di.is_primary = pd.is_primary
             di.current_profile = pd.current_icc_profile
-            di.name = pd.name
             results.append(di)
         return results
 
@@ -544,7 +546,7 @@ def parse_edid(edid: bytes) -> dict:
         "AUO": "AU Optronics",
         "SDC": "Samsung Display",
     }
-    result["manufacturer"] = vendor_map.get(result["manufacturer_code"], result["manufacturer_code"])
+    result["manufacturer"] = vendor_map.get(str(result["manufacturer_code"]), str(result["manufacturer_code"]))
 
     # Product code (bytes 10-11, little-endian)
     result["product_code"] = edid[10] | (edid[11] << 8)
@@ -807,7 +809,7 @@ KNOWN_MINI_LED_MODELS = {
 }
 
 
-def detect_panel_type(model_name: str, manufacturer: str, edid_info: dict = None) -> str:
+def detect_panel_type(model_name: str, manufacturer: str, edid_info: dict | None = None) -> str:
     """
     Detect panel type from model name and EDID information.
 
@@ -1066,7 +1068,7 @@ def identify_display(display: DisplayInfo) -> str | None:
     return None
 
 
-def get_enhanced_display_info(display_number: int = None) -> list[dict]:
+def get_enhanced_display_info(display_number: int | None = None) -> list[dict]:
     """
     Get enhanced display information including EDID data.
 

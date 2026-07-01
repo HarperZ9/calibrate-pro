@@ -11,8 +11,8 @@ CIELAB/CIEDE2000 for HDR and WCG applications:
 These models are critical for accurate color difference calculation in HDR
 where traditional CIELAB breaks down above 100 nits.
 
-Author: Zain Dana / Quanta
-License: MIT
+Author: Zain Dana / Build
+License: Fair-Source (see LICENSE)
 """
 
 from dataclasses import dataclass
@@ -170,7 +170,7 @@ class CAM16:
         Updated parameters for CAM16 (Li, Luo, et al. 2017)
     """
 
-    def __init__(self, viewing_conditions: CAM16ViewingConditions = None):
+    def __init__(self, viewing_conditions: CAM16ViewingConditions | None = None):
         """
         Initialize CAM16 with viewing conditions.
 
@@ -258,7 +258,7 @@ class CAM16:
 
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic typing
 
     def _forward_single(self, xyz: np.ndarray) -> dict:
         """Convert single XYZ to CAM16."""
@@ -512,10 +512,10 @@ class Jzazbz:
             jzazbz = self._forward_single(xyz[i])
             results.append(jzazbz)
 
-        results = np.array(results)
+        results = np.array(results)  # type: ignore[assignment]  # numpy/dynamic typing
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic typing
 
     def _forward_single(self, xyz: np.ndarray) -> np.ndarray:
         """Convert single XYZ to Jzazbz."""
@@ -582,10 +582,10 @@ class Jzazbz:
             xyz = self._inverse_single(jzazbz[i])
             results.append(xyz)
 
-        results = np.array(results)
+        results = np.array(results)  # type: ignore[assignment]  # numpy/dynamic typing
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic typing
 
     def _inverse_single(self, jzazbz: np.ndarray) -> np.ndarray:
         """Convert single Jzazbz to XYZ."""
@@ -738,10 +738,10 @@ class ICtCp:
             ictcp = self._forward_single(rgb_abs[i])
             results.append(ictcp)
 
-        results = np.array(results)
+        results = np.array(results)  # type: ignore[assignment]  # numpy/dynamic typing
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic typing
 
     def _forward_single(self, rgb: np.ndarray) -> np.ndarray:
         """Convert single linear RGB to ICtCp."""
@@ -777,16 +777,16 @@ class ICtCp:
             rgb = self._inverse_single(ictcp[i])
             results.append(rgb)
 
-        results = np.array(results) / self.peak_luminance
+        results = np.array(results) / self.peak_luminance  # type: ignore[assignment]  # numpy/dynamic typing
 
         # Convert from BT.2020 if needed
         if output_space == "srgb":
-            xyz = (BT2020_TO_XYZ @ results.T).T
+            xyz = (BT2020_TO_XYZ @ results.T).T  # type: ignore[attr-defined]  # numpy/dynamic typing
             results = (XYZ_TO_SRGB @ xyz.T).T
 
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic typing
 
     def _inverse_single(self, ictcp: np.ndarray) -> np.ndarray:
         """Convert single ICtCp to linear RGB."""
@@ -831,7 +831,9 @@ class ICtCp:
 # =============================================================================
 
 
-def xyz_to_cam16_jmh(xyz: np.ndarray, viewing_conditions: CAM16ViewingConditions = None) -> tuple[float, float, float]:
+def xyz_to_cam16_jmh(
+    xyz: np.ndarray, viewing_conditions: CAM16ViewingConditions | None = None
+) -> tuple[float, float, float]:
     """
     Quick conversion from XYZ to CAM16 JMh (Lightness, Colorfulness, Hue).
 
@@ -927,6 +929,6 @@ def delta_e_hdr(
         return ictcp.delta_E_ITP(color1, color2)
     elif color_space == "cam16_jmh":
         cam = CAM16()
-        return cam.delta_E_cam16(color1, color2)
+        return cam.delta_E_cam16(color1, color2)  # type: ignore[arg-type]  # numpy/dynamic typing
 
     raise ValueError(f"Unknown color_space '{color_space}' or method '{method}'")

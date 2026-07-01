@@ -863,7 +863,7 @@ def print_fleet_status(server: CalibrationServer) -> None:
     print()
 
     # Status summary
-    status_counts = {}
+    status_counts: dict[NodeStatus, int] = {}
     for node in server.nodes.values():
         status_counts[node.status] = status_counts.get(node.status, 0) + 1
 

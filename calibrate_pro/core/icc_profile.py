@@ -95,7 +95,7 @@ class ICCHeader:
     device_class: bytes = DEVICE_CLASS_DISPLAY
     color_space: bytes = COLOR_SPACE_RGB
     pcs: bytes = COLOR_SPACE_XYZ
-    creation_date: datetime = None
+    creation_date: datetime | None = None
     signature: bytes = ICC_MAGIC
     platform: bytes = PLATFORM_MICROSOFT
     flags: int = 0
@@ -116,6 +116,7 @@ class ICCHeader:
         """Serialize header to 128 bytes."""
         # Date/time encoding
         dt = self.creation_date
+        assert dt is not None
         date_bytes = struct.pack(">HHHHHH", dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
 
         # Fixed-point illuminant values (s15Fixed16)
@@ -175,7 +176,7 @@ class ICCProfile:
         self.description = description
         self.copyright = copyright
         self.header = ICCHeader(manufacturer=manufacturer.encode()[:4], model=model.encode()[:4])
-        self.tags = {}
+        self.tags: dict = {}
 
         # Default to D65 primaries (will be overwritten)
         self.red_primary = (0.6400, 0.3300)
@@ -406,8 +407,8 @@ class ICCProfile:
         # TRC curves
         if self.trc_red is not None:
             self.tags[TAG_RTRC] = self._build_curv_tag(self.trc_red)
-            self.tags[TAG_GTRC] = self._build_curv_tag(self.trc_green)
-            self.tags[TAG_BTRC] = self._build_curv_tag(self.trc_blue)
+            self.tags[TAG_GTRC] = self._build_curv_tag(self.trc_green)  # type: ignore[arg-type]  # numpy/dynamic
+            self.tags[TAG_BTRC] = self._build_curv_tag(self.trc_blue)  # type: ignore[arg-type]  # numpy/dynamic
         else:
             self.tags[TAG_RTRC] = self._build_curv_tag(self.gamma_red)
             self.tags[TAG_GTRC] = self._build_curv_tag(self.gamma_green)

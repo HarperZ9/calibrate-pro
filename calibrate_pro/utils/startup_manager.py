@@ -10,7 +10,7 @@ Handles:
 import json
 import os
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -47,11 +47,7 @@ class CalibrationConfig:
     auto_start: bool = False
     auto_apply: bool = True
     refresh_interval: int = 300  # seconds
-    displays: dict[str, DisplayCalibrationState] = None
-
-    def __post_init__(self):
-        if self.displays is None:
-            self.displays = {}
+    displays: dict[str, DisplayCalibrationState] = field(default_factory=dict)
 
 
 class StartupManager:

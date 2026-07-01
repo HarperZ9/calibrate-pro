@@ -416,6 +416,9 @@ class MHC2Tag:
         data += self.color_matrix.to_bytes()
 
         # Tone curves
+        assert self.red_curve is not None
+        assert self.green_curve is not None
+        assert self.blue_curve is not None
         data += self.red_curve.to_bytes()
         data += self.green_curve.to_bytes()
         data += self.blue_curve.to_bytes()
@@ -996,7 +999,7 @@ def generate_mhc2_profile(
     return profile
 
 
-def install_mhc2_profile(profile_path: str, display_index: int = 0) -> bool:
+def install_mhc2_profile(profile_path: str | Path, display_index: int = 0) -> bool:
     """
     Install an MHC2 ICC profile for a Windows display.
 

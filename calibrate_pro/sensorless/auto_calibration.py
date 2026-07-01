@@ -568,7 +568,7 @@ class AutoCalibrationEngine:
                     info["manufacturer"] = edid_info["manufacturer"]
 
             # Clean up "Generic PnP Monitor"
-            if "Generic" in info["name"]:
+            if "Generic" in info["name"]:  # type: ignore[operator]  # numpy/dynamic
                 if info.get("manufacturer"):
                     info["name"] = f"{info['manufacturer']} Display"
                 else:
@@ -941,7 +941,7 @@ class AutoCalibrationEngine:
 
             # Get current settings for comparison
             current = controller.get_settings(monitor)
-            changes_made["original_settings"] = {
+            changes_made["original_settings"] = {  # type: ignore[assignment]  # numpy/dynamic
                 "brightness": current.brightness,
                 "contrast": current.contrast,
                 "red_gain": current.red_gain,
@@ -955,12 +955,12 @@ class AutoCalibrationEngine:
             # ===================================================================
             try:
                 if controller.set_color_preset(monitor, ColorPreset.USER_1):
-                    changes_made["color_preset"] = (current.color_preset, ColorPreset.USER_1.value)
+                    changes_made["color_preset"] = (current.color_preset, ColorPreset.USER_1.value)  # type: ignore[assignment]  # numpy/dynamic
             except (RuntimeError, OSError):
                 # Try native mode as fallback
                 try:
                     controller.set_color_preset(monitor, ColorPreset.NATIVE)
-                    changes_made["color_preset"] = (current.color_preset, ColorPreset.NATIVE.value)
+                    changes_made["color_preset"] = (current.color_preset, ColorPreset.NATIVE.value)  # type: ignore[assignment]  # numpy/dynamic
                 except (RuntimeError, OSError):
                     pass
 
@@ -983,7 +983,7 @@ class AutoCalibrationEngine:
             if VCPCode.BRIGHTNESS in (caps.supported_vcp_codes if caps else []):
                 if current.brightness != adjusted_brightness:
                     if controller.set_vcp(monitor, VCPCode.BRIGHTNESS, adjusted_brightness):
-                        changes_made["brightness"] = (current.brightness, adjusted_brightness)
+                        changes_made["brightness"] = (current.brightness, adjusted_brightness)  # type: ignore[assignment]  # numpy/dynamic
 
             # ===================================================================
             # Step 3: Set Contrast
@@ -993,7 +993,7 @@ class AutoCalibrationEngine:
             if VCPCode.CONTRAST in (caps.supported_vcp_codes if caps else []):
                 if current.contrast != target_contrast:
                     if controller.set_vcp(monitor, VCPCode.CONTRAST, target_contrast):
-                        changes_made["contrast"] = (current.contrast, target_contrast)
+                        changes_made["contrast"] = (current.contrast, target_contrast)  # type: ignore[assignment]  # numpy/dynamic
 
             # ===================================================================
             # Step 4: Set RGB Gains for white point correction
@@ -1005,15 +1005,15 @@ class AutoCalibrationEngine:
                 # Apply RGB gains
                 if current.red_gain != new_r:
                     if controller.set_vcp(monitor, VCPCode.RED_GAIN, new_r):
-                        changes_made["red_gain"] = (current.red_gain, new_r)
+                        changes_made["red_gain"] = (current.red_gain, new_r)  # type: ignore[assignment]  # numpy/dynamic
 
                 if current.green_gain != new_g:
                     if controller.set_vcp(monitor, VCPCode.GREEN_GAIN, new_g):
-                        changes_made["green_gain"] = (current.green_gain, new_g)
+                        changes_made["green_gain"] = (current.green_gain, new_g)  # type: ignore[assignment]  # numpy/dynamic
 
                 if current.blue_gain != new_b:
                     if controller.set_vcp(monitor, VCPCode.BLUE_GAIN, new_b):
-                        changes_made["blue_gain"] = (current.blue_gain, new_b)
+                        changes_made["blue_gain"] = (current.blue_gain, new_b)  # type: ignore[assignment]  # numpy/dynamic
 
             # ===================================================================
             # Step 5: Set RGB Black Levels (if supported)
@@ -1032,15 +1032,15 @@ class AutoCalibrationEngine:
 
                 if current.red_black_level != target_black:
                     if controller.set_vcp(monitor, VCPCode.RED_BLACK_LEVEL, target_black):
-                        changes_made["red_black_level"] = (current.red_black_level, target_black)
+                        changes_made["red_black_level"] = (current.red_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
                 if current.green_black_level != target_black:
                     if controller.set_vcp(monitor, VCPCode.GREEN_BLACK_LEVEL, target_black):
-                        changes_made["green_black_level"] = (current.green_black_level, target_black)
+                        changes_made["green_black_level"] = (current.green_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
                 if current.blue_black_level != target_black:
                     if controller.set_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL, target_black):
-                        changes_made["blue_black_level"] = (current.blue_black_level, target_black)
+                        changes_made["blue_black_level"] = (current.blue_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
             controller.close()
 
@@ -1220,7 +1220,7 @@ class AutoCalibrationEngine:
                 )
 
                 if r_curve is not None:
-                    if set_gamma_ramp(device_name, r_curve, g_curve, b_curve):
+                    if set_gamma_ramp(device_name, r_curve, g_curve, b_curve):  # type: ignore[arg-type]  # numpy/dynamic
                         self._report_progress("Applied via direct gamma ramp", 0.88, CalibrationStep.APPLY_LUT)
                         return "gamma_ramp"
                     else:

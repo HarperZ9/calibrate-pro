@@ -10,8 +10,8 @@ Comprehensive calibration workflow for all HDR formats:
 Provides a single interface for complete HDR display calibration
 with support for professional mastering standards.
 
-Author: Zain Dana / Quanta
-License: MIT
+Author: Zain Dana / Build
+License: Fair-Source (see LICENSE)
 """
 
 import json
@@ -20,6 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 
@@ -165,7 +166,7 @@ class HDR10Calibration:
     tone mapping for content above display peak.
     """
 
-    def __init__(self, config: HDRCalibrationConfig = None):
+    def __init__(self, config: HDRCalibrationConfig | None = None):
         self.config = config or HDRCalibrationConfig(format=HDRFormat.HDR10)
 
     def generate_patches(self) -> np.ndarray:
@@ -315,7 +316,7 @@ class HDR10PlusCalibration(HDR10Calibration):
     Extends HDR10 with scene-by-scene optimization capability.
     """
 
-    def __init__(self, config: HDRCalibrationConfig = None):
+    def __init__(self, config: HDRCalibrationConfig | None = None):
         if config is None:
             config = HDRCalibrationConfig(format=HDRFormat.HDR10_PLUS)
         super().__init__(config)
@@ -370,7 +371,7 @@ class HLGCalibration:
     system gamma for the viewing environment.
     """
 
-    def __init__(self, config: HDRCalibrationConfig = None):
+    def __init__(self, config: HDRCalibrationConfig | None = None):
         if config is None:
             config = HDRCalibrationConfig(format=HDRFormat.HLG)
         self.config = config
@@ -428,6 +429,14 @@ class HLGCalibration:
 # =============================================================================
 
 
+class HDRTestPatches(TypedDict, total=False):
+    """Patch sets returned by :meth:`HDRCalibrationSuite.get_test_patches`."""
+
+    grayscale: np.ndarray
+    near_black: np.ndarray
+    primaries: dict[str, list[tuple[float, float, float]]]
+
+
 class HDRCalibrationSuite:
     """
     Complete HDR Calibration Suite.
@@ -436,10 +445,11 @@ class HDRCalibrationSuite:
     with automatic format detection and professional validation.
     """
 
-    def __init__(self, config: HDRCalibrationConfig = None):
+    def __init__(self, config: HDRCalibrationConfig | None = None):
         self.config = config or HDRCalibrationConfig()
 
         # Initialize appropriate calibrator
+        self.calibrator: HDR10Calibration | HDR10PlusCalibration | HLGCalibration
         if self.config.format == HDRFormat.HDR10:
             self.calibrator = HDR10Calibration(self.config)
         elif self.config.format == HDRFormat.HDR10_PLUS:
@@ -449,7 +459,9 @@ class HDRCalibrationSuite:
         else:
             self.calibrator = HDR10Calibration(self.config)
 
-    def get_test_patches(self) -> dict[str, np.ndarray]:
+    def get_test_patches(
+        self,
+    ) -> dict[str, np.ndarray | dict[str, list[tuple[float, float, float]]]]:
         """
         Get all test patches for calibration.
 
@@ -459,7 +471,9 @@ class HDRCalibrationSuite:
             - near_black: Extra near-black patches
             - primaries: RGB primary patches (if applicable)
         """
-        result = {"grayscale": self.calibrator.generate_patches()}
+        result: dict[str, np.ndarray | dict[str, list[tuple[float, float, float]]]] = {
+            "grayscale": self.calibrator.generate_patches()
+        }
 
         if self.config.mode in [CalibrationMode.STANDARD, CalibrationMode.PROFESSIONAL]:
             # Add near-black emphasis
@@ -566,7 +580,7 @@ class HDRCalibrationSuite:
 
 
 def calibrate_hdr10(
-    measure_func: Callable[[float], float], config: HDRCalibrationConfig = None
+    measure_func: Callable[[float], float], config: HDRCalibrationConfig | None = None
 ) -> HDRCalibrationResult:
     """
     Complete HDR10 calibration workflow.
@@ -585,13 +599,13 @@ def calibrate_hdr10(
     patches = suite.get_test_patches()
 
     signals = patches["grayscale"]
-    luminances = np.array([measure_func(s) for s in signals])
+    luminances = np.array([measure_func(s) for s in signals])  # type: ignore[arg-type]  # numpy/dynamic
 
-    return suite.analyze(signals, luminances)
+    return suite.analyze(signals, luminances)  # type: ignore[arg-type]  # numpy/dynamic
 
 
 def calibrate_hlg(
-    measure_func: Callable[[float], float], system_gamma: float = 1.2, config: HDRCalibrationConfig = None
+    measure_func: Callable[[float], float], system_gamma: float = 1.2, config: HDRCalibrationConfig | None = None
 ) -> HDRCalibrationResult:
     """
     Complete HLG calibration workflow.
@@ -612,6 +626,6 @@ def calibrate_hlg(
     patches = suite.get_test_patches()
 
     signals = patches["grayscale"]
-    luminances = np.array([measure_func(s) for s in signals])
+    luminances = np.array([measure_func(s) for s in signals])  # type: ignore[arg-type]  # numpy/dynamic
 
-    return suite.analyze(signals, luminances)
+    return suite.analyze(signals, luminances)  # type: ignore[arg-type]  # numpy/dynamic

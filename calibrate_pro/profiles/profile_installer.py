@@ -30,7 +30,7 @@ try:
     mscms = ctypes.windll.mscms
     MSCMS_AVAILABLE = True
 except Exception:
-    mscms = None
+    mscms = None  # type: ignore[assignment]  # numpy/dynamic typing
     MSCMS_AVAILABLE = False
 
 # GDI32 for display enumeration
@@ -60,10 +60,10 @@ try:
     user32.EnumDisplayDevicesW.restype = wintypes.BOOL
 
 except Exception:
-    gdi32 = None
-    user32 = None
+    gdi32 = None  # type: ignore[assignment]  # numpy/dynamic typing
+    user32 = None  # type: ignore[assignment]  # numpy/dynamic typing
     GDI_AVAILABLE = False
-    _DISPLAY_DEVICE = None
+    _DISPLAY_DEVICE = None  # type: ignore[assignment, misc]  # numpy/dynamic typing
 
 
 # Profile scope

@@ -26,8 +26,16 @@ Usage:
 import sys
 import time
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from calibrate_pro.hardware.argyll_backend import ArgyllBackend
+
+# Module-level cached ArgyllCMS backend, lazily initialized on first measurement
+# so repeated patch reads reuse the same device connection.
+_argyll_backend_cache: "ArgyllBackend | None" = None
 
 # =============================================================================
 # ColorChecker sRGB reference patches (for display)
@@ -204,7 +212,7 @@ def _find_argyll_spotread() -> str | None:
         from calibrate_pro.hardware.argyll_backend import ArgyllConfig
 
         config = ArgyllConfig()
-        if config.find_argyll():
+        if config.find_argyll() and config.bin_path is not None:
             exe = "spotread.exe" if os.name == "nt" else "spotread"
             spotread = config.bin_path / exe
             if spotread.exists():
@@ -220,7 +228,7 @@ def _find_argyll_spotread() -> str | None:
         return found
 
     # Fallback: check common install locations
-    search_paths = [
+    search_paths: list[Path | None] = [
         Path(r"C:\Program Files\ArgyllCMS\bin"),
         Path(r"C:\Program Files (x86)\ArgyllCMS\bin"),
         Path(os.environ.get("ARGYLL_BIN", "")) if os.environ.get("ARGYLL_BIN") else None,
@@ -230,9 +238,9 @@ def _find_argyll_spotread() -> str | None:
     for p in search_paths:
         if p is None:
             continue
-        exe = p / ("spotread.exe" if sys.platform == "win32" else "spotread")
-        if exe.exists():
-            return str(exe)
+        exe_path = p / ("spotread.exe" if sys.platform == "win32" else "spotread")
+        if exe_path.exists():
+            return str(exe_path)
 
     return None
 
@@ -248,7 +256,7 @@ def _argyll_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, flo
 
     # Use a module-level cached backend to avoid re-initializing for each patch
     global _argyll_backend_cache
-    if "_argyll_backend_cache" not in globals() or _argyll_backend_cache is None:
+    if _argyll_backend_cache is None:
         config = ArgyllConfig()
         if not config.find_argyll():
             raise RuntimeError("ArgyllCMS not found")
@@ -312,19 +320,23 @@ class MeasuredVerification:
                     then falls back to manual entry mode.
     """
 
-    def __init__(self, measure_fn: Callable | None = None):
-        self._measure_fn = measure_fn
+    def __init__(
+        self,
+        measure_fn: Callable[[float, float, float], tuple[float, float, float]] | None = None,
+    ) -> None:
         self._backend_name = "custom"
 
-        if self._measure_fn is None:
+        if measure_fn is None:
             # Try ArgyllCMS
             spotread = _find_argyll_spotread()
             if spotread is not None:
-                self._measure_fn = _argyll_measure_xyz
+                measure_fn = _argyll_measure_xyz
                 self._backend_name = "argyll"
             else:
-                self._measure_fn = _manual_measure_xyz
+                measure_fn = _manual_measure_xyz
                 self._backend_name = "manual"
+
+        self._measure_fn: Callable[[float, float, float], tuple[float, float, float]] = measure_fn
 
     @property
     def backend_name(self) -> str:

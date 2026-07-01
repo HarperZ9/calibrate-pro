@@ -537,9 +537,9 @@ class SensorlessEngine:
                 cam16_de = cam16_ucs_delta_e(ucs_ref, ucs_disp)
             except Exception as e:
                 print(f"[neuralux] CAM16 calculation failed, falling back to CIEDE2000: {e}")
-                cam16_de = de  # Fallback to CIEDE2000
+                cam16_de = de  # type: ignore[assignment]  # numpy/dynamic  # Fallback to CIEDE2000
 
-            results["patches"].append(
+            results["patches"].append(  # type: ignore[attr-defined]  # numpy/dynamic
                 {
                     "name": patch.name,
                     "ref_lab": patch.lab_d50,
@@ -549,8 +549,8 @@ class SensorlessEngine:
                     "cam16_delta_e": float(cam16_de),
                 }
             )
-            results["delta_e_values"].append(de)
-            results["cam16_delta_e_values"].append(cam16_de)
+            results["delta_e_values"].append(de)  # type: ignore[attr-defined]  # numpy/dynamic
+            results["cam16_delta_e_values"].append(cam16_de)  # type: ignore[attr-defined]  # numpy/dynamic
 
         # Calculate statistics
         de_values = np.array(results["delta_e_values"])
@@ -562,7 +562,7 @@ class SensorlessEngine:
         results["cam16_delta_e_max"] = float(np.max(cam_de_values))
 
         # Grade using the stricter of the two metrics
-        avg = max(results["delta_e_avg"], results["cam16_delta_e_avg"])
+        avg = max(results["delta_e_avg"], results["cam16_delta_e_avg"])  # type: ignore[call-overload]  # numpy/dynamic
         if avg < 0.5:
             results["grade"] = "Reference (predicted dE < 0.5)"
         elif avg < 1.0:
@@ -760,14 +760,14 @@ class SensorlessEngine:
             safe_name = model_string.replace(" ", "_").replace("/", "_")
             icc_path = output_dir / f"Calibrate_Pro_{safe_name}.icc"
             profile.save(icc_path)
-            results["files"]["icc"] = str(icc_path)
+            results["files"]["icc"] = str(icc_path)  # type: ignore[index]  # numpy/dynamic
 
         # Generate 3D LUT
         if generate_lut:
             lut = self.create_3d_lut(panel, size=lut_size)
             lut_path = output_dir / f"Calibrate_Pro_{safe_name}.cube"
             lut.save(lut_path)
-            results["files"]["lut"] = str(lut_path)
+            results["files"]["lut"] = str(lut_path)  # type: ignore[index]  # numpy/dynamic
 
         # Verify calibration
         verification = self.verify_calibration(panel)
@@ -913,7 +913,7 @@ class SensorlessEngine:
             de = delta_e_2000(lab_displayed, lab_ref)
             delta_e_values.append(de)
 
-        return float(np.mean(delta_e_values))
+        return float(np.mean(delta_e_values))  # type: ignore[arg-type]  # numpy/dynamic
 
 
 def calibrate_display(

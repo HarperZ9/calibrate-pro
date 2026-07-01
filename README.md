@@ -96,9 +96,13 @@ See [USAGE.md](USAGE.md) for installation, every command, worked examples with e
 
 | Mode | Requires | Accuracy |
 |------|----------|----------|
-| Sensorless | Nothing | Predicted dE < 1.0 (panel-database dependent) |
-| Measured | i1Display3 | Measured dE ~3.7 (44% improvement, CCMX-corrected) |
+| Sensorless | Nothing | Model estimate only, panel-database dependent (not a measured guarantee) |
+| Measured | i1Display3 | Measured dE ~3.7 (44% improvement over uncalibrated, CCMX-corrected) |
 | Hybrid | i1Display3 + ArgyllCMS | Measured + iterative refinement |
+
+The sensorless figure is a prediction from the panel-database model, not a measured
+result: without a colorimeter there is nothing to measure against on your unit. The only
+measured accuracy number Calibrate Pro reports is the ~3.7 dE from the i1Display3 path.
 
 ### Native USB Colorimeter
 
@@ -180,7 +184,7 @@ pyinstaller calibrate-pro.spec
 
 ## License
 
-Calibrate Pro Fair-Source License, Version 1.0. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See [LICENSE](LICENSE).
+FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See [LICENSE](LICENSE).
 
 ## For developers
 

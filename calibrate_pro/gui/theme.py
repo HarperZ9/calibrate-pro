@@ -9,7 +9,7 @@ optimized for display calibration environments.
 
 APP_NAME = "Calibrate Pro"
 APP_VERSION = "1.0.0"
-APP_ORGANIZATION = "Quanta Universe"
+APP_ORGANIZATION = "Build Universe"
 
 # Dark theme colors optimized for calibration environment
 COLORS = {

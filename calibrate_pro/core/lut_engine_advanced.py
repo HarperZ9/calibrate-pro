@@ -9,8 +9,8 @@ State-of-the-art LUT generation matching and exceeding ColourSpace capabilities:
 - HDR LUT support (PQ/HLG encoding)
 - Perceptual smoothing and optimization
 
-Author: Zain Dana / Quanta
-License: MIT
+Author: Zain Dana / Build
+License: Fair-Source (see LICENSE)
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -209,7 +209,7 @@ class AdvancedLUTGenerator:
     SIZE_ULTRA = 129  # Ultra quality
     SIZE_MAXIMUM = 256  # Maximum accuracy (50MB)
 
-    def __init__(self, size: int = 65, num_threads: int = None):
+    def __init__(self, size: int = 65, num_threads: int | None = None):
         """
         Initialize advanced LUT generator.
 
@@ -490,7 +490,7 @@ class AdvancedLUTGenerator:
         }
         return primaries.get(colorspace, primaries["srgb"])
 
-    def single_pass_multi_target(self, panel_profile: dict, targets: list[str] = None) -> dict[str, AdvancedLUT3D]:
+    def single_pass_multi_target(self, panel_profile: dict, targets: list[str] | None = None) -> dict[str, AdvancedLUT3D]:
         """
         Generate multiple target calibrations from single profile.
 

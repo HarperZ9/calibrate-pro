@@ -489,8 +489,8 @@ class LUT3D:
         filepath = Path(filepath)
         size = None
         title = "Loaded LUT"
-        domain_min = (0.0, 0.0, 0.0)
-        domain_max = (1.0, 1.0, 1.0)
+        domain_min: tuple[float, float, float] = (0.0, 0.0, 0.0)
+        domain_max: tuple[float, float, float] = (1.0, 1.0, 1.0)
         values = []
 
         with open(filepath) as f:
@@ -505,10 +505,10 @@ class LUT3D:
                     size = int(line.split()[1])
                 elif line.startswith("DOMAIN_MIN"):
                     parts = line.split()[1:]
-                    domain_min = tuple(float(p) for p in parts)
+                    domain_min = tuple(float(p) for p in parts)  # type: ignore[assignment]  # numpy/dynamic
                 elif line.startswith("DOMAIN_MAX"):
                     parts = line.split()[1:]
-                    domain_max = tuple(float(p) for p in parts)
+                    domain_max = tuple(float(p) for p in parts)  # type: ignore[assignment]  # numpy/dynamic
                 elif line[0].isdigit() or line[0] == "-":
                     parts = line.split()
                     if len(parts) >= 3:
@@ -822,7 +822,7 @@ class LUTGenerator:
         self,
         panel_primaries: tuple[tuple[float, float], ...],
         panel_white: tuple[float, float],
-        target_primaries: tuple[tuple[float, float], ...] = None,
+        target_primaries: tuple[tuple[float, float], ...] | None = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
@@ -1112,7 +1112,7 @@ class LUTGenerator:
         gamma_red: float = 2.2,
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
-        target_primaries: tuple[tuple[float, float], ...] = None,
+        target_primaries: tuple[tuple[float, float], ...] | None = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         target_gamma: float = 2.2,
         title: str = "Oklab Perceptual Calibration LUT",

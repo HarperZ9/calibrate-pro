@@ -14,8 +14,8 @@ ACES 2.0 Key Features:
 This implementation follows the ACES 2.0 specifications and is compatible
 with OpenColorIO 2.4+ fixed functions.
 
-Author: Zain Dana / Quanta
-License: MIT
+Author: Zain Dana / Build
+License: Fair-Source (see LICENSE)
 
 References:
 - ACES 2.0 Technical Documentation (2024)
@@ -434,7 +434,7 @@ class ACES2GamutMapper:
             edges.append((t, 0, 1))
             # Magenta to red
             edges.append((1, 0, 1 - t))
-        return edges
+        return edges  # type: ignore[return-value]  # numpy/dynamic
 
     def _get_boundary_at_hue(self, h: float) -> float:
         """Get gamut boundary M at given hue angle."""
@@ -583,10 +583,10 @@ class ACES2:
             result = self._render_single(rgb[i], output_config, tonescale, gamut_mapper)
             results.append(result)
 
-        results = np.array(results)
+        results = np.array(results)  # type: ignore[assignment]  # numpy/dynamic
         if single:
             return results[0]
-        return results
+        return results  # type: ignore[return-value]  # numpy/dynamic
 
     def _render_single(
         self, rgb: np.ndarray, config: OutputConfig, tonescale: ACES2Tonescale, gamut_mapper: ACES2GamutMapper
