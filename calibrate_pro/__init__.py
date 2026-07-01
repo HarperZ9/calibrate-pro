@@ -11,7 +11,7 @@ A comprehensive display calibration application featuring:
 Copyright (c) 2022-2026 Zain Dana Harper
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Zain Dana Harper"
 
 

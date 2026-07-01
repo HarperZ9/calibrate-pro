@@ -114,4 +114,4 @@ __all__ = [
     "generate_consent_warning",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
