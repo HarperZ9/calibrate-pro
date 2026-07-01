@@ -26,7 +26,7 @@ else:
     APP_DIR = Path(__file__).parent.parent
 
 # Version
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __app_name__ = "Calibrate Pro"
 
 

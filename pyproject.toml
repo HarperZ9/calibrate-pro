@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "calibrate-pro"
-version = "1.0.0"
+version = "1.0.1"
 description = "Windows display calibration toolkit with sensorless profiles, measured workflows, DDC/CI, ICC/LUT output, and reports"
 readme = "README.md"
 license = { text = "FSL-1.1-MIT" }
