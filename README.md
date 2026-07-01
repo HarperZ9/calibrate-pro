@@ -173,7 +173,7 @@ pyinstaller calibrate-pro.spec
 
 ## Dependencies
 
-**Required:** Python 3.10+, numpy, scipy, quanta-color
+**Required:** Python 3.10+, numpy, scipy, build-color
 **GUI:** PyQt6 (`pip install ".[gui]"`)
 **Sensor:** hidapi (`pip install ".[sensor]"`)
 **System LUT:** [dwm_lut](https://github.com/ledoge/dwm_lut) (bundled)
