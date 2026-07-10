@@ -53,9 +53,10 @@ artifacts match verified behavior.
   dependency size only; it is not a release artifact.
 - The real `build-ui` package still declares and imports PyQt6, and
   `build_color.gui` imports the GUI dependency. A PySide-only Calibrate artifact
-  therefore requires a tested PySide6 build-ui release and an allowlisted
+  therefore requires the tested Build UI 2 QtPy bridge and an allowlisted
   build-color core graph; a mechanical Calibrate-only import replacement is
-  insufficient.
+  insufficient. The approved bridge is specified in
+  `C:\dev\public\build-ui\docs\superpowers\specs\2026-07-10-build-ui-2-qt-bridge-design.md`.
 - The current `CalibratePro.spec` recursively collects the entire package and
   produced a 2,775,446,079-byte executable. The older targeted
   `calibrate-pro.spec` explicitly excludes unrelated frameworks and includes
@@ -101,14 +102,15 @@ These facts describe the inspected workspace; they are not release claims.
   the application runtime. A customer must not need Python, pip, Git, or a
   network connection after downloading the installer.
 - **R2 — Bundled dependencies:** The installed application must contain the
-  required runtime portions of `build-color`, `build-ui`, PySide6, NumPy, SciPy,
-  and `dwm_lut`, plus third-party notices required for redistribution. The
-  proven Qt baseline is PySide6, PySide6_Addons, PySide6_Essentials, and
-  shiboken6 6.11.1; release locks may update only through a repeated proof.
+  required runtime portions of `build-color`, Build UI 2, QtPy, PySide6, NumPy,
+  SciPy, and `dwm_lut`, plus third-party notices required for redistribution.
+  The proven Qt baseline is QtPy 2.4.3 with PySide6, PySide6_Addons,
+  PySide6_Essentials, and shiboken6 6.11.1; release locks may update only through
+  a repeated proof.
 - **R3 — Developer package:** Preserve a normal Python distribution. Core
-  installation keeps the current numerical dependencies; `gui` installs PySide6
-  and `build-ui`; `all` contains the complete union of GUI, tray, and sensor
-  dependencies.
+  installation keeps the current numerical dependencies; `gui` installs
+  `PySide6>=6.11.1,<7` and `build-ui[pyside6]>=2,<3`; `all` contains the
+  complete union of GUI, tray, and sensor dependencies.
 - **R4 — Canonical build spec:** Keep `calibrate-pro.spec` as the sole
   PyInstaller specification and remove `CalibratePro.spec`. Use an explicit
   module/data allowlist and explicit exclusions rather than recursively
@@ -171,9 +173,12 @@ These facts describe the inspected workspace; they are not release claims.
   compatibility delegate, and a gold-vector smoke must prove that 100 cd/m²
   encodes to approximately `0.5080784215` and decodes back to 100 cd/m² within
   the declared float64 tolerance.
-- **R18 — PySide dependency closure:** A PySide6-compatible `build-ui` release
-  is a prerequisite. Product source and the staged artifact contain no PyQt5 or
-  PyQt6 import/distribution, and no GUI submodule is pulled from build-color.
+- **R18 — PySide dependency closure:** A verified Build UI 2.0 QtPy wheel is a
+  prerequisite. Calibrate sets `QT_API=pyside6` before any QtPy/Build UI import;
+  frozen doctor proves `qtpy.API_NAME == "PySide6"`. Calibrate source and the
+  staged artifact contain no PyQt5 or PyQt6 import/distribution, and no GUI
+  submodule is pulled from build-color. Harmless QtPy adapter text is not treated
+  as an installed PyQt distribution.
 - **R19 — Unelevated launch:** `cmd_gui`, `cmd_hdr`, both frozen executables, and
   `doctor` start unelevated. No GUI mode auto-elevates. A future privileged
   helper is one-shot, narrowly allowlisted, schema-validated, and invoked only
@@ -226,9 +231,10 @@ returns to a usable, non-success state.
 `build-color` remains the authoritative color-science dependency. Calibrate Pro
 must import its public `build_color` modules rather than copy their
 implementations. `build-ui` remains the shared GUI theme/widget dependency.
-Both packages are installed into the clean build environment and frozen into
-the application, so users receive them as part of the product without a
-separate installation step.
+Build UI 2 selects PySide6 through QtPy in the Calibrate process. Both packages
+are installed into the clean build environment and frozen into the application,
+so users receive them as part of the product without a separate installation
+step.
 
 The developer wheel records dependency requirements normally. The standalone
 artifact records the exact resolved dependency versions in
@@ -364,9 +370,10 @@ Implementation follows test-first development for behavior changes.
 5. **Wheel smoke:** install the built wheel into a clean virtual environment and
    exercise CLI metadata plus GUI dependency diagnostics.
 6. **Frozen smoke:** build on Windows, run `CalibratePro.exe doctor --json`, and
-   verify `build_color`, `build_ui`, PySide6, NumPy, SciPy, and packaged `dwm_lut`
-   resources resolve without a hardware mutation. Stage notices/source receipts
-   before this smoke so `doctor` verifies the final tree.
+   verify `build_color`, `build_ui`, QtPy, PySide6, NumPy, SciPy, and packaged
+   `dwm_lut` resources resolve without a hardware mutation. It also verifies
+   `qtpy.API_NAME == "PySide6"`. Stage notices/source receipts before this smoke
+   so `doctor` verifies the final tree.
 7. **Artifact audit:** assert the size gates, hash every published file, verify
    the dependency manifest, and assert excluded frameworks such as Torch,
    Transformers, pandas, Jupyter, and OpenCV are absent.
@@ -419,7 +426,7 @@ startup registration are not exercised during automated packaging tests.
   pass.
 - [ ] PySide6 is the only Qt binding in product metadata, source imports, tests,
   and the frozen dependency inventory.
-- [ ] A published/tested PySide6 build-ui prerequisite is resolved before the
+- [ ] A published/tested Build UI 2 wheel passes its PySide6 lane before the
   Calibrate Pro release build begins.
 - [ ] Qt/PySide notices, source provenance, and externally replaceable shared
   libraries pass the release audit.
