@@ -12,7 +12,7 @@
 
 - This plan supersedes `docs/superpowers/plans/2026-07-09-calibrate-pro-packaging-polish.md`; that stale draft remains untouched and must never be executed.
 - Product implementation is consent-gated. Do not create an implementation worktree or change product code until the operator explicitly approves this plan.
-- After approval, every implementation task runs only in `C:\dev\worktrees\calibrate-pro-1.1-pyside`, created from clean commit `10149aa8e96dc2991eae8db134b53512c5afe5b8`. Never execute implementation steps in `C:\dev\public\calibrate-pro`.
+- After approval, every implementation task runs only in `C:\dev\worktrees\calibrate-pro-1.1-pyside`, created from the clean plan-tip commit resolved after worktree consent. That tip must be a descendant of `10149aa8e96dc2991eae8db134b53512c5afe5b8`, must contain this approved plan, and its exact hash must be recorded in the implementation handoff. Never execute implementation steps in `C:\dev\public\calibrate-pro`.
 - Target version is exactly `1.1.0`, sourced only from `calibrate_pro.__version__`.
 - Build UI dependency is exactly `build-ui[pyside6]>=2,<3`; its 2.0 candidate or published wheel must expose the approved QtPy bridge and preserve the current public theme/widget API.
 - Calibrate metadata also declares `PySide6>=6.11.1,<7`; release resolution pins PySide6, PySide6_Addons, PySide6_Essentials, and shiboken6 to `6.11.1` unless a repeated compatibility proof approves an update.
@@ -38,28 +38,35 @@
 
 The normal checkout is the planning and review surface. Implementation begins only after the operator replies with explicit approval and the executor invokes `superpowers:using-git-worktrees`.
 
-- [ ] **Gate 1: Record normal-checkout state without changing it**
+- [ ] **Gate 1: Verify the approved ancestor and plan-bearing tip without changing either**
 
 ```powershell
+$approvedAncestor = '10149aa8e96dc2991eae8db134b53512c5afe5b8'
+$planPath = 'docs/superpowers/plans/2026-07-10-calibrate-pro-1.1-pyside-packaging.md'
+$planTip = (git -C C:\dev\public\calibrate-pro rev-parse HEAD).Trim()
+git -C C:\dev\public\calibrate-pro merge-base --is-ancestor $approvedAncestor $planTip
+if ($LASTEXITCODE -ne 0) { throw "$planTip is not a descendant of the approved packaging specification" }
+git -C C:\dev\public\calibrate-pro cat-file -e "${planTip}:$planPath"
+if ($LASTEXITCODE -ne 0) { throw "$planTip does not contain the approved implementation plan" }
 git -C C:\dev\public\calibrate-pro status --short --branch
-git -C C:\dev\public\calibrate-pro rev-parse 10149aa
 ```
 
-Expected: commit resolves to `10149aa8e96dc2991eae8db134b53512c5afe5b8`; no product-source modification is present. Planning files may be untracked or committed in the normal checkout.
+Expected: the ancestry and plan-object checks succeed. Record `$planTip` verbatim in the approval/handoff message. No tracked product-source modification is present; a separately preserved stale untracked plan does not change the commit snapshot.
 
 - [ ] **Gate 2: Stop and obtain explicit operator approval**
 
-Report the plan path, base commit, proposed worktree path, Build UI prerequisite, and release side effects. Do not interpret an earlier product approval as consent to create this implementation worktree.
+Report the plan path, exact `$planTip`, approved ancestor, proposed worktree path, Build UI prerequisite, and release side effects. Do not interpret an earlier product approval as consent to create this implementation worktree.
 
 - [ ] **Gate 3: Create the isolated worktree after approval**
 
 ```powershell
-git -C C:\dev\public\calibrate-pro worktree add C:\dev\worktrees\calibrate-pro-1.1-pyside 10149aa8e96dc2991eae8db134b53512c5afe5b8
+$env:CALIBRATE_PLAN_TIP = $planTip
+git -C C:\dev\public\calibrate-pro worktree add C:\dev\worktrees\calibrate-pro-1.1-pyside $env:CALIBRATE_PLAN_TIP
 git -C C:\dev\worktrees\calibrate-pro-1.1-pyside rev-parse HEAD
 git -C C:\dev\worktrees\calibrate-pro-1.1-pyside status --porcelain
 ```
 
-Expected: HEAD is exactly `10149aa8e96dc2991eae8db134b53512c5afe5b8` and status output is empty.
+Expected: worktree HEAD is exactly `$env:CALIBRATE_PLAN_TIP`, the approved plan exists in that worktree, and status output is empty.
 
 - [ ] **Gate 4: Pin every subsequent command to the isolated worktree**
 
@@ -149,14 +156,14 @@ from build_ui.theme import C, STYLE, create_stylesheet
 from build_ui.widgets import Card, Heading, NavButton, Sidebar, Stat, StatusDot, ToastNotification
 
 app = QApplication.instance() or QApplication([])
-card = Card('Proof')
+card = Card()
 sidebar = Sidebar(['One', 'Two'])
 seen = []
 sidebar.page_changed.connect(seen.append)
 sidebar.page_changed.emit(1)
 assert API_NAME == 'PySide6'
 assert seen == [1]
-assert card.windowTitle() == ''
+assert card.graphicsEffect() is not None
 assert C and STYLE and create_stylesheet
 for name in ('PyQt5', 'PyQt6'):
     try:
@@ -477,9 +484,7 @@ __author__ = "Zain Dana Harper"
 Remove other assignments and import the root version where compatibility exports remain:
 
 ```python
-from calibrate_pro import __version__
-
-APP_VERSION = __version__
+from calibrate_pro import __version__ as APP_VERSION
 ```
 
 For the report dataclass default, use:
@@ -702,7 +707,7 @@ git commit -m "fix: make ST 2084 fail closed across PQ surfaces"
 **Files:**
 - Create: `calibrate_pro/verification/provenance.py`
 - Create: `tests/test_hdr_provenance.py`
-- Modify: `calibrate_pro/hdr/workflow.py:78-93,312-360`
+- Modify: `calibrate_pro/hdr/workflow.py:78-93,120-139,312-360`
 - Modify: `calibrate_pro/hdr/__init__.py`
 - Modify: `tests/test_hdr_workflow.py:371-425`
 
@@ -739,7 +744,7 @@ def test_simulation_requires_explicit_evidence() -> None:
         evidence_source="ST 2084 reference replay",
     )
     assert result.eotf_error.value == pytest.approx(0.0)
-    assert result.peak_luminance.value == pytest.approx(10000.0)
+    assert result.peak_luminance.value == pytest.approx(1000.0)
     assert result.eotf_error.evidence is EvidenceKind.SIMULATED
     assert result.gamut_coverage_bt2020.value is None
 
@@ -868,7 +873,15 @@ def run(
 ) -> HDRCalibrationResult:
 ```
 
-If readings are absent and evidence is `NOT_MEASURED`, create `MetricValue(None, "percent", EvidenceKind.NOT_MEASURED)` and `MetricValue(None, "nits", EvidenceKind.NOT_MEASURED)` values. If evidence is `SIMULATED`, use expected luminance and label the derived error/peak with that source. If readings exist, require `MEASURED` or `REPLAYED` plus a source. Gamut always remains `NOT_MEASURED` in this 1.1 lane because luminance-only arrays cannot prove color volume.
+For HDR10 patch generation, bound the signal ramp to the selected target peak rather than full-scale 10,000 nits:
+
+```python
+max_signal = float(pq_oetf(np.array([self.target.peak_luminance], dtype=np.float64))[0])
+signals = np.linspace(0.0, max_signal, steps)
+luminances = pq_eotf(signals)
+```
+
+If readings are absent and evidence is `NOT_MEASURED`, create `MetricValue(None, "percent", EvidenceKind.NOT_MEASURED)` and `MetricValue(None, "nits", EvidenceKind.NOT_MEASURED)` values. If evidence is `SIMULATED`, use this target-bounded expected luminance and label the derived error/peak with that source. If readings exist, require `MEASURED` or `REPLAYED` plus a source. Gamut always remains `NOT_MEASURED` in this 1.1 lane because luminance-only arrays cannot prove color volume.
 
 - [ ] **Step 5: Update existing tests to call simulation explicitly**
 
@@ -920,7 +933,6 @@ Create `tests/test_workflow.py`:
 ```python
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
@@ -1019,6 +1031,7 @@ Create `calibrate_pro/workflow.py`:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -2447,6 +2460,6 @@ Expected: all automated gates pass, doctor reports `ok: true`, both hashes exist
 
 ## Execution Handoff
 
-Plan implementation may begin only after explicit operator approval of this document and consent to create the isolated worktree from `10149aa8e96dc2991eae8db134b53512c5afe5b8`.
+Plan implementation may begin only after explicit operator approval of this document and consent to create the isolated worktree from the exact plan-tip recorded in the handoff. The tip must be a descendant of `10149aa8e96dc2991eae8db134b53512c5afe5b8` and contain this plan.
 
 After approval, use **Subagent-Driven Development** with a fresh implementation agent and two-stage review per task. Inline execution is permitted only if the operator explicitly selects it; it still runs exclusively in `C:\dev\worktrees\calibrate-pro-1.1-pyside`.
