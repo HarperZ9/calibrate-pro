@@ -3,7 +3,7 @@
 **Date:** 2026-07-09
 **Revised:** 2026-07-10
 **Target release:** 1.1.0
-**Status:** Revision proposed; implementation paused pending re-approval
+**Status:** Approved for packaging implementation
 
 ## Revision Decision Record
 
@@ -26,6 +26,10 @@ folded into the 1.1 packaging critical path. It is specified separately in
 `2026-07-10-cp-hdr-1-measured-display-characterization-design.md`. Release 1.1
 must make today's simulated HDR paths unmistakable and must not present them as
 measurements; CP-HDR-1 then replaces those paths with a measured foundation.
+
+The operator's prior packaging approvals and 2026-07-10 continuation authorize
+this packaging lane. The separate CP-HDR-1, color-conformance, and research
+designs retain their own approval gates.
 
 ## Objective
 
