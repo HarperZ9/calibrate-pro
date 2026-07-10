@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-09
 **Target release:** 1.1.0
-**Status:** Approved design; written-spec review pending
+**Status:** Approved for implementation
 
 ## Objective
 
