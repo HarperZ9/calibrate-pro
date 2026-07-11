@@ -17,12 +17,14 @@ import tempfile
 import numpy as np
 import pytest
 
+from calibrate_pro.core.pq import pq_oetf
 from calibrate_pro.hdr.workflow import (
     HDRCalibrationResult,
     HDRStandard,
     HDRTarget,
     HDRWorkflow,
 )
+from calibrate_pro.verification.provenance import EvidenceKind
 
 # =========================================================================
 # Fixtures
@@ -90,15 +92,16 @@ class TestGenerateEOTFPatches:
     def test_hdr10_signal_range(self, hdr10_wf):
         patches = hdr10_wf.generate_eotf_patches(steps=21)
         signals = patches[:, 0]
+        expected_max = float(pq_oetf(np.array([hdr10_wf.target.peak_luminance], dtype=np.float64))[0])
         assert signals[0] == pytest.approx(0.0)
-        assert signals[-1] == pytest.approx(1.0)
+        assert signals[-1] == pytest.approx(expected_max)
 
     def test_hdr10_luminance_range(self, hdr10_wf):
         patches = hdr10_wf.generate_eotf_patches(steps=101)
         lum = patches[:, 1]
-        # PQ at signal=0 -> 0 nits, signal=1 -> 10000 nits
+        # The HDR10 verification ramp is bounded to this display target.
         assert lum[0] == pytest.approx(0.0, abs=0.01)
-        assert lum[-1] == pytest.approx(10000.0, rel=0.01)
+        assert lum[-1] == pytest.approx(hdr10_wf.target.peak_luminance, rel=0.01)
 
     def test_hdr10_luminance_monotonic(self, hdr10_wf):
         patches = hdr10_wf.generate_eotf_patches(steps=101)
@@ -379,13 +382,20 @@ class TestRun:
         assert isinstance(result, HDRCalibrationResult)
 
     def test_hdr10_perfect_display_zero_error(self, hdr10_wf):
-        result = hdr10_wf.run(lut_size=5)
-        assert result.eotf_error == pytest.approx(0.0, abs=1e-10)
+        result = hdr10_wf.run(
+            lut_size=5,
+            evidence=EvidenceKind.SIMULATED,
+            evidence_source="test ST 2084 reference",
+        )
+        assert result.eotf_error.value == pytest.approx(0.0, abs=1e-10)
 
     def test_hdr10_peak_measured(self, hdr10_wf):
-        result = hdr10_wf.run(lut_size=5)
-        # Perfect display: measured peak = PQ at signal 1.0 = 10000
-        assert result.peak_measured == pytest.approx(10000.0, rel=0.01)
+        result = hdr10_wf.run(
+            lut_size=5,
+            evidence=EvidenceKind.SIMULATED,
+            evidence_source="test ST 2084 reference",
+        )
+        assert result.peak_luminance.value == pytest.approx(1000.0, rel=0.01)
 
     def test_hdr10_lut_attached(self, hdr10_wf):
         result = hdr10_wf.run(lut_size=5)
@@ -402,22 +412,33 @@ class TestRun:
         assert isinstance(result, HDRCalibrationResult)
 
     def test_hlg_perfect_display_zero_error(self, hlg_wf):
-        result = hlg_wf.run(lut_size=5)
-        assert result.eotf_error == pytest.approx(0.0, abs=1e-10)
+        result = hlg_wf.run(
+            lut_size=5,
+            evidence=EvidenceKind.SIMULATED,
+            evidence_source="test HLG reference",
+        )
+        assert result.eotf_error.value == pytest.approx(0.0, abs=1e-10)
 
     def test_run_with_real_measurements(self, hdr10_wf):
         patches = hdr10_wf.generate_eotf_patches(steps=21)
         expected = patches[:, 1]
         # Simulate a display that is 5% too bright everywhere
         measured = expected * 1.05
-        result = hdr10_wf.run(measured_luminances=measured, lut_size=5)
-        assert result.eotf_error > 0.0
+        result = hdr10_wf.run(
+            measured_luminances=measured,
+            lut_size=5,
+            evidence=EvidenceKind.REPLAYED,
+            evidence_source="test fixture",
+        )
+        assert result.eotf_error.value is not None
+        assert result.eotf_error.value > 0.0
         # The 0-nit patch is ignored, so average should be ~5%
-        assert result.eotf_error == pytest.approx(5.0, abs=1.0)
+        assert result.eotf_error.value == pytest.approx(5.0, abs=1.0)
 
-    def test_gamut_coverage_placeholder(self, hdr10_wf):
+    def test_luminance_run_does_not_claim_gamut_coverage(self, hdr10_wf):
         result = hdr10_wf.run(lut_size=5)
-        assert result.gamut_coverage_bt2020 == 100.0
+        assert result.gamut_coverage_bt2020.value is None
+        assert result.gamut_coverage_bt2020.evidence is EvidenceKind.NOT_MEASURED
 
     def test_target_preserved_in_result(self, hdr10_wf):
         result = hdr10_wf.run(lut_size=5)

@@ -21,6 +21,7 @@ from calibrate_pro.core.color_math import (
     pq_eotf,
     pq_oetf,
 )
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 # =========================================================================
 # HDR Standards & Targets
@@ -85,11 +86,19 @@ class HDRCalibrationResult:
     """Results from an HDR calibration pass."""
 
     target: HDRTarget
-    eotf_error: float  # Average EOTF deviation (%)
-    peak_measured: float  # Measured peak luminance
-    gamut_coverage_bt2020: float  # % of BT.2020 covered
-    tone_map_curve: np.ndarray  # Applied EETF curve
-    lut_data: np.ndarray | None = None  # 3D LUT if generated
+    eotf_error: MetricValue
+    peak_luminance: MetricValue
+    gamut_coverage_bt2020: MetricValue
+    tone_map_curve: np.ndarray
+    lut_data: np.ndarray | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "target": self.target.standard.value,
+            "eotf_error": self.eotf_error.to_dict(),
+            "peak_luminance": self.peak_luminance.to_dict(),
+            "gamut_coverage_bt2020": self.gamut_coverage_bt2020.to_dict(),
+        }
 
 
 # =========================================================================
@@ -127,11 +136,12 @@ class HDRWorkflow:
         if steps < 2:
             raise ValueError("steps must be >= 2")
 
-        signals = np.linspace(0.0, 1.0, steps)
-
         if self.target.standard == HDRStandard.HDR10:
+            max_signal = float(pq_oetf(np.array([self.target.peak_luminance], dtype=np.float64))[0])
+            signals = np.linspace(0.0, max_signal, steps)
             luminances = pq_eotf(signals)
         else:
+            signals = np.linspace(0.0, 1.0, steps)
             # HLG: inverse OETF gives scene-linear, then OOTF
             scene = hlg_eotf(signals)
             luminances = scene * self.target.peak_luminance
@@ -313,48 +323,76 @@ class HDRWorkflow:
         self,
         measured_luminances: np.ndarray | None = None,
         lut_size: int = 17,
+        *,
+        evidence: EvidenceKind = EvidenceKind.NOT_MEASURED,
+        evidence_source: str | None = None,
     ) -> HDRCalibrationResult:
         """
         Execute the full HDR calibration workflow.
 
         Args:
-            measured_luminances: Optional real measurements (cd/m2).
-                If *None*, we simulate a perfect display for
-                demonstration / unit-test purposes.
+            measured_luminances: Optional measured or replayed luminance
+                readings in cd/m2. Missing readings remain not measured unless
+                an explicit simulation is requested.
             lut_size: Resolution of the generated 3-D LUT.
+            evidence: Evidence label for the supplied or simulated readings.
+            evidence_source: Instrument receipt, fixture, or simulation source.
 
         Returns:
             HDRCalibrationResult with all artefacts.
         """
+        if not isinstance(evidence, EvidenceKind):
+            raise TypeError("evidence must be an EvidenceKind")
+
         # 1. EOTF patches
         patches = self.generate_eotf_patches(steps=21)
         expected = patches[:, 1]
 
-        # 2. Use real measurements or simulate
-        if measured_luminances is not None:
-            measured = np.asarray(measured_luminances, dtype=np.float64)
-        else:
+        # 2. Construct evidence-bearing luminance metrics.
+        if measured_luminances is None and evidence is EvidenceKind.NOT_MEASURED:
+            eotf_error = MetricValue(None, "percent", EvidenceKind.NOT_MEASURED)
+            peak_luminance = MetricValue(None, "nits", EvidenceKind.NOT_MEASURED)
+        elif measured_luminances is None and evidence is EvidenceKind.SIMULATED:
+            if not evidence_source or not evidence_source.strip():
+                raise ValueError("SIMULATED HDR runs require evidence_source")
             measured = expected.copy()
+            eotf_error = MetricValue(
+                self.verify_eotf(measured, expected),
+                "percent",
+                evidence,
+                evidence_source,
+            )
+            peak_luminance = MetricValue(float(np.max(measured)), "nits", evidence, evidence_source)
+        elif measured_luminances is None:
+            raise ValueError(f"{evidence.value} evidence requires measured_luminances")
+        else:
+            if evidence not in {EvidenceKind.MEASURED, EvidenceKind.REPLAYED}:
+                raise ValueError("measured_luminances require MEASURED or REPLAYED evidence")
+            if not evidence_source or not evidence_source.strip():
+                raise ValueError(f"{evidence.value} HDR runs require evidence_source")
+            measured = np.asarray(measured_luminances, dtype=np.float64)
+            if not np.all(np.isfinite(measured)):
+                raise ValueError("measured_luminances must contain only finite readings")
+            eotf_error = MetricValue(
+                self.verify_eotf(measured, expected),
+                "percent",
+                evidence,
+                evidence_source,
+            )
+            peak_luminance = MetricValue(float(np.max(measured)), "nits", evidence, evidence_source)
 
-        # 3. Verify EOTF
-        eotf_error = self.verify_eotf(measured, expected)
-
-        # 4. Tone map
+        # 3. Tone map
         tm_curve = self.generate_tone_map()
 
-        # 5. 3-D LUT
+        # 4. 3-D LUT
         lut = self.generate_hdr_lut(size=lut_size)
 
-        # 6. Assemble result
-        peak_measured = float(np.max(measured))
-        # Gamut coverage placeholder (needs colorimetric measurements)
-        gamut_coverage = 100.0 if measured_luminances is None else 0.0
-
+        # 5. Luminance-only inputs cannot establish color-volume coverage.
         self._result = HDRCalibrationResult(
             target=self.target,
             eotf_error=eotf_error,
-            peak_measured=peak_measured,
-            gamut_coverage_bt2020=gamut_coverage,
+            peak_luminance=peak_luminance,
+            gamut_coverage_bt2020=MetricValue(None, "percent", EvidenceKind.NOT_MEASURED),
             tone_map_curve=tm_curve[:, 1],
             lut_data=lut,
         )
