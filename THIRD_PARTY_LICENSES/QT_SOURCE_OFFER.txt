@@ -1,0 +1,125 @@
+Corresponding source and source-provenance record
+================================================
+
+Calibrate Pro 1.1.0 redistributes the components listed below without source modifications. The release provenance lock therefore records `modifications` as the empty list. Each URL identifies the exact source archive and each digest is SHA-256.
+
+CPython 3.12.10
+https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz
+15d9c623abfd2165fe816ea1fb385d6ed8cf3c664661ab357f1782e3036a6dac
+
+bzip2 1.0.8 (CPython Windows external)
+https://github.com/python/cpython-source-deps/archive/refs/tags/bzip2-1.0.8.tar.gz
+ab8d1b0cc087c20d4c32c0e4fcf7d0c733a95da12cedc6d63b3f0a9af07427e2
+
+Expat 2.6.3 (CPython Windows external)
+https://github.com/libexpat/libexpat/releases/download/R_2_6_3/expat-2.6.3.tar.gz
+17aa6cfc5c4c219c09287abfc10bc13f0c06f30bb654b28bfe6f567ca646eb79
+
+HACL* bb3d0dc8d9d15a5cd51094d5b69e70aa09005ff0 (CPython Windows external)
+https://github.com/hacl-star/hacl-star/archive/bb3d0dc8d9d15a5cd51094d5b69e70aa09005ff0.zip
+e31e4ca10da91c585793c0eaf1b98aee3cb43e3a58d3d8d478593e5a6bd82927
+
+libb2 0.98.1 (CPython Windows external)
+https://github.com/BLAKE2/libb2/releases/download/v0.98.1/libb2-0.98.1.tar.gz
+53626fddce753c454a3fea581cbbc7fe9bbcf0bc70416d48fdbbf5d87ef6c72e
+
+libffi 3.4.4 (CPython Windows external)
+https://github.com/python/cpython-source-deps/archive/refs/tags/libffi-3.4.4.tar.gz
+9d802681adfea27d84cae0487a785fb9caa925bdad44c401b364c59ab2b8edda
+
+mpdecimal 2.5.1 (CPython Windows external)
+https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-2.5.1.tar.gz
+9f9cd4c041f99b5c49ffb7b59d9f12d95b683d88585608aa56a6307667b2b21f
+
+OpenSSL 3.0.16 (CPython Windows external)
+https://github.com/python/cpython-source-deps/archive/refs/tags/openssl-3.0.16.tar.gz
+6bb739ecddbd2cfb6d255eb5898437a9b5739277dee931338d3275bac5d96ba2
+
+XZ Utils 5.2.5 (CPython Windows external)
+https://github.com/python/cpython-source-deps/archive/refs/tags/xz-5.2.5.tar.gz
+a15c168e39e87d750c3dc766edc7f19bdda57dacf01e509678467eace91ad282
+
+Build Color 1.0.2
+https://files.pythonhosted.org/packages/e0/bc/5aba6ff611fcee6253cd9e05786a0378f6e3762f883f1ac9bf0185934786/build_color-1.0.2.tar.gz
+6b23c00167390881b93886af65ac7d74d2660a214ede173d6faab14db3806062
+
+Build UI 2.0.0
+https://files.pythonhosted.org/packages/ff/c2/a5d699cb04e3a131e1bfb12f69f569dd5227031a0c284a8bb7c6db9fb04b/build_ui-2.0.0.tar.gz
+df780ef24f242cc505377af15f8e46d233aa5cd8214cfde8331d1dd06ee634ce
+
+QtPy 2.4.3
+https://files.pythonhosted.org/packages/70/01/392eba83c8e47b946b929d7c46e0f04b35e9671f8bb6fc36b6f7945b4de8/qtpy-2.4.3.tar.gz
+db744f7832e6d3da90568ba6ccbca3ee2b3b4a890c3d6fbbc63142f6e4cdf5bb
+
+packaging 26.2
+https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz
+ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661
+
+NumPy 2.5.1
+https://files.pythonhosted.org/packages/22/fd/89965aa4ac08c74998539fcbf24fa3540f3e15237fbeb6bcf9c908f4aade/numpy-2.5.1.tar.gz
+a48a113e6afea91f5608793bafa7ef2ad481fefbda87ec5069f483de61cb9fa3
+
+SciPy 1.18.0
+https://files.pythonhosted.org/packages/a7/25/c2700dfaf6442b4effaa91af24ebce5dc9d31bb4a69706313aae70d72cd0/scipy-1.18.0.tar.gz
+67b2ad2ad54c72ca6d04975a9b2df8c3638c34ddd5b28738e94fc2b57929d378
+
+hidapi 0.15.0
+https://files.pythonhosted.org/packages/74/f6/caad9ed701fbb9223eb9e0b41a5514390769b4cb3084a2704ab69e9df0fe/hidapi-0.15.0.tar.gz
+ecbc265cbe8b7b88755f421e0ba25f084091ec550c2b90ff9e8ddd4fcd540311
+
+PyInstaller 6.21.0
+https://files.pythonhosted.org/packages/d5/4d/ec706c3fcf39e26888c35b39615ff4d5865d184069666c47492cff1fbe50/pyinstaller-6.21.0.tar.gz
+bb9fab705983e393a2d1cac77d6972513057ad800215fd861dc15ff5272e98fd
+
+PySide / Shiboken source 6.11.1
+https://qt.mirror.constant.com/official_releases/QtForPython/pyside6/PySide6-6.11.1-src/pyside-setup-everywhere-src-6.11.1.tar.xz
+6ffd9835bb0dd2c56f061d62f1616bb1707cfc0202b80e3165d6be087f3965e2
+
+Qt Base source 6.11.1
+https://qt.mirror.constant.com/archive/qt/6.11/6.11.1/submodules/qtbase-everywhere-src-6.11.1.tar.xz
+d9594a31228aa23ad6b531719a29b45f0f3989fe6c136d45767ea179f233c1ac
+
+OpenBLAS for SciPy 0.3.31-22-g5ffbf38b
+https://codeload.github.com/OpenMathLib/OpenBLAS/tar.gz/5ffbf38b41a1fe494d038efcb09cf22f4d527c22
+51257fb2f0aa7b4c23d9cf0302500b817dc82c0022ee681b24f9ab82dfd10312
+
+MacPython OpenBLAS build recipe for SciPy 0.3.31.22.0
+https://codeload.github.com/MacPython/openblas-libs/tar.gz/db637abddcd6abb7fcb63be7fbe418deeb4729db
+47c6afa9d9b653de8b44985425f3531de02d1000bb26245cd73066a7d6ae2aa0
+
+OpenBLAS for NumPy 0.3.33-112-g9bdf051b
+https://codeload.github.com/OpenMathLib/OpenBLAS/tar.gz/9bdf051b96e956f848dfcef89c23e1993b0e1b3e
+c2cb4ccf65724f363b58bc96e9b68f661a56ea6da048fdb5dbe65997f48d2ac4
+
+MacPython OpenBLAS build recipe for NumPy 0.3.33.112.0
+https://codeload.github.com/MacPython/openblas-libs/tar.gz/befbe32a3783db3e9cfd1a9e68f5d8212a1bf8de
+def9341f6d5947a7361c3fe95e999628910196727dfe187cea29aa424aad9801
+
+dwm_lut 3.8
+https://codeload.github.com/ledoge/dwm_lut/tar.gz/refs/tags/v3.8
+6e2cbed73b211faef8a27bc77666b032cf2cbed347fedde957081497783cf98a
+
+WindowsDisplayAPI 1.3.0.13
+https://codeload.github.com/falahati/WindowsDisplayAPI/tar.gz/refs/tags/v1.3.0.13
+537ae930b956f775158e474bb525d4cb7b282c5ee4c52030f5907d72444ffdac
+
+MinHook 1.3.3
+https://github.com/TsudaKageyu/MinHook/archive/v1.3.3.tar.gz
+5bec16358ec9086d4593124bf558635e89135abea2c76e5761ecaf09f4546b19
+
+MSYS2 MinHook 1.3.3-2 build recipe
+https://codeload.github.com/msys2/MINGW-packages/tar.gz/7c67d9c46554d10276b2017bcfd0290dfe24a1bf
+9e52077956d846c28d04838b0ecdbc06d87d2a98f49575965b73d4b1397610ff
+
+The OpenBLAS revisions are not inferred from display versions. SciPy 1.18.0
+pins `scipy-openblas32==0.3.31.22.0`; its build-recipe revision records
+OpenBLAS commit `5ffbf38b41a1fe494d038efcb09cf22f4d527c22`. NumPy 2.5.1 pins
+`scipy-openblas64==0.3.33.112.0`; its build-recipe revision records OpenBLAS
+commit `9bdf051b96e956f848dfcef89c23e1993b0e1b3e`.
+
+The DwmLut release archive, CPython installer and SPDX document, native wheels,
+and MSYS2 build-input package are separately hash-locked in
+`packaging/binary-provenance.lock.json`; they are binary-origin evidence, not
+substitutes for the corresponding source listed above.
+
+These archives are available without charge at the listed HTTPS locations. If a location becomes unavailable, a recipient may request the exact archived source by opening an issue at https://github.com/HarperZ9/calibrate-pro and identifying Calibrate Pro 1.1.0 plus the component name. The distributor will provide an electronic copy without charge, or a physical copy for no more than the reasonable cost of conveying it, for at least three years after the last distribution of this release. The machine-readable record is `packaging/source-provenance.lock.json`; run `python scripts/verify_source_provenance.py packaging/source-provenance.lock.json` to re-download and verify every archive.
