@@ -16,6 +16,9 @@ from build_color import difference as _qc_diff
 from build_color import gamut as _qc_gamut
 from build_color import spaces as _qc_spaces
 
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 
 def _illuminant_to_array(ill: "Illuminant") -> np.ndarray:
     """Convert Calibrate Pro Illuminant to numpy array for build_color."""
@@ -556,29 +559,14 @@ _JZ_G = 0.66
 _JZ_D = -0.56
 _JZ_D0 = 1.6295499532821566e-11
 
-# PQ constants for JzAzBz (operates on absolute luminance)
-_PQ_M1 = 2610.0 / 16384.0
-_PQ_M2 = 2523.0 / 4096.0 * 128.0
-_PQ_C1 = 3424.0 / 4096.0
-_PQ_C2 = 2413.0 / 4096.0 * 32.0
-_PQ_C3 = 2392.0 / 4096.0 * 32.0
-
-
 def _pq_encode(x: np.ndarray) -> np.ndarray:
     """PQ perceptual quantizer encode (for JzAzBz)."""
-    xp = np.maximum(x / 10000.0, 0.0)
-    num = _PQ_C1 + _PQ_C2 * np.power(xp, _PQ_M1)
-    den = 1.0 + _PQ_C3 * np.power(xp, _PQ_M1)
-    return np.power(num / den, _PQ_M2)
+    return _canonical_pq_oetf(x)
 
 
 def _pq_decode(x: np.ndarray) -> np.ndarray:
     """PQ perceptual quantizer decode (for JzAzBz)."""
-    xp = np.power(np.maximum(x, 0.0), 1.0 / _PQ_M2)
-    num = np.maximum(xp - _PQ_C1, 0.0)
-    den = _PQ_C2 - _PQ_C3 * xp
-    den = np.where(np.abs(den) < 1e-30, 1e-30, den)
-    return 10000.0 * np.power(np.maximum(num / den, 0.0), 1.0 / _PQ_M1)
+    return _canonical_pq_eotf(x)
 
 
 def xyz_abs_to_jzazbz(xyz: np.ndarray) -> np.ndarray:
@@ -774,19 +762,12 @@ def ictcp_to_xyz_abs(ictcp: np.ndarray) -> np.ndarray:
 
 def _pq_st2084_oetf(v: np.ndarray) -> np.ndarray:
     """PQ OETF: linear [0,1] normalized to 10000 nits → PQ signal [0,1]."""
-    v = np.asarray(v, dtype=np.float64)
-    v = np.maximum(v, 0.0)
-    ym1 = np.power(v, _PQ_M1)
-    return np.power((_PQ_C1 + _PQ_C2 * ym1) / (1.0 + _PQ_C3 * ym1), _PQ_M2)
+    return _canonical_pq_oetf(v, peak_luminance=1.0)
 
 
 def _pq_st2084_eotf(v: np.ndarray) -> np.ndarray:
     """PQ EOTF: PQ signal [0,1] → linear [0,1] normalized to 10000 nits."""
-    v = np.asarray(v, dtype=np.float64)
-    vp = np.power(np.maximum(v, 0.0), 1.0 / _PQ_M2)
-    num = np.maximum(vp - _PQ_C1, 0.0)
-    den = _PQ_C2 - _PQ_C3 * vp
-    return np.power(np.maximum(num / den, 0.0), 1.0 / _PQ_M1)
+    return _canonical_pq_eotf(v, peak_luminance=1.0)
 
 
 def pq_eotf(v: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarray:
@@ -799,7 +780,7 @@ def pq_eotf(v: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarray:
     Returns:
         Luminance in cd/m²
     """
-    return _pq_st2084_eotf(np.asarray(v, dtype=np.float64)) * peak_luminance
+    return _canonical_pq_eotf(v, peak_luminance=peak_luminance)
 
 
 def pq_oetf(v: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarray:
@@ -812,8 +793,7 @@ def pq_oetf(v: np.ndarray, peak_luminance: float = 10000.0) -> np.ndarray:
     Returns:
         PQ signal [0, 1]
     """
-    v = np.asarray(v, dtype=np.float64)
-    return _pq_st2084_oetf(np.clip(v / peak_luminance, 0.0, 1.0))
+    return _canonical_pq_oetf(v, peak_luminance=peak_luminance)
 
 
 _HLG_A = 0.17883277

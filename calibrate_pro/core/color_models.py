@@ -19,6 +19,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from calibrate_pro.core.pq import ST2084_C1 as _ST2084_C1
+from calibrate_pro.core.pq import ST2084_C2 as _ST2084_C2
+from calibrate_pro.core.pq import ST2084_C3 as _ST2084_C3
+from calibrate_pro.core.pq import ST2084_M1 as _ST2084_M1
+from calibrate_pro.core.pq import ST2084_M2 as _ST2084_M2
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 # =============================================================================
 # Constants and Matrices
 # =============================================================================
@@ -46,12 +54,12 @@ XYZ_TO_BT2020 = np.linalg.inv(BT2020_TO_XYZ)
 # ST.2084 (PQ) Transfer Function
 # =============================================================================
 
-# PQ constants (SMPTE ST 2084)
-PQ_M1 = 2610.0 / 16384.0  # 0.1593017578125
-PQ_M2 = 2523.0 / 32.0 * 128.0  # 78.84375
-PQ_C1 = 3424.0 / 4096.0  # 0.8359375
-PQ_C2 = 2413.0 / 128.0  # 18.8515625
-PQ_C3 = 2392.0 / 128.0  # 18.6875
+# Public compatibility aliases for the canonical ST 2084 constants.
+PQ_M1 = _ST2084_M1
+PQ_M2 = _ST2084_M2
+PQ_C1 = _ST2084_C1
+PQ_C2 = _ST2084_C2
+PQ_C3 = _ST2084_C3
 
 
 def pq_eotf(E: np.ndarray) -> np.ndarray:
@@ -66,17 +74,7 @@ def pq_eotf(E: np.ndarray) -> np.ndarray:
     Returns:
         Absolute luminance in cd/m² (nits), range [0, 10000]
     """
-    E = np.asarray(E, dtype=np.float64)
-    E = np.clip(E, 0, 1)
-
-    E_pow = np.power(E, 1.0 / PQ_M2)
-    num = np.maximum(E_pow - PQ_C1, 0)
-    den = PQ_C2 - PQ_C3 * E_pow
-
-    # Avoid division by zero
-    den = np.maximum(den, 1e-10)
-
-    return 10000.0 * np.power(num / den, 1.0 / PQ_M1)
+    return _canonical_pq_eotf(E)
 
 
 def pq_oetf(Y: np.ndarray) -> np.ndarray:
@@ -91,14 +89,7 @@ def pq_oetf(Y: np.ndarray) -> np.ndarray:
     Returns:
         PQ encoded signal in [0, 1] range
     """
-    Y = np.asarray(Y, dtype=np.float64)
-    Y = np.clip(Y, 0, 10000)
-
-    Ym = np.power(Y / 10000.0, PQ_M1)
-    num = PQ_C1 + PQ_C2 * Ym
-    den = 1.0 + PQ_C3 * Ym
-
-    return np.power(num / den, PQ_M2)
+    return _canonical_pq_oetf(Y)
 
 
 # =============================================================================
