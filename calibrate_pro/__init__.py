@@ -6,7 +6,7 @@ A comprehensive display calibration application featuring:
 - Hardware Colorimeter Integration (ArgyllCMS)
 - System-wide 3D LUT Support (dwm_lut)
 - Full HDR Suite (HDR10, HDR10+, HLG, Dolby Vision)
-- Professional GUI (PyQt6)
+- Professional GUI (PySide6)
 
 Copyright (c) 2022-2026 Zain Dana Harper
 """

@@ -9,20 +9,24 @@ import logging
 import sys
 from pathlib import Path
 
+from calibrate_pro.qt_runtime import configure_qt_api
+
+configure_qt_api()
+
 logger = logging.getLogger(__name__)
 
 from build_ui.theme import STYLE, C
 from build_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
-from PyQt6.QtCore import (
+from PySide6.QtCore import (
     QPointF,
     QRectF,
     QSettings,
     Qt,
     QTimer,
-    pyqtSignal,
+    Signal,
 )
-from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QPolygonF, QShortcut
-from PyQt6.QtWidgets import (
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QPolygonF, QShortcut
+from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDialog,
@@ -370,7 +374,7 @@ class GamutBar(QWidget):
 class DisplayCard(Card):
     """Enhanced display card with gamut diagram, coverage bars, and status."""
 
-    calibrate_clicked = pyqtSignal(int)  # emits display index
+    calibrate_clicked = Signal(int)  # emits display index
 
     def __init__(
         self,
@@ -614,7 +618,7 @@ class LiveSensorCard(Card):
 class AddDisplayDialog(QDialog):
     """Dialog for adding display profiles via EDID auto-detect or JSON import."""
 
-    display_added = pyqtSignal()  # emitted when a profile is added
+    display_added = Signal()  # emitted when a profile is added
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1114,8 +1118,8 @@ class AddDisplayDialog(QDialog):
 class DashboardPage(QWidget):
     """Main dashboard -- display overview and quick actions."""
 
-    navigate_to_calibrate = pyqtSignal(int)  # emits display index
-    calibrate_all_requested = pyqtSignal()
+    navigate_to_calibrate = Signal(int)  # emits display index
+    calibrate_all_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1932,8 +1936,8 @@ class CalibrateProWindow(QMainWindow):
         target = self.stack.widget(index)
         if target:
             try:
-                from PyQt6.QtCore import QEasingCurve, QPropertyAnimation
-                from PyQt6.QtWidgets import QGraphicsOpacityEffect
+                from PySide6.QtCore import QEasingCurve, QPropertyAnimation
+                from PySide6.QtWidgets import QGraphicsOpacityEffect
 
                 effect = QGraphicsOpacityEffect(target)
                 target.setGraphicsEffect(effect)

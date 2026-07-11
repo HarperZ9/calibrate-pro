@@ -1,5 +1,5 @@
 """
-Professional GUI - Calibrate Pro PyQt6 Interface
+Professional GUI - Calibrate Pro PySide6 Interface
 
 Comprehensive display calibration interface featuring:
 - Dark theme optimized for calibration environment
@@ -34,6 +34,10 @@ Usage:
     # Run the application
     run_application()
 """
+
+from calibrate_pro.qt_runtime import configure_qt_api
+
+configure_qt_api()
 
 # Main Application
 

@@ -10,9 +10,9 @@ Displays Delta E (color difference) measurements:
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPen
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QToolTip, QVBoxLayout, QWidget
+from PySide6.QtCore import QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPen
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QToolTip, QVBoxLayout, QWidget
 
 # =============================================================================
 # Delta E Classifications
@@ -78,8 +78,8 @@ class DeltaEMeasurement:
 class DeltaEBarChart(QWidget):
     """Bar chart showing Delta E values for multiple patches."""
 
-    bar_clicked = pyqtSignal(int, DeltaEMeasurement)  # index, measurement
-    bar_hovered = pyqtSignal(int, DeltaEMeasurement)
+    bar_clicked = Signal(int, DeltaEMeasurement)  # index, measurement
+    bar_hovered = Signal(int, DeltaEMeasurement)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)

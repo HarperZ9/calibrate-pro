@@ -13,8 +13,8 @@ Guides users through the complete calibration process:
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -144,8 +144,8 @@ class CalibrationConfig:
 class WizardStep(QWidget):
     """Base class for wizard steps."""
 
-    step_complete = pyqtSignal(bool)  # Emitted when step validity changes
-    config_changed = pyqtSignal()  # Emitted when configuration changes
+    step_complete = Signal(bool)  # Emitted when step validity changes
+    config_changed = Signal()  # Emitted when configuration changes
 
     def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(parent)
@@ -280,7 +280,7 @@ class DisplaySelectionStep(WizardStep):
         self.display_list.clear()
 
         # Get displays from Qt (in real implementation, use our display detection)
-        from PyQt6.QtGui import QGuiApplication
+        from PySide6.QtGui import QGuiApplication
 
         for i, screen in enumerate(QGuiApplication.screens()):
             geometry = screen.geometry()
@@ -700,8 +700,8 @@ class CalibrationModeStep(WizardStep):
 class MeasurementStep(WizardStep):
     """Step 4: Perform calibration measurements."""
 
-    measurement_started = pyqtSignal()
-    measurement_completed = pyqtSignal(dict)  # Results
+    measurement_started = Signal()
+    measurement_completed = Signal(dict)  # Results
 
     def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
@@ -1122,7 +1122,7 @@ class VerificationStep(WizardStep):
 
     def _run_verification(self, mode: str):
         """Run verification in specified mode."""
-        from PyQt6.QtWidgets import QMessageBox
+        from PySide6.QtWidgets import QMessageBox
 
         QMessageBox.information(
             self,
@@ -1141,8 +1141,8 @@ class VerificationStep(WizardStep):
 class CalibrationWizard(QWidget):
     """Main calibration wizard container."""
 
-    wizard_completed = pyqtSignal(CalibrationConfig)
-    wizard_cancelled = pyqtSignal()
+    wizard_completed = Signal(CalibrationConfig)
+    wizard_cancelled = Signal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)

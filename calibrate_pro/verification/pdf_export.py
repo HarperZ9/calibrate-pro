@@ -4,7 +4,7 @@ PDF Export -- Calibrate Pro
 Exports HTML verification/calibration reports to PDF.
 
 Strategy (in order of preference):
-1. Use QWebEngineView's printToPdf() if PyQt6-WebEngine is available
+1. Use QWebEngineView's printToPdf() if PySide6-WebEngine is available
 2. Fall back to opening the HTML in the system browser for manual print-to-PDF
 3. Last resort: save the HTML and inform the user
 
@@ -28,9 +28,9 @@ def _try_qt_webengine_pdf(html_content: str, output_path: str) -> bool:
     Returns True on success, False if WebEngine is unavailable or fails.
     """
     try:
-        from PyQt6.QtCore import QEventLoop, QTimer
-        from PyQt6.QtWebEngineWidgets import QWebEngineView
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtCore import QEventLoop, QTimer
+        from PySide6.QtWebEngineWidgets import QWebEngineView
+        from PySide6.QtWidgets import QApplication
 
         # Ensure a QApplication exists
         app = QApplication.instance()
@@ -68,7 +68,7 @@ def _try_qt_webengine_pdf(html_content: str, output_path: str) -> bool:
         return pdf_written[0]
 
     except ImportError:
-        logger.debug("PyQt6-WebEngine not available for PDF export")
+        logger.debug("PySide6-WebEngine not available for PDF export")
         return False
     except Exception as e:
         logger.warning("Qt WebEngine PDF export failed: %s", e)

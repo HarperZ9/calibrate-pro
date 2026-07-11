@@ -9,9 +9,9 @@ import sys
 import traceback
 from pathlib import Path
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
@@ -36,8 +36,8 @@ from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
 class VerifyWorker(QThread):
     """Runs SensorlessEngine.verify_calibration() off the main thread."""
 
-    finished = pyqtSignal(bool, object)  # success, results dict or error string
-    progress = pyqtSignal(int, int)  # current patch index, total patches
+    finished = Signal(bool, object)  # success, results dict or error string
+    progress = Signal(int, int)  # current patch index, total patches
 
     def __init__(self, display_index: int = 0, parent=None):
         super().__init__(parent)
@@ -107,9 +107,9 @@ class VerifyWorker(QThread):
 class NativeVerifyWorker(QThread):
     """Runs native ColorChecker verification using i1Display3 USB HID."""
 
-    finished = pyqtSignal(bool, object)
-    log_line = pyqtSignal(str)
-    progress = pyqtSignal(str, float)
+    finished = Signal(bool, object)
+    log_line = Signal(str)
+    progress = Signal(str, float)
 
     def __init__(self, display_index: int = 0, parent=None):
         super().__init__(parent)

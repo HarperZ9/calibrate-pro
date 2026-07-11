@@ -12,9 +12,9 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
-from PyQt6.QtCore import QPointF, Qt, QTimer
-from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPen
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QPointF, Qt, QTimer
+from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPen
+from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QHBoxLayout,

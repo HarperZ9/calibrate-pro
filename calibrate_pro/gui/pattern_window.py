@@ -14,8 +14,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PyQt6.QtCore import QPointF, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import (
+from PySide6.QtCore import QPointF, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import (
     QColor,
     QGuiApplication,
     QImage,
@@ -26,7 +26,7 @@ from PyQt6.QtGui import (
     QScreen,
     QShortcut,
 )
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 # =============================================================================
 # Pattern Types
@@ -494,8 +494,8 @@ class PatternCanvas(QWidget):
 class PatternWindow(QWidget):
     """Fullscreen window for displaying test patterns."""
 
-    pattern_changed = pyqtSignal(PatternConfig)
-    closed = pyqtSignal()
+    pattern_changed = Signal(PatternConfig)
+    closed = Signal()
 
     def __init__(self, screen: QScreen | None = None, parent: QWidget | None = None):
         super().__init__(parent)

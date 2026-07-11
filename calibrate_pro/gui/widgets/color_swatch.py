@@ -9,9 +9,9 @@ Displays color patches with:
 
 import math
 
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen
-from PyQt6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
 
 # =============================================================================
 # Color Conversion Utilities
@@ -167,7 +167,7 @@ def delta_e_2000(lab1: tuple[float, float, float], lab2: tuple[float, float, flo
 class ColorSwatch(QWidget):
     """Single color swatch display."""
 
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -398,7 +398,7 @@ class ColorInfoPanel(QWidget):
 class ColorGrid(QWidget):
     """Grid of color swatches (e.g., for ColorChecker display)."""
 
-    swatch_clicked = pyqtSignal(int)  # Index of clicked swatch
+    swatch_clicked = Signal(int)  # Index of clicked swatch
 
     def __init__(self, cols: int = 6, parent: QWidget | None = None):
         super().__init__(parent)

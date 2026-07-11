@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QColor, QFont
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QHBoxLayout,
@@ -41,8 +41,8 @@ class ProfileInfo:
 class ProfileScanner(QThread):
     """Background thread to scan for profiles."""
 
-    finished = pyqtSignal(list)
-    progress = pyqtSignal(str)
+    finished = Signal(list)
+    progress = Signal(str)
 
     # System profiles that should not be deleted
     SYSTEM_PROFILES = {

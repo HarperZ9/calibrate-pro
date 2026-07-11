@@ -2,9 +2,9 @@
 Calibration Page - Full calibration controls with target settings.
 """
 
-from PyQt6.QtCore import QSettings, Qt
-from PyQt6.QtGui import QGuiApplication
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,

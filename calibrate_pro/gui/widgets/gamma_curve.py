@@ -11,9 +11,9 @@ Displays gamma/EOTF curves with:
 import math
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QPointF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtCore import QPointF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 # =============================================================================
 # Gamma Functions
@@ -71,7 +71,7 @@ class CurveData:
 class GammaCurveWidget(QWidget):
     """Gamma/EOTF curve display widget."""
 
-    point_hovered = pyqtSignal(float, float, float)  # input, target, measured
+    point_hovered = Signal(float, float, float)  # input, target, measured
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)

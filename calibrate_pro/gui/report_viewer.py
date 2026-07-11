@@ -13,10 +13,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QFont, QPainter
-from PyQt6.QtPrintSupport import QPrinter
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Signal
+from PySide6.QtGui import QFont, QPainter
+from PySide6.QtPrintSupport import QPrinter
+from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -302,7 +302,7 @@ class ReportSummaryPanel(QWidget):
 class ReportViewer(QWidget):
     """Complete report viewer with export capabilities."""
 
-    report_exported = pyqtSignal(str)  # Path to exported file
+    report_exported = Signal(str)  # Path to exported file
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)

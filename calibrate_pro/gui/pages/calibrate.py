@@ -9,8 +9,8 @@ import sys
 import traceback
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
@@ -40,9 +40,9 @@ class CalibrationWorker(QThread):
     then runs the selected calibration mode.
     """
 
-    progress = pyqtSignal(str, float, str)  # message, 0-1, step name
-    finished = pyqtSignal(bool, str)  # success, result message
-    log_line = pyqtSignal(str)  # individual log lines
+    progress = Signal(str, float, str)  # message, 0-1, step name
+    finished = Signal(bool, str)  # success, result message
+    log_line = Signal(str)  # individual log lines
 
     def __init__(
         self,
@@ -195,10 +195,10 @@ class NativeCalibrationWorker(QThread):
     The worker waits for the patch to settle before measuring.
     """
 
-    progress = pyqtSignal(str, float, str)
-    finished = pyqtSignal(bool, str)
-    log_line = pyqtSignal(str)
-    show_patch = pyqtSignal(float, float, float)  # r, g, b for main thread to display
+    progress = Signal(str, float, str)
+    finished = Signal(bool, str)
+    log_line = Signal(str)
+    show_patch = Signal(float, float, float)  # r, g, b for main thread to display
 
     def __init__(self, display_index: int = 0, parent=None):
         super().__init__(parent)
@@ -378,10 +378,10 @@ class NativeCalibrationWorker(QThread):
 class HardwareFirstWorker(QThread):
     """Hardware-first calibration: DDC/CI + colorimeter + residual LUT."""
 
-    progress = pyqtSignal(str, float, str)
-    finished = pyqtSignal(bool, str)
-    log_line = pyqtSignal(str)
-    show_patch = pyqtSignal(float, float, float)
+    progress = Signal(str, float, str)
+    finished = Signal(bool, str)
+    log_line = Signal(str)
+    show_patch = Signal(float, float, float)
 
     def __init__(self, display_index: int = 0, parent=None):
         super().__init__(parent)
@@ -519,7 +519,7 @@ class HardwareFirstWorker(QThread):
 class ModeCard(Card):
     """Selectable mode card with icon area, title, and subtitle."""
 
-    clicked = pyqtSignal()
+    clicked = Signal()
 
     def __init__(
         self,
@@ -612,7 +612,7 @@ class ModeCard(Card):
 class CalibratePage(QWidget):
     """Full calibration workflow page."""
 
-    calibration_completed = pyqtSignal()  # emitted after any calibration finishes
+    calibration_completed = Signal()  # emitted after any calibration finishes
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1089,8 +1089,8 @@ class CalibratePage(QWidget):
 
         # Create the patch window on first call
         if not hasattr(self, "_patch_window") or self._patch_window is None:
-            from PyQt6.QtCore import Qt as QtConst
-            from PyQt6.QtWidgets import QWidget
+            from PySide6.QtCore import Qt as QtConst
+            from PySide6.QtWidgets import QWidget
 
             self._patch_window = QWidget()
             self._patch_window.setWindowFlags(

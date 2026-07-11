@@ -553,13 +553,17 @@ def cmd_disable_startup(args) -> int:
 
 def cmd_gui(args) -> int:
     """Launch the graphical user interface."""
+    from calibrate_pro.qt_runtime import configure_qt_api
+
+    configure_qt_api()
+
     try:
         from calibrate_pro.gui.main_window import main as gui_main
 
         return gui_main()
     except ImportError as e:
         print(f"Error: GUI not available - {e}")
-        print("Make sure PyQt6 is installed: pip install PyQt6")
+        print("Make sure PySide6 is installed: pip install PySide6")
         return 1
 
 

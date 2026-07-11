@@ -4,7 +4,7 @@ Settings Page - Application configuration interface.
 
 from pathlib import Path
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,

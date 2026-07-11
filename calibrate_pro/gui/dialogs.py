@@ -7,9 +7,9 @@ measurement window used for colorimeter-free calibration sequences.
 
 import random
 
-from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPixmap, QScreen
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QPoint, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPixmap, QScreen
+from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
     QFrame,
@@ -157,9 +157,9 @@ class SimulatedMeasurementWindow(QWidget):
     - Random color sequences for visual feedback
     """
 
-    measurement_complete = pyqtSignal(int, tuple)  # patch_index, (r, g, b)
-    sequence_complete = pyqtSignal()
-    closed = pyqtSignal()
+    measurement_complete = Signal(int, tuple)  # patch_index, (r, g, b)
+    sequence_complete = Signal()
+    closed = Signal()
 
     # Default measurement sequence - grayscale + primaries + ColorChecker subset
     DEFAULT_PATCHES = [
@@ -321,7 +321,7 @@ class SimulatedMeasurementWindow(QWidget):
         layout.addWidget(self.info_panel)
 
         # Keyboard shortcut to cancel
-        from PyQt6.QtGui import QKeySequence, QShortcut
+        from PySide6.QtGui import QKeySequence, QShortcut
 
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self._cancel_measurement)
 

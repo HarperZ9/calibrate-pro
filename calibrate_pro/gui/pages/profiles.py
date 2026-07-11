@@ -8,8 +8,8 @@ Scans ~/Documents/Calibrate Pro/Calibrations/ for .cube and .icc file pairs.
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -123,7 +123,7 @@ def _format_size(size_bytes: int) -> str:
 class ProfileCard(Card):
     """Card showing a single calibration profile."""
 
-    clicked = pyqtSignal(dict)
+    clicked = Signal(dict)
 
     def __init__(self, profile: dict, is_active: bool = False, parent=None):
         super().__init__(parent)
