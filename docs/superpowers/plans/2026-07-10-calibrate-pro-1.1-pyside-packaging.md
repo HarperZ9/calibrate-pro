@@ -229,7 +229,13 @@ assert 'pyside6' in {value.casefold() for value in message.get_all('Provides-Ext
 requirements = [Requirement(value) for value in message.get_all('Requires-Dist', [])]
 assert any(req.name.casefold() == 'qtpy' for req in requirements)
 assert any(req.name.casefold() == 'pyside6' and req.marker and 'pyside6' in str(req.marker).casefold() for req in requirements)
-assert not any(req.name.casefold() in {'pyqt5', 'pyqt6'} for req in requirements)
+assert not any(req.name.casefold() == 'pyqt5' for req in requirements)
+pyqt6_requirements = [req for req in requirements if req.name.casefold() == 'pyqt6']
+assert pyqt6_requirements
+for requirement in pyqt6_requirements:
+    assert requirement.marker is not None
+    assert requirement.marker.evaluate({'extra': 'pyqt6'}) is True
+    assert requirement.marker.evaluate({'extra': 'pyside6'}) is False
 
 app = QApplication.instance() or QApplication([])
 card = Card()
@@ -1078,6 +1084,7 @@ git commit -m "fix: require explicit provenance for HDR results"
 - Create: `calibrate_pro/adapters/__init__.py`
 - Create: `calibrate_pro/adapters/windows_display_state.py`
 - Create: `tests/test_workflow.py`
+- Create: `tests/test_windows_display_state_adapter.py`
 
 **Interfaces:**
 - Consumes: existing Windows DDC/CI, profile, gamma-ramp, and DWM LUT readers/writers only through `DefaultWindowsDisplayPorts`.
@@ -1130,6 +1137,25 @@ def test_restore_failure_preserves_both_errors() -> None:
 ```
 
 The test's `FakeAdapter` implements `capture(plan)`, `apply(plan)`, `verify(plan)`, and `restore(snapshot)` and records call order. Add a success assertion for `capture -> apply -> verify`, and verification-failure assertion for `capture -> apply -> verify -> restore`.
+
+Create `tests/test_windows_display_state_adapter.py` with an injected `FakeWindowsDisplayPorts` whose `icc_profile_path` starts as `None` and whose `set_icc_profile()` records calls:
+
+```python
+def test_restore_disassociates_profile_when_capture_had_no_association(tmp_path: Path) -> None:
+    ports = FakeWindowsDisplayPorts(icc_profile_path=None)
+    adapter = WindowsDisplayStateAdapter(ports)
+    profile = tmp_path / "new.icc"
+    profile.write_bytes(b"icc")
+    plan = make_plan(icc_profile_path=str(profile))
+    snapshot = adapter.capture(plan)
+    adapter.apply(plan)
+    assert ports.icc_profile_path == str(profile)
+    adapter.restore(snapshot)
+    assert ports.icc_profile_path is None
+    assert ports.set_icc_calls == [("display-1", str(profile)), ("display-1", None)]
+```
+
+The fake implements every `WindowsDisplayPorts` method in memory; no test imports Windows hardware modules.
 
 - [ ] **Step 2: Verify RED**
 
@@ -1233,12 +1259,14 @@ get_dwm_lut_paths(display_id: str) -> tuple[str, ...]
 set_dwm_lut_paths(display_id: str, paths: tuple[str, ...]) -> None
 ```
 
-`DefaultWindowsDisplayPorts` lazily maps those methods to `DDCCIController.get_vcp/set_vcp`, `panels.detection.get_display_profile/set_display_profile`, `panels.detection.get_gamma_ramp/set_gamma_ramp/reset_gamma_ramp`, and `DwmLutController.get_active_luts/load_lut_file/unload_lut/start_dwm_lut_gui`. `WindowsDisplayStateAdapter.capture(plan)` reads only the DDC codes present in the plan plus ICC, gamma, and DWM state; `apply()` performs only requested fields; `verify()` reads every changed field back; `restore()` restores all captured fields and raises one combined `RuntimeError` listing every failed restoration. No constructor probes hardware or writes state.
+`DefaultWindowsDisplayPorts` lazily maps DDC methods to `DDCCIController.get_vcp/set_vcp`, gamma methods to `panels.detection.get_gamma_ramp/set_gamma_ramp/reset_gamma_ramp`, and DWM methods to `DwmLutController.get_active_luts/load_lut_file/unload_lut/start_dwm_lut_gui`. ICC reads use `panels.detection.get_display_profile`. For a non-`None` ICC target, `set_icc_profile()` installs/associates that path and makes it default. For a `None` target, it first reads the current associated path; if present, it passes `Path(current).name` and `display_id` to `profiles.profile_installer.disassociate_profile_from_display`, raising `RuntimeError` when the returned success flag is false. It never passes `None` to `panels.detection.set_display_profile`, whose profile argument is a string. Thus restoring a snapshot with `icc_profile_path=None` removes the profile applied by the failed transaction, while restoring a captured path reassociates that exact prior path.
+
+`WindowsDisplayStateAdapter.capture(plan)` reads only the DDC codes present in the plan plus ICC, gamma, and DWM state; `apply()` performs only requested fields; `verify()` reads every changed field back; `restore()` restores all captured fields and raises one combined `RuntimeError` listing every failed restoration. No constructor probes hardware or writes state.
 
 - [ ] **Step 7: Run focused and full tests**
 
 ```powershell
-python -m pytest tests/test_workflow.py -q
+python -m pytest tests/test_workflow.py tests/test_windows_display_state_adapter.py -q
 python -m pytest -q
 ```
 
@@ -1247,7 +1275,7 @@ Expected: capability, confirmation, capture failure, apply failure, verification
 - [ ] **Step 8: Commit the sole actuator boundary**
 
 ```powershell
-git add calibrate_pro/workflow.py calibrate_pro/recovery.py calibrate_pro/actuation.py calibrate_pro/adapters tests/test_workflow.py
+git add calibrate_pro/workflow.py calibrate_pro/recovery.py calibrate_pro/actuation.py calibrate_pro/adapters tests/test_workflow.py tests/test_windows_display_state_adapter.py
 git commit -m "feat: enforce one transactional display actuator"
 ```
 
