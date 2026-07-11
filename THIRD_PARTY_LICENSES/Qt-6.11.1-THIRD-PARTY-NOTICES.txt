@@ -1,0 +1,881 @@
+Qt Base 6.11.1 third-party attributions
+=======================================
+
+Corresponding source:
+https://qt.mirror.constant.com/archive/qt/6.11/6.11.1/submodules/qtbase-everywhere-src-6.11.1.tar.xz
+SHA-256: d9594a31228aa23ad6b531719a29b45f0f3989fe6c136d45767ea179f233c1ac
+
+Calibrate Pro retains Qt Core, GUI, Network, Widgets, OpenGL,
+OpenGLWidgets, PrintSupport, and Windows Qt Base plugins. Optional Qt SVG,
+Qt PDF, Qt Image Formats, translations, and Mesa software OpenGL payloads are
+not redistributed. To avoid omitting a conditionally compiled Qt Base
+attribution, this file conservatively reproduces the official attribution
+metadata for third-party code used or potentially used by the retained
+Windows Qt Base modules. Inclusion of an attribution does not assert that
+an optional backend was enabled in the upstream wheel.
+
+Every block below is the verbatim qt_attribution.json payload from the exact
+hash-locked Qt Base archive. License files named by these records and the
+SPDX license texts under LICENSES/ are present in that corresponding-source
+archive. Qt's LGPL terms and relinking information are distributed separately
+in this directory.
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/blake2/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "blake2",
+    "Name": "BLAKE2 (reference implementation)",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core (QCryptographicHash).",
+    "Files": "src/blake2b-ref.c src/blake2s-ref.c src/blake2.h src/blake2-impl.h",
+
+    "Description": "BLAKE2 is a cryptographic hash function faster than MD5, SHA-1, SHA-2, and SHA-3, yet is at least as secure as the latest standard SHA-3.",
+    "Homepage": "https://blake2.net/",
+    "Version": "ed1974ea83433eba7b2d95c5dcd9ac33cb847913",
+    "DownloadLocation": "https://github.com/BLAKE2/BLAKE2/tree/ed1974ea83433eba7b2d95c5dcd9ac33cb847913",
+    "PURL": "pkg:github/BLAKE2/BLAKE2@$<VERSION>",
+    "CPE": "cpe:2.3:a:blake2:blake2:*:*:*:*:*:*:*:*",
+    "License": "Creative Commons Zero v1.0 Universal or Apache License 2.0",
+    "LicenseId": "CC0-1.0 OR Apache-2.0",
+    "LicenseFile": "COPYING",
+    "Copyright": "Copyright 2012, Samuel Neves <sneves@dei.uc.pt>"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/D3D12MemoryAllocator/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "d3d12memoryallocator",
+        "Name": "D3D12 Memory Allocator",
+        "QDocModule": "qtgui",
+        "Description": "D3D12 Memory Allocator",
+        "QtUsage": "Memory management for the D3D12 backend of QRhi.",
+
+        "Homepage": "https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator",
+        "Version": "f128d39b7a95b4235bd228d231646278dc6c24b2",
+        "PURL": "pkg:github/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator@$<VERSION>",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "LICENSE.txt",
+        "Copyright": "Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/double-conversion/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "doubleconversion",
+    "Name": "Efficient Binary-Decimal and Decimal-Binary Conversion Routines for IEEE Doubles",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core. Configure with -system-doubleconversion or -no-doubleconversion to avoid.",
+
+    "Homepage": "https://github.com/google/double-conversion",
+    "Version": "3.4.0",
+    "DownloadLocation": "https://github.com/google/double-conversion/releases/tag/v3.4.0",
+    "PURL": "pkg:github/google/double-conversion@v$<VERSION>",
+    "CPE": "cpe:2.3:a:google:double-conversion:$<VERSION>:*:*:*:*:*:*:*",
+    "License": "BSD 3-clause \"New\" or \"Revised\" License",
+    "LicenseId": "BSD-3-Clause",
+    "LicenseFile": "LICENSE",
+    "Copyright": "Copyright 2006-2012, the V8 project authors"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/easing/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "easing",
+    "Name": "Easing Equations by Robert Penner",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core (QEasingCurve).",
+    "Files": "easing.cpp",
+
+    "Comment": "treat as final, no relevant PURL or CPE found",
+    "Homepage": "http://robertpenner.com/easing/",
+    "License": "BSD 3-clause \"New\" or \"Revised\" License",
+    "LicenseId": "BSD-3-Clause",
+    "LicenseFile": "LICENSE",
+    "Copyright": "Copyright (c) 2001 Robert Penner"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/emoji-segmenter/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "emoji-segmenter",
+    "Name": "Emoji Segmenter",
+    "QDocModule": "qtgui",
+    "QtUsage": "Used in QtGui for parsing complex emoji sequences. Can be configured using the -emojisegmenter option.",
+    "SecurityCritical": true,
+
+    "Description": "A parser for emoji sequences.",
+    "Homepage": "https://github.com/google/emoji-segmenter",
+    "Version": "0.4.0",
+    "DownloadLocation": "https://github.com/google/emoji-segmenter/releases/tag/0.4.0",
+    "PURL": "pkg:github/google/emoji-segmenter@$<VERSION>",
+    "Comment": "no relevant CPE found",
+
+    "License": "Apache License 2.0",
+    "LicenseId": "Apache-2.0",
+    "Copyright": "Copyright 2019 Google LLC"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/freetype/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "freetype",
+        "Name": "Freetype 2",
+        "QDocModule": "qtgui",
+        "QtUsage": "Optionally used in Qt GUI and platform plugins. Configure with -no-freetype, or -system-freetype to avoid.",
+        "SecurityCritical": true,
+
+        "Description": "FreeType is a freely available software library to render fonts.",
+        "Homepage": "http://www.freetype.org",
+        "Version": "2.14.3",
+        "DownloadLocation": "https://download.savannah.gnu.org/releases/freetype/freetype-2.14.3.tar.gz",
+        "PURL": [
+            "pkg:github/freetype/freetype@VER-$<VERSION_DASHED>"
+        ],
+        "CPE": [
+            "cpe:2.3:a:freetype:freetype:$<VERSION>:*:*:*:*:*:*:*"
+        ],
+
+        "License": "Freetype Project License or GNU General Public License v2.0 only",
+        "LicenseId": "FTL OR GPL-2.0-only",
+        "LicenseFile": "LICENSE.txt",
+        "Copyright": ["Copyright (c) 2007-2014 Adobe Systems Incorporated",
+        "Copyright (c) 2004-2026 Albert Chin-A-Young",
+        "Copyright (c) 2018-2026 Armin Hasitzka, David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2000 Computing Research Labs, New Mexico State University",
+        "Copyright (c) 1996-2026 David Turner, Robert Wilhelm, Dominik RÃ¶ttsches, and Werner Lemberg",
+        "Copyright (c) 2004-2026 David Turner, Robert Wilhelm, Werner Lemberg and George Williams",
+        "Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, and Moazin Khatti",
+        "Copyright (c) 2008-2026 David Turner, Robert Wilhelm, Werner Lemberg, and suzuki toshiya",
+        "Copyright (c) 2003-2026 David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2005-2026 David Turner",
+        "Copyright (c) 2007-2026 Derek Clegg and Michael Toftdal",
+        "Copyright (c) 2007 Dmitry Timoshkov for Codeweavers",
+        "Copyright (c) 2001-2015 Francesco Zappa Nardelli",
+        "Copyright (c) 2005, 2007, 2008, 2013 George Williams",
+        "Copyright (c) 2013-2026 Google, Inc. Google Author(s) Behdad Esfahbod and Stuart Gill",
+        "Copyright (c) 2013-2022 Google, Inc.",
+        "Copyright (c) 2003 Huw D M Davies for Codeweavers",
+        "Copyright (c) 2010-2026 Joel Klinghed",
+        "Copyright (c) 1996-2026 Just van Rossum, David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2003-2026 Masatake YAMATO and Redhat K.K.",
+        "Copyright (c) 2004-2026 Masatake YAMATO, Redhat K.K, David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2019-2026 Nikhil Ramakrishnan, David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2009-2026 Oran Agra and Mickey Gabel",
+        "Copyright (c) 2007-2026 Rahul Bhalerao <rahul.bhalerao@redhat.com>",
+        "Copyright (c) 2002-2026 Roberto Alameda",
+        "Copyright (c) 2015-2026 Werner Lemberg",
+        "Copyright (c) 2004-2026 suzuki toshiya, Masatake YAMATO, Red Hat K.K., David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2019 nyorain",
+        "Copyright (c) 2022-2026 David Turner, Robert Wilhelm, Werner Lemberg, George Williams, and Dominik RÃ¶ttsches",
+        "Copyright (C) 2009, 2023  Red Hat, Inc."]
+    },
+    {
+        "Id": "freetype-zlib",
+        "Name": "Freetype 2 - zlib",
+        "QDocModule": "qtgui",
+        "QtUsage": "Optionally used in Qt GUI and platform plugins. Configure with -no-freetype, or -system-freetype to avoid.",
+        "Path": "src/gzip",
+
+        "Description": "FreeType is a freely available software library to render fonts.",
+        "Homepage": "http://www.freetype.org",
+        "License": "zlib License",
+        "LicenseId": "Zlib",
+        "LicenseFile": "ZLIB-LICENSE.txt",
+        "Copyright": "Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler"
+    },
+    {
+        "Id": "freetype-bdf",
+        "Name": "Freetype 2 - Bitmap Distribution Format (BDF) support",
+        "QDocModule": "qtgui",
+        "QtUsage": "Optionally used in Qt GUI and platform plugins. Configure with -no-freetype, or -system-freetype to avoid.",
+        "Path": "src/bdf",
+
+        "Description": "FreeType is a freely available software library to render fonts.",
+        "Homepage": "http://www.freetype.org",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "BDF-LICENSE.txt",
+        "Copyright": ["Copyright (c) 2000 Computing Research Labs, New Mexico State University",
+        "Copyright (c) 2001-2014 Francesco Zappa Nardelli"]
+    },
+    {
+        "Id": "freetype-pcf",
+        "Name": "Freetype 2 - Portable Compiled Format (PCF) support",
+        "QDocModule": "qtgui",
+        "QtUsage": "Optionally used in Qt GUI and platform plugins. Configure with -no-freetype, or -system-freetype to avoid.",
+        "Path": "src/pcf",
+
+        "Description": "FreeType is a freely available software library to render fonts.",
+        "Homepage": "http://www.freetype.org",
+        "License": "MIT License and MIT Open Group variant",
+        "LicenseId": "MIT AND MIT-open-group",
+        "LicenseFile": "PCF-LICENSE.txt",
+        "Copyright": ["Copyright (c) 2001, 2012 David Turner, Robert Wilhelm, and Werner Lemberg",
+        "Copyright (c) 2000-2014 Francesco Zappa Nardelli",
+        "Copyright (c) 1990, 1994, 1998 The Open Group"]
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/harfbuzz-ng/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "harfbuzz-ng",
+    "Name": "HarfBuzz-NG",
+    "QDocModule": "qtgui",
+    "QtUsage": "Optionally used in Qt GUI. Configure with -system-harfbuzz to force the use of the system library, or -qt-harfbuzz to link statically to the library that is bundled with your Qt version.",
+    "SecurityCritical": true,
+
+    "Description": "HarfBuzz is an OpenType text shaping engine.",
+    "Homepage": "http://harfbuzz.org",
+    "Version": "14.2.0",
+    "DownloadLocation": "https://github.com/harfbuzz/harfbuzz/releases/tag/14.2.0",
+    "PURL": "pkg:github/harfbuzz/harfbuzz@$<VERSION>",
+    "CPE": "cpe:2.3:a:harfbuzz_project:harfbuzz:$<VERSION>:*:*:*:*:*:*:*",
+    "License": "MIT License",
+    "LicenseId": "MIT",
+    "LicenseFile": "COPYING",
+    "Copyright": ["Copyright Â© 2010-2022  Google, Inc.",
+    "Copyright Â© 2015-2020  Ebrahim Byagowi",
+    "Copyright Â© 2019,2020  Facebook, Inc.",
+    "Copyright Â© 2012,2015  Mozilla Foundation",
+    "Copyright Â© 2011  Codethink Limited",
+    "Copyright Â© 2008,2010  Nokia Corporation and/or its subsidiary(-ies)",
+    "Copyright Â© 2009  Keith Stribley",
+    "Copyright Â© 2011  Martin Hosken and SIL International",
+    "Copyright Â© 2007  Chris Wilson",
+    "Copyright Â© 2005,2006,2020,2021,2022,2023  Behdad Esfahbod",
+    "Copyright Â© 2004,2007,2008,2009,2010,2013,2021,2022,2023  Red Hat, Inc.",
+    "Copyright Â© 1998-2005  David Turner and Werner Lemberg",
+    "Copyright Â© 2016  Igalia S.L.",
+    "Copyright Â© 2022  Matthias Clasen",
+    "Copyright Â© 2018,2021  Khaled Hosny",
+    "Copyright Â© 2018,2019,2020  Adobe, Inc",
+    "Copyright Â© 2013-2015  Alexei Podtelezhnikov"]
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/icc/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "icc-srgb-color-profile",
+        "Name": "sRGB color profile icc file",
+        "QDocModule": "qtgui",
+        "QtUsage": "Used in Qt Gui (Embedded into PDF/A-1b files generated by QPrinter/QPdfWriter).",
+        "Files": "sRGB2014.icc",
+
+        "Comment": "No upstream: treat as final, no relevant CPE found",
+        "Description": "An ICC color profile for PDF/A-1b compatible PDF files.",
+        "Homepage": "http://www.color.org/",
+        "PURL": "pkg:generic/icc-sRGB-color-profile?download_url=http://www.color.org/",
+        "LicenseId": "LicenseRef-ICC-License",
+        "License": "International Color Consortium License",
+        "LicenseFile": "LICENSE.txt",
+        "Copyright": "Copyright International Color Consortium, 2015"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/libjpeg/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "libjpeg",
+    "Name": "LibJPEG-turbo",
+    "QDocModule": "qtgui",
+    "QtUsage": "Used in the qjpeg image plugin. Configure with -system-libjpeg or -no-libjpeg to avoid.",
+    "SecurityCritical": true,
+
+    "Description": "The Independent JPEG Group's JPEG software",
+    "Homepage": "http://libjpeg-turbo.virtualgl.org/",
+    "Version": "3.1.4",
+    "DownloadLocation": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.1.4/libjpeg-turbo-3.1.4.tar.gz",
+    "PURL": "pkg:github/libjpeg-turbo/libjpeg-turbo@$<VERSION>",
+    "CPE": "cpe:2.3:a:libjpeg-turbo:libjpeg-turbo:$<VERSION>:*:*:*:*:*:*:*",
+
+    "License": "Independent JPEG Group License and BSD 3-Clause \"New\" or \"Revised\" License",
+    "LicenseId": "IJG AND BSD-3-Clause",
+    "LicenseFiles": [ "LICENSE", "ijg-license.txt" ],
+    "CopyrightFile": "COPYRIGHT.txt"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/libpng/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "libpng",
+    "Name": "LibPNG",
+    "QDocModule": "qtgui",
+    "QtUsage": "Used in the qpng image plugin. Configure with -system-libpng or -no-libpng to avoid.",
+    "SecurityCritical": true,
+
+    "Description": "libpng is the official PNG reference library.",
+    "Homepage": "http://www.libpng.org/pub/png/libpng.html",
+    "Version": "1.6.58",
+    "DownloadLocation": "https://download.sourceforge.net/libpng/libpng-1.6.58.tar.xz",
+    "PURL": "pkg:github/pnggroup/libpng@v$<VERSION>",
+    "CPE": "cpe:2.3:a:libpng:libpng:$<VERSION>:*:*:*:*:*:*:*",
+
+    "License": "libpng License and PNG Reference Library version 2",
+    "LicenseId": "Libpng AND libpng-2.0",
+    "LicenseFile": "LICENSE",
+    "Copyright": ["Copyright (c) 1995-2026 The PNG Reference Library Authors",
+    "Copyright (c) 2000-2026 Cosmin Truta",
+    "Copyright (c) 1998-2018 Glenn Randers-Pehrson",
+    "Copyright (c) 1996-1997 Andreas Dilger",
+    "Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.",
+    "Copyright (c) 2000-2017 Simon-Pierre Cadieux",
+    "Copyright (c) 2000-2017 Eric S. Raymond",
+    "Copyright (c) 2000-2017 Mans Rullgard",
+    "Copyright (c) 2000-2017 Gilles Vollant",
+    "Copyright (c) 2000-2017 James Yu",
+    "Copyright (c) 2000-2017 Mandar Sahastrabuddhe",
+    "Copyright (c) 1998-2000 Tom Lane",
+    "Copyright (c) 1998-2000 Willem van Schaik",
+    "Copyright (c) 1996-1997 John Bowler",
+    "Copyright (c) 1996-1997 Kevin Bracey",
+    "Copyright (c) 1996-1997 Sam Bushell",
+    "Copyright (c) 1996-1997 Magnus Holmgren",
+    "Copyright (c) 1996-1997 Greg Roelofs",
+    "Copyright (c) 1996-1997 Tom Tanner",
+    "Copyright (c) 1995-1996 Dave Martindale",
+    "Copyright (c) 1995-1996 Paul Schmidt",
+    "Copyright (c) 1995-1996 Tim Wegner"]
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/libpsl/qt_attribution.json
+------------------------------------------------------------------------
+[
+{
+    "Id": "psl-data",
+    "Name": "The Public Suffix List",
+    "QDocModule": "qtnetwork",
+    "Description": "The Public Suffix List is an initiative of Mozilla,
+but is maintained as a community resource. It is available for use in any software,
+but was originally created to meet the needs of browser manufacturers.
+It allows browsers to, for example:
+
+- Avoid privacy-damaging \"supercookies\" being set for high-level domain name suffixes
+
+- Highlight the most important part of a domain name in the user interface
+
+- Accurately sort history entries by site",
+    "Files": "psl_data.cpp",
+    "QtUsage": "Used in Qt Network to avoid setting \"supercookies\" in the cookie jar
+supported by Qt (by the QNetworkCookieJar class).",
+
+    "Comment": "Consult https://github.com/publicsuffix/list for the sha1 but download from ...",
+    "Homepage": "http://publicsuffix.org/",
+    "Comment": "Suggested update schedule: twice per year (before a 6.x.0 release), no relevant CPE found",
+    "Comment": "Updated by util/update_public_suffix_list.sh; if you add fields here, update the script, too!",
+    "Version": "2026-01-16_13-11-47_UTC",
+    "DownloadLocation": "https://publicsuffix.org/list/public_suffix_list.dat",
+    "PURL": "pkg:generic/psl-data@944fb53321606f08740f04ef7c386f64df34ff76?download_url=https://publicsuffix.org/list/public_suffix_list.dat",
+
+    "License": "Mozilla Public License 2.0",
+    "LicenseFile": "PSL-LICENSE.txt",
+    "LicenseId": "MPL-2.0",
+    "Copyright": "The list was originally provided by Jo Hermans <jo.hermans@gmail.com>.\nIt is now maintained on github (https://github.com/publicsuffix/list)."
+},
+{
+    "Id": "libpsl",
+    "Name": "libpsl - C library to handle the Public Suffix List",
+    "QDocModule": "qtnetwork",
+    "Description": "Libpsl allows checking domains against the Public Suffix List.",
+    "Files": [ "src/lookup_string_in_fixed_set.c", "src/psl-make-dafsa" ],
+    "QtUsage": "Used to compress the embedded copy of publicsuffix list and
+to lookup entries in it.",
+    "Homepage": "https://github.com/rockdaboot/libpsl",
+    "Version": "664f3dc85259ec65e30248a61fa1c45b7b0e4c3f",
+    "PURL": "pkg:github/rockdaboot/libpsl@$<VERSION>",
+    "License": "BSD 3-clause \"New\" or \"Revised\" License",
+    "LicenseFile": "src/LICENSE.chromium",
+    "LicenseId": "BSD-3-Clause",
+    "Copyright": "Copyright 2014-2016 The Chromium Authors. All rights reserved.",
+    "Comment": "no relevant CPE found"
+}
+]
+
+…1361 tokens truncated…----------------
+{
+    "Id": "sha1",
+    "Name": "Secure Hash Algorithm SHA-1",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core (QCryptographicHash).",
+
+    "Description": "Implements the Secure Hash Algorithms SHA 1",
+    "PURL": "pkg:generic/csha1?download_url=https://www.dominik-reichl.de/projects/csha1/",
+    "Homepage": "http://www.dominik-reichl.de/projects/csha1/",
+    "License": "Public Domain",
+    "LicenseId": "LicenseRef-SHA1-Public-Domain",
+    "Copyright": ["Copyright (C) Dominik Reichl <dominik.reichl@t-online.de>",
+    "Copyright (C) 2016 The Qt Company Ltd"],
+    "Comment": "no relevant CPE found"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/sha3/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "sha3_endian",
+        "Name": "Secure Hash Algorithm SHA-3 - brg_endian",
+        "QDocModule": "qtcore",
+        "QtUsage": "Used in Qt Core (QCryptographicHash).",
+        "Comment": "apply brg_endian.h.patch to upstream from https://github.com/BrianGladman/sha/",
+        "Files": "brg_endian.h",
+
+        "Description": "SHA-3, originally known as Keccak, is a cryptographic hash function.",
+        "Version": "1.0.0",
+        "PURL": "pkg:github/BrianGladman/sha@$<VERSION>",
+        "License": "BSD 2-clause \"Simplified\" License",
+        "LicenseFile": "BRG_ENDIAN_LICENSE",
+        "LicenseId": "BSD-2-Clause",
+        "Copyright": "Copyright (c) 1998-2013, Brian Gladman, Worcester, UK. All rights reserved.",
+        "Comment": "no relevant CPE found"
+    },
+    {
+        "Id": "sha3_keccak",
+        "Name": "Secure Hash Algorithm SHA-3 - Keccak",
+        "QDocModule": "qtcore",
+        "QtUsage": "Used in Qt Core (QCryptographicHash).",
+        "Comment": { "ObsoleteSource":
+                     "https://keccak.team/obsolete/KeccakReferenceAndOptimized-3.2.zip",
+                     "PatchApplied": "overflow.patch" },
+        "Files": [ "KeccakF-1600-32-rvk.macros",
+                   "KeccakF-1600-32.macros",
+                   "KeccakF-1600-64.macros",
+                   "KeccakF-1600-interface.h",
+                   "KeccakF-1600-opt32.c",
+                   "KeccakF-1600-opt64.c",
+                   "KeccakF-1600-unrolling.macros",
+                   "KeccakNISTInterface.c",
+                   "KeccakNISTInterface.h",
+                   "KeccakSponge.c",
+                   "KeccakSponge.h" ],
+
+        "Description": "SHA-3, originally known as Keccak, is a cryptographic hash function.",
+        "Version": "3.2",
+        "PURL": "pkg:generic/sha3_keccak@$<VERSION>?download_url=https://keccak.team/obsolete/KeccakReferenceAndOptimized-3.2.zip",
+        "License": "Creative Commons Zero v1.0 Universal",
+        "LicenseId": "CC0-1.0",
+        "LicenseFile": "CC0_LICENSE",
+        "Copyright": "Guido Bertoni, Joan Daemen, MichaÃ«l Peeters and Gilles Van Assche.\nTo the extent possible under law, the implementers have waived all copyright
+and related or neighboring rights to the source code in this file.",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/siphash/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "siphash",
+    "Name": "SipHash Algorithm",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core (QHash)",
+    "Files": "siphash.cpp",
+
+    "Description": "Implements the SipHash algorithm.",
+    "Homepage": "https://131002.net/siphash/",
+    "DownloadLocation": "https://raw.githubusercontent.com/veorq/SipHash/adcbf09b1684a718f594faa650ffc56bacdb0777/siphash24.c",
+    "PURL": "pkg:github/veorq/SipHash@adcbf09b1684a718f594faa650ffc56bacdb0777",
+
+    "License": "Creative Commons Zero v1.0 Universal",
+    "LicenseId": "CC0-1.0",
+    "Copyright": [
+        "Copyright (C) 2012-2014 Jean-Philippe Aumasson",
+        "Copyright (C) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>",
+        "Copyright (C) 2016 Intel Corporation"
+    ],
+    "Comment": "no relevant CPE found"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/tinycbor/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "tinycbor",
+    "Name": "TinyCBOR",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used for QCborStreamReader and QCborStreamWriter.",
+    "SecurityCritical": true,
+
+    "Description": "Concise Binary Object Representation (CBOR) Library",
+    "Homepage": "https://github.com/intel/tinycbor",
+    "License": "MIT License",
+    "LicenseId": "MIT",
+    "LicenseFile": "LICENSE",
+    "DownloadLocation": "https://github.com/intel/tinycbor/archive/v7.0/tinycbor-7.0.tar.gz",
+    "PURL": "pkg:github/intel/tinycbor@v$<VERSION>",
+    "CPE": "cpe:2.3:a:tinycbor:tinycbor:$<VERSION>:*:*:*:*:*:*:*",
+    "Version": "7.0",
+    "Copyright": "Copyright (C) 2015-2025 Intel Corporation"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/VulkanMemoryAllocator/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "vulkanmemoryallocator",
+        "Name": "Vulkan Memory Allocator",
+        "QDocModule": "qtgui",
+        "Description": "Vulkan Memory Allocator",
+        "QtUsage": "Memory management for the Vulkan backend of QRhi.",
+
+        "Homepage": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "Version": "3.2.1",
+        "PURL": "pkg:github/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator@v$<VERSION>",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "LICENSE.txt",
+        "Copyright": "Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All rights reserved.",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/wintab/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "wintab",
+    "Name": "Wintab API",
+    "QDocModule": "qtgui",
+    "QtUsage": "Used in the Qt platform plugin for Windows. Configure with -no-feature-tabletevent to avoid.",
+    "Files": ["pktdef.h", "wintab.h"],
+
+    "Description": "Wintab is a de facto API for pointing devices on Windows.",
+    "PackageComment": "Upstream http://www.pointing.com/Wintab.html no longer offers updates; treat as final, no relevant CPE and PURL found",
+    "License": "LCS-Telegraphics License",
+    "LicenseId": "LicenseRef-Lcs-Telegraphics",
+    "Copyright": "Copyright 1991-1998 by LCS/Telegraphics."
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/3rdparty/zlib/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "zlib",
+    "Name": "Data Compression Library (zlib)",
+    "QDocModule": "qtcore",
+    "QtUsage": "Optionally used in Qt Core and development tools. Configure with -system-zlib to avoid.",
+    "SecurityCritical": true,
+
+    "Description": "zlib is a general purpose data compression library.",
+    "Homepage": "https://zlib.net/",
+    "Version": "1.3.2",
+    "DownloadLocation": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+    "PURL": "pkg:github/madler/zlib@v$<VERSION>",
+    "CPE": "cpe:2.3:a:zlib:zlib:$<VERSION>:*:*:*:*:*:*:*",
+
+    "License": "zlib License",
+    "LicenseId": "Zlib",
+    "LicenseFile": "LICENSE",
+    "Copyright": "(C) 1995-2026 Jean-loup Gailly and Mark Adler"
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/corelib/global/qt_attribution.json
+------------------------------------------------------------------------
+{
+    "Id": "tlexpected",
+    "Name": "tl::expected",
+    "QDocModule": "qtcore",
+    "QtUsage": "Available as a private type in all Qt modules",
+    "Description": "Single header implementation of std::expected with functional-style extensions.",
+    "Files": [ "qexpected_p.h" ],
+    "Homepage": "https://github.com/TartanLlama/expected/",
+    "Version": "41d3e1f48d682992a2230b2a715bca38b848b269",
+    "DownloadLocation": "https://github.com/TartanLlama/expected/blob/41d3e1f48d682992a2230b2a715bca38b848b269/include/tl/expected.hpp",
+    "License": "Creative Commons Zero v1.0 Universal",
+    "LicenseId": "CC0-1.0",
+    "Copyright": "To the extent possible under law, Sy Brand has waived all copyright and related or neighboring rights to the expected library. This work is published from: United Kingdom."
+}
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/corelib/mimetypes/3rdparty/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "tika-mimetypes",
+        "Name": "Apache Tika MimeType Definitions",
+        "QDocModule": "qtcore",
+        "QtUsage":
+                "Qt Core uses a copy of the Apache Tika MimeType Definitions if shared-mime-info isn't installed on the system.",
+        "Comment": {
+            "Files":
+                    "For update, see qtbase/src/corelib/mimetypes/3rdparty/process_tika_mimetypes.py"
+        },
+        "Files": [
+            "tika-mimetypes.xml"
+        ],
+        "Description":
+                "The Apache Tika MimeTypes list many known MIME types and how to match files (using globs and/or 'magic' rules for the file contents)",
+        "Homepage":
+                "https://github.com/apache/tika/tree/main/tika-core/src/main/resources/org/apache/tika/mime",
+        "Version": "408c26e1e03e018a623e732dff6fb047a2fb8e19",
+        "DownloadLocation":
+                "https://github.com/apache/tika/blob/408c26e1e03e018a623e732dff6fb047a2fb8e19/tika-core/src/main/resources/org/apache/tika/mime/tika-mimetypes.xml",
+        "PURL": "pkg:github/apache/tika@$<VERSION>#tika-core/src/main/resources/org/apache/tika/mime/tika-mimetypes.xml",
+        "CPE": "cpe:2.3:a:apache:tika:*:*:*:*:*:*:*:*",
+        "License": "Apache License 2.0",
+        "LicenseId": "Apache-2.0",
+        "Copyright": "Copyright 2026 The Apache Software Foundation"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/corelib/text/qt_attribution.json
+------------------------------------------------------------------------
+[
+{
+    "Id": "unicode-character-database",
+    "Name": "Unicode Character Database (UCD)",
+    "QDocModule": "qtcore",
+    "QtUsage": "Qt Core uses data obtained from UCD files for working with characters and strings.",
+    "SecurityCritical": false,
+    "Comment": {
+        "Files": "For update, see qtbase/util/unicode/README",
+        "General": "no relevant CPE and PURL found"
+    },
+    "Files": [ "qunicodetables_p.h", "qunicodetables.cpp" ],
+
+    "Description": "The Unicode Character Database (UCD) is a set of files that
+ define the Unicode character properties and internal mappings.",
+    "Homepage": "https://www.unicode.org/ucd/",
+    "Comment": {
+        "Version": [ "Don't use the Unicode standard version;",
+                     "UCD has its own 'Revision' numbers",
+                     "see the 'UAX #44, UCD' page (https://www.unicode.org/reports/tr44/)" ]},
+    "Version": "36",
+    "License": "Unicode License Agreement - Data Files and Software (2016)",
+    "LicenseId": "Unicode-3.0",
+    "Copyright": "Copyright (C) 1991-2025 Unicode, Inc."
+},
+{
+    "Id": "unicode-cldr",
+    "Name": "Unicode Common Locale Data Repository (CLDR)",
+    "QDocModule": "qtcore",
+    "QtUsage": "Used in Qt Core (QTimeZone, QLocale).",
+    "SecurityCritical": false,
+    "Comment": {
+        "Files": "For update, see qtbase/util/locale_database/cldr2qlocalexml.py",
+        "General": "no relevant CPE and PURL found"
+    },
+    "Files": [ "qlocale_data_p.h",
+               "../time/qtimezoneprivate_data_p.h", "../time/qtimezonelocale_data_p.h",
+               "../time/qhijricalendar_data_p.h", "../time/qjalalicalendar_data_p.h",
+               "../time/qromancalendar_data_p.h",
+               "../../../util/locale_database/testlocales/localemodel.cpp" ],
+
+    "Description": "The Unicode CLDR provides key building blocks for software to support the
+ world's languages, with the largest and most extensive standard repository of locale data
+ available.",
+    "Homepage": "https://cldr.unicode.org/",
+    "Version": "v48.1",
+    "License": "Unicode License v3",
+    "LicenseId": "Unicode-3.0",
+    "Copyright": "Copyright (C) 2004-2025 Unicode, Inc."
+}
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/gui/opengl/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "opengl-headers",
+        "Name": "OpenGL Headers",
+        "QDocModule": "qtgui",
+        "Description": "OpenGL header generated from the Khronos OpenGL / OpenGL ES XML API Registry.",
+        "QtUsage": "Used on Windows and Linux in the OpenGL related headers of Qt GUI.",
+        "Files": "qopenglext.h",
+
+        "Homepage": "https://www.khronos.org/",
+        "Version": "Revision 27684",
+        "PURL": "pkg:generic/khronos-opengl-headers?download_url=https://www.khronos.org/?revision=27684",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "LICENSE.KHRONOS.txt",
+        "Copyright": "Copyright (c) 2013-2014 The Khronos Group Inc.",
+        "Comment": "no relevant CPE found"
+    },
+    {
+        "Id": "opengl-es2-headers",
+        "Name": "OpenGL ES 2 Headers",
+        "QDocModule": "qtgui",
+        "Description": "OpenGL ES 2 header generated from the Khronos OpenGL / OpenGL ES XML API Registry.",
+        "QtUsage": "Used on Windows and Linux in the OpenGL related headers of Qt GUI.",
+        "Files": "qopengles2ext.h",
+
+        "Homepage": "https://www.khronos.org/",
+        "Version": "Revision 27673",
+        "PURL": "pkg:generic/khronos-opengl-es2-headers?download_url=https://www.khronos.org/?revision=27673",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "LICENSE.KHRONOS.txt",
+        "Copyright": "Copyright (c) 2013-2014 The Khronos Group Inc.",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/gui/painting/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "grayraster",
+        "Name": "Anti-aliasing rasterizer from FreeType 2",
+        "QDocModule": "qtgui",
+        "QtUsage": "Used in Qt GUI.",
+        "Files": "qgrayraster.c",
+
+        "Description": "FreeType is a freely available software library to render fonts.",
+        "Homepage": "http://www.freetype.org",
+        "PURL": "pkg:generic/freetype-grayraster?download_url=https://www.freetype.org/",
+        "License": "Freetype Project License or GNU General Public License v2.0 only",
+        "LicenseId": "FTL OR GPL-2.0-only",
+        "LicenseFile": "../../3rdparty/freetype/LICENSE.txt",
+        "Copyright": "Copyright 2000-2016 by David Turner, Robert Wilhelm, and Werner Lemberg.",
+        "Comment": "no relevant CPE found"
+    },
+    {
+        "Id": "smooth-scaling-algorithm",
+        "Name": "Smooth Scaling Algorithm",
+        "QDocModule": "qtgui",
+        "QtUsage": "Used in Qt Gui (QImage::transformed() functions).",
+        "Files": "qimagescale.cpp",
+
+        "Description": "Normal smoothscale method, based on Imlib2's smoothscale.",
+        "LicenseId": "BSD-2-Clause AND Imlib2",
+        "License": "BSD 2-clause \"Simplified\" License and Imlib2 License",
+        "LicenseFile": "LICENSE.QIMAGETRANSFORM.txt",
+        "Copyright": ["Copyright (C) 2004, 2005 Daniel M. Duley.",
+        "(C) Carsten Haitzler and various contributors.",
+        "(C) Willem Monsuwe <willem@stack.nl>"],
+        "Comment": "no relevant CPE or PURL found"
+    },
+    {
+        "Id": "xserverhelper",
+        "Name": "X Server helper",
+        "QDocModule": "qtgui",
+        "QtUsage": "Used in Qt GUI (QRegion).",
+        "Files": "qregion.cpp",
+
+        "Description": "Code from X11's region.h, Region.c, poly.h, and PolyReg.c",
+        "Homepage": "https://www.x.org/",
+        "PURL": "pkg:generic/xserverhelper?download_url=https://www.x.org/",
+        "License": "X11 License and Historical Permission Notice and Disclaimer",
+        "LicenseId": "X11 AND HPND",
+        "LicenseFile": "LICENSE.XCONSORTIUM.txt",
+        "Copyright": ["Copyright (c) 1987, 1988 X Consortium",
+        "Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts."],
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/gui/rhi/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "rhi-miniengine-d3d12-mipmap",
+        "Name": "Mipmap generator for D3D12",
+        "QDocModule": "qtgui",
+        "Description": "Compute shader for mipmap generation from MiniEngine in DirectX-Graphics-Samples",
+        "QtUsage": "Compute shader for mipmap generation with Direct 3D 12",
+        "Files": [ "mipmap.hlsl" ],
+
+        "Homepage": "https://github.com/microsoft/DirectX-Graphics-Samples",
+        "Version": "0aa79bad78992da0b6a8279ddb9002c1753cb849",
+        "PURL": "pkg:github/microsoft/DirectX-Graphics-Samples@$<VERSION>",
+        "License": "MIT License",
+        "LicenseId": "MIT",
+        "LicenseFile": "LICENSE.MiniEngine.txt",
+        "Copyright": "Copyright (c) 2015 Microsoft",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/gui/text/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "aglfn",
+        "Name": "Adobe Glyph List For New Fonts",
+        "QDocModule": "qtgui",
+        "Description": "Provides standardized names for glyphs.",
+        "QtUsage": "Used by PDF generator to make it easier for reader applications to resolve  the original contents of rendered text.",
+        "Files": "qfontsubset_agl.cpp",
+
+        "Homepage": "https://github.com/adobe-type-tools/agl-aglfn",
+        "Version": "1.7",
+        "PURL": "pkg:github/adobe-type-tools/agl-aglfn@$<VERSION>",
+        "License": "BSD 3-Clause \"New\" or \"Revised\" License",
+        "LicenseId": "BSD-3-Clause",
+        "LicenseFile": "LICENSE.AGLFN.txt",
+        "Copyright": "Copyright 2002, 2003, 2005, 2006, 2008, 2010, 2015 Adobe Systems",
+        "Comment": "no relevant CPE found"
+    }
+]
+
+
+------------------------------------------------------------------------
+qt_attribution.json: src/gui/vulkan/qt_attribution.json
+------------------------------------------------------------------------
+[
+    {
+        "Id": "vulkan-xml-spec",
+        "Name": "Vulkan API Registry",
+        "QDocModule": "qtgui",
+        "Description": "Vulkan XML API Registry.",
+        "QtUsage": "Used to dynamically generate the sources for the QVulkan(Device)Functions classes.",
+        "Files": "vk.xml",
+
+        "Homepage": "https://www.khronos.org/",
+        "PURL": "pkg:github/KhronosGroup/Vulkan-Docs@v$<VERSION>?download_url=https://github.com/KhronosGroup/Vulkan-Docs/blob/v1.4.308/xml/vk.xml",
+        "CPE": "cpe:2.3:a:khronos:vulkan:1.4.308:*:*:*:*:*:*:*",
+        "Version": "1.4.308",
+        "License": "Apache License 2.0 or MIT License",
+        "LicenseId": "Apache-2.0 OR MIT",
+        "LicenseFile": "LICENSE.txt",
+        "Copyright": "Copyright (c) 2015-2025 The Khronos Group Inc."
+    }
+]

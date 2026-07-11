@@ -1,0 +1,65 @@
+Microsoft Visual C++ Runtime redistribution notice
+=================================================
+
+The Windows package contains Microsoft Visual C++ Runtime redistributable
+binary files. These files are proprietary Microsoft distributable code, not
+open-source components. Their immutable binary origins are recorded in
+packaging/binary-provenance.lock.json. The source-provenance offer is
+not corresponding source for these Microsoft binaries and does not claim that
+Microsoft publishes their source code.
+
+The root CPython runtime copies originate in the official CPython 3.12.10
+amd64 installer. The copies beneath PySide6 and shiboken6 originate in the
+exact Qt for Python wheels recorded in the binary lock. The private NumPy
+copy originates in the exact NumPy wheel recorded there.
+
+Staged file, file version, SHA-256
+---------------------------------
+
+_internal/VCRUNTIME140.dll
+14.42.34438.0
+052ad6a20d375957e82aa6a3c441ea548d89be0981516ca7eb306e063d5027f4
+
+_internal/VCRUNTIME140_1.dll
+14.42.34438.0
+6a99bc0128e0c7d6cbbf615fcc26909565e17d4ca3451b97f8987f9c6acbc6c8
+
+_internal/numpy.libs/msvcp140-a4c2229bdc2a2a630acdc095b4d86008.dll
+14.40.33810.0
+a4c2229bdc2a2a630acdc095b4d86008e5c3e3bc7773174354f3da4f5beb9cde
+
+_internal/PySide6/MSVCP140.dll
+14.44.35211.0
+708dd7bbc7bd23bce9e93f7837a70c2dd7ad55cff43801e92c0f7fcd7dda47cd
+
+_internal/PySide6/MSVCP140_1.dll
+14.44.35211.0
+b2113956aa3fcb9decfe65be1ee7829f8e3ae0899633ae89fe04888ada201594
+
+_internal/PySide6/MSVCP140_2.dll
+14.44.35211.0
+1b806b427ffb573deff8478cf6fe336465fe2c67e0919bb95f452b6f31d25736
+
+_internal/PySide6/VCRUNTIME140.dll
+14.44.35211.0
+c6e841078cd352299a58925991e2552f7251b046253ba895b3ad50cd5cd32ec6
+
+_internal/PySide6/VCRUNTIME140_1.dll
+14.44.35211.0
+b322e382ea249b50009f14a9a71ad16729eb6e4b58a8d3b3be6ac66ea6342a22
+
+_internal/shiboken6/MSVCP140.dll
+14.44.35211.0
+005f2324c7ff79bbe9a44992b0708abb4c871bd24bcc7a34aca5eab4439c1f4a
+
+_internal/shiboken6/VCRUNTIME140.dll
+14.44.35211.0
+8d9c679c825c5fff298d66c41af30f35c289fc101868dfc9635547bada0daba6
+
+_internal/shiboken6/VCRUNTIME140_1.dll
+14.44.35211.0
+e4d7ea5f4f4ff6d0c208e693853617cdef0ad71cfe5dd5c3ae16c8a6b64c18ea
+
+Redistribution remains governed by the Microsoft terms applicable to the
+Visual C++ Redistributable files. This notice records provenance; it does not
+replace or expand Microsoft's license grant.
