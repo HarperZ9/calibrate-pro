@@ -41,10 +41,11 @@ Usage:
     )
 """
 
+import numpy as np
+
 # =============================================================================
 # Color Math - Basic color space conversions
 # =============================================================================
-
 # =============================================================================
 # ACES 2.0 - Academy Color Encoding System
 # =============================================================================
@@ -105,13 +106,6 @@ from calibrate_pro.core.color_models import (
     xyz_to_cam16_jmh,
     xyz_to_jzazbz,
 )
-from calibrate_pro.core.color_models import (
-    # PQ transfer functions
-    pq_eotf as pq_eotf_10000,
-)
-from calibrate_pro.core.color_models import (
-    pq_oetf as pq_oetf_10000,
-)
 
 # =============================================================================
 # Advanced LUT Engine - 256³, CAM16 gamut mapping, HDR
@@ -124,6 +118,19 @@ from calibrate_pro.core.lut_engine_advanced import (
     # LUT manipulation
     LUTManipulator,
 )
+from calibrate_pro.core.pq import ST2084_PEAK_NITS as _ST2084_PEAK_NITS
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
+
+def pq_eotf_10000(E: np.ndarray) -> np.ndarray:
+    """Decode PQ using the fixed 10,000-nit compatibility reference."""
+    return _canonical_pq_eotf(E, peak_luminance=_ST2084_PEAK_NITS)
+
+
+def pq_oetf_10000(Y: np.ndarray) -> np.ndarray:
+    """Encode luminance using the fixed 10,000-nit compatibility reference."""
+    return _canonical_pq_oetf(Y, peak_luminance=_ST2084_PEAK_NITS)
 
 # =============================================================================
 # Public API

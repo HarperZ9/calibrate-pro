@@ -36,22 +36,31 @@ from pathlib import Path
 
 import numpy as np
 
+from calibrate_pro.core.pq import ST2084_C1 as _ST2084_C1
+from calibrate_pro.core.pq import ST2084_C2 as _ST2084_C2
+from calibrate_pro.core.pq import ST2084_C3 as _ST2084_C3
+from calibrate_pro.core.pq import ST2084_M1 as _ST2084_M1
+from calibrate_pro.core.pq import ST2084_M2 as _ST2084_M2
+from calibrate_pro.core.pq import ST2084_PEAK_NITS as _ST2084_PEAK_NITS
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 # Windows API constants
 DISPLAY_DEVICE_ACTIVE = 0x00000001
 DISPLAY_DEVICE_PRIMARY_DEVICE = 0x00000004
 ENUM_CURRENT_SETTINGS = -1
 
-# ST.2084 PQ constants (ITU-R BT.2100)
-PQ_M1 = 2610 / 16384  # 0.1593017578125
-PQ_M2 = 2523 / 4096 * 128  # 78.84375
-PQ_C1 = 3424 / 4096  # 0.8359375
-PQ_C2 = 2413 / 4096 * 32  # 18.8515625
-PQ_C3 = 2392 / 4096 * 32  # 18.6875
+# Public compatibility aliases for the canonical ST 2084 constants.
+PQ_M1 = _ST2084_M1
+PQ_M2 = _ST2084_M2
+PQ_C1 = _ST2084_C1
+PQ_C2 = _ST2084_C2
+PQ_C3 = _ST2084_C3
 
 # Reference white in nits
 SDR_REFERENCE_WHITE = 80  # SDR content reference (sRGB)
 HDR_REFERENCE_WHITE = 203  # HDR10 reference white
-HDR_PEAK_LUMINANCE = 10000  # PQ max luminance
+HDR_PEAK_LUMINANCE = _ST2084_PEAK_NITS  # PQ max luminance
 
 
 class ColorPipelineStage(Enum):
@@ -130,11 +139,7 @@ def pq_eotf(E: np.ndarray) -> np.ndarray:
     Returns:
         Linear light values in nits (0-10000)
     """
-    E = np.clip(E, 0, 1)
-    E_pow = np.power(E, 1 / PQ_M2)
-    num = np.maximum(E_pow - PQ_C1, 0)
-    den = PQ_C2 - PQ_C3 * E_pow
-    return HDR_PEAK_LUMINANCE * np.power(num / den, 1 / PQ_M1)
+    return _canonical_pq_eotf(E, peak_luminance=float(HDR_PEAK_LUMINANCE))
 
 
 def pq_oetf(Y: np.ndarray) -> np.ndarray:
@@ -148,12 +153,7 @@ def pq_oetf(Y: np.ndarray) -> np.ndarray:
     Returns:
         PQ-encoded signal values (0-1)
     """
-    Y = np.clip(Y, 0, HDR_PEAK_LUMINANCE)
-    Y_norm = Y / HDR_PEAK_LUMINANCE
-    Y_pow = np.power(Y_norm, PQ_M1)
-    num = PQ_C1 + PQ_C2 * Y_pow
-    den = 1 + PQ_C3 * Y_pow
-    return np.power(num / den, PQ_M2)
+    return _canonical_pq_oetf(Y, peak_luminance=float(HDR_PEAK_LUMINANCE))
 
 
 def srgb_eotf(V: np.ndarray) -> np.ndarray:

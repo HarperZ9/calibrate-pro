@@ -10,19 +10,28 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from calibrate_pro.core.pq import ST2084_C1 as _ST2084_C1
+from calibrate_pro.core.pq import ST2084_C2 as _ST2084_C2
+from calibrate_pro.core.pq import ST2084_C3 as _ST2084_C3
+from calibrate_pro.core.pq import ST2084_M1 as _ST2084_M1
+from calibrate_pro.core.pq import ST2084_M2 as _ST2084_M2
+from calibrate_pro.core.pq import ST2084_PEAK_NITS as _ST2084_PEAK_NITS
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 # =============================================================================
 # ST.2084 Constants
 # =============================================================================
 
-# PQ curve constants (SMPTE ST.2084)
-PQ_M1 = 2610.0 / 16384.0  # 0.1593017578125
-PQ_M2 = 2523.0 / 32.0 * 128.0  # 78.84375
-PQ_C1 = 3424.0 / 4096.0  # 0.8359375
-PQ_C2 = 2413.0 / 128.0  # 18.8515625
-PQ_C3 = 2392.0 / 128.0  # 18.6875
+# Public compatibility aliases for the canonical ST 2084 constants.
+PQ_M1 = _ST2084_M1
+PQ_M2 = _ST2084_M2
+PQ_C1 = _ST2084_C1
+PQ_C2 = _ST2084_C2
+PQ_C3 = _ST2084_C3
 
 # Reference luminance
-PQ_REFERENCE_WHITE = 10000.0  # cd/m2 (nits)
+PQ_REFERENCE_WHITE = _ST2084_PEAK_NITS  # cd/m2 (nits)
 SDR_REFERENCE_WHITE = 100.0  # cd/m2 (sRGB reference)
 
 # =============================================================================
@@ -43,24 +52,8 @@ def pq_eotf(signal: np.ndarray, normalize: bool = False) -> np.ndarray:
     Returns:
         Luminance in cd/m2 (or normalized to [0, 1] if normalize=True)
     """
-    signal = np.asarray(signal, dtype=np.float64)
-    signal = np.clip(signal, 0.0, 1.0)
-
-    # Avoid division by zero
-    signal_m2 = np.power(signal, 1.0 / PQ_M2)
-
-    numerator = np.maximum(signal_m2 - PQ_C1, 0.0)
-    denominator = PQ_C2 - PQ_C3 * signal_m2
-
-    # Avoid division by zero
-    denominator = np.where(denominator == 0, 1e-10, denominator)
-
-    Y = PQ_REFERENCE_WHITE * np.power(numerator / denominator, 1.0 / PQ_M1)
-
-    if normalize:
-        return Y / PQ_REFERENCE_WHITE
-
-    return Y
+    peak_luminance = 1.0 if normalize else PQ_REFERENCE_WHITE
+    return _canonical_pq_eotf(signal, peak_luminance=peak_luminance)
 
 
 def pq_oetf(luminance: np.ndarray, normalize_input: bool = False) -> np.ndarray:
@@ -76,22 +69,10 @@ def pq_oetf(luminance: np.ndarray, normalize_input: bool = False) -> np.ndarray:
     Returns:
         PQ signal values in [0, 1] range
     """
-    luminance = np.asarray(luminance, dtype=np.float64)
-
+    values = np.asarray(luminance, dtype=np.float64)
     if normalize_input:
-        luminance = luminance * PQ_REFERENCE_WHITE
-
-    luminance = np.clip(luminance, 0.0, PQ_REFERENCE_WHITE)
-
-    Y_norm = luminance / PQ_REFERENCE_WHITE
-    Y_m1 = np.power(Y_norm, PQ_M1)
-
-    numerator = PQ_C1 + PQ_C2 * Y_m1
-    denominator = 1.0 + PQ_C3 * Y_m1
-
-    E = np.power(numerator / denominator, PQ_M2)
-
-    return np.clip(E, 0.0, 1.0)
+        values = values * PQ_REFERENCE_WHITE
+    return _canonical_pq_oetf(values)
 
 
 # =============================================================================

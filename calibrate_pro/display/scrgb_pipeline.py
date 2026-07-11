@@ -44,22 +44,19 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from calibrate_pro.core.pq import ST2084_PEAK_NITS as _ST2084_PEAK_NITS
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-# PQ (ST.2084) constants
-_PQ_M1 = 2610.0 / 16384.0  # 0.1593017578125
-_PQ_M2 = 2523.0 / 4096.0 * 128.0  # 78.84375
-_PQ_C1 = 3424.0 / 4096.0  # 0.8359375
-_PQ_C2 = 2413.0 / 4096.0 * 32.0  # 18.8515625
-_PQ_C3 = 2392.0 / 4096.0 * 32.0  # 18.6875
 
 # Reference white for sRGB / Rec.709
 _SRGB_WHITE_NITS = 80.0
 
 # PQ absolute peak
-_PQ_PEAK_NITS = 10000.0
+_PQ_PEAK_NITS = _ST2084_PEAK_NITS
 
 
 # ---------------------------------------------------------------------------
@@ -93,14 +90,7 @@ def _pq_eotf(pq: np.ndarray, peak_nits: float = _PQ_PEAK_NITS) -> np.ndarray:
 
     The result is normalised to *peak_nits* so that 1.0 == peak_nits.
     """
-    pq = np.clip(pq, 0.0, 1.0)
-    vp = pq ** (1.0 / _PQ_M2)
-    num = np.maximum(vp - _PQ_C1, 0.0)
-    den = _PQ_C2 - _PQ_C3 * vp
-    # Avoid division by zero
-    den = np.where(np.abs(den) < 1e-12, 1e-12, den)
-    linear = (num / den) ** (1.0 / _PQ_M1)
-    return linear * peak_nits
+    return _canonical_pq_eotf(pq, peak_luminance=peak_nits)
 
 
 def _pq_oetf(nits: np.ndarray, peak_nits: float = _PQ_PEAK_NITS) -> np.ndarray:
@@ -109,12 +99,7 @@ def _pq_oetf(nits: np.ndarray, peak_nits: float = _PQ_PEAK_NITS) -> np.ndarray:
 
     Input *nits* is absolute luminance (not normalised).
     """
-    nits = np.clip(nits, 0.0, peak_nits)
-    y = nits / peak_nits  # normalise to [0, 1]
-    yp = y**_PQ_M1
-    num = _PQ_C1 + _PQ_C2 * yp
-    den = 1.0 + _PQ_C3 * yp
-    return (num / den) ** _PQ_M2
+    return _canonical_pq_oetf(nits, peak_luminance=peak_nits)
 
 
 # ---------------------------------------------------------------------------

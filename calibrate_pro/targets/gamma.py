@@ -19,6 +19,9 @@ from enum import Enum
 
 import numpy as np
 
+from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
+from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+
 
 class GammaPreset(Enum):
     """Standard gamma/EOTF presets."""
@@ -176,23 +179,7 @@ def pq_eotf(x: np.ndarray) -> np.ndarray:
     Returns:
         Absolute luminance (cd/m2, 0-10000)
     """
-    x = np.clip(x, 0, 1)
-
-    # ST.2084 constants
-    m1 = 2610 / 16384  # 0.1593017578125
-    m2 = 2523 / 32 * 128  # 78.84375
-    c1 = 3424 / 4096  # 0.8359375
-    c2 = 2413 / 128  # 18.8515625
-    c3 = 2392 / 128  # 18.6875
-
-    # EOTF
-    x_pow = np.power(x, 1 / m2)
-    num = np.maximum(x_pow - c1, 0)
-    den = c2 - c3 * x_pow
-
-    L = 10000 * np.power(num / den, 1 / m1)
-
-    return L
+    return _canonical_pq_eotf(x)
 
 
 def pq_oetf(L: np.ndarray) -> np.ndarray:
@@ -205,24 +192,7 @@ def pq_oetf(L: np.ndarray) -> np.ndarray:
     Returns:
         Normalized PQ signal (0-1)
     """
-    L = np.clip(L, 0, 10000)
-    L_norm = L / 10000
-
-    # ST.2084 constants
-    m1 = 2610 / 16384
-    m2 = 2523 / 32 * 128
-    c1 = 3424 / 4096
-    c2 = 2413 / 128
-    c3 = 2392 / 128
-
-    # OETF
-    L_pow = np.power(L_norm, m1)
-    num = c1 + c2 * L_pow
-    den = 1 + c3 * L_pow
-
-    x = np.power(num / den, m2)
-
-    return x
+    return _canonical_pq_oetf(L)
 
 
 def hlg_eotf(x: np.ndarray, L_W: float = 1000.0, gamma: float = 1.2) -> np.ndarray:
