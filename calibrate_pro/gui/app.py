@@ -9,6 +9,7 @@ import logging
 import sys
 from pathlib import Path
 
+from calibrate_pro import __version__ as APP_VERSION
 from calibrate_pro.qt_runtime import configure_qt_api
 
 configure_qt_api()
@@ -49,7 +50,6 @@ from PySide6.QtWidgets import (
 )
 
 APP_NAME = "Calibrate Pro"
-APP_VERSION = "1.0.0"
 APP_ORG = "Build Universe"
 
 

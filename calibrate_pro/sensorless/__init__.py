@@ -10,6 +10,8 @@ This module provides:
 - Visual matching algorithms for user-guided calibration
 """
 
+from calibrate_pro import __version__
+
 # =============================================================================
 # Sensorless Calibration Engine
 # =============================================================================
@@ -113,5 +115,3 @@ __all__ = [
     "auto_calibrate_all",
     "generate_consent_warning",
 ]
-
-__version__ = "1.0.1"

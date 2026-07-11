@@ -27,6 +27,8 @@ Example usage:
     )
 """
 
+from calibrate_pro import __version__
+
 # =============================================================================
 # Uniformity Compensation
 # =============================================================================
@@ -267,5 +269,4 @@ __all__ = [
     "Automation",
 ]
 
-__version__ = "1.0.1"
 __author__ = "Calibrate Pro Team"

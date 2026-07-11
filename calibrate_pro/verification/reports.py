@@ -35,6 +35,7 @@ except ImportError:
     REPORTLAB_AVAILABLE = False
 
 # Import verification modules
+from calibrate_pro import __version__
 from calibrate_pro.verification.colorchecker import (
     ColorCheckerResult,
     VerificationGrade,
@@ -94,7 +95,7 @@ class ReportMetadata:
     organization: str = ""
     notes: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    software_version: str = "Calibrate Pro 1.0"
+    software_version: str = f"Calibrate Pro {__version__}"
 
 
 @dataclass
