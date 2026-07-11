@@ -6,7 +6,7 @@
 
 **Architecture:** Keep `calibrate_pro.main:main` as the developer-wheel entry point and share its supported desktop commands with a minimal `calibrate_pro.frozen_main:main` entry point whose command and module closure are positive-allowlisted. Select PySide6 deterministically before QtPy/Build UI imports and retain one audited PQ implementation behind compatibility delegates. Every display write crosses one injected, confirmation-bound Windows adapter; release assembly freezes an explicit `onedir` graph, signs the staged executables, regenerates inventories from those final bytes, creates the deterministic portable ZIP, wraps that same signed tree with Inno Setup 6.7.3, and only then writes signatures and hashes.
 
-**Tech Stack:** Python 3.12 x64 release runtime; Python 3.10-3.13 developer support; PySide6 6.11.1; QtPy 2.4.3; Build UI 2.0.0; Build Color 1.0.2 or its independently qualified compatible release; NumPy; SciPy; PyInstaller 6.21.0; Inno Setup 6.7.3; PowerShell; pytest; Ruff; Mypy; uv 0.11.25; GitHub Actions Windows runners.
+**Tech Stack:** Python 3.12 x64 release runtime; Python 3.10-3.13 developer support; PySide6 6.11.1; QtPy 2.4.3; Build UI 2.0.0; Build Color 1.0.2 or its independently qualified compatible release; NumPy; SciPy; PyInstaller 6.21.0; Inno Setup 6.7.3; PowerShell; pytest; Ruff; Mypy; uv 0.11.28; GitHub Actions Windows runners.
 
 ## Global Constraints
 
@@ -1901,9 +1901,9 @@ numpy==2.5.1
 scipy==1.18.0
 hidapi==0.15.0
 pyinstaller==6.21.0
-build==1.3.0
-setuptools==80.9.0
-wheel==0.46.1
+build==1.5.1
+setuptools==83.0.0
+wheel==0.47.0
 pefile==2024.8.26
 ```
 
@@ -1914,10 +1914,11 @@ Create `packaging/toolchain-win64.json`:
   "schema_version": 1,
   "python": "3.12.10",
   "architecture": "x86_64-pc-windows-msvc",
-  "uv": "0.11.25",
+  "uv": "0.11.28",
   "pyinstaller": "6.21.0",
-  "setuptools": "80.9.0",
-  "wheel": "0.46.1",
+  "build": "1.5.1",
+  "setuptools": "83.0.0",
+  "wheel": "0.47.0",
   "source_date_epoch": 315532800,
   "inno_setup": "6.7.3"
 }
