@@ -8,9 +8,9 @@ EDID information, and calibration status indicators.
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QFont, QGuiApplication, QPainter, QPen
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QColor, QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtWidgets import (
     QFrame,
     QGraphicsRectItem,
     QGraphicsScene,
@@ -128,8 +128,8 @@ class DisplayInfo:
 class DisplayMonitorWidget(QFrame):
     """Visual representation of a single display."""
 
-    clicked = pyqtSignal(int)  # Emits display ID
-    double_clicked = pyqtSignal(int)
+    clicked = Signal(int)  # Emits display ID
+    double_clicked = Signal(int)
 
     def __init__(self, display_info: DisplayInfo, parent: QWidget | None = None):
         super().__init__(parent)
@@ -289,7 +289,7 @@ class DisplayMonitorWidget(QFrame):
 class DisplayLayoutPreview(QGraphicsView):
     """Visual preview of display arrangement."""
 
-    display_selected = pyqtSignal(int)
+    display_selected = Signal(int)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -417,8 +417,8 @@ class DisplayLayoutPreview(QGraphicsView):
 class DisplaySelector(QWidget):
     """Complete display selector with list and visual preview."""
 
-    display_selected = pyqtSignal(DisplayInfo)
-    display_double_clicked = pyqtSignal(DisplayInfo)
+    display_selected = Signal(DisplayInfo)
+    display_double_clicked = Signal(DisplayInfo)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)

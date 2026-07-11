@@ -7,9 +7,9 @@ Assembles the navigation shell around extracted page components.
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QSettings, QSize, Qt, QTimer
-from PyQt6.QtGui import QAction, QFont, QGuiApplication
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QSettings, QSize, Qt, QTimer
+from PySide6.QtGui import QAction, QFont, QGuiApplication
+from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QFileDialog,

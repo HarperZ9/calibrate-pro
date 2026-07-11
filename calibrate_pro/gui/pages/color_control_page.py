@@ -5,8 +5,8 @@ These controls modify the GPU's gamma ramps to adjust colors.
 Changes are visible immediately and work on ALL displays (no DDC/CI needed).
 """
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,

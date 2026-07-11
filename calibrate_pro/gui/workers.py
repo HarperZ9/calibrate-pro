@@ -8,7 +8,7 @@ color management state tracking.
 from pathlib import Path
 from typing import Any
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 # Calibration Worker Thread
 
@@ -16,9 +16,9 @@ from PyQt6.QtCore import QThread, pyqtSignal
 class CalibrationWorker(QThread):
     """Background thread for running calibration."""
 
-    progress = pyqtSignal(str, float)  # message, progress (0-1)
-    finished = pyqtSignal(object)  # result object
-    error = pyqtSignal(str)  # error message
+    progress = Signal(str, float)  # message, progress (0-1)
+    finished = Signal(object)  # result object
+    error = Signal(str)  # error message
 
     def __init__(
         self, display_index: int = 0, apply_ddc: bool = False, profile_name: str = None, display_name: str = None

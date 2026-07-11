@@ -55,51 +55,27 @@ def run_as_admin():
         return False
 
 
-try:
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt6.QtGui import QColor, QPalette
-    from PyQt6.QtWidgets import (
-        QApplication,
-        QCheckBox,
-        QComboBox,
-        QDoubleSpinBox,
-        QFormLayout,
-        QGroupBox,
-        QHBoxLayout,
-        QLabel,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QSlider,
-        QSpinBox,
-        QTabWidget,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
-except ImportError:
-    from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt5.QtGui import QColor, QPalette
-    from PyQt5.QtWidgets import (
-        QApplication,
-        QCheckBox,
-        QComboBox,
-        QDoubleSpinBox,
-        QFormLayout,
-        QGroupBox,
-        QHBoxLayout,
-        QLabel,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QSlider,
-        QSpinBox,
-        QTabWidget,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
-
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from calibrate_pro.lut_system.dwm_lut import (
     DwmLutController,
@@ -114,7 +90,7 @@ from calibrate_pro.lut_system.dwm_lut import (
 class GainSlider(QWidget):
     """Custom slider for RGB gain adjustments."""
 
-    valueChanged = pyqtSignal(float)
+    valueChanged = Signal(float)
 
     def __init__(self, label: str, min_val: float = 0.5, max_val: float = 1.5, default: float = 1.0, parent=None):
         super().__init__(parent)
@@ -162,7 +138,7 @@ class GainSlider(QWidget):
 class OffsetSlider(QWidget):
     """Custom slider for RGB offset adjustments."""
 
-    valueChanged = pyqtSignal(float)
+    valueChanged = Signal(float)
 
     def __init__(self, label: str, min_val: float = -0.1, max_val: float = 0.1, default: float = 0.0, parent=None):
         super().__init__(parent)

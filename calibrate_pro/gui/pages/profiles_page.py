@@ -4,9 +4,9 @@ Profiles Page - ICC Profile management with activation control.
 
 from pathlib import Path
 
-from PyQt6.QtCore import QSettings, Qt, pyqtSignal
-from PyQt6.QtGui import QGuiApplication
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QSettings, Qt, Signal
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
     QFileDialog,
@@ -39,8 +39,8 @@ class ProfilesPage(QWidget):
     - Visual feedback when profiles are applied
     """
 
-    profile_activated = pyqtSignal(str, int)  # profile_path, display_index
-    profile_deactivated = pyqtSignal(int)  # display_index
+    profile_activated = Signal(str, int)  # profile_path, display_index
+    profile_deactivated = Signal(int)  # display_index
 
     def __init__(self, parent=None):
         super().__init__(parent)

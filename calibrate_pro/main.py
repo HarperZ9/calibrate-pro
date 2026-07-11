@@ -877,12 +877,16 @@ def cmd_gui(args):
     except Exception:
         pass
 
+    from calibrate_pro.qt_runtime import configure_qt_api
+
+    configure_qt_api()
+
     try:
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
 
         from calibrate_pro.gui.app import CalibrateProWindow
     except ImportError as e:
-        print("Error: PyQt6 is required for GUI mode.")
+        print("Error: PySide6 is required for GUI mode.")
         print('Install with: pip install ".[gui]"')
         print(f"Details: {e}")
         return 1
@@ -1885,13 +1889,17 @@ def cmd_hdr(args):
     print("\n[ADMIN] Running with administrator privileges")
     print("Launching HDR Calibration GUI...")
 
+    from calibrate_pro.qt_runtime import configure_qt_api
+
+    configure_qt_api()
+
     try:
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
 
         from calibrate_pro.gui.hdr_calibration import HDRCalibrationWindow
     except ImportError as e:
-        print("\nError: PyQt6 is required for GUI mode.")
-        print("Install with: pip install PyQt6")
+        print("\nError: PySide6 is required for GUI mode.")
+        print("Install with: pip install PySide6")
         print(f"Details: {e}")
         return 1
 

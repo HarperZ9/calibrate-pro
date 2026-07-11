@@ -7,8 +7,8 @@ and application branding. No external icon files required.
 
 import math
 
-from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtGui import QBrush, QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QBrush, QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 
 from calibrate_pro.gui.theme import COLORS
 

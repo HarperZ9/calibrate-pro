@@ -48,51 +48,27 @@ def run_as_admin():
         return False
 
 
-try:
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt6.QtGui import QBrush, QColor, QPainter, QPalette, QPen
-    from PyQt6.QtWidgets import (
-        QApplication,
-        QCheckBox,
-        QComboBox,
-        QFormLayout,
-        QGroupBox,
-        QHBoxLayout,
-        QLabel,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QScrollArea,
-        QSlider,
-        QSpinBox,
-        QTabWidget,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
-except ImportError:
-    from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-    from PyQt5.QtGui import QBrush, QColor, QPainter, QPalette, QPen
-    from PyQt5.QtWidgets import (
-        QApplication,
-        QCheckBox,
-        QComboBox,
-        QFormLayout,
-        QGroupBox,
-        QHBoxLayout,
-        QLabel,
-        QMainWindow,
-        QMessageBox,
-        QPushButton,
-        QScrollArea,
-        QSlider,
-        QSpinBox,
-        QTabWidget,
-        QTextEdit,
-        QVBoxLayout,
-        QWidget,
-    )
-
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QColor, QPainter, QPalette, QPen
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSpinBox,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import calibration modules
 from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
@@ -111,7 +87,7 @@ from calibrate_pro.lut_system.dwm_lut import (
 class LabeledSlider(QWidget):
     """Slider with label and value display."""
 
-    valueChanged = pyqtSignal(int)
+    valueChanged = Signal(int)
 
     def __init__(self, label: str, min_val: int, max_val: int, default: int, suffix: str = "", parent=None):
         super().__init__(parent)
@@ -149,7 +125,7 @@ class LabeledSlider(QWidget):
 class FloatSlider(QWidget):
     """Slider for floating point values."""
 
-    valueChanged = pyqtSignal(float)
+    valueChanged = Signal(float)
 
     def __init__(self, label: str, min_val: float, max_val: float, default: float, decimals: int = 3, parent=None):
         super().__init__(parent)
@@ -1145,7 +1121,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
 
     def _save_preset(self):
         """Save current settings as a named preset."""
-        from PyQt6.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog
 
         name, ok = QInputDialog.getText(self, "Save Preset", "Preset name:")
         if not ok or not name.strip():
@@ -1162,7 +1138,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
             "blue_offset": self.hw_blue_offset.value(),
             "gamma": self.hw_gamma.value(),
         }
-        from PyQt6.QtCore import QSettings
+        from PySide6.QtCore import QSettings
 
         qs = QSettings("CalibratePro", "Presets")
         qs.setValue(f"presets/{name}", settings)
@@ -1170,8 +1146,8 @@ class ProfessionalCalibrationWindow(QMainWindow):
 
     def _load_preset(self):
         """Load a previously saved preset."""
-        from PyQt6.QtCore import QSettings
-        from PyQt6.QtWidgets import QInputDialog
+        from PySide6.QtCore import QSettings
+        from PySide6.QtWidgets import QInputDialog
 
         qs = QSettings("CalibratePro", "Presets")
         qs.beginGroup("presets")

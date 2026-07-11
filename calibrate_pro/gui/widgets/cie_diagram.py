@@ -12,9 +12,20 @@ Interactive visualization of the CIE 1931 xy chromaticity space with:
 import math
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QMouseEvent, QPainter, QPainterPath, QPen, QPolygonF, QWheelEvent
-from PyQt6.QtWidgets import QSizePolicy, QToolTip, QWidget
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QImage,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPolygonF,
+    QWheelEvent,
+)
+from PySide6.QtWidgets import QSizePolicy, QToolTip, QWidget
 
 from calibrate_pro.gui.app import C
 
@@ -267,7 +278,7 @@ class CIEDiagramWidget(QWidget):
         - Mouse-wheel zoom and click-drag pan
     """
 
-    point_clicked = pyqtSignal(float, float)
+    point_clicked = Signal(float, float)
 
     # Default view window in xy space
     _DEFAULT_X0, _DEFAULT_X1 = -0.02, 0.82

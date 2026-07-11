@@ -1,14 +1,26 @@
 """Shared pytest fixtures for Calibrate Pro test suite."""
 
+import os
 import sys
 
 import numpy as np
 import pytest
 
+os.environ["QT_API"] = "pyside6"
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
 # Ensure the calibrate package is importable
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
 
 from calibrate_pro.panels.database import PanelDatabase
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance() or QApplication([])
+    yield app
 
 
 @pytest.fixture(scope="session")

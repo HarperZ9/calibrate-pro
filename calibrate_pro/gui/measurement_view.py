@@ -11,9 +11,9 @@ Displays real-time calibration measurements:
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPen
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
+from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -284,7 +284,7 @@ class ValuesPanel(QFrame):
 class MeasurementHistoryTable(QWidget):
     """Table showing measurement history."""
 
-    row_selected = pyqtSignal(int)
+    row_selected = Signal(int)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -381,7 +381,7 @@ class MeasurementHistoryTable(QWidget):
 class MeasurementView(QWidget):
     """Complete measurement view for calibration."""
 
-    measurement_complete = pyqtSignal(Measurement)
+    measurement_complete = Signal(Measurement)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
