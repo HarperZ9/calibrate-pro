@@ -192,11 +192,15 @@ These facts describe the inspected workspace; they are not release claims.
 
 ### Runtime layout
 
-The public entry point remains `calibrate_pro.main:main`. It launches the
-existing `CalibrateProWindow` shell in `calibrate_pro/gui/app.py`. Historical
-entry points remain as compatibility facades, but package initializers must not
-eagerly import every historical GUI page. Lazy imports keep optional GUI code
-optional and prevent dormant modules from expanding the frozen application.
+The developer-wheel entry point remains `calibrate_pro.main:main`. The frozen
+binaries use a minimal `calibrate_pro.frozen_main:main` dispatcher that exposes
+only `doctor`, `gui`, and `hdr`; all other source CLI commands are identified as
+developer-wheel-only and fail with an actionable message in frozen mode. Both
+dispatchers share the same lazy command implementations and launch the existing
+`CalibrateProWindow` shell. Historical GUI exports remain lazy compatibility
+facades. A positive first-party module manifest, not a hidden-import list alone,
+defines the frozen closure; every unlisted Calibrate module is excluded and any
+unlisted module observed in PyInstaller analysis fails the release.
 
 The frozen application is an explicit `onedir` collection:
 
@@ -256,6 +260,12 @@ license/EULA preserves reverse-engineering and relinking rights required for
 the LGPL components. The build fails when a bundled Qt module/plugin has no
 classified license or source record.
 
+A second fail-closed component policy covers every other redistributed owner:
+the Python runtime, Build Color, Build UI, QtPy, NumPy/SciPy and bundled native
+libraries, hidapi, the PyInstaller bootloader, `dwm_lut`, and
+`WindowsDisplayAPI`. Every staged distribution/native binary maps to a committed
+notice and verified source record; an unknown owner stops packaging.
+
 The canonical frozen graph imports only the build-color core modules actually
 used by Calibrate Pro, initially `build_color.adaptation`,
 `build_color.difference`, `build_color.gamut`, and `build_color.spaces`, plus
@@ -274,7 +284,11 @@ reducing ambiguity:
 3. **Preview:** show target white point, gamma, gamut, proposed DDC changes, and
    output files before modifying the display.
 4. **Apply:** require a deliberate action, show progress, and retain the prior
-   state needed for restoration.
+   state needed for restoration. One injected Windows adapter is the sole
+   application-level importer of DDC, ICC, VCGT, DWM LUT, and elevation writers.
+   DDC sliders, profiles, HDR controls, tray actions, restore-default actions,
+   and services submit preview plans to the same one-use confirmation boundary;
+   the 1.1 calibration monitor may notify but never reapply automatically.
 5. **Verify:** present measured Delta E only for actual instrument readings;
    otherwise present model diagnostics explicitly as estimates.
 6. **Save/Report:** save ICC/LUT/report outputs with mode and provenance
@@ -369,7 +383,7 @@ Implementation follows test-first development for behavior changes.
    declared `build-color` dependency.
 5. **Wheel smoke:** install the built wheel into a clean virtual environment and
    exercise CLI metadata plus GUI dependency diagnostics.
-6. **Frozen smoke:** build on Windows, run `CalibratePro.exe doctor --json`, and
+6. **Frozen smoke:** build on Windows, run `CalibrateProCLI.exe doctor --json`, and
    verify `build_color`, `build_ui`, QtPy, PySide6, NumPy, SciPy, and packaged
    `dwm_lut` resources resolve without a hardware mutation. It also verifies
    `qtpy.API_NAME == "PySide6"`. Stage notices/source receipts before this smoke
@@ -391,8 +405,9 @@ Implementation follows test-first development for behavior changes.
 11. **PQ gold-vector smoke:** exercise every exported PQ entry point against the
     same pinned vectors and fail the release if their results diverge.
 12. **Dependency-closure audit:** scan source imports, PyInstaller analysis, and
-    staged files for PyQt5, PyQt6, `build_color.gui`, and recursively collected
-    build-color modules. Any match fails the build.
+    staged files for PyQt5, PyQt6, `build_color.gui`, recursively collected
+    build-color modules, and every first-party module absent from the positive
+    frozen manifest. Any match fails the build.
 13. **Unelevated command smoke:** run GUI, HDR GUI, CLI help, and doctor probes
     without elevation; inspect both executable manifests and assert
     `uac_admin=False`.

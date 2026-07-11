@@ -4,7 +4,7 @@
 
 **Goal:** Ship Calibrate Pro 1.1.0 as a truthful, self-contained Windows x64 application whose per-user installer and portable ZIP include Build Color, Build UI 2, PySide6/Qt, NumPy, SciPy, and `dwm_lut` without requiring Python, pip, Git, administrator launch, or network access after download.
 
-**Architecture:** Keep `calibrate_pro.main:main` as the source and frozen entry point, select PySide6 deterministically before QtPy/Build UI imports, and retain one audited PQ implementation behind compatibility delegates. Freeze an explicit PyInstaller `onedir` graph, stage notices and machine-readable receipts into that graph, produce a deterministic portable ZIP, and wrap the same staged directory with Inno Setup 6.7.3. Evidence-bearing result types and a transactional workflow keep simulation, estimation, measurement, and display mutation distinct.
+**Architecture:** Keep `calibrate_pro.main:main` as the developer-wheel entry point and share its supported desktop commands with a minimal `calibrate_pro.frozen_main:main` entry point whose command and module closure are positive-allowlisted. Select PySide6 deterministically before QtPy/Build UI imports and retain one audited PQ implementation behind compatibility delegates. Every display write crosses one injected, confirmation-bound Windows adapter; release assembly freezes an explicit `onedir` graph, signs the staged executables, regenerates inventories from those final bytes, creates the deterministic portable ZIP, wraps that same signed tree with Inno Setup 6.7.3, and only then writes signatures and hashes.
 
 **Tech Stack:** Python 3.12 x64 release runtime; Python 3.10-3.13 developer support; PySide6 6.11.1; QtPy 2.4.3; Build UI 2.0.0; Build Color 1.0.2 or its independently qualified compatible release; NumPy; SciPy; PyInstaller 6.21.0; Inno Setup 6.7.3; PowerShell; pytest; Ruff; Mypy; uv 0.11.25; GitHub Actions Windows runners.
 
@@ -12,24 +12,29 @@
 
 - This plan supersedes `docs/superpowers/plans/2026-07-09-calibrate-pro-packaging-polish.md`; that stale draft remains untouched and must never be executed.
 - Product implementation is consent-gated. Do not create an implementation worktree or change product code until the operator explicitly approves this plan.
-- After approval, every implementation task runs only in `C:\dev\worktrees\calibrate-pro-1.1-pyside`, created from the clean plan-tip commit resolved after worktree consent. That tip must be a descendant of `10149aa8e96dc2991eae8db134b53512c5afe5b8`, must contain this approved plan, and its exact hash must be recorded in the implementation handoff. Never execute implementation steps in `C:\dev\public\calibrate-pro`.
+- After approval, every implementation task runs only on branch `feat/calibrate-pro-1.1-pyside` in `C:\dev\worktrees\calibrate-pro-1.1-pyside`, created from the exact plan tip stored in `C:\dev\worktrees\calibrate-pro-1.1-pyside-handoff.json` before the consent pause. That tip must be a descendant of `10149aa8e96dc2991eae8db134b53512c5afe5b8`, must contain this approved plan, and must still equal the normal checkout's HEAD when the worktree is created. Never execute implementation steps in `C:\dev\public\calibrate-pro` or on a detached HEAD.
 - Target version is exactly `1.1.0`, sourced only from `calibrate_pro.__version__`.
 - Build UI dependency is exactly `build-ui[pyside6]>=2,<3`; its 2.0 candidate or published wheel must expose the approved QtPy bridge and preserve the current public theme/widget API.
 - Calibrate metadata also declares `PySide6>=6.11.1,<7`; release resolution pins PySide6, PySide6_Addons, PySide6_Essentials, and shiboken6 to `6.11.1` unless a repeated compatibility proof approves an update.
 - Calibrate source and frozen dependency closure contain no PyQt5 or PyQt6 imports, modules, distributions, or Qt objects. QtPy's unselected adapter source is not itself a PyQt distribution; frozen TOC and installed distribution checks are authoritative.
 - `QT_API=pyside6` is set before the first QtPy or Build UI import in source and by a PyInstaller runtime hook when frozen.
+- `configure_qt_api()` fails closed if PyQt5, PyQt6, or a non-PySide QtPy API is already loaded; it never reports PySide6 merely because it rewrote an environment variable.
 - `calibrate-pro.spec` is the only PyInstaller spec. The release is `onedir`, `upx=False`, and both frozen executables use `uac_admin=False`.
+- Frozen binaries use `calibrate_pro.frozen_main:main`, expose only `doctor`, `gui`, and `hdr`, and reject every developer-only CLI command with exit status 2 and an install-the-wheel message. `packaging/frozen-features.json` and `packaging/frozen-modules.json` are positive allowlists; PyInstaller hidden imports may add only names present in those files.
 - Build Color is collected through the explicit core modules `build_color.adaptation`, `build_color.difference`, `build_color.gamut`, and `build_color.spaces`. `build_color.gui` and recursive Build Color collection are forbidden.
 - Sensorless values are estimates. A metric is measured only when a supported instrument produced its source reading. Missing readings render as `Not measured`; simulation and replay are explicit provenance values.
-- The active workflow is Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. Only Apply may invoke a privileged actuator, and it does so after explicit confirmation.
+- The active workflow is Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. Only a confirmed Apply may invoke a display actuator. DDC sliders, profile actions, HDR live update, DWM launch, tray profile actions, restore-default actions, and CalibrationGuard never call low-level writers directly; in 1.1 the guard is monitor-and-notify only.
 - Automated tests do not write DDC/CI, DWM LUT, VCGT, USB, startup, ICC association, or display state.
 - `calibrate-pro doctor --json` and `CalibrateProCLI.exe doctor --json` are read-only and return stable JSON.
 - Runtime and build dependencies are hash-locked for Python 3.12 Windows x64. Release builds use published dependency artifacts; local wheels are allowed only for the pre-publication integration gate.
+- Release wheel construction uses the locked setuptools and wheel versions with `python -m build --wheel --no-isolation`; the canonical release build performs no dependency resolution outside the hash lock.
 - Portable ZIP members are lexicographically sorted with normalized timestamps. Unsigned duplicate builds must have identical ZIP hashes and canonical staged inventories.
+- `SOURCE_DATE_EPOCH`, `PYTHONHASHSEED=0`, locale, timezone, clean build roots, and the complete Python/PyInstaller environment are fixed before wheel or frozen-byte generation. Signing is excluded from the unsigned identity comparison.
 - Required public outputs are `CalibratePro-1.1.0-Setup.exe`, `CalibratePro-1.1.0-win64.zip`, `SHA256SUMS.txt`, `dependency-manifest.json`, `qt-module-inventory.json`, and `THIRD_PARTY_LICENSES/`.
 - The installer and portable ZIP must each be at most 350 MiB (`367001600` bytes). Failure emits the dependency report and stops the build.
 - Signing is optional, but status is derived from Authenticode verification for each EXE and installer, never from an environment flag.
 - Qt/PySide libraries remain external and replaceable inside the onedir tree. The release carries LGPL text, Qt notices, corresponding-source provenance, source-offer text, and relinking instructions. These gates are release engineering controls, not legal certification.
+- Every redistributed distribution, Python runtime/native library, PyInstaller bootloader, Build package, Qt component, and `dwm_lut` component is mapped by `packaging/components-win64.json` to a committed notice and source record. Unknown staged distributions or native binaries fail closed.
 - A trusted public signature and final legal review are external release gates; an unsigned build must identify itself truthfully.
 
 ---
@@ -38,7 +43,7 @@
 
 The normal checkout is the planning and review surface. Implementation begins only after the operator replies with explicit approval and the executor invokes `superpowers:using-git-worktrees`.
 
-- [ ] **Gate 1: Verify the approved ancestor and plan-bearing tip without changing either**
+- [ ] **Gate 1: Verify the plan-bearing tip and persist a cross-turn handoff without changing the repository**
 
 ```powershell
 $approvedAncestor = '10149aa8e96dc2991eae8db134b53512c5afe5b8'
@@ -49,43 +54,78 @@ if ($LASTEXITCODE -ne 0) { throw "$planTip is not a descendant of the approved p
 git -C C:\dev\public\calibrate-pro cat-file -e "${planTip}:$planPath"
 if ($LASTEXITCODE -ne 0) { throw "$planTip does not contain the approved implementation plan" }
 git -C C:\dev\public\calibrate-pro status --short --branch
+$handoffPath = 'C:\dev\worktrees\calibrate-pro-1.1-pyside-handoff.json'
+$handoff = [ordered]@{
+    schema_version = 1
+    plan_tip = $planTip
+    approved_ancestor = $approvedAncestor
+    plan_path = $planPath
+    source_checkout = 'C:\dev\public\calibrate-pro'
+    worktree_path = 'C:\dev\worktrees\calibrate-pro-1.1-pyside'
+    branch = 'feat/calibrate-pro-1.1-pyside'
+}
+$handoff | ConvertTo-Json | Set-Content -LiteralPath $handoffPath -Encoding utf8
+Get-Content -Raw -LiteralPath $handoffPath
 ```
 
-Expected: the ancestry and plan-object checks succeed. Record `$planTip` verbatim in the approval/handoff message. No tracked product-source modification is present; a separately preserved stale untracked plan does not change the commit snapshot.
+Expected: the ancestry and plan-object checks succeed and the printed JSON contains the exact tip to approve. The only write is the out-of-repository handoff JSON; no repository file changes. A separately preserved stale untracked plan does not change the commit snapshot.
 
 - [ ] **Gate 2: Stop and obtain explicit operator approval**
 
-Report the plan path, exact `$planTip`, approved ancestor, proposed worktree path, Build UI prerequisite, and release side effects. Do not interpret an earlier product approval as consent to create this implementation worktree.
+Report the complete handoff JSON, Build UI prerequisite, and release side effects. The operator's approval must quote or otherwise unambiguously identify `plan_tip`. Do not interpret an earlier product approval as consent to create this implementation worktree.
 
 - [ ] **Gate 3: Create the isolated worktree after approval**
 
 ```powershell
-$env:CALIBRATE_PLAN_TIP = $planTip
-git -C C:\dev\public\calibrate-pro worktree add C:\dev\worktrees\calibrate-pro-1.1-pyside $env:CALIBRATE_PLAN_TIP
-git -C C:\dev\worktrees\calibrate-pro-1.1-pyside rev-parse HEAD
-git -C C:\dev\worktrees\calibrate-pro-1.1-pyside status --porcelain
+$handoffPath = 'C:\dev\worktrees\calibrate-pro-1.1-pyside-handoff.json'
+$handoff = Get-Content -Raw -LiteralPath $handoffPath | ConvertFrom-Json
+$currentTip = (git -C $handoff.source_checkout rev-parse HEAD).Trim()
+if ($currentTip -ne $handoff.plan_tip) { throw "Source HEAD changed after consent handoff: $currentTip" }
+git -C $handoff.source_checkout merge-base --is-ancestor $handoff.approved_ancestor $handoff.plan_tip
+if ($LASTEXITCODE -ne 0) { throw 'Persisted plan tip is not an approved descendant' }
+git -C $handoff.source_checkout cat-file -e "$($handoff.plan_tip):$($handoff.plan_path)"
+if ($LASTEXITCODE -ne 0) { throw 'Persisted plan tip does not contain this plan' }
+if (Test-Path -LiteralPath $handoff.worktree_path) { throw 'Target worktree path already exists' }
+git -C $handoff.source_checkout show-ref --verify --quiet "refs/heads/$($handoff.branch)"
+if ($LASTEXITCODE -eq 0) { throw 'Implementation branch already exists; inspect it instead of resetting it' }
+git -C $handoff.source_checkout worktree add -b $handoff.branch $handoff.worktree_path $handoff.plan_tip
+$actualTip = (git -C $handoff.worktree_path rev-parse HEAD).Trim()
+$actualBranch = (git -C $handoff.worktree_path symbolic-ref --short HEAD).Trim()
+if ($actualTip -ne $handoff.plan_tip) { throw 'Worktree tip mismatch' }
+if ($actualBranch -ne $handoff.branch) { throw "Worktree branch mismatch: $actualBranch" }
+if (git -C $handoff.worktree_path status --porcelain) { throw 'New worktree is not clean' }
 ```
 
-Expected: worktree HEAD is exactly `$env:CALIBRATE_PLAN_TIP`, the approved plan exists in that worktree, and status output is empty.
+Expected: worktree HEAD is exactly the persisted approved tip, `symbolic-ref` is `feat/calibrate-pro-1.1-pyside`, the plan exists, and status is empty.
 
 - [ ] **Gate 4: Pin every subsequent command to the isolated worktree**
 
 ```powershell
-$env:CALIBRATE_PRO_WORKTREE = 'C:\dev\worktrees\calibrate-pro-1.1-pyside'
-Set-Location -LiteralPath $env:CALIBRATE_PRO_WORKTREE
-if ((git rev-parse --show-toplevel).Trim() -ne $env:CALIBRATE_PRO_WORKTREE) { throw 'Refusing to implement outside the approved worktree' }
+$handoff = Get-Content -Raw -LiteralPath 'C:\dev\worktrees\calibrate-pro-1.1-pyside-handoff.json' | ConvertFrom-Json
+$expectedRoot = (Resolve-Path -LiteralPath $handoff.worktree_path).ProviderPath
+$gitRootText = (git -C $handoff.worktree_path rev-parse --show-toplevel).Trim()
+$actualRoot = (Resolve-Path -LiteralPath $gitRootText).ProviderPath
+if (-not [string]::Equals($actualRoot, $expectedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to implement outside $expectedRoot"
+}
+if ((git -C $actualRoot symbolic-ref --short HEAD).Trim() -ne $handoff.branch) { throw 'Wrong implementation branch' }
+Set-Location -LiteralPath $actualRoot
 ```
 
-Expected: command completes silently. Keep this guard at the start of every implementation turn.
+Expected: command completes silently. Re-run this complete block at the start of every implementation turn; no shell variable or working-directory state is assumed to persist.
 
 ## File Responsibility Map
 
 - `calibrate_pro/qt_runtime.py` - deterministic PySide6 selection before QtPy/Build UI import.
+- `calibrate_pro/frozen_main.py` - minimal frozen-only dispatcher for the three approved binary commands.
+- `calibrate_pro/commands/doctor.py`, `gui.py`, and `hdr.py` - shared lazy command implementations used by source and frozen dispatchers.
 - `packaging/pyi_rth_qt_api.py` - frozen-process `QT_API=pyside6` runtime hook.
 - `calibrate_pro/core/pq.py` - one audited float64 ST 2084 implementation.
 - `calibrate_pro/verification/provenance.py` - measured, estimated, simulated, replayed, and absent metric contract.
 - `calibrate_pro/workflow.py` - pure Detect/Method/Preview/Apply/Verify/Save state model.
-- `calibrate_pro/recovery.py` - injected display-state transaction and restoration boundary.
+- `calibrate_pro/recovery.py` - capture/apply/verify/restore transaction and truthful failure receipts.
+- `calibrate_pro/actuation.py` - one-use confirmation digest and sole application-level write coordinator.
+- `calibrate_pro/adapters/windows_display_state.py` - sole production importer of DDC, ICC, VCGT, DWM LUT, and profile writer APIs.
 - `calibrate_pro/runtime.py` - source/frozen resource resolution without hardware access.
 - `calibrate_pro/diagnostics.py` - read-only doctor report and dependency/resource/PQ checks.
 - `calibrate_pro/gui/__init__.py` - lazy compatibility exports.
@@ -96,6 +136,9 @@ Expected: command completes silently. Keep this guard at the start of every impl
 - `packaging/requirements-win64.in` - human-reviewed release roots.
 - `packaging/requirements-win64-py312.lock` - exact Windows wheel resolution with hashes.
 - `packaging/qt-components.json` - fail-closed Qt module/plugin license classification.
+- `packaging/components-win64.json` - fail-closed distribution/native binary ownership and notice classification.
+- `packaging/frozen-features.json` - exact supported frozen commands and explicit developer-only exclusions.
+- `packaging/frozen-modules.json` - exact approved first-party modules and third-party distribution roots.
 - `packaging/source-provenance.lock.json` - exact upstream source identifiers and verified hashes.
 - `scripts/release_artifacts.py` - stage audit, deterministic ZIP, receipts, hashes, and signature probes.
 - `scripts/build_windows.ps1` - only source-to-release orchestration path.
@@ -104,9 +147,12 @@ Expected: command completes silently. Keep this guard at the start of every impl
 - `tests/test_pq_conformance.py` - shared ST 2084 gold vectors across every compatibility surface.
 - `tests/test_hdr_provenance.py` - missing/simulated/replayed/measured HDR behavior.
 - `tests/test_workflow.py` - transitions, capability gating, Apply transaction, and restoration.
+- `tests/test_actuator_boundary.py` - production adapter injection, one-use confirmation, and repository-wide low-level writer isolation.
+- `tests/test_truthfulness_contract.py` - structured evidence through sensorless, CLI, GUI, JSON, HTML, and PDF-facing payloads.
 - `tests/test_diagnostics.py` - JSON shape, dependency/resource status, and mutation prohibition.
 - `tests/test_packaging_contract.py` - spec, installer, lock, TOC, manifest, and output contract.
 - `tests/test_release_artifacts.py` - deterministic archive and fail-closed staged-tree audits.
+- `tests/test_frozen_module_allowlist.py` - minimal entrypoint, frozen command manifest, TOC positive allowlist, and developer-only rejection behavior.
 
 ---
 
@@ -120,12 +166,21 @@ Expected: command completes silently. Keep this guard at the start of every impl
 - Consumes: one Build UI 2.0.0 wheel supplied through `$env:BUILD_UI_2_WHEEL`.
 - Produces: a clean-process receipt proving `qtpy.API_NAME == "PySide6"`, the approved public names import, representative widgets construct, and no PyQt distribution is installed.
 
-- [ ] **Step 1: Require an explicit candidate-wheel path**
+- [ ] **Step 1: Validate the candidate path and persist proof state**
 
 ```powershell
 if (-not $env:BUILD_UI_2_WHEEL) { throw 'Set BUILD_UI_2_WHEEL to the reviewed Build UI 2.0.0 wheel' }
 $wheel = (Resolve-Path -LiteralPath $env:BUILD_UI_2_WHEEL).Path
 if ([IO.Path]::GetFileName($wheel) -notlike 'build_ui-2.0.0-*.whl') { throw "Unexpected Build UI wheel: $wheel" }
+$proof = Join-Path $env:TEMP ('calibrate-build-ui-proof-' + [guid]::NewGuid().ToString('N'))
+$statePath = Join-Path $env:TEMP 'calibrate-build-ui-proof-state.json'
+[ordered]@{
+    schema_version = 1
+    wheel = $wheel
+    wheel_sha256 = (Get-FileHash -LiteralPath $wheel -Algorithm SHA256).Hash.ToLowerInvariant()
+    proof = $proof
+} | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+Get-Content -Raw -LiteralPath $statePath
 ```
 
 Expected: a reviewed Build UI 2.0.0 wheel resolves. Stop if it does not.
@@ -133,27 +188,48 @@ Expected: a reviewed Build UI 2.0.0 wheel resolves. Stop if it does not.
 - [ ] **Step 2: Install the candidate with exactly the PySide binding**
 
 ```powershell
-$proof = Join-Path $env:TEMP ('calibrate-build-ui-proof-' + [guid]::NewGuid().ToString('N'))
-py -3.12 -m venv $proof
-$python = Join-Path $proof 'Scripts\python.exe'
+$state = Get-Content -Raw -LiteralPath (Join-Path $env:TEMP 'calibrate-build-ui-proof-state.json') | ConvertFrom-Json
+py -3.12 -m venv $state.proof
+$python = Join-Path $state.proof 'Scripts\python.exe'
 & $python -m pip install --upgrade pip
-& $python -m pip install 'QtPy==2.4.3' 'PySide6==6.11.1' $wheel
+& $python -m pip install "$($state.wheel)[pyside6]"
 & $python -m pip check
 ```
 
-Expected: installation and `pip check` succeed without PyQt.
+Expected: installing only the candidate's `pyside6` extra resolves QtPy and PySide6 transitively, and `pip check` succeeds without PyQt. Do not preinstall either runtime dependency because that would mask broken wheel metadata.
 
-- [ ] **Step 3: Run the binding-isolated behavioral probe**
+- [ ] **Step 3: Parse wheel metadata and run the binding-isolated behavioral probe**
 
 ```powershell
+$state = Get-Content -Raw -LiteralPath (Join-Path $env:TEMP 'calibrate-build-ui-proof-state.json') | ConvertFrom-Json
+$python = Join-Path $state.proof 'Scripts\python.exe'
+& $python -m pip install 'packaging>=24,<27'
 $env:QT_API = 'pyside6'
 $env:QT_QPA_PLATFORM = 'offscreen'
 @'
+import email
+import sys
+import zipfile
 from importlib import metadata
+from pathlib import Path
+
+from packaging.requirements import Requirement
 from qtpy import API_NAME
 from qtpy.QtWidgets import QApplication
 from build_ui.theme import C, STYLE, create_stylesheet
 from build_ui.widgets import Card, Heading, NavButton, Sidebar, Stat, StatusDot, ToastNotification
+
+wheel = Path(sys.argv[1])
+with zipfile.ZipFile(wheel) as archive:
+    metadata_name = next(name for name in archive.namelist() if name.endswith('.dist-info/METADATA'))
+    message = email.message_from_bytes(archive.read(metadata_name))
+assert message['Name'] == 'build-ui'
+assert message['Version'] == '2.0.0'
+assert 'pyside6' in {value.casefold() for value in message.get_all('Provides-Extra', [])}
+requirements = [Requirement(value) for value in message.get_all('Requires-Dist', [])]
+assert any(req.name.casefold() == 'qtpy' for req in requirements)
+assert any(req.name.casefold() == 'pyside6' and req.marker and 'pyside6' in str(req.marker).casefold() for req in requirements)
+assert not any(req.name.casefold() in {'pyqt5', 'pyqt6'} for req in requirements)
 
 app = QApplication.instance() or QApplication([])
 card = Card()
@@ -172,14 +248,14 @@ for name in ('PyQt5', 'PyQt6'):
         continue
     raise AssertionError(f'{name} must not be installed')
 print('build-ui-2-pyside-proof=pass')
-'@ | & $python -
+'@ | & $python - $state.wheel
 ```
 
 Expected: `build-ui-2-pyside-proof=pass`.
 
 - [ ] **Step 4: Preserve the proof output in the task log, not the repository**
 
-Record the wheel path, SHA-256, Python version, QtPy version, PySide6 version, and probe output in the agent task handoff. Do not commit the candidate wheel or temporary environment.
+Record the persisted wheel path and SHA-256, Python version, parsed `Provides-Extra`/`Requires-Dist`, QtPy version, PySide6 version, and probe output in the agent task handoff. Remove only the exact `$state.proof` directory after verifying it is below `[IO.Path]::GetTempPath()` and its leaf begins `calibrate-build-ui-proof-`; then remove the state JSON. Do not commit the candidate wheel or temporary environment.
 
 ---
 
@@ -204,6 +280,7 @@ Create `tests/test_qt_binding_contract.py` with:
 ```python
 from __future__ import annotations
 
+import ast
 import os
 import subprocess
 import sys
@@ -212,15 +289,26 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-BANNED = ("PyQt5", "PyQt6", "pyqtSignal", "pyqtSlot", "pyqtProperty")
+BANNED_BINDINGS = ("PyQt5", "PyQt6")
+BANNED_IDENTIFIERS = ("pyqtSignal", "pyqtSlot", "pyqtProperty")
 
 
-def test_calibrate_source_contains_no_pyqt_binding_tokens() -> None:
+def test_calibrate_source_contains_no_pyqt_imports_or_identifiers() -> None:
     offenders: list[str] = []
     for path in sorted((ROOT / "calibrate_pro").rglob("*.py")):
         text = path.read_text(encoding="utf-8")
-        if any(token in text for token in BANNED):
-            offenders.append(str(path.relative_to(ROOT)))
+        tree = ast.parse(text, filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            else:
+                names = []
+            if any(name == binding or name.startswith(binding + ".") for name in names for binding in BANNED_BINDINGS):
+                offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}:import")
+            if isinstance(node, ast.Name) and node.id in BANNED_IDENTIFIERS:
+                offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}:{node.id}")
     assert offenders == []
 
 
@@ -254,6 +342,26 @@ print(Card.__name__)
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "Card"
+
+
+def test_qt_api_rejects_an_already_loaded_wrong_binding() -> None:
+    code = """
+import sys
+import types
+fake_qtpy = types.ModuleType('qtpy')
+fake_qtpy.API_NAME = 'PyQt6'
+sys.modules['qtpy'] = fake_qtpy
+sys.modules['PyQt6'] = types.ModuleType('PyQt6')
+from calibrate_pro.qt_runtime import configure_qt_api
+try:
+    configure_qt_api()
+except RuntimeError as exc:
+    assert 'already loaded' in str(exc)
+else:
+    raise AssertionError('mixed Qt binding was accepted')
+"""
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
 
 
 def test_active_window_constructs_with_pyside(qapp, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -303,12 +411,21 @@ Create `calibrate_pro/qt_runtime.py`:
 from __future__ import annotations
 
 import os
+import sys
 
 QT_API = "pyside6"
 
 
 def configure_qt_api() -> str:
     """Select PySide6 before QtPy or Build UI imports."""
+    qtpy = sys.modules.get("qtpy")
+    loaded_api = getattr(qtpy, "API_NAME", None) if qtpy is not None else None
+    wrong_modules = sorted(
+        name for name in sys.modules if name in {"PyQt5", "PyQt6"} or name.startswith(("PyQt5.", "PyQt6."))
+    )
+    if wrong_modules or (loaded_api is not None and loaded_api != "PySide6"):
+        detail = loaded_api or wrong_modules[0]
+        raise RuntimeError(f"A non-PySide Qt binding is already loaded: {detail}")
     os.environ["QT_API"] = QT_API
     return QT_API
 ```
@@ -523,7 +640,24 @@ Retain the existing authors, Python floor, dependencies, classifiers, URLs, scri
 ```powershell
 python -m pytest tests/test_release_metadata.py -q
 python -m build
-python -c "import glob, zipfile; p=glob.glob('dist/calibrate_pro-1.1.0-*.whl')[0]; z=zipfile.ZipFile(p); m=[n for n in z.namelist() if n.endswith('.dist-info/METADATA')][0]; t=z.read(m).decode(); assert 'Version: 1.1.0' in t; assert 'build-ui[pyside6]>=2,<3' in t; print(p)"
+@'
+import email
+import glob
+import zipfile
+
+from packaging.requirements import Requirement
+
+wheel = glob.glob("dist/calibrate_pro-1.1.0-*.whl")[0]
+with zipfile.ZipFile(wheel) as archive:
+    name = next(item for item in archive.namelist() if item.endswith(".dist-info/METADATA"))
+    message = email.message_from_bytes(archive.read(name))
+requirements = [Requirement(value) for value in message.get_all("Requires-Dist", [])]
+build_ui = next(req for req in requirements if req.name.casefold() == "build-ui" and "pyside6" in req.extras)
+assert message["Version"] == "1.1.0"
+assert build_ui.specifier.contains("2.0.0")
+assert not build_ui.specifier.contains("3.0.0")
+print(wheel)
+'@ | python -
 ```
 
 Expected: metadata tests pass and the built wheel reports version 1.1.0 plus the Build UI PySide extra.
@@ -772,6 +906,21 @@ def test_measured_readings_serialize_source() -> None:
     assert payload["peak_luminance"]["evidence"] == "measured"
     assert payload["peak_luminance"]["source"] == "i1Display3 serial-redacted receipt 42"
     assert payload["gamut_coverage_bt2020"]["value"] is None
+
+
+@pytest.mark.parametrize("value", [None, float("nan"), float("inf"), float("-inf")])
+def test_measured_metric_requires_a_finite_reading(value: float | None) -> None:
+    from calibrate_pro.verification.provenance import MetricValue
+
+    with pytest.raises(ValueError, match="finite"):
+        MetricValue(value, "nits", EvidenceKind.MEASURED, "instrument receipt")
+
+
+def test_estimate_requires_characterization_source() -> None:
+    from calibrate_pro.verification.provenance import MetricValue
+
+    with pytest.raises(ValueError, match="source"):
+        MetricValue(1.2, "dE2000", EvidenceKind.ESTIMATED)
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -791,6 +940,7 @@ Create `calibrate_pro/verification/provenance.py`:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -812,9 +962,13 @@ class MetricValue:
     source: str | None = None
 
     def __post_init__(self) -> None:
-        if self.evidence is EvidenceKind.NOT_MEASURED and self.value is not None:
-            raise ValueError("not-measured metrics cannot carry a value")
-        if self.evidence in {EvidenceKind.MEASURED, EvidenceKind.SIMULATED, EvidenceKind.REPLAYED} and not self.source:
+        if self.evidence is EvidenceKind.NOT_MEASURED:
+            if self.value is not None:
+                raise ValueError("not-measured metrics cannot carry a value")
+            return
+        if self.value is None or not math.isfinite(self.value):
+            raise ValueError(f"{self.evidence.value} metrics require a finite value")
+        if not self.source or not self.source.strip():
             raise ValueError(f"{self.evidence.value} metrics require an evidence source")
 
     def display_text(self, decimals: int = 2) -> str:
@@ -915,104 +1069,67 @@ git commit -m "fix: require explicit provenance for HDR results"
 
 ---
 
-### Task 6: Add the Pure Workflow and Transactional Recovery Boundary
+### Task 6: Add Capability-Gated Workflow, Confirmation, and the Sole Production Actuator Adapter
 
 **Files:**
 - Create: `calibrate_pro/workflow.py`
 - Create: `calibrate_pro/recovery.py`
+- Create: `calibrate_pro/actuation.py`
+- Create: `calibrate_pro/adapters/__init__.py`
+- Create: `calibrate_pro/adapters/windows_display_state.py`
 - Create: `tests/test_workflow.py`
 
 **Interfaces:**
-- Consumes: `EvidenceKind` from Task 5.
-- Produces: `WorkflowStage`, `CalibrationMethod`, `CapabilityState`, `ApplyPlan`, `WorkflowError`, `WorkflowController`, `DisplayStateAdapter`, and `apply_transactionally()`.
+- Consumes: existing Windows DDC/CI, profile, gamma-ramp, and DWM LUT readers/writers only through `DefaultWindowsDisplayPorts`.
+- Produces: `WorkflowStage`, `CalibrationMethod`, `CapabilityState`, `ApplyPlan`, `DisplayStateSnapshot`, `ApplyReceipt`, `DisplayStateAdapter`, `ActuationCoordinator`, and `WindowsDisplayStateAdapter`.
 
-- [ ] **Step 1: Write failing state-machine tests**
+- [ ] **Step 1: Write failing capability, confirmation, and recovery tests**
 
-Create `tests/test_workflow.py`:
+Create `tests/test_workflow.py` with a `make_plan(**changes)` helper and these assertions:
 
 ```python
-from __future__ import annotations
-
-from dataclasses import dataclass
-
-import pytest
-
-from calibrate_pro.recovery import ApplyReceipt, DisplayStateAdapter, apply_transactionally
-from calibrate_pro.workflow import (
-    ApplyPlan,
-    CalibrationMethod,
-    CapabilityState,
-    WorkflowController,
-    WorkflowStage,
-)
-
-
-def test_detect_method_preview_apply_sequence() -> None:
-    controller = WorkflowController(CapabilityState(sensor_available=True, ddc_available=True, dwm_lut_available=True))
-    controller.detect_complete()
-    controller.select_method(CalibrationMethod.MEASURED)
-    plan = ApplyPlan(
-        display_id="display-1",
-        method=CalibrationMethod.MEASURED,
-        target_whitepoint="D65",
-        target_gamma="2.2",
-        target_gamut="sRGB",
-        ddc_changes=(("brightness", 42),),
-        output_files=("display-1.icc", "display-1.cube"),
+def test_preview_rejects_each_missing_write_capability() -> None:
+    cases = (
+        (CapabilityState(True, False, True, True, True), {"ddc_changes": (("BRIGHTNESS", 42),)}, "DDC/CI"),
+        (CapabilityState(True, True, False, True, True), {"dwm_lut_path": "display.cube"}, "DWM LUT"),
+        (CapabilityState(True, True, True, False, True), {"icc_profile_path": "display.icc"}, "profile association"),
+        (CapabilityState(True, True, True, True, False), {"vcgt_path": "display.vcgt"}, "gamma ramp"),
     )
-    controller.set_preview(plan)
-    controller.confirm_apply()
-    assert controller.stage is WorkflowStage.APPLY
+    for capabilities, changes, message in cases:
+        controller = ready_controller(capabilities)
+        with pytest.raises(ValueError, match=message):
+            controller.set_preview(make_plan(**changes))
 
 
-def test_measured_method_is_disabled_without_sensor() -> None:
-    controller = WorkflowController(CapabilityState(sensor_available=False, ddc_available=True, dwm_lut_available=True))
-    controller.detect_complete()
-    with pytest.raises(ValueError, match="supported colorimeter"):
-        controller.select_method(CalibrationMethod.MEASURED)
+def test_confirmation_is_bound_to_one_plan_and_consumed_once() -> None:
+    adapter = FakeAdapter()
+    coordinator = ActuationCoordinator(adapter)
+    plan = make_plan(ddc_changes=(("BRIGHTNESS", 42),))
+    token = coordinator.preview(plan)
+    with pytest.raises(PermissionError, match="confirmation"):
+        coordinator.apply(plan, token, confirmed=False)
+    receipt = coordinator.apply(plan, token, confirmed=True)
+    assert receipt.success is True
+    with pytest.raises(PermissionError, match="consumed"):
+        coordinator.apply(plan, token, confirmed=True)
 
 
-def test_apply_requires_preview_confirmation() -> None:
-    controller = WorkflowController(CapabilityState(sensor_available=False, ddc_available=False, dwm_lut_available=False))
-    controller.detect_complete()
-    controller.select_method(CalibrationMethod.SENSORLESS)
-    with pytest.raises(ValueError, match="preview"):
-        controller.confirm_apply()
+def test_capture_failure_returns_a_non_apply_receipt() -> None:
+    receipt = apply_transactionally(FakeAdapter(capture_error="capture failed"), make_plan())
+    assert receipt == ApplyReceipt(False, False, False, False, False, False, "capture failed", None)
 
 
-@dataclass
-class FakeAdapter(DisplayStateAdapter):
-    verify_result: bool = True
-    raise_during_apply: bool = False
-    restored: bool = False
-
-    def capture(self, display_id: str) -> dict[str, object]:
-        return {"display_id": display_id, "brightness": 50}
-
-    def apply(self, plan: ApplyPlan) -> None:
-        if self.raise_during_apply:
-            raise RuntimeError("apply failed")
-
-    def verify(self, plan: ApplyPlan) -> bool:
-        return self.verify_result
-
-    def restore(self, snapshot: dict[str, object]) -> None:
-        self.restored = True
-
-
-@pytest.mark.parametrize(
-    ("adapter", "message"),
-    (
-        (FakeAdapter(raise_during_apply=True), "apply failed"),
-        (FakeAdapter(verify_result=False), "verification failed"),
-    ),
-)
-def test_failed_apply_restores_snapshot(adapter: FakeAdapter, message: str) -> None:
-    plan = ApplyPlan("display-1", CalibrationMethod.SENSORLESS, "D65", "2.2", "sRGB", (), ("display-1.icc",))
-    receipt = apply_transactionally(adapter, plan)
-    assert receipt == ApplyReceipt(success=False, restored=True, error=message)
-    assert adapter.restored is True
+def test_restore_failure_preserves_both_errors() -> None:
+    adapter = FakeAdapter(apply_error="apply failed", restore_error="restore failed")
+    receipt = apply_transactionally(adapter, make_plan())
+    assert receipt.success is False
+    assert receipt.restore_attempted is True
+    assert receipt.restored is False
+    assert receipt.error == "apply failed"
+    assert receipt.restore_error == "restore failed"
 ```
+
+The test's `FakeAdapter` implements `capture(plan)`, `apply(plan)`, `verify(plan)`, and `restore(snapshot)` and records call order. Add a success assertion for `capture -> apply -> verify`, and verification-failure assertion for `capture -> apply -> verify -> restore`.
 
 - [ ] **Step 2: Verify RED**
 
@@ -1020,46 +1137,36 @@ def test_failed_apply_restores_snapshot(adapter: FakeAdapter, message: str) -> N
 python -m pytest tests/test_workflow.py -q
 ```
 
-Expected: workflow and recovery modules are absent.
+Expected: the workflow, recovery, and actuation modules are absent.
 
-- [ ] **Step 3: Add the pure workflow model**
+- [ ] **Step 3: Add the capability-complete pure workflow**
 
-Create `calibrate_pro/workflow.py`:
+Create `calibrate_pro/workflow.py` with the existing six `WorkflowStage` values and these exact data contracts:
 
 ```python
-"""Pure calibration workflow state and capability gating."""
-
-from __future__ import annotations
-
-from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import Enum
-
-
-class WorkflowStage(str, Enum):
-    DETECT = "detect"
-    METHOD = "method"
-    PREVIEW = "preview"
-    APPLY = "apply"
-    VERIFY = "verify"
-    SAVE_REPORT = "save_report"
-
-
-class CalibrationMethod(str, Enum):
-    SENSORLESS = "sensorless"
-    MEASURED = "measured"
-
-
 @dataclass(frozen=True)
 class CapabilityState:
     sensor_available: bool
     ddc_available: bool
     dwm_lut_available: bool
+    profile_write_available: bool
+    vcgt_available: bool
 
     def disabled_reason(self, method: CalibrationMethod) -> str | None:
         if method is CalibrationMethod.MEASURED and not self.sensor_available:
             return "Measured calibration requires a supported colorimeter."
         return None
+
+    def validate(self, plan: ApplyPlan) -> None:
+        checks = (
+            (bool(plan.ddc_changes), self.ddc_available, "DDC/CI writes are unavailable for this display."),
+            (plan.dwm_lut_path is not None, self.dwm_lut_available, "DWM LUT application is unavailable."),
+            (plan.icc_profile_path is not None, self.profile_write_available, "ICC profile association is unavailable."),
+            (plan.vcgt_path is not None, self.vcgt_available, "Display gamma ramp application is unavailable."),
+        )
+        for requested, available, reason in checks:
+            if requested and not available:
+                raise ValueError(reason)
 
 
 @dataclass(frozen=True)
@@ -1069,202 +1176,140 @@ class ApplyPlan:
     target_whitepoint: str
     target_gamma: str
     target_gamut: str
-    ddc_changes: Sequence[tuple[str, int]]
-    output_files: Sequence[str]
-
-
-@dataclass(frozen=True)
-class WorkflowError:
-    category: str
-    summary: str
-    detail: str
-    next_action: str
-
-
-class WorkflowController:
-    def __init__(self, capabilities: CapabilityState):
-        self.capabilities = capabilities
-        self.stage = WorkflowStage.DETECT
-        self.method: CalibrationMethod | None = None
-        self.preview: ApplyPlan | None = None
-        self.error: WorkflowError | None = None
-
-    def detect_complete(self) -> None:
-        if self.stage is not WorkflowStage.DETECT:
-            raise ValueError("detect can complete only from the detect stage")
-        self.stage = WorkflowStage.METHOD
-
-    def select_method(self, method: CalibrationMethod) -> None:
-        if self.stage is not WorkflowStage.METHOD:
-            raise ValueError("method selection requires the method stage")
-        reason = self.capabilities.disabled_reason(method)
-        if reason:
-            raise ValueError(reason)
-        self.method = method
-        self.stage = WorkflowStage.PREVIEW
-
-    def set_preview(self, plan: ApplyPlan) -> None:
-        if self.stage is not WorkflowStage.PREVIEW:
-            raise ValueError("preview data requires the preview stage")
-        if plan.method is not self.method:
-            raise ValueError("preview method does not match the selected method")
-        self.preview = plan
-
-    def confirm_apply(self) -> None:
-        if self.stage is not WorkflowStage.PREVIEW or self.preview is None:
-            raise ValueError("apply requires a completed preview")
-        self.stage = WorkflowStage.APPLY
-
-    def apply_complete(self) -> None:
-        if self.stage is not WorkflowStage.APPLY:
-            raise ValueError("apply completion requires the apply stage")
-        self.stage = WorkflowStage.VERIFY
-
-    def verify_complete(self) -> None:
-        if self.stage is not WorkflowStage.VERIFY:
-            raise ValueError("verification completion requires the verify stage")
-        self.stage = WorkflowStage.SAVE_REPORT
-
-    def fail(self, error: WorkflowError) -> None:
-        self.error = error
+    ddc_changes: tuple[tuple[str, int], ...] = ()
+    icc_profile_path: str | None = None
+    vcgt_path: str | None = None
+    dwm_lut_path: str | None = None
+    clear_existing_lut: bool = False
+    output_files: tuple[str, ...] = ()
 ```
 
-- [ ] **Step 4: Add the injected transaction boundary**
+`WorkflowController.set_preview()` verifies stage, method identity, non-empty `display_id`, calls `self.capabilities.validate(plan)`, and only then stores the preview. `confirm_apply()` remains a state transition; it does not itself write hardware.
 
-Create `calibrate_pro/recovery.py`:
+- [ ] **Step 4: Implement truthful capture/apply/verify/restore receipts**
+
+Create `calibrate_pro/recovery.py` with:
 
 ```python
-"""Transactional display application through an injected adapter."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from typing import Protocol
-
-from calibrate_pro.workflow import ApplyPlan
-
-
-class DisplayStateAdapter(Protocol):
-    def capture(self, display_id: str) -> dict[str, object]:
-        raise NotImplementedError
-
-    def apply(self, plan: ApplyPlan) -> None:
-        raise NotImplementedError
-
-    def verify(self, plan: ApplyPlan) -> bool:
-        raise NotImplementedError
-
-    def restore(self, snapshot: dict[str, object]) -> None:
-        raise NotImplementedError
+@dataclass(frozen=True)
+class DisplayStateSnapshot:
+    display_id: str
+    ddc_values: tuple[tuple[str, int], ...]
+    icc_profile_path: str | None
+    gamma_ramp: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None
+    dwm_lut_paths: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class ApplyReceipt:
     success: bool
+    captured: bool
+    applied: bool
+    verified: bool
+    restore_attempted: bool
     restored: bool
     error: str | None
-
-
-def apply_transactionally(adapter: DisplayStateAdapter, plan: ApplyPlan) -> ApplyReceipt:
-    snapshot = adapter.capture(plan.display_id)
-    try:
-        adapter.apply(plan)
-        if not adapter.verify(plan):
-            raise RuntimeError("verification failed")
-    except Exception as exc:
-        adapter.restore(snapshot)
-        return ApplyReceipt(success=False, restored=True, error=str(exc))
-    return ApplyReceipt(success=True, restored=False, error=None)
+    restore_error: str | None
 ```
 
-- [ ] **Step 5: Run focused and full tests**
+`DisplayStateAdapter` is a `Protocol` whose signatures are `capture(plan: ApplyPlan) -> DisplayStateSnapshot`, `apply(plan: ApplyPlan) -> None`, `verify(plan: ApplyPlan) -> bool`, and `restore(snapshot: DisplayStateSnapshot) -> None`. `apply_transactionally()` catches capture failure before any write; on apply exception or false verification it attempts restoration in a second `try`, preserves both errors, and sets every receipt flag from operations actually completed. It never reports `restored=True` when `restore()` raised.
+
+- [ ] **Step 5: Bind explicit confirmation to a canonical plan digest**
+
+Create `calibrate_pro/actuation.py`. `canonical_plan_sha256(plan)` JSON-serializes `dataclasses.asdict(plan)` with `sort_keys=True`, compact separators, and UTF-8, then returns SHA-256. `ActuationCoordinator.preview(plan) -> str` stores `{token: plan_digest}` using `secrets.token_urlsafe(32)`. `apply(plan, token, *, confirmed)` rejects `confirmed=False`, an unknown token, or a digest mismatch; it removes the token before invoking `apply_transactionally()` so confirmation is one-use even if application fails.
+
+- [ ] **Step 6: Add the injected Windows production adapter**
+
+Create `calibrate_pro/adapters/windows_display_state.py` with a `WindowsDisplayPorts` protocol exposing only these read/write pairs:
+
+```python
+read_ddc(display_id: str, code: str) -> int
+write_ddc(display_id: str, code: str, value: int) -> None
+get_icc_profile(display_id: str) -> str | None
+set_icc_profile(display_id: str, profile_path: str | None) -> None
+get_gamma_ramp(display_id: str) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None
+set_gamma_ramp(display_id: str, ramp: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None) -> None
+get_dwm_lut_paths(display_id: str) -> tuple[str, ...]
+set_dwm_lut_paths(display_id: str, paths: tuple[str, ...]) -> None
+```
+
+`DefaultWindowsDisplayPorts` lazily maps those methods to `DDCCIController.get_vcp/set_vcp`, `panels.detection.get_display_profile/set_display_profile`, `panels.detection.get_gamma_ramp/set_gamma_ramp/reset_gamma_ramp`, and `DwmLutController.get_active_luts/load_lut_file/unload_lut/start_dwm_lut_gui`. `WindowsDisplayStateAdapter.capture(plan)` reads only the DDC codes present in the plan plus ICC, gamma, and DWM state; `apply()` performs only requested fields; `verify()` reads every changed field back; `restore()` restores all captured fields and raises one combined `RuntimeError` listing every failed restoration. No constructor probes hardware or writes state.
+
+- [ ] **Step 7: Run focused and full tests**
 
 ```powershell
 python -m pytest tests/test_workflow.py -q
 python -m pytest -q
 ```
 
-Expected: pure transition and recovery tests pass without importing hardware modules.
+Expected: capability, confirmation, capture failure, apply failure, verification failure, and restoration failure tests pass without physical hardware access.
 
-- [ ] **Step 6: Commit the workflow boundary**
+- [ ] **Step 8: Commit the sole actuator boundary**
 
 ```powershell
-git add calibrate_pro/workflow.py calibrate_pro/recovery.py tests/test_workflow.py
-git commit -m "feat: add transactional calibration workflow"
+git add calibrate_pro/workflow.py calibrate_pro/recovery.py calibrate_pro/actuation.py calibrate_pro/adapters tests/test_workflow.py
+git commit -m "feat: enforce one transactional display actuator"
 ```
 
 ---
 
-### Task 7: Add Read-Only Runtime Diagnostics and Resource Resolution
+### Task 7: Add Read-Only Runtime Diagnostics and Prove the Real Entrypoint Is Non-Mutating
 
 **Files:**
 - Create: `calibrate_pro/runtime.py`
 - Create: `calibrate_pro/diagnostics.py`
+- Create: `calibrate_pro/commands/__init__.py`
+- Create: `calibrate_pro/commands/doctor.py`
 - Create: `tests/test_diagnostics.py`
-- Modify: `calibrate_pro/main.py:39-47,1904-1914,2112-2174`
+- Modify: `calibrate_pro/main.py`
 - Modify: `calibrate_pro/lut_system/dwm_lut.py:632-663`
 
 **Interfaces:**
-- Produces: `application_root() -> Path`, `resource_path(*parts: str) -> Path`, `build_doctor_report(root: Path | None = None) -> dict[str, object]`, and `doctor_exit_code(report) -> int`.
-- Produces: CLI command `calibrate-pro doctor --json`.
+- Produces: `application_root()`, `resource_path()`, `build_doctor_report()`, `doctor_exit_code()`, and shared command `calibrate_pro.commands.doctor.run(args) -> int`.
+- Reports software support separately from device presence; it never enumerates a display, opens HID/USB, loads a profile, writes startup state, or constructs a hardware controller.
 
-- [ ] **Step 1: Write failing diagnostic and mutation tests**
+- [ ] **Step 1: Write failing report and real-entrypoint tests**
 
-Create `tests/test_diagnostics.py`:
+Create `tests/test_diagnostics.py`. In `tmp_path/dwm_lut`, write `DwmLutGUI.exe`, `dwm_lut.dll`, `WindowsDisplayAPI.dll`, `LICENSE`, and `LICENSE-THIRD-PARTY`. In `tmp_path/THIRD_PARTY_LICENSES`, write every notice path referenced by a minimal test `components-win64.json` plus `LGPL-3.0-only.txt`, `QT_SOURCE_OFFER.txt`, `LGPL_RELINKING.md`, and `source-provenance.json`. Assert version, `qt.api_name == "PySide6"`, PQ vectors, resources, and this exact capability schema:
 
 ```python
-from __future__ import annotations
+for name in ("display_enumeration", "ddc_ci", "icc_profile", "gamma_ramp", "colorimeter"):
+    capability = report["capabilities"][name]
+    assert isinstance(capability["software_supported"], bool)
+    assert capability["device_presence"] == "not_probed"
+    assert capability["probe"] in {"platform", "library_symbol", "module_spec"}
+```
 
+Add a subprocess test for the real source entrypoint:
+
+```python
+def test_real_doctor_entrypoint_cannot_import_mutation_layers(tmp_path: Path) -> None:
+    code = r'''
+import importlib.abc
 import json
 import sys
-from pathlib import Path
 
-import pytest
-
-from calibrate_pro import __version__
-
-
-def test_doctor_report_is_stable_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "dwm_lut").mkdir()
-    for name in ("DwmLutGUI.exe", "dwm_lut.dll", "WindowsDisplayAPI.dll", "LICENSE", "LICENSE-THIRD-PARTY"):
-        (tmp_path / "dwm_lut" / name).write_bytes(b"proof")
-    notices = tmp_path / "THIRD_PARTY_LICENSES"
-    notices.mkdir()
-    for name in ("LGPL-3.0-only.txt", "QT_SOURCE_OFFER.txt", "LGPL_RELINKING.md", "source-provenance.json"):
-        (notices / name).write_text("proof", encoding="utf-8")
-
-    from calibrate_pro.diagnostics import build_doctor_report
-
-    report = build_doctor_report(root=tmp_path)
-    encoded = json.dumps(report, sort_keys=True)
-    assert json.loads(encoded)["application"]["version"] == __version__
-    assert report["qt"]["api_name"] == "PySide6"
-    assert report["pq"]["passed"] is True
-    assert report["resources"]["dwm_lut"]["available"] is True
-
-
-def test_doctor_never_imports_hardware_or_mutation_modules(tmp_path: Path) -> None:
-    before = set(sys.modules)
-    from calibrate_pro.diagnostics import build_doctor_report
-
-    build_doctor_report(root=tmp_path)
-    added = set(sys.modules) - before
-    forbidden = (
-        "calibrate_pro.hardware",
-        "calibrate_pro.services.calibration_guard",
-        "calibrate_pro.utils.startup_manager",
-    )
-    assert not any(name == prefix or name.startswith(prefix + ".") for name in added for prefix in forbidden)
-
-
-def test_frozen_resource_root_uses_meipass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
-    from calibrate_pro.runtime import application_root, resource_path
-
-    assert application_root() == tmp_path
-    assert resource_path("dwm_lut", "DwmLutGUI.exe") == tmp_path / "dwm_lut" / "DwmLutGUI.exe"
+BLOCKED = (
+    "calibrate_pro.hardware",
+    "calibrate_pro.services",
+    "calibrate_pro.startup",
+    "calibrate_pro.adapters.windows_display_state",
+)
+class Blocker(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if any(fullname == item or fullname.startswith(item + ".") for item in BLOCKED):
+            raise AssertionError("doctor attempted mutation import: " + fullname)
+        return None
+sys.meta_path.insert(0, Blocker())
+from calibrate_pro.main import main
+raise SystemExit(main(["doctor", "--json"]))
+'''
+    result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, text=True, capture_output=True, check=False)
+    assert result.returncode in {0, 1}, result.stderr
+    assert json.loads(result.stdout)["schema_version"] == 1
 ```
+
+Retain the `_MEIPASS` resource test. Assert that importing and invoking doctor adds none of the blocked module prefixes to `sys.modules`.
 
 - [ ] **Step 2: Verify RED**
 
@@ -1272,15 +1317,13 @@ def test_frozen_resource_root_uses_meipass(tmp_path: Path, monkeypatch: pytest.M
 python -m pytest tests/test_diagnostics.py -q
 ```
 
-Expected: runtime and diagnostics modules are absent.
+Expected: runtime/diagnostic modules and the doctor parser are absent.
 
 - [ ] **Step 3: Add source/frozen resource resolution**
 
 Create `calibrate_pro/runtime.py`:
 
 ```python
-"""Read-only source and frozen resource locations."""
-
 from __future__ import annotations
 
 import sys
@@ -1297,105 +1340,49 @@ def resource_path(*parts: str) -> Path:
     return application_root().joinpath(*parts)
 ```
 
-Use `resource_path("dwm_lut")` as the first candidate in `DwmLutController._find_dwm_lut()`; do not instantiate the controller from doctor because its constructor creates directories and enumerates monitors.
+Make `resource_path("dwm_lut")` the first `DwmLutController._find_dwm_lut()` candidate without constructing that controller from diagnostics.
 
-- [ ] **Step 4: Add the doctor report**
+- [ ] **Step 4: Implement stable read-only capability reporting**
 
-Create `calibrate_pro/diagnostics.py` with these exact report sections and dependency imports:
+Create `calibrate_pro/diagnostics.py` with exact dependency tuples for Build Color, Build UI, QtPy, PySide6/Addons/Essentials, shiboken6, NumPy, and SciPy; literal checks for the five `dwm_lut` files and required staged notice/manifest files; and the 100-nit PQ encode/decode tolerances from Task 4. Add:
 
 ```python
-"""Read-only packaged-runtime diagnostics."""
-
-from __future__ import annotations
-
-import importlib
-import importlib.metadata
-import json
-import os
-import sys
-from pathlib import Path
-from typing import Any
-
-import numpy as np
-
-from calibrate_pro import __version__
-from calibrate_pro.core.pq import pq_eotf, pq_oetf
-from calibrate_pro.qt_runtime import configure_qt_api
-from calibrate_pro.runtime import application_root
-
-DEPENDENCIES = (
-    ("build-color", "build_color"),
-    ("build-ui", "build_ui"),
-    ("QtPy", "qtpy"),
-    ("PySide6", "PySide6"),
-    ("PySide6-Addons", "PySide6.QtWebEngineWidgets"),
-    ("PySide6-Essentials", "PySide6.QtWidgets"),
-    ("shiboken6", "shiboken6"),
-    ("numpy", "numpy"),
-    ("scipy", "scipy"),
-)
-
-
-def _dependency_status(distribution: str, module: str) -> dict[str, object]:
-    try:
-        version = importlib.metadata.version(distribution)
-        importlib.import_module(module)
-    except Exception as exc:
-        return {"version": None, "importable": False, "error": str(exc)}
-    return {"version": version, "importable": True, "error": None}
-
-
-def build_doctor_report(root: Path | None = None) -> dict[str, Any]:
-    configure_qt_api()
-    from qtpy import API_NAME
-
-    base = (root or application_root()).resolve()
-    dwm_names = ("DwmLutGUI.exe", "dwm_lut.dll", "WindowsDisplayAPI.dll", "LICENSE", "LICENSE-THIRD-PARTY")
-    notice_names = ("LGPL-3.0-only.txt", "QT_SOURCE_OFFER.txt", "LGPL_RELINKING.md", "source-provenance.json")
-    dependencies = {name: _dependency_status(name, module) for name, module in DEPENDENCIES}
-    encoded = float(pq_oetf(np.array([100.0], dtype=np.float64))[0])
-    decoded = float(pq_eotf(np.array([encoded], dtype=np.float64))[0])
-    dwm_missing = [name for name in dwm_names if not (base / "dwm_lut" / name).is_file()]
-    notice_missing = [name for name in notice_names if not (base / "THIRD_PARTY_LICENSES" / name).is_file()]
-    passed_pq = abs(encoded - 0.508078421517399) <= 1e-12 and abs(decoded - 100.0) <= 1e-8
-    ok = all(item["importable"] for item in dependencies.values()) and not dwm_missing and not notice_missing and passed_pq
+def _capability(software_supported: bool, probe: str, detail: str | None = None) -> dict[str, object]:
     return {
-        "schema_version": 1,
-        "application": {"name": "Calibrate Pro", "version": __version__, "frozen": bool(getattr(sys, "frozen", False))},
-        "qt": {"qt_api": os.environ.get("QT_API"), "api_name": API_NAME},
-        "dependencies": dependencies,
-        "resources": {
-            "dwm_lut": {"available": not dwm_missing, "missing": dwm_missing},
-            "third_party_licenses": {"available": not notice_missing, "missing": notice_missing},
-        },
-        "pq": {"encoded_100_nits": encoded, "decoded_nits": decoded, "passed": passed_pq},
-        "capabilities": {"display_mutation": "not_probed", "usb": "not_probed", "startup": "not_probed"},
-        "ok": ok,
+        "software_supported": software_supported,
+        "device_presence": "not_probed",
+        "probe": probe,
+        "detail": detail,
     }
 
 
-def doctor_exit_code(report: dict[str, Any]) -> int:
-    return 0 if report.get("ok") is True else 1
-
-
-def render_doctor_json(root: Path | None = None) -> str:
-    return json.dumps(build_doctor_report(root=root), indent=2, sort_keys=True)
+def _windows_symbol(dll_name: str, symbol: str) -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        library = ctypes.WinDLL(dll_name, use_last_error=True)
+        getattr(library, symbol)
+    except (OSError, AttributeError):
+        return False
+    return True
 ```
 
-- [ ] **Step 5: Wire the CLI without importing hardware**
+The capability values are: display enumeration from `os.name == "nt"`; DDC/CI from `Dxva2.dll/GetVCPFeatureAndVCPFeatureReply`; ICC profile from `Mscms.dll/WcsGetDefaultColorProfile`; gamma ramp from `Gdi32.dll/GetDeviceGammaRamp`; and colorimeter software support from `importlib.util.find_spec("hid") is not None`. Loading a system DLL and looking up a symbol is allowed; calling the symbol, importing `hid`, or enumerating a device is forbidden. Report schema version is 1 and `ok` depends on dependencies/resources/PQ, not physical device presence.
 
-Add:
+- [ ] **Step 5: Make source command dispatch lazy before heavy imports**
+
+Create `calibrate_pro/commands/doctor.py`:
 
 ```python
-def cmd_doctor(args) -> int:
-    from calibrate_pro.diagnostics import build_doctor_report, doctor_exit_code
+def run(args) -> int:
+    from calibrate_pro.diagnostics import build_doctor_report, doctor_exit_code, render_doctor_json
 
     report = build_doctor_report()
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(render_doctor_json(report=report))
     return doctor_exit_code(report)
 ```
 
-Import `json`, add a `doctor` parser with `--json`, and dispatch it before the default GUI branch. Plain `doctor` may print the same JSON in 1.1; this keeps one stable diagnostic representation.
+Give `render_doctor_json` the signature `render_doctor_json(*, report: dict[str, object] | None = None, root: Path | None = None) -> str`. Change `main(argv: Sequence[str] | None = None) -> int`; parse `doctor` before importing calibration engines, panels, hardware, services, startup, or GUI modules. Move the current top-level calibration-engine, panel, and target imports into only the command functions that need them. Source `cmd_doctor` delegates to `commands.doctor.run`.
 
 - [ ] **Step 6: Verify focused behavior**
 
@@ -1404,453 +1391,345 @@ python -m pytest tests/test_diagnostics.py -q
 python -m calibrate_pro.main doctor --json
 ```
 
-Expected: tests pass. Source doctor may return status 1 until Task 11 adds the checked-in notice tree; its JSON must still be valid and must name the missing notices without touching hardware.
+Expected: both tests and command produce valid schema-1 JSON. Source doctor may exit 1 until Task 11 adds notices, but stderr is empty and no blocked import occurs.
 
 - [ ] **Step 7: Commit diagnostics**
 
 ```powershell
-git add calibrate_pro/runtime.py calibrate_pro/diagnostics.py calibrate_pro/main.py calibrate_pro/lut_system/dwm_lut.py tests/test_diagnostics.py
-git commit -m "feat: add read-only packaged diagnostics"
+git add calibrate_pro/runtime.py calibrate_pro/diagnostics.py calibrate_pro/commands calibrate_pro/main.py calibrate_pro/lut_system/dwm_lut.py tests/test_diagnostics.py
+git commit -m "feat: add non-mutating packaged diagnostics"
 ```
 
 ---
 
-### Task 8: Remove Automatic Elevation and Launch-Time Actuators
+### Task 8: Remove Every GUI/Service Actuator Bypass and Keep Launch Unelevated
 
 **Files:**
 - Create: `tests/test_least_privilege.py`
-- Modify: `calibrate_pro/main.py:35-69,869-893,1875-1901,2023-2027`
-- Modify: `calibrate_pro/gui/hdr_calibration.py:19-54,230-232,617-668`
-- Modify: `calibrate_pro/gui/app.py:1383-1450`
+- Create: `tests/test_actuator_boundary.py`
+- Modify: `calibrate_pro/main.py`
+- Modify: `calibrate_pro/gui/app.py`
+- Modify: `calibrate_pro/gui/hdr_calibration.py`
+- Modify: `calibrate_pro/gui/pages/ddc_control.py`
+- Modify: `calibrate_pro/gui/pages/profiles.py`
+- Modify: `calibrate_pro/gui/pages/settings.py`
+- Modify: `calibrate_pro/services/calibration_guard.py`
+- Modify: `calibrate_pro/tray/tray_app.py`
 
 **Interfaces:**
-- Consumes: explicit `WorkflowStage.APPLY` boundary from Task 6.
-- Produces: unelevated `cmd_gui`, `cmd_hdr`, and opt-in CalibrationGuard startup.
+- Consumes: `ApplyPlan`, `ActuationCoordinator`, and `WindowsDisplayStateAdapter` from Task 6.
+- Produces: unelevated launch plus application-layer code in which every display mutation is a proposed plan signal handled by one confirmation coordinator.
 
-- [ ] **Step 1: Write failing launch-boundary tests**
+- [ ] **Step 1: Write failing source-boundary and behavioral tests**
 
-Create `tests/test_least_privilege.py`:
+Create `tests/test_actuator_boundary.py`. Parse application-facing Python under `calibrate_pro/gui`, `calibrate_pro/services`, `calibrate_pro/tray`, and `calibrate_pro/commands`, plus `main.py` and future `frozen_main.py`. Fail on imports or calls containing `set_vcp`, `set_gamma_ramp`, `reset_gamma_ramp`, `install_profile`, `set_display_profile`, `load_lut`, `unload_lut`, `start_dwm_lut_gui`, or `ShellExecuteW`. The only application-layer file allowed to reference those primitives is `calibrate_pro/adapters/windows_display_state.py`; low-level implementation modules remain callable only by that adapter.
+
+Add offscreen behavior tests using a fake adapter and coordinator:
 
 ```python
-from __future__ import annotations
-
-import ast
-from pathlib import Path
-
-import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
+def test_ddc_slider_stages_without_writing(ddc_page, fake_adapter) -> None:
+    ddc_page.brightness_slider.setValue(42)
+    assert fake_adapter.calls == []
+    assert ddc_page.pending_ddc_changes == (("BRIGHTNESS", 42),)
 
 
-def test_gui_entry_points_do_not_request_elevation() -> None:
-    main_text = (ROOT / "calibrate_pro" / "main.py").read_text(encoding="utf-8")
-    hdr_text = (ROOT / "calibrate_pro" / "gui" / "hdr_calibration.py").read_text(encoding="utf-8")
-    assert '"runas"' not in main_text
-    assert "run_as_admin" not in main_text
-    assert '"runas"' not in hdr_text
-    assert "run_as_admin" not in hdr_text
-
-
-def test_hdr_window_does_not_schedule_dwm_start(monkeypatch: pytest.MonkeyPatch, qapp) -> None:
-    from calibrate_pro.gui.hdr_calibration import HDRCalibrationWindow
-    from calibrate_pro.lut_system.dwm_lut import DwmLutController
-
-    calls: list[str] = []
-    monkeypatch.setattr(DwmLutController, "start_dwm_lut_gui", lambda self: calls.append("start") or True)
-    window = HDRCalibrationWindow()
+def test_hdr_live_update_is_removed(hdr_window, fake_adapter, qapp) -> None:
+    assert not hasattr(hdr_window, "live_update")
     qapp.processEvents()
-    assert calls == []
-    window.close()
+    assert fake_adapter.calls == []
 
 
-def test_main_window_guard_is_opt_in(monkeypatch: pytest.MonkeyPatch, qapp) -> None:
-    from calibrate_pro.gui.app import CalibrateProWindow
-
-    calls: list[str] = []
-    monkeypatch.setattr(CalibrateProWindow, "_start_services", lambda self: calls.append("start"))
-    monkeypatch.setattr(CalibrateProWindow, "_check_first_run", lambda self: None)
-    window = CalibrateProWindow()
-    assert calls == []
-    window.close()
+def test_apply_signal_requires_shell_confirmation(calibrate_window, fake_adapter) -> None:
+    plan = make_plan(ddc_changes=(("BRIGHTNESS", 42),))
+    calibrate_window.stage_apply_plan(plan)
+    calibrate_window.reject_staged_plan()
+    assert fake_adapter.calls == []
+    calibrate_window.stage_apply_plan(plan)
+    receipt = calibrate_window.confirm_staged_plan_for_test()
+    assert receipt.success is True
+    assert fake_adapter.calls[:3] == ["capture", "apply", "verify"]
 ```
+
+Create `tests/test_least_privilege.py` to assert `run_as_admin` and `"runas"` are absent from `main.py`, command modules, and GUI modules; construct main/HDR windows offscreen with injected fakes and assert zero writes/elevation. Assert CalibrationGuard exposes notification callbacks but no restore/apply method.
 
 - [ ] **Step 2: Verify RED**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
-python -m pytest tests/test_least_privilege.py -q
+python -m pytest tests/test_actuator_boundary.py tests/test_least_privilege.py -q
 ```
 
-Expected: source contains automatic elevation and both launch-time actuator tests fail.
+Expected: current direct DDC, profile, gamma, DWM, tray, guard, HDR live-update, and elevation paths fail.
 
-- [ ] **Step 3: Remove GUI-wide elevation paths**
+- [ ] **Step 3: Remove GUI-wide elevation and automatic HDR mutation**
 
-Delete `is_admin()` and `run_as_admin()` from `main.py` and the HDR GUI module. `cmd_hdr` follows the same pattern as `cmd_gui`: configure Qt, import PySide6/window, construct, show, and enter the event loop. Update command help to remove `runs as admin`.
+Delete `is_admin()`/`run_as_admin()` from `main.py` and `gui/hdr_calibration.py`. Remove the HDR constructor's DWM auto-start timer, the live-update timer/toggle, direct `_apply_lut`, direct `_remove_lut`, and direct `_start_dwm_lut` calls. The HDR window generates files and emits `apply_plan_requested = Signal(ApplyPlan)`; its Apply, Reset, Remove, and Start-DWM controls each construct an explicit preview plan instead of writing. `commands.hdr.run` remains unelevated and connects that signal to the shared confirmation handler.
 
-Keep elevation only inside the explicit `DwmLutController.start_dwm_lut_gui()` actuator called after Apply confirmation; no launch path calls it.
+- [ ] **Step 4: Convert DDC, profile, tray, restore, and guard behavior to proposals**
 
-- [ ] **Step 4: Make CalibrationGuard an explicit persisted opt-in**
+- `DDCControlPage` keeps a sorted pending `(code, value)` map. Slider changes never call `set_vcp`; an `Apply DDC changes` button emits one `ApplyPlan` and shows the exact old/new values in Preview.
+- `ProfilesPage` emits a profile-path plan instead of calling `install_profile`.
+- `CalibrateProWindow._apply_tray_profile`, `_restore_defaults`, and `_install_profile` become plan builders passed to `stage_apply_plan(plan)`; no tray callback writes state.
+- `tray/tray_app.py` opens/focuses the main window with a staged plan and never installs a profile or LUT itself.
+- `CalibrationGuard` is renamed in copy to `Calibration monitor`; it detects drift and notifies only. Remove every restoration/write callback. The persisted setting is `services/calibration_monitor_enabled`, defaults false, and explicitly states that 1.1 never reapplies automatically.
 
-Replace unconditional service startup in `CalibrateProWindow.__init__` with:
+All pages receive a callback `request_apply: Callable[[ApplyPlan], None]` from the shell. The shell owns `ActuationCoordinator`, calls `token = coordinator.preview(plan)`, renders the plan, and invokes `coordinator.apply(plan, token, confirmed=dialog_result == Accepted)` exactly once.
 
-```python
-self._guard = None
-guard_enabled = self.settings.value("services/calibration_guard_enabled", False, type=bool)
-if guard_enabled:
-    self._start_services()
-```
-
-The settings page owns changing this value. Enabling it explains that it monitors and may reapply a previously saved calibration. A fresh install defaults to disabled.
-
-- [ ] **Step 5: Verify least privilege and regressions**
+- [ ] **Step 5: Verify the sole boundary and regressions**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
-python -m pytest tests/test_least_privilege.py -q
+python -m pytest tests/test_actuator_boundary.py tests/test_least_privilege.py tests/test_workflow.py -q
 python -m pytest -q
 ```
 
-Expected: GUI/HDR launch tests invoke no elevation or automatic actuator.
+Expected: all direct application-layer writer references are absent, rejection performs zero writes, confirmation uses one transaction, and GUI/HDR launch is unelevated.
 
-- [ ] **Step 6: Commit the least-privilege boundary**
+- [ ] **Step 6: Commit least privilege and bypass removal**
 
 ```powershell
-git add calibrate_pro/main.py calibrate_pro/gui/hdr_calibration.py calibrate_pro/gui/app.py tests/test_least_privilege.py
-git commit -m "fix: keep desktop launch unelevated"
+git add calibrate_pro/main.py calibrate_pro/gui calibrate_pro/services/calibration_guard.py calibrate_pro/tray/tray_app.py tests/test_actuator_boundary.py tests/test_least_privilege.py
+git commit -m "fix: route every display write through confirmed Apply"
 ```
 
 ---
 
-### Task 9: Present the Active Workflow and Truthful Result States
+### Task 9: Carry Structured Evidence Through Every User-Facing Result and Report
 
 **Files:**
-- Create: `tests/test_truthful_results.py`
-- Modify: `calibrate_pro/__init__.py:1-10`
-- Modify: `calibrate_pro/gui/app.py:1114-1170,1383-1410,1661-1725`
-- Modify: `calibrate_pro/gui/calibration_wizard.py:563-580,854-910,1069-1081`
+- Create: `tests/test_truthfulness_contract.py`
+- Modify: `calibrate_pro/__init__.py`
+- Modify: `calibrate_pro/sensorless/auto_calibration.py`
+- Modify: `calibrate_pro/sensorless/neuralux.py`
+- Modify: `calibrate_pro/core/calibration_engine.py`
+- Modify: `calibrate_pro/verification/report_generator.py`
+- Modify: `calibrate_pro/verification/reports.py`
+- Modify: `calibrate_pro/verification/pdf_export.py`
+- Modify: `calibrate_pro/main.py`
+- Modify: `calibrate_pro/gui/app.py`
+- Modify: `calibrate_pro/gui/calibration_wizard.py`
 - Modify: `calibrate_pro/gui/pages/calibrate.py`
-- Modify: `calibrate_pro/gui/pages/calibration_page.py:199,222-243,341-360`
-- Modify: `calibrate_pro/gui/pages/verify.py:965-1014,1161-1192,1223-1237`
-- Modify: `calibrate_pro/gui/dialogs.py:80-105`
+- Modify: `calibrate_pro/gui/pages/calibration_page.py`
+- Modify: `calibrate_pro/gui/pages/verify.py`
+- Modify: `calibrate_pro/gui/dialogs.py`
 - Modify: `calibrate_pro/gui/hdr_calibration.py`
 
 **Interfaces:**
-- Consumes: `WorkflowController`, `ApplyPlan`, `apply_transactionally`, `MetricValue`, and `EvidenceKind`.
-- Produces: visible Detect -> Method -> Preview -> Apply -> Verify -> Save/Report navigation and actionable disabled states.
+- Consumes: `WorkflowController`, `ActuationCoordinator`, `MetricValue`, and `EvidenceKind`.
+- Produces: one structured metric schema across sensorless, measured, simulated, replayed, CLI, GUI, JSON, HTML, and PDF-facing report data.
 
-- [ ] **Step 1: Write failing copy and state tests**
+- [ ] **Step 1: Write failing structured-evidence and release-wide claim tests**
 
-Create `tests/test_truthful_results.py`:
+Create `tests/test_truthfulness_contract.py`:
 
 ```python
-from __future__ import annotations
-
-from pathlib import Path
-
-import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
-CLAIM_FILES = (
-    ROOT / "calibrate_pro" / "__init__.py",
-    ROOT / "calibrate_pro" / "gui" / "calibration_wizard.py",
-    ROOT / "calibrate_pro" / "gui" / "pages" / "calibration_page.py",
-    ROOT / "calibrate_pro" / "gui" / "pages" / "verify.py",
-    ROOT / "calibrate_pro" / "gui" / "dialogs.py",
+BANNED_UNQUALIFIED = (
+    re.compile(r"achiev(?:e|es|ing)\s+delta\s*e\s*<", re.I),
+    re.compile(r"delta\s*e\s*<\s*(?:0\.5|1\.0)\s*(?:typical|accuracy)?", re.I),
+    re.compile(r"(?:99\.2%\s+DCI-P3|87\.3%\s+BT\.2020|100%\s+coverage)", re.I),
 )
 
 
-def test_no_observed_looking_seed_values_or_threshold_promises() -> None:
-    text = "\n".join(path.read_text(encoding="utf-8") for path in CLAIM_FILES)
-    for phrase in (
-        "Average Delta E: 0.42",
-        "Max Delta E: 0.89",
-        "99.2% DCI-P3",
-        "87.3% BT.2020",
-        "100% coverage",
-        "Achieves Delta E < 1.0",
-        "Delta E < 0.5 typical",
-    ):
-        assert phrase not in text
+def test_release_runtime_contains_no_unqualified_accuracy_promises() -> None:
+    files = sorted((ROOT / "calibrate_pro").rglob("*.py")) + [ROOT / "README.md", ROOT / "RELEASE_NOTES.md"]
+    offenders = []
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        for pattern in BANNED_UNQUALIFIED:
+            if pattern.search(text):
+                offenders.append(f"{path.relative_to(ROOT)}:{pattern.pattern}")
+    assert offenders == []
+
+
+def assert_metric(payload: dict[str, object], evidence: str, source_prefix: str) -> None:
+    assert isinstance(payload["value"], (int, float))
+    assert payload["evidence"] == evidence
+    assert str(payload["source"]).startswith(source_prefix)
+
+
+def test_sensorless_json_and_report_metrics_are_estimates(sensorless_result) -> None:
+    payload = sensorless_result.to_dict()
+    assert_metric(payload["delta_e"], "estimated", "panel-characterization:")
+    assert_metric(payload["gamut_coverage_srgb"], "estimated", "panel-characterization:")
+    report = build_report_payload(sensorless_result)
+    assert report["schema_version"] == 1
+    assert_metric(report["metrics"]["delta_e"], "estimated", "panel-characterization:")
+
+
+def test_report_serializer_rejects_bare_numeric_performance_metric() -> None:
+    with pytest.raises(ValueError, match="MetricValue"):
+        build_report_payload({"delta_e": 0.42})
 
 
 def test_missing_metric_renders_not_measured() -> None:
-    from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
-
     assert MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED).display_text() == "Not measured"
-
-
-def test_measured_method_is_visibly_disabled_without_sensor(monkeypatch: pytest.MonkeyPatch, qapp) -> None:
-    from calibrate_pro.gui.pages.calibrate import CalibratePage
-
-    monkeypatch.setattr(CalibratePage, "_detect_sensor", lambda self: False, raising=False)
-    page = CalibratePage()
-    assert page.measured_method_enabled is False
-    assert "supported colorimeter" in page.measured_disabled_reason.lower()
-    page.close()
 ```
+
+Add measured-fixture assertions requiring an instrument receipt source, and simulated/replayed HDR assertions requiring explicit labels in JSON and rendered report text. The report-facing test reads generated HTML/PDF source text and asserts `estimated`, `measured`, `simulated`, or `replayed` appears beside each value.
 
 - [ ] **Step 2: Verify RED**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
-python -m pytest tests/test_truthful_results.py -q
+python -m pytest tests/test_truthfulness_contract.py -q
 ```
 
-Expected: current fixed metrics and promises fail the scan; active page does not expose the required capability-state properties.
+Expected: current package/runtime claims, bare sensorless floats, seeded GUI values, and report serializers fail.
 
-- [ ] **Step 3: Replace synthetic metric presentation**
+- [ ] **Step 3: Make sensorless and measured result schemas evidence-bearing**
 
-In verification widgets, absent Delta E is `None`, draws a neutral border, and renders `Not measured`. Remove `_seed_grayscale_chart` and random/noise-derived readings. Explicit demonstration data uses `EvidenceKind.SIMULATED` and displays `(simulated)` beside every metric.
+Replace public performance floats in `AutoCalibrationResult` and `CalibrationResult` with `MetricValue`. Sensorless sources use `panel-characterization:<normalized-model>:<profile-sha256>`; measured sources use `instrument:<driver>:<redacted-receipt-id>`. Calculated gamut geometry from a panel database is `ESTIMATED`, never `MEASURED`. Keep raw algorithm intermediates private; every `to_dict()` serializes metrics with `MetricValue.to_dict()`.
 
-The wizard no longer calls `_simulate_calibration()` as a completion path. An unavailable worker disables Apply and displays:
+Remove threshold promises and predicted grades from package docstrings, completion messages, CLI output, and `neuralux.py`. A sensorless completion message uses `Estimated model Delta E: <value> (panel characterization)` and always names its source. No missing value defaults to `0.0`.
 
-```text
-This method is unavailable with the detected hardware. You can still export the proposed ICC and LUT files.
-```
+- [ ] **Step 4: Make every report serializer reject unlabeled metrics**
 
-HDR GUI title and description use `HDR target transform` until an instrument-backed CP-HDR-1 workflow supplies measurements.
+Add `build_report_payload(result) -> dict[str, object]` in `verification/report_generator.py`. It accepts result objects whose public metrics are `MetricValue`; a dict containing a bare numeric key in `{delta_e, delta_e_avg, delta_e_max, peak_luminance, gamut_coverage_srgb, gamut_coverage_p3, gamut_coverage_bt2020}` raises `ValueError`. JSON, HTML, and PDF exporters consume only this payload and render `MetricValue.display_text()` plus source. Report schema includes `schema_version`, mode, metrics, source receipts, and generated-at time.
 
-- [ ] **Step 4: Bind the active Calibrate page to the pure workflow**
+- [ ] **Step 5: Replace every synthetic GUI observation and bind the six stages**
 
-Expose these read-only properties on `CalibratePage`:
+Remove seeded 0.42/0.89 metrics, `_seed_grayscale_chart`, random/noise-derived readings, and `_simulate_calibration()` completion. Demonstrations require an explicit simulated result object. Missing readings render `Not measured` with neutral styling. HDR copy is `HDR target transform` until CP-HDR-1 supplies an instrument receipt.
 
-```python
-@property
-def measured_method_enabled(self) -> bool:
-    return self._workflow.capabilities.sensor_available
+`CalibratePage` exposes `measured_method_enabled` and `measured_disabled_reason`, renders exact ordered stages `Detect`, `Method`, `Preview`, `Apply`, `Verify`, `Save/Report`, and sends its preview to the Task 8 confirmation coordinator. Failure shows both `ApplyReceipt.error` and `restore_error`, states `restored` truthfully, and never advances to Verify. Dashboard primary copy is `Calibrate a display`.
 
-
-@property
-def measured_disabled_reason(self) -> str:
-    return self._workflow.capabilities.disabled_reason(CalibrationMethod.MEASURED) or ""
-```
-
-Preview lists target white point, gamma, gamut, each proposed DDC change, and each output path. Apply remains disabled until `WorkflowController.preview` is populated and the user confirms. Call `apply_transactionally()` from the Apply worker; on failure show `ApplyReceipt.error`, state whether restoration succeeded, and do not advance to Verify.
-
-- [ ] **Step 5: Make the shell navigation and dashboard primary action explicit**
-
-The main dashboard primary button text is `Calibrate a display`. Active navigation labels are exactly:
-
-```python
-CAL_PAGES = ["Detect", "Method", "Preview", "Apply", "Verify", "Save/Report"]
-```
-
-If the current shell keeps page-internal stages rather than six top-level widgets, show the same ordered stage indicator within Calibrate and keep Dashboard/Profiles/DDC/Settings as secondary navigation. The test asserts the exact ordered label sequence from the chosen active component.
-
-- [ ] **Step 6: Verify GUI truthfulness and complete suite**
+- [ ] **Step 6: Verify all truthfulness surfaces and the full suite**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
-python -m pytest tests/test_truthful_results.py tests/test_workflow.py tests/test_verification.py -q
+python -m pytest tests/test_truthfulness_contract.py tests/test_hdr_provenance.py tests/test_workflow.py tests/test_verification.py -q
 python -m pytest -q
 ```
 
-Expected: no fabricated observed result remains and unsupported actions are disabled with reasons.
+Expected: every public performance metric carries finite evidence/source or is `Not measured`; no unqualified promise or fabricated observation remains.
 
-- [ ] **Step 7: Commit active product states**
+- [ ] **Step 7: Commit structured truthfulness**
 
 ```powershell
-git add calibrate_pro tests/test_truthful_results.py
-git commit -m "feat: present an evidence-bound calibration flow"
+git add calibrate_pro tests/test_truthfulness_contract.py
+git commit -m "feat: carry evidence through every calibration result"
 ```
 
 ---
 
-### Task 10: Make GUI Imports Lazy and Freeze One Explicit Onedir Graph
+### Task 10: Preserve the GUI API and Freeze a Minimal Positive-Allowlisted Onedir Graph
 
 **Files:**
+- Create: `calibrate_pro/frozen_main.py`
+- Create: `calibrate_pro/commands/gui.py`
+- Create: `calibrate_pro/commands/hdr.py`
+- Create: `packaging/frozen-features.json`
+- Create: `packaging/frozen-modules.json`
+- Create: `tests/data/gui-public-api-1.0.json`
+- Create: `tests/test_gui_lazy_imports.py`
+- Create: `tests/test_frozen_module_allowlist.py`
+- Create: `tests/test_packaging_contract.py`
 - Modify: `calibrate_pro/gui/__init__.py`
 - Replace: `calibrate-pro.spec`
 - Delete: `CalibratePro.spec`
-- Create: `tests/test_gui_lazy_imports.py`
-- Create: `tests/test_packaging_contract.py`
 
 **Interfaces:**
-- Consumes: PySide runtime hook, doctor, active GUI modules, and Build Color core boundary.
-- Produces: `dist/CalibratePro/CalibratePro.exe` and `dist/CalibratePro/CalibrateProCLI.exe` sharing one onedir `_internal` tree.
+- Produces: a developer source CLI with its existing commands, frozen binaries exposing only `doctor`, `gui`, and `hdr`, and a TOC in which every first-party module is explicitly approved.
+- Produces: `dist/CalibratePro/CalibratePro.exe` and `CalibrateProCLI.exe` sharing one `_internal` tree.
 
-- [ ] **Step 1: Write failing lazy-import and spec tests**
+- [ ] **Step 1: Write failing lazy-API, frozen-command, and positive-allowlist tests**
 
-Create `tests/test_gui_lazy_imports.py`:
+Create `tests/data/gui-public-api-1.0.json` with this exact approved-ancestor list:
 
-```python
-from __future__ import annotations
-
-import importlib
-import sys
-
-
-def test_importing_gui_does_not_eagerly_load_historical_pages() -> None:
-    for name in list(sys.modules):
-        if name == "calibrate_pro.gui" or name.startswith("calibrate_pro.gui."):
-            sys.modules.pop(name)
-    gui = importlib.import_module("calibrate_pro.gui")
-    assert gui.__name__ == "calibrate_pro.gui"
-    assert "calibrate_pro.gui.main_window" not in sys.modules
-    assert "calibrate_pro.gui.calibration_wizard" not in sys.modules
-    assert "calibrate_pro.gui.professional_calibration" not in sys.modules
+```json
+[
+  "APP_NAME", "APP_ORGANIZATION", "APP_VERSION", "BeforeAfterView", "CIEDiagramWidget", "COLORS",
+  "CalibrationConfig", "CalibrationMode", "CalibrationModeStep", "CalibrationPage", "CalibrationReport",
+  "CalibrationStatus", "CalibrationWizard", "CalibrationWorker", "ColorCheckerResult", "ColorGrid",
+  "ColorInfoPanel", "ColorManagementStatus", "ColorPatchDisplay", "ColorSwatch", "ComparisonSwatch",
+  "ConsentDialog", "CurveData", "DARK_STYLESHEET", "DDCControlPage", "DashboardPage", "DeltaEBarChart",
+  "DeltaEDisplay", "DeltaEMeasurement", "DeltaEQuality", "DeltaEStatsPanel", "DisplayInfo",
+  "DisplayInfoPanel", "DisplayLayoutPreview", "DisplayMonitorWidget", "DisplaySelectionStep", "DisplaySelector",
+  "DisplayTechnology", "GAMUTS", "GammaCurveWidget", "GammaInfoPanel", "GammaTarget", "GamutCoverage",
+  "GamutTarget", "GrayscaleResult", "IconFactory", "LUT3D", "LUTCubeView", "LUTPreviewWidget",
+  "LUTSliceView", "MainWindow", "MeasuredPoint", "Measurement", "MeasurementHistoryTable", "MeasurementStep",
+  "MeasurementView", "PatternCanvas", "PatternConfig", "PatternRenderer", "PatternSequencer", "PatternType",
+  "PatternWindow", "ProfileGenerationStep", "ProfilesPage", "ReportSummaryPanel", "ReportViewer",
+  "SPECTRAL_LOCUS", "SettingsPage", "SimulatedMeasurementWindow", "SoftwareColorControlPage", "SummaryCard",
+  "TargetSettingsStep", "VCGTToolsPage", "ValuesPanel", "VerificationPage", "VerificationStep", "WHITE_POINTS",
+  "WhitepointTarget", "WizardStep", "bt1886_eotf", "classify_delta_e", "delta_e_2000",
+  "get_delta_e_color", "l_star_eotf", "power_law_eotf", "rgb_to_lab", "rgb_to_xyz", "run_application",
+  "srgb_eotf", "srgb_oetf", "xyz_to_lab"
+]
 ```
 
-Create the first contract tests in `tests/test_packaging_contract.py`:
+`tests/test_gui_lazy_imports.py` asserts the JSON set is a subset of `gui.__all__` and the only added name is `CalibrateProWindow`; importing `calibrate_pro.gui` loads none of `main_window`, `calibration_wizard`, or `professional_calibration`, and every listed attribute resolves on first access under offscreen PySide6.
+
+Create `tests/test_frozen_module_allowlist.py`:
 
 ```python
-from pathlib import Path
+def test_frozen_features_are_exact_and_developer_only_commands_are_explicit() -> None:
+    data = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
+    assert data == {
+        "schema_version": 1,
+        "commands": ["doctor", "gui", "hdr"],
+        "developer_only_commands": [
+            "auto", "calibrate", "ddc-calibrate", "ddc-info", "detect", "disable-startup",
+            "enable-startup", "export-panel", "hdr-status", "import-panel", "info", "list-panels",
+            "list-targets", "match", "native-calibrate", "patterns", "plugins", "profiles-generate",
+            "refine", "restore", "status", "tray", "uniformity", "verify",
+        ],
+    }
 
-ROOT = Path(__file__).resolve().parents[1]
 
-
-def test_only_canonical_spec_exists() -> None:
-    assert sorted(path.name for path in ROOT.glob("*.spec")) == ["calibrate-pro.spec"]
-
-
-def test_spec_is_pyside_onedir_least_privilege_and_no_upx() -> None:
-    text = (ROOT / "calibrate-pro.spec").read_text(encoding="utf-8")
-    assert "COLLECT(" in text
-    assert 'name="CalibratePro"' in text
-    assert 'name="CalibrateProCLI"' in text
-    assert text.count("uac_admin=False") == 2
-    assert "uac_admin=True" not in text
-    assert "upx=True" not in text
-    assert "collect_submodules" not in text
-    assert '"build_color.gui"' in text
-    assert '"PyQt5"' in text and '"PyQt6"' in text
-    assert "packaging/pyi_rth_qt_api.py" in text
+def test_analysis_toc_is_a_positive_first_party_subset(built_analysis_toc: Path) -> None:
+    policy = json.loads((ROOT / "packaging/frozen-modules.json").read_text(encoding="utf-8"))
+    observed = first_party_modules_from_toc(built_analysis_toc)
+    assert observed <= set(policy["first_party_exact"])
+    assert not (set(policy["first_party_exact"]) - observed - set(policy["optional_first_party_exact"]))
 ```
+
+Add subprocess assertions that frozen-main `doctor --json`, `gui`, and `hdr` dispatch to the three shared command modules, while `tray` and `calibrate` exit 2 with `This command is available only in the developer wheel` and do not import their modules.
 
 - [ ] **Step 2: Verify RED**
 
 ```powershell
-python -m pytest tests/test_gui_lazy_imports.py tests/test_packaging_contract.py -q
+python -m pytest tests/test_gui_lazy_imports.py tests/test_frozen_module_allowlist.py tests/test_packaging_contract.py -q
 ```
 
-Expected: eager imports, duplicate spec, onefile layout, UPX, and elevation fail.
+Expected: compatibility facade, frozen manifests, minimal dispatcher, and sole-spec contract are absent.
 
-- [ ] **Step 3: Replace the GUI package initializer with a lazy facade**
+- [ ] **Step 3: Preserve the complete lazy public API**
 
-Use an exact literal mapping and cached `__getattr__`:
+Replace `gui/__init__.py` eager imports with a literal `_EXPORTS: dict[str, tuple[str, str]]` mapping for every name in `gui-public-api-1.0.json`. `__all__` is the sorted mapping key set; cached `__getattr__` imports only the selected module and raises normal `AttributeError` for unknown names. Add `CalibrateProWindow` as the sole new 1.1 export. The compatibility test, not a hand-maintained subset, prevents accidental removals.
 
-```python
-"""Lazy compatibility facade for Calibrate Pro GUI surfaces."""
+- [ ] **Step 4: Add shared lazy desktop commands and the frozen dispatcher**
 
-from importlib import import_module
+`commands/gui.py` and `commands/hdr.py` call `configure_qt_api()` before importing PySide6 or GUI modules, construct the production adapter/coordinator, connect Apply-plan signals to the confirmation dialog, and enter the event loop unelevated. Source `cmd_gui`/`cmd_hdr` delegate to them.
 
-_EXPORTS = {
-    "CalibrateProWindow": ("calibrate_pro.gui.app", "CalibrateProWindow"),
-    "MainWindow": ("calibrate_pro.gui.main_window", "MainWindow"),
-    "run_application": ("calibrate_pro.gui.main_window", "run_application"),
-    "CalibrationWizard": ("calibrate_pro.gui.calibration_wizard", "CalibrationWizard"),
-    "CalibrationConfig": ("calibrate_pro.gui.calibration_wizard", "CalibrationConfig"),
-    "DisplaySelector": ("calibrate_pro.gui.display_selector", "DisplaySelector"),
-    "PatternWindow": ("calibrate_pro.gui.pattern_window", "PatternWindow"),
-    "ReportViewer": ("calibrate_pro.gui.report_viewer", "ReportViewer"),
-}
+Create `frozen_main.py` with a literal string map for only the three approved modules. It parses `argv`, defaults `CalibratePro.exe` with no arguments to `gui`, defaults `CalibrateProCLI.exe` with no arguments to help, handles `--version`, and dynamically imports only the selected shared command. Before parsing, if the first argument is in `developer_only_commands`, print the exact developer-wheel message to stderr and return 2.
 
-__all__ = sorted(_EXPORTS)
+- [ ] **Step 5: Create exact feature and module policies**
 
+Create `packaging/frozen-features.json` exactly as asserted in Step 1. Create `packaging/frozen-modules.json` with schema version 1, `default: reject`, exact first-party modules, optional platform-specific exact modules, and these permitted distribution roots: `build_color`, `build_ui`, `qtpy`, `PySide6`, `shiboken6`, `numpy`, `scipy`, and `hid`. Seed `first_party_exact` with `calibrate_pro`, `frozen_main`, three command modules, diagnostics/runtime/Qt/workflow/recovery/actuation/adapter modules, active GUI shell/pages/widgets, the canonical PQ/color core, panel database/detection, profile/VCGT modules, required sensor/DDC modules, HDR target-transform modules, and DWM LUT modules. No prefix wildcard is permitted for `calibrate_pro` or `build_color`; each observed module must be a literal JSON string.
 
-def __getattr__(name: str):
-    try:
-        module_name, attribute_name = _EXPORTS[name]
-    except KeyError as exc:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
-    value = getattr(import_module(module_name), attribute_name)
-    globals()[name] = value
-    return value
-```
+- [ ] **Step 6: Replace the spec with a generated-exclusion positive graph**
 
-- [ ] **Step 4: Replace the spec with the explicit shared onedir graph**
+The spec reads both JSON policies. It derives `all_first_party` from `Path("calibrate_pro").rglob("*.py")`, converts paths to module names without importing them, and sets `excludes` to every first-party module not in the exact allowlist plus PyQt5, PyQt6, `build_color.gui`, and the existing unrelated-framework exclusions. `hiddenimports` is exactly the approved first-party set plus the four Build Color core modules, Build UI theme/widgets, QtPy, and required PySide modules. It raises during spec evaluation if a hidden import is absent from policy.
 
-Use one `Analysis`, one `PYZ`, two `EXE` objects with `exclude_binaries=True`, and one `COLLECT`. The explicit hidden imports are:
+Use one `Analysis(["calibrate_pro/frozen_main.py"])`, one `PYZ`, two `EXE` objects with `exclude_binaries=True`, and one `COLLECT`. Copy required distribution metadata and the five literal `dwm_lut` files. Set `strip=False`, `upx=False`, and `uac_admin=False` on both executables. Delete `CalibratePro.spec`.
 
-```python
-ACTIVE_MODULES = [
-    "calibrate_pro.diagnostics",
-    "calibrate_pro.runtime",
-    "calibrate_pro.qt_runtime",
-    "calibrate_pro.gui.app",
-    "calibrate_pro.gui.pages.calibrate",
-    "calibrate_pro.gui.pages.verify",
-    "calibrate_pro.gui.pages.profiles",
-    "calibrate_pro.gui.pages.ddc_control",
-    "calibrate_pro.gui.pages.settings",
-    "calibrate_pro.gui.widgets.cie_diagram",
-    "calibrate_pro.core.pq",
-    "calibrate_pro.core.color_math",
-    "calibrate_pro.core.calibration_engine",
-    "calibrate_pro.core.lut_engine",
-    "calibrate_pro.panels.builtin_panels",
-    "calibrate_pro.panels.database",
-    "calibrate_pro.panels.detection",
-    "calibrate_pro.profiles.icc_v4",
-    "calibrate_pro.verification.provenance",
-    "build_color.adaptation",
-    "build_color.difference",
-    "build_color.gamut",
-    "build_color.spaces",
-    "build_ui.theme",
-    "build_ui.widgets",
-    "qtpy",
-    "PySide6.QtCore",
-    "PySide6.QtGui",
-    "PySide6.QtWidgets",
-    "PySide6.QtPrintSupport",
-    "PySide6.QtWebEngineWidgets",
-]
-```
-
-Use `copy_metadata` for `calibrate-pro`, `build-color`, `build-ui`, `QtPy`, `PySide6`, `PySide6-Addons`, `PySide6-Essentials`, `shiboken6`, `numpy`, and `scipy`. Include the five `dwm_lut` files as data. Set:
-
-```python
-runtime_hooks=["packaging/pyi_rth_qt_api.py"]
-excludes=[
-    "PyQt5",
-    "PyQt6",
-    "build_color.gui",
-    "torch",
-    "torchvision",
-    "torchaudio",
-    "transformers",
-    "diffusers",
-    "pandas",
-    "sklearn",
-    "matplotlib",
-    "IPython",
-    "jupyter",
-    "notebook",
-    "cv2",
-    "wx",
-    "pytest",
-    "hypothesis",
-]
-```
-
-Set `upx=False`, `strip=False`, and `uac_admin=False` on both EXEs and `upx=False` on `COLLECT`. Delete `CalibratePro.spec` with `git rm`.
-
-- [ ] **Step 5: Verify source contract and build**
+- [ ] **Step 7: Build, produce the first exact module inventory, and fail closed**
 
 ```powershell
-python -m pytest tests/test_gui_lazy_imports.py tests/test_packaging_contract.py -q
 $env:QT_API = 'pyside6'
+$env:QT_QPA_PLATFORM = 'offscreen'
 python -m PyInstaller --clean --noconfirm calibrate-pro.spec
+python -m pytest tests/test_frozen_module_allowlist.py tests/test_packaging_contract.py -q
 ```
 
-Expected: `dist\CalibratePro\CalibratePro.exe`, `CalibrateProCLI.exe`, and `_internal` exist.
+If the build reports a required first-party module not in policy, add its exact name only after identifying the active import that requires it; do not add a prefix or use `collect_submodules`. Re-run until the TOC is a subset and both executables exist. `rg "PyQt5|PyQt6|build_color\.gui" build/CalibratePro/Analysis-00.toc` must return no match.
 
-- [ ] **Step 6: Audit the initial frozen graph**
-
-```powershell
-rg -n "PyQt5|PyQt6|build_color\.gui" build\CalibratePro\Analysis-00.toc
-Get-ChildItem -Recurse -LiteralPath dist\CalibratePro | Where-Object { $_.Name -match '^PyQt|PyQt.*dist-info' }
-```
-
-Expected: both commands produce no matches. The final release audit is added in Task 12.
-
-- [ ] **Step 7: Commit the onedir graph**
+- [ ] **Step 8: Commit the minimal frozen graph**
 
 ```powershell
-git add calibrate_pro/gui/__init__.py calibrate-pro.spec tests/test_gui_lazy_imports.py tests/test_packaging_contract.py
+git add calibrate_pro/frozen_main.py calibrate_pro/commands calibrate_pro/gui/__init__.py packaging/frozen-features.json packaging/frozen-modules.json calibrate-pro.spec tests/data/gui-public-api-1.0.json tests/test_gui_lazy_imports.py tests/test_frozen_module_allowlist.py tests/test_packaging_contract.py
 git rm CalibratePro.spec
-git commit -m "build: define the PySide-only onedir application"
+git commit -m "build: freeze a positive-allowlisted PySide application"
 ```
 
 ---
@@ -1862,12 +1741,23 @@ git commit -m "build: define the PySide-only onedir application"
 - Create: `packaging/requirements-win64-py312.lock`
 - Create: `packaging/toolchain-win64.json`
 - Create: `packaging/qt-components.json`
+- Create: `packaging/components-win64.json`
 - Create: `packaging/source-provenance.lock.json`
+- Create: `scripts/verify_source_provenance.py`
 - Create: `THIRD_PARTY_LICENSES/README.md`
 - Create: `THIRD_PARTY_LICENSES/LGPL-3.0-only.txt`
 - Create: `THIRD_PARTY_LICENSES/Qt-for-Python-NOTICE.txt`
 - Create: `THIRD_PARTY_LICENSES/QT_SOURCE_OFFER.txt`
 - Create: `THIRD_PARTY_LICENSES/LGPL_RELINKING.md`
+- Create: `THIRD_PARTY_LICENSES/Python-3.12.10.txt`
+- Create: `THIRD_PARTY_LICENSES/Build-Color-1.0.2.txt`
+- Create: `THIRD_PARTY_LICENSES/Build-UI-2.0.0.txt`
+- Create: `THIRD_PARTY_LICENSES/QtPy-2.4.3.txt`
+- Create: `THIRD_PARTY_LICENSES/NumPy-2.5.1.txt`
+- Create: `THIRD_PARTY_LICENSES/SciPy-1.18.0.txt`
+- Create: `THIRD_PARTY_LICENSES/OpenBLAS.txt`
+- Create: `THIRD_PARTY_LICENSES/hidapi-0.15.0.txt`
+- Create: `THIRD_PARTY_LICENSES/PyInstaller-6.21.0.txt`
 - Create: `tests/test_release_lock.py`
 - Create: `tests/test_qt_redistribution.py`
 - Delete: `requirements.txt`
@@ -1875,7 +1765,7 @@ git commit -m "build: define the PySide-only onedir application"
 
 **Interfaces:**
 - Consumes: published Build UI 2.0.0 and the proven PySide6 6.11.1 stack.
-- Produces: hash-locked Python 3.12 Windows inputs plus a fail-closed license/source classification for every staged Qt component.
+- Produces: hash-locked Python 3.12 Windows runtime and build inputs plus fail-closed owner/license/source classification for every staged distribution and native binary, including Qt.
 
 - [ ] **Step 1: Write failing lock and redistribution tests**
 
@@ -1889,7 +1779,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_release_lock_is_hashed_and_pyside_only() -> None:
     lock = (ROOT / "packaging" / "requirements-win64-py312.lock").read_text(encoding="utf-8")
-    for name in ("build-color", "build-ui", "qtpy", "pyside6", "shiboken6", "numpy", "scipy", "pyinstaller"):
+    for name in (
+        "build-color", "build-ui", "qtpy", "pyside6", "shiboken6", "numpy", "scipy",
+        "hidapi", "pyinstaller", "build", "setuptools", "wheel", "pefile",
+    ):
         assert name in lock.lower()
     assert "pyqt5" not in lock.lower()
     assert "pyqt6" not in lock.lower()
@@ -1943,6 +1836,20 @@ def test_qt_policy_has_no_unclassified_component() -> None:
     assert data["schema_version"] == 1
     assert data["default"] == "reject"
     assert all(entry["pattern"] and entry["license"] and entry["source_component"] for entry in data["components"])
+
+
+def test_every_runtime_owner_maps_to_notice_and_source() -> None:
+    data = json.loads((ROOT / "packaging" / "components-win64.json").read_text(encoding="utf-8"))
+    assert data["schema_version"] == 1
+    assert data["default"] == "reject"
+    required = {
+        "python", "calibrate-pro", "build-color", "build-ui", "qtpy", "pyside6", "shiboken6",
+        "numpy", "scipy", "openblas", "hidapi", "pyinstaller-bootloader", "dwm_lut", "windowsdisplayapi",
+    }
+    assert required <= {entry["owner"] for entry in data["components"]}
+    for entry in data["components"]:
+        assert (ROOT / entry["notice_path"]).is_file()
+        assert entry["source_component"]
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -1967,6 +1874,9 @@ scipy==1.18.0
 hidapi==0.15.0
 pyinstaller==6.21.0
 build==1.3.0
+setuptools==80.9.0
+wheel==0.46.1
+pefile==2024.8.26
 ```
 
 Create `packaging/toolchain-win64.json`:
@@ -1978,6 +1888,9 @@ Create `packaging/toolchain-win64.json`:
   "architecture": "x86_64-pc-windows-msvc",
   "uv": "0.11.25",
   "pyinstaller": "6.21.0",
+  "setuptools": "80.9.0",
+  "wheel": "0.46.1",
+  "source_date_epoch": 315532800,
   "inno_setup": "6.7.3"
 }
 ```
@@ -1990,7 +1903,7 @@ uv pip compile packaging/requirements-win64.in --python-version 3.12 --python-pl
 
 Expected: the lock contains hashes for every resolved wheel and no direct URL, Git, local path, or PyQt requirement.
 
-- [ ] **Step 4: Curate, do not infer, Qt license and source mappings**
+- [ ] **Step 4: Curate, do not infer, complete component and source mappings**
 
 Run the Task 10 onedir build once. Enumerate every staged `PySide6*.pyd`, `Qt6*.dll`, Qt plugin, resource helper, and QtWebEngine binary. For each distinct component, verify its upstream module/license and add a literal entry to `packaging/qt-components.json` with this schema:
 
@@ -2017,9 +1930,11 @@ Add all observed components as separate literal entries. Do not use a catch-all 
 
 Download the exact corresponding source archives from the upstream Qt/PySide source locations, compute SHA-256, and record one `components` entry per source archive in `packaging/source-provenance.lock.json`. The record includes `name`, `version`, `source_url`, `sha256`, and `license`; top-level `modifications` is the empty list because 1.1 redistributes unmodified libraries.
 
+Create `packaging/components-win64.json` with `schema_version: 1`, `default: reject`, and literal path/glob records for Python 3.12.10, Calibrate Pro, Build Color, Build UI, QtPy, PySide6, shiboken6, NumPy, SciPy, their bundled OpenBLAS/runtime DLLs, hidapi, the PyInstaller bootloader, `dwm_lut`, and `WindowsDisplayAPI`. Each record contains `pattern`, `owner`, `version`, `license`, `notice_path`, and `source_component`. A broad `*.dll`, `_internal/**`, or distribution-prefix catch-all is forbidden. `scripts/verify_source_provenance.py` downloads every HTTPS source URL to a temporary directory, verifies its SHA-256, rejects redirects outside the recorded host unless the final URL is also recorded, and removes the exact temporary directory.
+
 - [ ] **Step 5: Commit the complete notice set**
 
-Use the verbatim GNU LGPL v3 text from `https://www.gnu.org/licenses/lgpl-3.0.txt`. `Qt-for-Python-NOTICE.txt` names PySide6, shiboken6, Qt 6.11.1, the selected license family, and upstream project links. `QT_SOURCE_OFFER.txt` identifies each exact source archive and checksum from the provenance lock and states how the distributor will provide corresponding source. `LGPL_RELINKING.md` explains the external onedir DLL layout and how a recipient can replace compatible Qt/PySide libraries. `README.md` states that Calibrate's FSL terms do not replace third-party licenses and preserves reverse-engineering/relinking rights needed to debug modified LGPL components.
+Use the verbatim GNU LGPL v3 text from `https://www.gnu.org/licenses/lgpl-3.0.txt`. Commit the exact upstream license text for every owner named by `components-win64.json` under the filenames in this task. `Qt-for-Python-NOTICE.txt` names PySide6, shiboken6, Qt 6.11.1, the selected license family, and upstream project links. `QT_SOURCE_OFFER.txt` identifies each exact source archive and checksum from the provenance lock and states how the distributor will provide corresponding source. `LGPL_RELINKING.md` explains the external onedir DLL layout and how a recipient can replace compatible Qt/PySide libraries. `README.md` states that Calibrate's FSL terms do not replace third-party licenses and preserves reverse-engineering/relinking rights needed to debug modified LGPL components.
 
 Copy `dwm_lut/LICENSE` and `dwm_lut/LICENSE-THIRD-PARTY` during staging; retain their originals beside the bundled runtime too.
 
@@ -2033,69 +1948,82 @@ git rm requirements.txt build_installer.bat
 
 ```powershell
 python -m pytest tests/test_release_lock.py tests/test_qt_redistribution.py -q
-python -m pip install --require-hashes -r packaging/requirements-win64-py312.lock
-python -m pip check
+python scripts/verify_source_provenance.py packaging/source-provenance.lock.json
+$lockProof = Join-Path $env:TEMP ('calibrate-lock-proof-' + [guid]::NewGuid().ToString('N'))
+py -3.12 -m venv $lockProof
+$lockPython = Join-Path $lockProof 'Scripts\python.exe'
+& $lockPython -m pip install --require-hashes -r packaging/requirements-win64-py312.lock
+& $lockPython -m pip check
+$env:PIP_NO_INDEX = '1'
+& $lockPython -m build --wheel --no-isolation
+Remove-Item Env:\PIP_NO_INDEX
+if (-not ((Resolve-Path $lockProof).Path.StartsWith([IO.Path]::GetTempPath(), [StringComparison]::OrdinalIgnoreCase))) { throw 'Unsafe proof path' }
+Remove-Item -LiteralPath $lockProof -Recurse -Force
 ```
 
-Expected: all tests pass and the locked environment is consistent.
+Expected: source archives re-hash correctly, the disposable locked environment is consistent, and the wheel builds without isolation or network resolution.
 
 - [ ] **Step 8: Commit lock and redistribution inputs**
 
 ```powershell
-git add packaging THIRD_PARTY_LICENSES tests/test_release_lock.py tests/test_qt_redistribution.py
+git add packaging THIRD_PARTY_LICENSES scripts/verify_source_provenance.py tests/test_release_lock.py tests/test_qt_redistribution.py
 git commit -m "build: lock Windows and Qt redistribution inputs"
 ```
 
 ---
 
-### Task 12: Generate Deterministic Artifacts and Fail-Closed Receipts
+### Task 12: Audit the Staged Tree, Then Package Only Its Final Signed Bytes
 
 **Files:**
 - Create: `scripts/release_artifacts.py`
 - Create: `tests/test_release_artifacts.py`
 - Modify: `tests/test_packaging_contract.py`
 - Modify: `tests/test_qt_redistribution.py`
+- Modify: `tests/test_frozen_module_allowlist.py`
 
 **Interfaces:**
-- Produces: `audit_analysis_toc`, `audit_staged_tree`, `write_reproducible_zip`, `probe_authenticode`, `write_dependency_manifest`, `write_qt_inventory`, and `write_sha256s`.
+- Produces: `audit_analysis_toc`, `audit_staged_tree`, `write_reproducible_zip`, `probe_authenticode`, dependency/component/Qt/staged inventories, and self-excluding sorted `SHA256SUMS.txt`.
+- Command order is `stage -> external EXE signing -> package -> external installer construction/signing -> finalize`; `package` is the only command that creates the portable ZIP.
 
-- [ ] **Step 1: Write failing deterministic-archive and audit tests**
+- [ ] **Step 1: Write failing final-byte, deterministic, and fail-closed audit tests**
 
-Create `tests/test_release_artifacts.py` with synthetic staged trees that assert:
+Create `tests/test_release_artifacts.py` with a test that writes `a.txt` and `z.txt` to a staged directory, calls `write_reproducible_zip()` twice with epoch `315532800`, and asserts both returned SHA-256 values and both ZIP byte strings are identical. Add:
 
 ```python
-def test_reproducible_zip_is_byte_identical(tmp_path: Path) -> None:
-    staged = tmp_path / "staged"
-    staged.mkdir()
-    (staged / "z.txt").write_text("z", encoding="utf-8")
-    (staged / "a.txt").write_text("a", encoding="utf-8")
-    first = tmp_path / "first.zip"
-    second = tmp_path / "second.zip"
-    assert write_reproducible_zip(staged, first, 315532800) == write_reproducible_zip(staged, second, 315532800)
-    assert first.read_bytes() == second.read_bytes()
+def test_package_inventory_and_zip_use_post_sign_bytes(tmp_path: Path) -> None:
+    staged, release, policies = synthetic_valid_stage(tmp_path)
+    exe = staged / "CalibratePro.exe"
+    exe.write_bytes(b"unsigned")
+    stage(staged, release, **policies)
+    exe.write_bytes(b"signed-final-bytes")
+    package(staged, release, epoch=315532800, **policies)
+    inventory = json.loads((release / "staged-inventory.json").read_text(encoding="utf-8"))
+    record = next(item for item in inventory["files"] if item["path"] == "CalibratePro.exe")
+    assert record["sha256"] == hashlib.sha256(b"signed-final-bytes").hexdigest()
+    with zipfile.ZipFile(release / "CalibratePro-1.1.0-win64.zip") as archive:
+        assert archive.read("CalibratePro.exe") == b"signed-final-bytes"
 
 
-def test_stage_audit_rejects_pyqt_and_build_color_gui(tmp_path: Path) -> None:
-    for relative in ("_internal/PyQt6/QtCore.pyd", "_internal/build_color/gui/app.py"):
-        staged = tmp_path / relative.replace("/", "_")
-        staged.mkdir()
-        path = staged / relative
-        path.parent.mkdir(parents=True)
-        path.write_bytes(b"forbidden")
-        with pytest.raises(RuntimeError, match="forbidden"):
-            audit_staged_tree(staged, qt_policy={"schema_version": 1, "default": "reject", "components": []})
+def test_unknown_distribution_or_native_binary_fails_closed(tmp_path: Path) -> None:
+    staged, _, policies = synthetic_valid_stage(tmp_path)
+    unknown = staged / "_internal" / "unknown-native.dll"
+    unknown.write_bytes(b"MZunknown")
+    with pytest.raises(RuntimeError, match="unknown-native.dll"):
+        audit_staged_tree(staged, **policies)
 
 
-def test_unknown_qt_component_fails_closed(tmp_path: Path) -> None:
-    staged = tmp_path / "staged"
-    path = staged / "_internal" / "PySide6" / "Qt6Unknown.dll"
-    path.parent.mkdir(parents=True)
-    path.write_bytes(b"qt")
-    with pytest.raises(RuntimeError, match="Qt6Unknown.dll"):
-        audit_staged_tree(staged, qt_policy={"schema_version": 1, "default": "reject", "components": []})
+def test_sha256s_excludes_itself_and_is_sorted(tmp_path: Path) -> None:
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "z.bin").write_bytes(b"z")
+    (release / "a.bin").write_bytes(b"a")
+    write_sha256s(release)
+    lines = (release / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines()
+    assert lines == sorted(lines, key=lambda line: line.split("  ", 1)[1])
+    assert not any(line.endswith("SHA256SUMS.txt") for line in lines)
 ```
 
-Also test the 350 MiB constant, sorted `SHA256SUMS.txt`, required receipts, `UPX!` rejection in Qt binaries, and injectable Authenticode probe output.
+Retain explicit PyQt, `build_color.gui`, unknown Qt, `UPX!`, 350 MiB, required-receipt, and positive TOC allowlist tests.
 
 - [ ] **Step 2: Verify RED**
 
@@ -2103,71 +2031,57 @@ Also test the 350 MiB constant, sorted `SHA256SUMS.txt`, required receipts, `UPX
 python -m pytest tests/test_release_artifacts.py -q
 ```
 
-Expected: release module is absent.
+Expected: release module and final-byte command sequence are absent.
 
-- [ ] **Step 3: Implement deterministic ZIP writing**
+- [ ] **Step 3: Implement the complete artifact-tool module skeleton**
 
-Use this exact function in `scripts/release_artifacts.py`:
+`scripts/release_artifacts.py` imports `argparse`, `ast`, `hashlib`, `json`, `os`, `shutil`, `subprocess`, `sys`, `time`, `zipfile`, `dataclass/asdict`, `importlib.metadata`, and `Path`. Define `MAXIMUM_BYTES = 350 * 1024 * 1024`, subparsers `stage`, `package`, and `finalize`, and explicit required arguments for staged directory, analysis TOC, release directory, all three policy files, and source-date epoch where applicable. Every command resolves paths and rejects a release directory inside the staged tree.
 
-```python
-def write_reproducible_zip(source: Path, output: Path, epoch: int) -> str:
-    timestamp = time.gmtime(max(epoch, 315532800))[:6]
-    members = sorted(path for path in source.rglob("*") if path.is_file())
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in members:
-            relative = path.relative_to(source).as_posix()
-            info = zipfile.ZipInfo(relative, date_time=timestamp)
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.create_system = 0
-            info.external_attr = 0o100644 << 16
-            archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
-    return hashlib.sha256(output.read_bytes()).hexdigest()
-```
+Use the deterministic ZIP function from the first draft, with epoch clamped to the ZIP-supported 1980-2107 range, sorted POSIX member names, fixed compression level 9, fixed file mode, and a top-level `CalibratePro/` archive directory so extraction cannot spill files into the current directory.
 
-Imports are `hashlib`, `json`, `subprocess`, `time`, `zipfile`, `dataclasses`, `importlib.metadata`, and `pathlib.Path`. `MAXIMUM_BYTES = 350 * 1024 * 1024`.
+- [ ] **Step 4: Implement positive TOC, ownership, notice, and staged-tree audits**
 
-- [ ] **Step 4: Implement staged-tree and TOC audits**
+`audit_analysis_toc()` uses `ast.literal_eval`, recursively extracts module names, rejects PyQt/Build Color GUI, and enforces every `calibrate_pro.*` name against `frozen-modules.json`. `audit_staged_tree()` enforces `components-win64.json` ownership for every distribution metadata directory and every `.dll`, `.pyd`, `.exe`, Qt plugin/helper, and Python runtime binary; applies the stricter Qt policy to Qt-owned files; rejects forbidden frameworks and UPX markers; and verifies every mapped notice/source component exists. Unknown files print their relative paths and stop packaging.
 
-`audit_staged_tree()` walks sorted relative paths and rejects path components beginning with `PyQt5` or `PyQt6`, any `build_color/gui` subtree, forbidden framework names, missing required `dwm_lut` files, missing notice files, unknown Qt policy entries, and `UPX!` bytes in a Qt/PySide binary. `audit_analysis_toc()` parses the PyInstaller TOC with `ast.literal_eval` and rejects module names starting with `PyQt5`, `PyQt6`, or `build_color.gui`.
+Dependency, component, Qt, and staged inventories record sorted path, owner/distribution, exact version, SHA-256, size, license, notice, and source component as applicable. `package` regenerates all inventories from current staged bytes immediately before writing the ZIP.
 
-The Qt inventory records for each matched binary: relative path, SHA-256, byte size, policy license, and source component. The dependency manifest records installed distribution name/version and all included distribution-metadata hashes. The canonical staged inventory records every relative path, size, and SHA-256.
+- [ ] **Step 5: Implement stable Authenticode probing**
 
-- [ ] **Step 5: Implement real signature status probing**
-
-`probe_authenticode(path)` invokes:
+Invoke PowerShell with the path supplied as a separately quoted argument and this calculated projection:
 
 ```powershell
-Get-AuthenticodeSignature -LiteralPath '<absolute path>' | Select-Object Status,StatusMessage,SignerCertificate,TimeStamperCertificate | ConvertTo-Json -Depth 4 -Compress
+Get-AuthenticodeSignature -LiteralPath $args[0] |
+  Select-Object @{Name='Status';Expression={$_.Status.ToString()}},StatusMessage,
+    @{Name='SignerThumbprint';Expression={$_.SignerCertificate.Thumbprint}},
+    @{Name='SignerSubject';Expression={$_.SignerCertificate.Subject}},
+    @{Name='TimestampThumbprint';Expression={$_.TimeStamperCertificate.Thumbprint}} |
+  ConvertTo-Json -Compress
 ```
 
-The Python function parses JSON and records `Valid`, `NotSigned`, or the reported failure. It never reads `CALIBRATE_PRO_SIGNED` or another claimed status variable.
+`probe_authenticode()` accepts only string statuses such as `Valid` and `NotSigned`; it never stores unstable certificate object handles or trusts an environment claim.
 
-- [ ] **Step 6: Generate all receipts from the staged tree**
+- [ ] **Step 6: Implement the non-overlapping command phases**
 
-The command interface is:
-
-```text
-python scripts/release_artifacts.py prepare --staged-dir dist/CalibratePro --analysis-toc build/CalibratePro/Analysis-00.toc --release-dir release --source-date-epoch <integer>
-python scripts/release_artifacts.py finalize --staged-dir dist/CalibratePro --release-dir release --require-installer
-```
-
-`prepare` copies notices, emits dependency/source/Qt/staged inventories, audits, and creates the portable ZIP. `finalize` probes signatures, enforces both size gates, and writes sorted hashes after every other output exists.
+- `stage` copies notices into the onedir tree, runs TOC/tree/BOM/Qt audits, and emits `pre-sign-audit.json`; it does not emit final inventories or a ZIP.
+- after external signing, `package` reruns all audits, writes final dependency/component/source/Qt/staged inventories, copies public receipts to `release/`, and creates `CalibratePro-1.1.0-win64.zip` from those exact bytes.
+- after Inno construction/signing, `finalize` probes both staged EXEs and the installer, enforces installer/ZIP size gates, verifies the ZIP EXE hashes equal the final staged EXE hashes, and writes hashes for every release file except `SHA256SUMS.txt` itself.
 
 - [ ] **Step 7: Verify unit and integration behavior**
 
 ```powershell
-python -m pytest tests/test_release_artifacts.py tests/test_qt_redistribution.py tests/test_packaging_contract.py -q
-python scripts/release_artifacts.py prepare --staged-dir dist/CalibratePro --analysis-toc build/CalibratePro/Analysis-00.toc --release-dir release --source-date-epoch 315532800
+python -m pytest tests/test_release_artifacts.py tests/test_qt_redistribution.py tests/test_packaging_contract.py tests/test_frozen_module_allowlist.py -q
+python scripts/release_artifacts.py stage --staged-dir dist/CalibratePro --analysis-toc build/CalibratePro/Analysis-00.toc --release-dir release --component-policy packaging/components-win64.json --qt-policy packaging/qt-components.json --module-policy packaging/frozen-modules.json
+python scripts/release_artifacts.py package --staged-dir dist/CalibratePro --analysis-toc build/CalibratePro/Analysis-00.toc --release-dir release --component-policy packaging/components-win64.json --qt-policy packaging/qt-components.json --module-policy packaging/frozen-modules.json --source-date-epoch 315532800
 .\dist\CalibratePro\CalibrateProCLI.exe doctor --json
 ```
 
-Expected: audits pass only after notices/receipts are staged; frozen doctor returns `ok: true`.
+Expected: synthetic byte mutation proves package uses final bytes; real audits pass and frozen doctor reports `ok: true`.
 
 - [ ] **Step 8: Commit artifact tooling**
 
 ```powershell
-git add scripts/release_artifacts.py tests/test_release_artifacts.py tests/test_packaging_contract.py tests/test_qt_redistribution.py
-git commit -m "build: add deterministic release audits"
+git add scripts/release_artifacts.py tests/test_release_artifacts.py tests/test_packaging_contract.py tests/test_qt_redistribution.py tests/test_frozen_module_allowlist.py
+git commit -m "build: package only audited final staged bytes"
 ```
 
 ---
@@ -2179,6 +2093,7 @@ git commit -m "build: add deterministic release audits"
 - Create: `scripts/build_windows.ps1`
 - Create: `scripts/smoke_frozen.ps1`
 - Create: `scripts/verify_reproducibility.ps1`
+- Create: `scripts/verify_pe_manifest.py`
 - Modify: `tests/test_packaging_contract.py`
 
 **Interfaces:**
@@ -2206,6 +2121,17 @@ def test_build_script_uses_hash_lock_and_canonical_spec() -> None:
     assert "calibrate-pro.spec" in text
     assert "Compress-Archive" not in text
     assert "release_artifacts.py" in text
+    assert "--wheel --no-isolation" in text
+    assert "SOURCE_DATE_EPOCH" in text and "PYTHONHASHSEED" in text
+    assert text.index("release_artifacts.py stage") < text.index("Sign-StagedExecutables")
+    assert text.index("Sign-StagedExecutables") < text.index("release_artifacts.py package")
+    assert text.index("release_artifacts.py package") < text.index("ISCC.exe")
+
+
+def test_built_pe_manifests_are_checked_not_inferred_from_spec() -> None:
+    text = (ROOT / "scripts" / "build_windows.ps1").read_text(encoding="utf-8")
+    assert "verify_pe_manifest.py" in text
+    assert "asInvoker" in (ROOT / "scripts" / "verify_pe_manifest.py").read_text(encoding="utf-8")
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -2224,6 +2150,12 @@ Create `installer/CalibratePro.iss`:
 #ifndef AppVersion
   #error AppVersion must be supplied with /DAppVersion
 #endif
+#ifndef StagedDir
+  #error StagedDir must be supplied with /DStagedDir
+#endif
+#ifndef ReleaseDir
+  #error ReleaseDir must be supplied with /DReleaseDir
+#endif
 #define AppName "Calibrate Pro"
 #define AppPublisher "Zain Dana Harper"
 #define AppExeName "CalibratePro.exe"
@@ -2235,7 +2167,7 @@ AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 DefaultDirName={localappdata}\Programs\Calibrate Pro
 DefaultGroupName=Calibrate Pro
-OutputDir=..\release
+OutputDir={#ReleaseDir}
 OutputBaseFilename=CalibratePro-{#AppVersion}-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -2246,7 +2178,7 @@ UninstallDisplayIcon={app}\{#AppExeName}
 WizardStyle=modern
 
 [Files]
-Source: "..\dist\CalibratePro\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#StagedDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Calibrate Pro"; Filename: "{app}\{#AppExeName}"
@@ -2261,21 +2193,35 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch Calibrate Pro"; Flags: now
 
 - [ ] **Step 4: Create the canonical PowerShell build**
 
-`scripts/build_windows.ps1` accepts `-Unsigned` and `-SkipInstaller`, verifies Windows x64 and Python 3.12.10, creates a uniquely named temporary venv, installs the hash lock with `python -m pip install --require-hashes -r`, builds the Calibrate wheel, installs it with `--no-deps`, runs tests, builds PyInstaller, runs `release_artifacts.py prepare`, runs frozen doctor, conditionally signs both EXEs, compiles Inno with:
+`scripts/build_windows.ps1` accepts `-Unsigned`, `-SkipInstaller`, and an optional new `-OutputRoot`. It verifies Windows x64/Python 3.12.10, loads the fixed epoch from `toolchain-win64.json`, and sets `SOURCE_DATE_EPOCH`, `PYTHONHASHSEED=0`, `PYTHONUTF8=1`, `TZ=UTC`, and `LANG=C` before any wheel/frozen build. It creates a unique empty output root when none is supplied and refuses a non-empty supplied root. It creates a uniquely named temporary venv, installs the hash lock with `--require-hashes`, sets `PIP_NO_INDEX=1`, builds only the Calibrate wheel with `python -m build --wheel --no-isolation --outdir $outputRoot\wheel`, installs that exact wheel with `--no-deps`, runs tests, and builds PyInstaller with explicit `--workpath` and `--distpath` below the output root.
+
+The canonical order is exact:
+
+1. freeze the unsigned onedir tree;
+2. run `release_artifacts.py stage` and frozen doctor;
+3. use `scripts/verify_pe_manifest.py` to prove both generated PE manifests request `asInvoker`;
+4. `Sign-StagedExecutables` signs both staged EXEs when configured;
+5. run `release_artifacts.py package`, which regenerates inventories and ZIP from the now-final EXE bytes;
+6. compile Inno from that same staged tree with:
 
 ```powershell
-& $iscc "/DAppVersion=$version" '.\installer\CalibratePro.iss'
+& $iscc "/DAppVersion=$version" "/DStagedDir=$stagedDir" "/DReleaseDir=$releaseDir" '.\installer\CalibratePro.iss'
 ```
 
-It then conditionally signs the installer and runs `release_artifacts.py finalize`. It validates the temporary directory is below `[IO.Path]::GetTempPath()` and begins with `calibrate-pro-release-` before recursive removal.
+7. conditionally sign the installer;
+8. run `release_artifacts.py finalize` to verify signatures, ZIP/stage identity, size, and final hashes.
 
-Pin Inno Setup 6.7.3 in CI and receipt its `ISCC.exe` file version. The build refuses another version unless `packaging/toolchain-win64.json` changes in a reviewed commit.
+The script resets environment variables in `finally`. It validates any temporary directory is below `[IO.Path]::GetTempPath()` and has the expected `calibrate-pro-release-`, `calibrate-pro-venv-`, or `calibrate-pro-output-` leaf prefix before recursive removal. It never cleans a caller-supplied directory. With no `-OutputRoot`, it builds in a unique temp root and, after successful finalize, atomically replaces the repository `release/` directory by renaming the completed release directory; with `-OutputRoot`, all build/dist/release files remain below that caller-owned empty root and repository `release/` is untouched.
+
+Pin Inno Setup 6.7.3 in CI and receipt its `ISCC.exe` file version and SHA-256. The build refuses another version unless `packaging/toolchain-win64.json` changes in a reviewed commit.
+
+Create `scripts/verify_pe_manifest.py` using locked `pefile`. It reads the RT_MANIFEST resource bytes from each supplied EXE, parses XML, requires exactly one `requestedExecutionLevel`, requires `level="asInvoker"`, rejects `requireAdministrator`/`highestAvailable`, and writes a sorted JSON receipt containing executable path, SHA-256, and requested level. Absence or malformed XML exits nonzero.
 
 - [ ] **Step 5: Add safe frozen smoke and reproducibility scripts**
 
 `smoke_frozen.ps1` runs CLI help, version, doctor, and starts each unelevated GUI executable long enough to verify it remains running, then stops it. It first sets `QT_QPA_PLATFORM=offscreen`; automatic actuators were removed in Tasks 8-9.
 
-`verify_reproducibility.ps1` runs two unsigned `-SkipInstaller` builds in separate temporary roots, compares the two portable ZIP SHA-256 values and canonical staged-inventory JSON bytes, and exits nonzero on any difference. Signing and Inno timestamps are outside this unsigned identity comparison and are recorded separately.
+`verify_reproducibility.ps1` creates two unique empty `calibrate-pro-output-*` roots below the system temp directory, invokes the same source tree twice with `-Unsigned -SkipInstaller -OutputRoot`, compares portable ZIP SHA-256 and canonical staged-inventory JSON bytes, emits a path/hash diff on mismatch, and safely removes only its two verified roots. Signing and Inno timestamps are outside this unsigned identity comparison.
 
 - [ ] **Step 6: Run the complete local Windows release**
 
@@ -2301,7 +2247,7 @@ release/THIRD_PARTY_LICENSES/
 - [ ] **Step 7: Commit the release pipeline**
 
 ```powershell
-git add installer scripts/build_windows.ps1 scripts/smoke_frozen.ps1 scripts/verify_reproducibility.ps1 tests/test_packaging_contract.py
+git add installer scripts/build_windows.ps1 scripts/smoke_frozen.ps1 scripts/verify_reproducibility.ps1 scripts/verify_pe_manifest.py tests/test_packaging_contract.py
 git commit -m "build: produce Calibrate Pro Windows artifacts"
 ```
 
@@ -2345,7 +2291,7 @@ def test_ci_selects_pyside_and_uses_published_dependencies() -> None:
 def test_release_runs_the_canonical_windows_pipeline() -> None:
     text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     for token in (
-        "windows-latest",
+        "windows-2022",
         "scripts/build_windows.ps1",
         "scripts/smoke_frozen.ps1",
         "scripts/verify_reproducibility.ps1",
@@ -2366,7 +2312,7 @@ Expected: current CI uses Git Build Color and current release is Ubuntu wheel-on
 
 - [ ] **Step 3: Update CI and release jobs**
 
-Set `QT_API: pyside6` and `QT_QPA_PLATFORM: offscreen`. Source tests install `.[all,test]` from published declarations. Keep Python 3.10-3.13 source coverage. Add one Windows Python 3.12 packaging job that installs exactly Inno Setup 6.7.3, verifies its Authenticode signature and version, invokes the canonical build/smoke/reproducibility scripts, and uploads the complete `release/` directory.
+Set `QT_API: pyside6` and `QT_QPA_PLATFORM: offscreen`. Source tests install `.[all,test]` from published declarations. Keep Python 3.10-3.13 source coverage. Add one pinned `windows-2022` Python 3.12 packaging job that records runner image/OS, installs exactly Inno Setup 6.7.3, verifies and receipts its SHA-256, Authenticode status, and version, invokes the canonical build/smoke/reproducibility scripts, and uploads the complete `release/` directory.
 
 The release workflow retains trusted PyPI publishing for the wheel and adds a dependent Windows artifact job. Signing secrets are consumed only by the release environment; the same scripts produce a truthful unsigned release when secrets are absent.
 
@@ -2389,7 +2335,7 @@ README leads with installer, portable ZIP, then developer wheel. It states no Py
 
 Release notes distinguish sensorless estimates, supported instrument measurements, explicit HDR simulation/replay, and CP-HDR-1 as future measured HDR work. Do not claim DisplayCAL, ColourSpace, or Calman replacement parity in 1.1. State that unsigned artifacts are unsigned and that physical hardware validation is limited to named receipts.
 
-Architecture documents the pure workflow, actuator boundary, Build Color core imports, Build UI 2 bridge, PySide-only freeze, onedir layout, and source/frozen diagnostics. Security documents protected signing secrets, no telemetry assumption, and third-party source/relinking rights.
+Architecture documents the pure workflow, sole production actuator adapter, explicit frozen-only command set, positive module allowlist, Build Color core imports, Build UI 2 bridge, PySide-only freeze, onedir layout, and source/frozen diagnostics. Security documents protected signing secrets, no telemetry assumption, complete component/notice ownership, and third-party source/relinking rights.
 
 - [ ] **Step 6: Run disposable-machine acceptance**
 
@@ -2403,6 +2349,9 @@ In a clean Windows 10/11 x64 VM or Windows Sandbox with Python absent and networ
 6. Uninstall silently and verify application files and shortcuts are removed.
 7. Extract `CalibratePro-1.1.0-win64.zip`, repeat GUI and doctor without installation, and confirm no external Python is used.
 8. Confirm installer and ZIP are each at most `367001600` bytes.
+9. Confirm `pe-manifest-inventory.json` reports `asInvoker` for both EXEs and that GUI/HDR launch produces no UAC prompt.
+10. Confirm frozen `tray` and `calibrate` return exit 2 with the documented developer-wheel message, while source-wheel commands remain available.
+11. Reject one staged Apply and confirm no DDC/profile/VCGT/DWM change; accept a harmless test-display Apply only under the separately authorized hardware protocol and retain its transaction receipt.
 
 - [ ] **Step 7: Record R1-R20 evidence in the approved spec**
 
@@ -2422,7 +2371,11 @@ git commit -m "docs: publish Calibrate Pro 1.1 release evidence"
 Run from the isolated worktree only:
 
 ```powershell
-if ((git rev-parse --show-toplevel).Trim() -ne 'C:\dev\worktrees\calibrate-pro-1.1-pyside') { throw 'Wrong worktree' }
+$handoff = Get-Content -Raw -LiteralPath 'C:\dev\worktrees\calibrate-pro-1.1-pyside-handoff.json' | ConvertFrom-Json
+$expectedRoot = (Resolve-Path -LiteralPath $handoff.worktree_path).ProviderPath
+$actualRoot = (Resolve-Path -LiteralPath ((git rev-parse --show-toplevel).Trim())).ProviderPath
+if (-not [string]::Equals($actualRoot, $expectedRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Wrong worktree' }
+if ((git symbolic-ref --short HEAD).Trim() -ne $handoff.branch) { throw 'Wrong implementation branch' }
 $env:QT_API = 'pyside6'
 $env:QT_QPA_PLATFORM = 'offscreen'
 ruff check .
@@ -2433,7 +2386,6 @@ python -m build
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_windows.ps1 -Unsigned
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke_frozen.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_reproducibility.ps1
-.\dist\CalibratePro\CalibrateProCLI.exe doctor --json
 Get-FileHash .\release\CalibratePro-1.1.0-Setup.exe -Algorithm SHA256
 Get-FileHash .\release\CalibratePro-1.1.0-win64.zip -Algorithm SHA256
 git diff --check
@@ -2445,16 +2397,16 @@ Expected: all automated gates pass, doctor reports `ok: true`, both hashes exist
 ## Plan Self-Review
 
 - R1 is implemented by Tasks 10-14 and proven only by Task 14's offline clean-machine check.
-- R2, R3, and R18 map to Tasks 1-3, 10-13.
+- R2, R3, and R18 map to Tasks 1-3, 10-13, including candidate-extra parsing, loaded-binding rejection, positive module closure, and complete component ownership.
 - R4 and R5 map to Task 10.
 - R6 maps to Task 3.
-- R7, R8, R9, and R10 map to Tasks 5, 6, 8, and 9.
-- R11, R12, R14, and R20 map to Tasks 11-14.
-- R13 maps to Task 7 and frozen checks in Tasks 12-14.
-- R15 and R19 map to Tasks 8, 10, 13, and 14.
+- R7, R8, R9, and R10 map to Tasks 5, 6, 8, and 9 through finite sourced metrics, capability-complete previews, one-use confirmation, the sole Windows adapter, and capture/restore failure receipts.
+- R11, R12, R14, and R20 map to Tasks 11-14 through the hash-locked no-isolation backend, whole-build deterministic environment, complete BOM/notices, post-sign packaging, stable signature probes, and the sole release script.
+- R13 maps to Task 7 and frozen checks in Tasks 12-14; software availability is reported without device enumeration and both real entrypoints are mutation-import tested.
+- R15 and R19 map to Tasks 6, 8, 10, 13, and 14; every bypass is removed, PE manifests are inspected from built bytes, and frozen commands are explicitly bounded.
 - R16 maps to Tasks 5 and 9.
 - R17 maps to Task 4 and doctor/release checks in Tasks 7 and 12.
-- Type names and signatures are consistent: `EvidenceKind`, `MetricValue`, `ApplyPlan`, `WorkflowController`, `DisplayStateAdapter`, `ApplyReceipt`, `application_root`, `resource_path`, `build_doctor_report`, and `write_reproducible_zip` retain the same spelling at every consumer.
+- Type names and signatures are consistent: `EvidenceKind`, `MetricValue`, `ApplyPlan`, `WorkflowController`, `DisplayStateSnapshot`, `DisplayStateAdapter`, `ActuationCoordinator`, `WindowsDisplayStateAdapter`, `ApplyReceipt`, `application_root`, `resource_path`, `build_doctor_report`, and `write_reproducible_zip` retain the same spelling at every consumer.
 - CP-HDR-1 measurement expansion, generalized grading, rendering-engine integration, and competitive parity remain outside this packaging plan.
 - A trusted signing certificate and legal approval remain explicit external release gates; all unsigned and engineering-audit results stay truthful.
 
