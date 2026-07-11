@@ -17,6 +17,8 @@ import sys
 import time
 from pathlib import Path
 
+from calibrate_pro import __version__
+
 # Ensure we can find our modules
 if getattr(sys, "frozen", False):
     # Running as compiled executable
@@ -25,8 +27,6 @@ else:
     # Running as script
     APP_DIR = Path(__file__).parent.parent
 
-# Version
-__version__ = "1.0.1"
 __app_name__ = "Calibrate Pro"
 
 

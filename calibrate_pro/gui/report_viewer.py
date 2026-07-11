@@ -32,6 +32,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro import __version__
+
 # =============================================================================
 # Theme Colors
 # =============================================================================
@@ -97,7 +99,7 @@ class CalibrationReport:
     # Metadata
     report_id: str = ""
     created_at: datetime = field(default_factory=datetime.now)
-    software_version: str = "1.0.0"
+    software_version: str = __version__
 
     # Display info
     display_name: str = ""

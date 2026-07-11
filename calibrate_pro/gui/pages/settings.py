@@ -29,13 +29,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro import __version__ as APP_VERSION
 from calibrate_pro.gui.app import C, Card, Heading
 
 # Constants
 
 APP_ORG = "Build Universe"
 APP_NAME = "Calibrate Pro"
-APP_VERSION = "1.0.0"
 
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Documents" / "Calibrate Pro" / "Calibrations")
 

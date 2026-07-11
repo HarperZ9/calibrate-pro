@@ -5,10 +5,11 @@ Application identity constants, color palette, and the dark theme stylesheet
 optimized for display calibration environments.
 """
 
+from calibrate_pro import __version__ as APP_VERSION  # noqa: F401 - compatibility export
+
 # Application Constants
 
 APP_NAME = "Calibrate Pro"
-APP_VERSION = "1.0.0"
 APP_ORGANIZATION = "Build Universe"
 
 # Dark theme colors optimized for calibration environment
