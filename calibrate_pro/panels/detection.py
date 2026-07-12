@@ -11,9 +11,13 @@ import ctypes
 import re
 import struct
 import sys
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import numpy as np
@@ -123,6 +127,17 @@ if sys.platform == "win32":
             ("dwFlags", wintypes.DWORD),
             ("szDevice", wintypes.WCHAR * 32),
         ]
+
+    # ``EnumDisplayDevicesW`` is a process-shared ctypes function object.
+    # Use a layout-neutral pointer so other modules can pass compatible
+    # DISPLAY_DEVICE declarations regardless of import order.
+    user32.EnumDisplayDevicesW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    user32.EnumDisplayDevicesW.restype = wintypes.BOOL
 
 # =============================================================================
 # Display Information
@@ -1144,6 +1159,28 @@ try:
     gdi32 = ctypes.windll.gdi32
     mscms = ctypes.windll.mscms
 
+    gdi32.CreateDCW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        ctypes.c_void_p,
+    ]
+    gdi32.CreateDCW.restype = wintypes.HDC
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+    gdi32.DeleteDC.restype = wintypes.BOOL
+    gdi32.GetICMProfileW.argtypes = [
+        wintypes.HDC,
+        ctypes.POINTER(wintypes.DWORD),
+        wintypes.LPWSTR,
+    ]
+    gdi32.GetICMProfileW.restype = wintypes.BOOL
+    gdi32.SetICMProfileW.argtypes = [wintypes.HDC, wintypes.LPWSTR]
+    gdi32.SetICMProfileW.restype = wintypes.BOOL
+    gdi32.GetDeviceGammaRamp.argtypes = [wintypes.HDC, ctypes.c_void_p]
+    gdi32.GetDeviceGammaRamp.restype = wintypes.BOOL
+    gdi32.SetDeviceGammaRamp.argtypes = [wintypes.HDC, ctypes.c_void_p]
+    gdi32.SetDeviceGammaRamp.restype = wintypes.BOOL
+
     # Define profile functions
     WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER = 0
     COLORPROFILESUBTYPE_NONE = 0
@@ -1161,6 +1198,838 @@ except Exception:
     HAS_MSCMS = False
 
 
+class _NativeState(Enum):
+    PENDING = "pending"
+    ENTERED = "entered"
+    OPEN = "open"
+    CLOSED = "closed"
+    FAILED = "failed"
+    UNCERTAIN = "uncertain"
+
+
+class _OwnerClaim(Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    RETAINED = "retained"
+    CLAIMED = "claimed"
+
+
+class _NativeAction(Enum):
+    ACQUIRE = "acquire"
+    DELETE = "delete"
+
+
+_DISPLAY_DC_REGISTRY_LOCK = threading.RLock()
+_DISPLAY_DC_REGISTRY_CHANGED = threading.Condition(_DISPLAY_DC_REGISTRY_LOCK)
+
+
+@dataclass(frozen=True)
+class _NativeAttempt:
+    """One immutable native action isolated from caller-thread cancellation.
+
+    Tracing is not suppressed. Same-process code that injects inside this worker,
+    including through ``sys.monitoring``, is trusted and outside this boundary:
+    interruption between a native return and Python publication has no honest way
+    to reconstruct the native result.
+    """
+
+    token: object
+    action: _NativeAction
+    done: threading.Event
+    started: threading.Event
+    worker: threading.Thread
+
+
+@dataclass(init=False)
+class _RetainedDisplayDc:
+    api: Any
+    device_name: str
+    dc: object | None
+    state: _NativeState
+    claim: _OwnerClaim
+    action: _NativeAction
+    attempt: _NativeAttempt | None
+    claimant: object | None
+    terminal_cleanup_token: object | None
+    detail: str
+    error: BaseException | None
+
+    def __init__(
+        self,
+        api: Any,
+        device_name: str,
+        dc: object | None = None,
+        outcome: str = "pre-entry",
+        detail: str = "",
+        error: BaseException | None = None,
+        worker: threading.Thread | None = None,
+        done: threading.Event | None = None,
+        active: bool = False,
+    ) -> None:
+        del worker, done
+        legacy_states = {
+            "pre-entry": _NativeState.PENDING,
+            "pending": _NativeState.PENDING,
+            "entered": _NativeState.ENTERED,
+            "open": _NativeState.OPEN,
+            "closed": _NativeState.CLOSED,
+            "failed": _NativeState.FAILED,
+            "uncertain": _NativeState.UNCERTAIN,
+        }
+        self.api = api
+        self.device_name = device_name
+        self.dc = dc
+        self.state = legacy_states[outcome]
+        self.claim = (
+            _OwnerClaim.ACTIVE
+            if active
+            else _OwnerClaim.PENDING
+            if self.state in {_NativeState.PENDING, _NativeState.ENTERED}
+            else _OwnerClaim.RETAINED
+        )
+        self.action = _NativeAction.ACQUIRE
+        self.attempt = None
+        self.claimant = None
+        self.terminal_cleanup_token = None
+        self.detail = detail
+        self.error = error
+
+    @property
+    def outcome(self) -> str:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            return "pre-entry" if self.state is _NativeState.PENDING else self.state.value
+
+    @outcome.setter
+    def outcome(self, value: str) -> None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            self.state = _NativeState.PENDING if value == "pre-entry" else _NativeState(value)
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+    @property
+    def active(self) -> bool:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            return self.claim is _OwnerClaim.ACTIVE
+
+    @active.setter
+    def active(self, value: bool) -> None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            self.claim = _OwnerClaim.ACTIVE if value else _OwnerClaim.RETAINED
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+    @property
+    def worker(self) -> threading.Thread | None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            return self.attempt.worker if self.attempt is not None else None
+
+    @property
+    def done(self) -> threading.Event | None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            return self.attempt.done if self.attempt is not None else None
+
+
+_RETAINED_DISPLAY_DCS: list[_RetainedDisplayDc] = []
+_DELETE_DC_MAX_ATTEMPTS = 2
+_DISPLAY_DC_DRAIN_CAP = 64
+_DISPLAY_DC_REGISTRY_CAP = 64
+_NATIVE_WORKER_JOIN_SECONDS = 2.0
+
+
+def _display_owner_is_registered_locked(owner: _RetainedDisplayDc) -> bool:
+    return any(record is owner for record in _RETAINED_DISPLAY_DCS)
+
+
+def _retire_display_dc_owner_locked(owner: _RetainedDisplayDc) -> None:
+    _RETAINED_DISPLAY_DCS[:] = [record for record in _RETAINED_DISPLAY_DCS if record is not owner]
+    owner.claimant = None
+    owner.terminal_cleanup_token = None
+    _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+
+def _remove_display_dc_owner(owner: _RetainedDisplayDc) -> None:
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        _retire_display_dc_owner_locked(owner)
+
+
+def _retire_closed_display_dc_owners_locked() -> None:
+    for owner in tuple(_RETAINED_DISPLAY_DCS):
+        if owner.state is _NativeState.CLOSED:
+            _retire_display_dc_owner_locked(owner)
+
+
+def _reserve_display_dc_owner(owner: _RetainedDisplayDc) -> _NativeAttempt:
+    try:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            _retire_closed_display_dc_owners_locked()
+            if _display_owner_is_registered_locked(owner):
+                attempt = owner.attempt
+                if attempt is None:
+                    attempt = _new_display_dc_attempt_locked(owner, _NativeAction.ACQUIRE)
+                return attempt
+            if len(_RETAINED_DISPLAY_DCS) >= _DISPLAY_DC_REGISTRY_CAP:
+                raise RuntimeError("display DC owner registry capacity is exhausted")
+            owner.state = _NativeState.PENDING
+            owner.claim = _OwnerClaim.PENDING
+            owner.action = _NativeAction.ACQUIRE
+            owner.attempt = None
+            owner.claimant = None
+            owner.error = None
+            attempt = _new_display_dc_attempt_locked(owner, _NativeAction.ACQUIRE)
+            _RETAINED_DISPLAY_DCS.append(owner)
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+            return attempt
+    except BaseException:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if _display_owner_is_registered_locked(owner):
+                owner.claim = _OwnerClaim.RETAINED
+                owner.claimant = None
+                _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+        raise
+
+
+def _attempt_matches_locked(
+    owner: _RetainedDisplayDc,
+    token: object,
+    action: _NativeAction,
+) -> bool:
+    return owner.attempt is not None and owner.attempt.token is token and owner.action is action
+
+
+def _acquire_display_dc_worker(
+    owner: _RetainedDisplayDc,
+    token: object,
+    done: threading.Event,
+) -> None:
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        if not _attempt_matches_locked(owner, token, _NativeAction.ACQUIRE):
+            done.set()
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+            return
+        owner.state = _NativeState.ENTERED
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+    try:
+        dc = owner.api.CreateDCW("DISPLAY", owner.device_name, None, None)
+    except BaseException as error:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if _attempt_matches_locked(owner, token, _NativeAction.ACQUIRE):
+                owner.error = error
+                owner.state = _NativeState.FAILED
+    else:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if _attempt_matches_locked(owner, token, _NativeAction.ACQUIRE):
+                owner.dc = dc
+                owner.error = None if dc else RuntimeError("GDI could not create a display device context")
+                owner.state = _NativeState.OPEN if dc else _NativeState.FAILED
+    finally:
+        terminal_attempt: _NativeAttempt | None = None
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            done.set()
+            if owner.attempt is not None and owner.attempt.token is token and owner.terminal_cleanup_token is token:
+                terminal_attempt = owner.attempt
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+        if terminal_attempt is not None:
+            _launch_display_terminal_cleanup(owner, terminal_attempt)
+
+
+def _delete_display_dc_worker(
+    owner: _RetainedDisplayDc,
+    token: object,
+    done: threading.Event,
+) -> None:
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        if not _attempt_matches_locked(owner, token, _NativeAction.DELETE):
+            done.set()
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+            return
+        owner.state = _NativeState.ENTERED
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+    try:
+        deleted = bool(owner.api.DeleteDC(owner.dc))
+    except BaseException as error:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if _attempt_matches_locked(owner, token, _NativeAction.DELETE):
+                owner.error = error
+                owner.state = _NativeState.UNCERTAIN
+    else:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if _attempt_matches_locked(owner, token, _NativeAction.DELETE):
+                owner.error = None
+                owner.state = _NativeState.CLOSED if deleted else _NativeState.OPEN
+    finally:
+        terminal_attempt: _NativeAttempt | None = None
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            done.set()
+            if owner.attempt is not None and owner.attempt.token is token and owner.terminal_cleanup_token is token:
+                terminal_attempt = owner.attempt
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+        if terminal_attempt is not None:
+            _launch_display_terminal_cleanup(owner, terminal_attempt)
+
+
+def _new_display_dc_attempt_locked(
+    owner: _RetainedDisplayDc,
+    action: _NativeAction,
+) -> _NativeAttempt:
+    current = owner.attempt
+    if owner.state in {_NativeState.PENDING, _NativeState.ENTERED} and current is not None:
+        if current.action is action:
+            return current
+        raise RuntimeError("display DC native action cannot replace an in-flight attempt")
+    if owner.state is _NativeState.ENTERED and current is None:
+        raise RuntimeError("display DC native state has no immutable attempt")
+    token = object()
+    done = threading.Event()
+    started = threading.Event()
+    target = _acquire_display_dc_worker if action is _NativeAction.ACQUIRE else _delete_display_dc_worker
+    worker = threading.Thread(target=target, args=(owner, token, done), daemon=True)
+    attempt = _NativeAttempt(token=token, action=action, done=done, started=started, worker=worker)
+    owner.action = action
+    owner.attempt = attempt
+    owner.state = _NativeState.PENDING
+    owner.error = None
+    _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+    return attempt
+
+
+def _start_display_dc_attempt(owner: _RetainedDisplayDc, attempt: _NativeAttempt) -> None:
+    try:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if owner.attempt is not attempt:
+                raise RuntimeError("display DC native attempt ownership changed before start")
+            if attempt.started.is_set() or attempt.done.is_set() or attempt.worker.ident is not None:
+                return
+            attempt.worker.start()
+            attempt.started.set()
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+    except BaseException as start_error:
+        try:
+            _await_display_dc_attempt(owner, attempt)
+        except BaseException as reconciliation_error:
+            add_note = getattr(start_error, "add_note", None)
+            if callable(add_note):
+                add_note(f"display DC native start reconciliation also failed: {reconciliation_error}")
+        raise
+
+
+def _await_display_dc_attempt(owner: _RetainedDisplayDc, attempt: _NativeAttempt) -> bool:
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        started = attempt.started.is_set() or attempt.done.is_set() or attempt.worker.ident is not None
+    if not started:
+        return False
+    attempt.worker.join(timeout=_NATIVE_WORKER_JOIN_SECONDS)
+    if attempt.worker.is_alive():
+        raise RuntimeError("display DC native worker did not terminate within the bounded wait")
+    if not attempt.done.is_set():
+        raise RuntimeError("display DC native worker exited without publishing a terminal state")
+    return True
+
+
+def _reconcile_display_dc_attempt(owner: _RetainedDisplayDc, attempt: _NativeAttempt) -> None:
+    if not _await_display_dc_attempt(owner, attempt):
+        _start_display_dc_attempt(owner, attempt)
+    if not _await_display_dc_attempt(owner, attempt):
+        raise RuntimeError("display DC native attempt remained unstarted during reconciliation")
+
+
+def _await_display_dc_worker(owner: _RetainedDisplayDc) -> None:
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        attempt = owner.attempt
+    if attempt is not None:
+        _reconcile_display_dc_attempt(owner, attempt)
+
+
+def _acquire_display_dc(
+    device_name: str,
+    *,
+    owner: _RetainedDisplayDc | None = None,
+) -> _RetainedDisplayDc:
+    if owner is None:
+        owner = _RetainedDisplayDc(api=gdi32, device_name=device_name)
+    attempt: _NativeAttempt | None = None
+    start_requested = False
+    try:
+        attempt = _reserve_display_dc_owner(owner)
+        start_requested = True
+        _start_display_dc_attempt(owner, attempt)
+        _await_display_dc_attempt(owner, attempt)
+    except BaseException as primary_error:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            published_attempt = attempt if attempt is not None else owner.attempt
+        if start_requested and published_attempt is not None:
+            try:
+                _reconcile_display_dc_attempt(owner, published_attempt)
+            except BaseException as reconciliation_error:
+                add_note = getattr(primary_error, "add_note", None)
+                if callable(add_note):
+                    add_note(f"display DC acquisition reconciliation also failed: {reconciliation_error}")
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if owner.state is _NativeState.OPEN:
+                owner.claim = _OwnerClaim.RETAINED
+            elif owner.state is _NativeState.FAILED:
+                _retire_display_dc_owner_locked(owner)
+            else:
+                owner.claim = _OwnerClaim.RETAINED
+        raise
+
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        if owner.state is _NativeState.OPEN and owner.dc:
+            return owner
+        error = owner.error or RuntimeError("GDI could not create a display device context")
+        if owner.state is _NativeState.FAILED:
+            _retire_display_dc_owner_locked(owner)
+    raise error
+
+
+class _DisplayDcClaimGuard:
+    def __init__(
+        self,
+        owner: _RetainedDisplayDc,
+        token: object,
+        *,
+        cleanup_handoff: bool = False,
+    ) -> None:
+        self.owner = owner
+        self.token = token
+        self._cleanup_handoff = cleanup_handoff
+        self._acquired = False
+        self._evaluated = False
+        self._rollback_claim = _OwnerClaim.RETAINED
+
+    def __enter__(self) -> _DisplayDcClaimGuard:
+        return self
+
+    @property
+    def acquired(self) -> bool:
+        if not self._evaluated:
+            try:
+                self._acquire()
+            except BaseException:
+                self._rollback()
+                raise
+            self._evaluated = True
+        return self._acquired
+
+    def _acquire(self) -> None:
+        try:
+            with _DISPLAY_DC_REGISTRY_CHANGED:
+                while True:
+                    owner = self.owner
+                    if owner.state is _NativeState.CLOSED:
+                        _retire_display_dc_owner_locked(owner)
+                        return
+                    if not _display_owner_is_registered_locked(owner):
+                        if owner.dc is None:
+                            return
+                        if len(_RETAINED_DISPLAY_DCS) >= _DISPLAY_DC_REGISTRY_CAP:
+                            raise RuntimeError("display DC owner registry capacity is exhausted")
+                        _RETAINED_DISPLAY_DCS.append(owner)
+                    if owner.claim is not _OwnerClaim.CLAIMED:
+                        self._rollback_claim = owner.claim
+                        publication_complete = False
+                        try:
+                            owner.claimant = self.token
+                            owner.claim = _OwnerClaim.CLAIMED
+                            self._acquired = True
+                            publication_complete = True
+                        finally:
+                            if not publication_complete and owner.claimant is self.token:
+                                self._rollback_locked(owner)
+                        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+                        return
+                    if owner.claimant is self.token:
+                        self._acquired = True
+                        return
+                    notified = _DISPLAY_DC_REGISTRY_CHANGED.wait(timeout=_NATIVE_WORKER_JOIN_SECONDS)
+                    if not notified and owner.claim is _OwnerClaim.CLAIMED:
+                        raise RuntimeError("display DC owner cleanup claim did not resolve within the bounded wait")
+        except BaseException:
+            self._rollback()
+            raise
+
+    def __exit__(self, *_args: object) -> None:
+        self._rollback()
+
+    def _rollback(self) -> None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            self._rollback_locked(self.owner)
+
+    def _rollback_locked(self, owner: _RetainedDisplayDc) -> None:
+        if owner.claimant is not self.token:
+            return
+        if self._cleanup_handoff and _display_owner_is_registered_locked(owner):
+            if owner.state is _NativeState.CLOSED or (owner.state is _NativeState.FAILED and owner.dc is None):
+                _retire_display_dc_owner_locked(owner)
+                return
+            attempt = owner.attempt
+            if (
+                owner.terminal_cleanup_token is None
+                and owner.state in {_NativeState.PENDING, _NativeState.ENTERED}
+                and attempt is not None
+                and (attempt.started.is_set() or attempt.done.is_set() or attempt.worker.ident is not None)
+            ):
+                _arm_display_terminal_cleanup_locked(owner, attempt)
+                return
+            owner.claim = _OwnerClaim.RETAINED
+        else:
+            owner.claim = self._rollback_claim
+        owner.claimant = None
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+
+def _claim_display_dc_owner(
+    owner: _RetainedDisplayDc,
+    claim_token: object,
+    *,
+    cleanup_handoff: bool = False,
+) -> _DisplayDcClaimGuard:
+    return _DisplayDcClaimGuard(owner, claim_token, cleanup_handoff=cleanup_handoff)
+
+
+def _invoke_delete_dc(owner: _RetainedDisplayDc) -> bool:
+    while True:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            if owner.state is _NativeState.CLOSED:
+                return True
+            if owner.state is _NativeState.UNCERTAIN:
+                raise owner.error or RuntimeError("display DC native outcome is uncertain")
+            if owner.state in {_NativeState.PENDING, _NativeState.ENTERED}:
+                attempt = owner.attempt
+                if attempt is None:
+                    raise RuntimeError("display DC native attempt was not published")
+            else:
+                attempt = _new_display_dc_attempt_locked(owner, _NativeAction.DELETE)
+        _reconcile_display_dc_attempt(owner, attempt)
+        if attempt.action is _NativeAction.DELETE:
+            break
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        if owner.error is not None:
+            raise owner.error
+        return owner.state is _NativeState.CLOSED
+
+
+def _close_display_dc(
+    owner: _RetainedDisplayDc,
+    *,
+    claim_token: object | None = None,
+) -> BaseException | None:
+    def close_once(token: object) -> tuple[BaseException | None, bool]:
+        try:
+            with _claim_display_dc_owner(owner, token, cleanup_handoff=True) as claim:
+                if not claim.acquired:
+                    return None, False
+                return _close_claimed_display_dc(owner), False
+        except BaseException as claim_error:
+            return claim_error, True
+
+    token = claim_token if claim_token is not None else object()
+    cleanup_error, escaped_cleanup = close_once(token)
+    if cleanup_error is None:
+        return None
+
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        state = owner.state
+        recoverable_owner = (
+            _display_owner_is_registered_locked(owner)
+            and owner.terminal_cleanup_token is None
+            and (
+                (state is _NativeState.OPEN and owner.dc is not None)
+                or (state in {_NativeState.PENDING, _NativeState.ENTERED} and owner.attempt is not None)
+            )
+        )
+    if not recoverable_owner or (not escaped_cleanup and isinstance(cleanup_error, Exception)):
+        return cleanup_error
+
+    recovery_error, _recovery_escaped = close_once(object())
+    if recovery_error is None:
+        return cleanup_error
+    if isinstance(cleanup_error, Exception) and not isinstance(recovery_error, Exception):
+        add_note = getattr(recovery_error, "add_note", None)
+        if callable(add_note):
+            add_note(f"display DC cleanup also failed: {cleanup_error}")
+        return recovery_error
+    add_note = getattr(cleanup_error, "add_note", None)
+    if callable(add_note) and recovery_error is not cleanup_error:
+        detail = str(recovery_error).strip() or type(recovery_error).__name__
+        add_note(f"display DC boundary recovery also failed: {detail}")
+    return cleanup_error
+
+
+def _close_claimed_display_dc(owner: _RetainedDisplayDc) -> BaseException | None:
+    errors: list[BaseException] = []
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        in_flight = owner.attempt if owner.state in {_NativeState.PENDING, _NativeState.ENTERED} else None
+    if in_flight is not None:
+        try:
+            _reconcile_display_dc_attempt(owner, in_flight)
+        except BaseException as error:
+            errors.append(error)
+
+    for _attempt_number in range(_DELETE_DC_MAX_ATTEMPTS):
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            state = owner.state
+        if state is _NativeState.CLOSED:
+            break
+        if state in {_NativeState.ENTERED, _NativeState.UNCERTAIN}:
+            break
+        if state is _NativeState.FAILED and owner.dc is None:
+            break
+        try:
+            deleted = _invoke_delete_dc(owner)  # DeleteDC is isolated in the bound immutable attempt.
+        except BaseException as error:
+            errors.append(error)
+            with _DISPLAY_DC_REGISTRY_CHANGED:
+                state = owner.state
+            if state in {_NativeState.PENDING, _NativeState.ENTERED, _NativeState.UNCERTAIN}:
+                break
+            continue
+        if deleted:
+            break
+
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        state = owner.state
+        control_error = next((error for error in errors if not isinstance(error, Exception)), None)
+        if state is _NativeState.CLOSED:
+            _retire_display_dc_owner_locked(owner)
+            return control_error
+        if state is _NativeState.FAILED and owner.dc is None:
+            _retire_display_dc_owner_locked(owner)
+        elif state in {_NativeState.PENDING, _NativeState.ENTERED}:
+            attempt = owner.attempt
+            if attempt is not None and (
+                attempt.started.is_set() or attempt.done.is_set() or attempt.worker.ident is not None
+            ):
+                _arm_display_terminal_cleanup_locked(owner, attempt)
+            else:
+                owner.claim = _OwnerClaim.RETAINED
+                owner.claimant = None
+        else:
+            owner.claim = _OwnerClaim.RETAINED
+            owner.claimant = None
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+    if state is _NativeState.OPEN:
+        cleanup_error: BaseException = RuntimeError(
+            f"GDI display device context remains open after {_DELETE_DC_MAX_ATTEMPTS} DeleteDC attempts"
+        )
+    else:
+        cleanup_error = errors[-1] if errors else RuntimeError("GDI display device context release is uncertain")
+    if control_error is not None:
+        add_note = getattr(control_error, "add_note", None)
+        if callable(add_note):
+            add_note(str(cleanup_error))
+        cleanup_error = control_error
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        owner.detail = str(cleanup_error).strip() or type(cleanup_error).__name__
+    return cleanup_error
+
+
+def _arm_display_terminal_cleanup_locked(
+    owner: _RetainedDisplayDc,
+    attempt: _NativeAttempt,
+) -> None:
+    if owner.attempt is not attempt:
+        raise RuntimeError("display DC terminal cleanup cannot arm a replaced attempt")
+    owner.terminal_cleanup_token = attempt.token
+    owner.claim = _OwnerClaim.RETAINED
+    owner.claimant = None
+    _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+
+def _launch_display_terminal_cleanup(
+    owner: _RetainedDisplayDc,
+    attempt: _NativeAttempt,
+) -> None:
+    callback = threading.Thread(
+        target=_run_display_terminal_cleanup,
+        args=(owner, attempt),
+        daemon=True,
+    )
+    try:
+        callback.start()
+    except BaseException as callback_error:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            owner.detail = f"display DC terminal cleanup callback failed to start: {callback_error}"
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+
+def _run_display_terminal_cleanup(
+    owner: _RetainedDisplayDc,
+    attempt: _NativeAttempt,
+) -> None:
+    attempt.worker.join()
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        if owner.terminal_cleanup_token is not attempt.token:
+            return
+        owner.terminal_cleanup_token = None
+        if owner.state is _NativeState.CLOSED or (owner.state is _NativeState.FAILED and owner.dc is None):
+            _retire_display_dc_owner_locked(owner)
+            return
+        if owner.state is not _NativeState.OPEN:
+            owner.detail = "display DC terminal cleanup published a non-cleanable native state"
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+            return
+        owner.claim = _OwnerClaim.RETAINED
+        owner.claimant = None
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+    cleanup_error = _close_display_dc(owner)
+    if cleanup_error is not None:
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            owner.detail = str(cleanup_error).strip() or type(cleanup_error).__name__
+            _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+
+def _drain_retained_display_dcs() -> None:
+    errors: list[str] = []
+    control_errors: list[BaseException] = []
+    cleanup_candidates: list[_RetainedDisplayDc] = []
+    pending_attempts: list[tuple[_RetainedDisplayDc, _NativeAttempt]] = []
+    retained_count = 0
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        _retire_closed_display_dc_owners_locked()
+        for owner in tuple(_RETAINED_DISPLAY_DCS):
+            if owner.claim is not _OwnerClaim.RETAINED:
+                continue
+            retained_count += 1
+            if owner.state is _NativeState.FAILED and owner.dc is None:
+                _retire_display_dc_owner_locked(owner)
+                continue
+            if len(cleanup_candidates) + len(pending_attempts) >= _DISPLAY_DC_DRAIN_CAP:
+                continue
+            if owner.state in {_NativeState.PENDING, _NativeState.ENTERED}:
+                attempt = owner.attempt
+                if attempt is None:
+                    errors.append("display DC transitional owner has no immutable attempt")
+                    continue
+                if (
+                    owner.state is _NativeState.PENDING
+                    and owner.dc is None
+                    and attempt.worker.ident is None
+                    and not attempt.started.is_set()
+                    and not attempt.done.is_set()
+                ):
+                    _retire_display_dc_owner_locked(owner)
+                    continue
+                _arm_display_terminal_cleanup_locked(owner, attempt)
+                pending_attempts.append((owner, attempt))
+            elif owner.state is _NativeState.OPEN:
+                cleanup_candidates.append(owner)
+            elif owner.state is _NativeState.UNCERTAIN:
+                errors.append(owner.detail or "display DC native outcome is uncertain")
+        _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+
+    incomplete = False
+    for owner, attempt in pending_attempts:
+        try:
+            _reconcile_display_dc_attempt(owner, attempt)
+        except BaseException as pending_error:
+            incomplete = True
+            detail = f"display DC cleanup incomplete while exact native worker is running: {pending_error}"
+            if isinstance(pending_error, Exception):
+                errors.append(detail)
+            else:
+                control_errors.append(pending_error)
+            with _DISPLAY_DC_REGISTRY_CHANGED:
+                owner.detail = detail
+                _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+            continue
+        cleanup_candidates.append(owner)
+
+    for owner in cleanup_candidates:
+        cleanup_error = _close_display_dc(owner)
+        if cleanup_error is None:
+            continue
+        if not isinstance(cleanup_error, Exception):
+            control_errors.append(cleanup_error)
+        else:
+            errors.append(owner.detail or str(cleanup_error))
+
+    with _DISPLAY_DC_REGISTRY_CHANGED:
+        _retire_closed_display_dc_owners_locked()
+        remaining = [
+            owner
+            for owner in _RETAINED_DISPLAY_DCS
+            if owner.claim in {_OwnerClaim.RETAINED, _OwnerClaim.CLAIMED}
+            and owner.state
+            in {
+                _NativeState.PENDING,
+                _NativeState.ENTERED,
+                _NativeState.OPEN,
+                _NativeState.UNCERTAIN,
+            }
+        ]
+    if retained_count > _DISPLAY_DC_DRAIN_CAP:
+        errors.append("display DC retained-owner drain cap exceeded")
+    if control_errors:
+        control_error = control_errors[0]
+        details = "; ".join(errors)
+        add_note = getattr(control_error, "add_note", None)
+        if details and callable(add_note):
+            add_note(f"display DC retained-owner drain also reported: {details}")
+        raise control_error
+    if incomplete or remaining:
+        details = "; ".join(errors) or "retained display DC ownership remains unresolved"
+        raise RuntimeError(details)
+
+
+@contextmanager
+def _display_dc(device_name: str) -> Iterator[object]:
+    """Own one synchronized GDI display DC and fail closed on uncertain release."""
+    owner = _RetainedDisplayDc(api=gdi32, device_name=device_name)
+    primary_error: BaseException | None = None
+    cleanup_error: BaseException | None = None
+    registered = False
+    try:
+        _drain_retained_display_dcs()
+        try:
+            try:
+                owner = _acquire_display_dc(device_name, owner=owner)
+                registered = True
+                with _DISPLAY_DC_REGISTRY_CHANGED:
+                    if owner.state is not _NativeState.OPEN:
+                        raise RuntimeError("display DC acquisition did not publish an open owner")
+                    owner.claim = _OwnerClaim.ACTIVE
+                    _DISPLAY_DC_REGISTRY_CHANGED.notify_all()
+                dc = owner.dc
+                yield dc
+            except BaseException as exc:
+                primary_error = exc
+        finally:
+            with _DISPLAY_DC_REGISTRY_CHANGED:
+                registered = registered or _display_owner_is_registered_locked(owner)
+            if registered:
+                cleanup_error = _close_display_dc(owner)
+    except BaseException as boundary_error:
+        if primary_error is None:
+            primary_error = boundary_error
+        else:
+            cleanup_error = boundary_error
+        with _DISPLAY_DC_REGISTRY_CHANGED:
+            registered = registered or _display_owner_is_registered_locked(owner)
+        retry_error = _close_display_dc(owner) if registered else None
+        if retry_error is not None:
+            if cleanup_error is None:
+                cleanup_error = retry_error
+            else:
+                detail = str(retry_error).strip() or type(retry_error).__name__
+                add_note = getattr(cleanup_error, "add_note", None)
+                if callable(add_note):
+                    add_note(f"display DC boundary cleanup also failed: {detail}")
+
+    if primary_error is not None:
+        if cleanup_error is not None:
+            detail = str(cleanup_error).strip() or type(cleanup_error).__name__
+            if isinstance(primary_error, Exception) and not isinstance(cleanup_error, Exception):
+                add_note = getattr(cleanup_error, "add_note", None)
+                if callable(add_note):
+                    add_note(f"display operation also failed: {primary_error or type(primary_error).__name__}")
+                raise cleanup_error from primary_error
+            add_note = getattr(primary_error, "add_note", None)
+            if callable(add_note):
+                add_note(f"display DC cleanup also failed: {detail}")
+        raise primary_error
+    if cleanup_error is not None:
+        raise cleanup_error
+
+
 def get_display_profile(device_name: str) -> str | None:
     """
     Get the current ICC profile for a display.
@@ -1175,12 +2044,7 @@ def get_display_profile(device_name: str) -> str | None:
         return None
 
     try:
-        # Get DC for the display
-        dc = user32.CreateDCW("DISPLAY", device_name, None, None)
-        if not dc:
-            return None
-
-        try:
+        with _display_dc(device_name) as dc:
             # Get profile filename
             buffer_size = wintypes.DWORD(260)
             buffer = ctypes.create_unicode_buffer(260)
@@ -1189,8 +2053,6 @@ def get_display_profile(device_name: str) -> str | None:
 
             if result:
                 return buffer.value
-        finally:
-            user32.DeleteDC(dc)
 
     except Exception:
         pass
@@ -1213,17 +2075,10 @@ def set_display_profile(device_name: str, profile_path: str) -> bool:
         return False
 
     try:
-        # Get DC for the display
-        dc = user32.CreateDCW("DISPLAY", device_name, None, None)
-        if not dc:
-            return False
-
-        try:
+        with _display_dc(device_name) as dc:
             # Set the profile
             result = gdi32.SetICMProfileW(dc, profile_path)
             return bool(result)
-        finally:
-            user32.DeleteDC(dc)
 
     except Exception:
         return False
@@ -1244,12 +2099,19 @@ def install_profile(profile_path: str, set_as_default: bool = True) -> bool:
         return False
 
     try:
-        profile_path = str(Path(profile_path).absolute())
+        from calibrate_pro.profiles import profile_installer
 
-        # Install the profile
-        result = mscms.InstallColorProfileW(None, profile_path)
+        source = Path(profile_path).absolute()
+        if not profile_installer._is_exact_profile_basename(source.name):
+            return False
+        if profile_installer._is_transactional_profile_cache_name(source.name):
+            return False
+        destination = profile_installer.get_profile_directory() / source.name
+        if profile_installer._path_resolves_to_transactional_profile_cache(destination):
+            return False
 
-        return bool(result)
+        success, _message = profile_installer.install_profile(source)
+        return success
     except Exception:
         return False
 
@@ -1291,11 +2153,7 @@ def get_gamma_ramp(device_name: str) -> tuple | None:
         (red, green, blue) arrays of 256 16-bit values
     """
     try:
-        dc = user32.CreateDCW("DISPLAY", device_name, None, None)
-        if not dc:
-            return None
-
-        try:
+        with _display_dc(device_name) as dc:
             ramp = GAMMA_RAMP()
             result = gdi32.GetDeviceGammaRamp(dc, ctypes.byref(ramp))
 
@@ -1306,8 +2164,6 @@ def get_gamma_ramp(device_name: str) -> tuple | None:
                 green = np.array(ramp.Green[:], dtype=np.uint16)
                 blue = np.array(ramp.Blue[:], dtype=np.uint16)
                 return (red, green, blue)
-        finally:
-            user32.DeleteDC(dc)
 
     except Exception:
         pass
@@ -1329,11 +2185,7 @@ def set_gamma_ramp(device_name: str, red: np.ndarray, green: np.ndarray, blue: n
     import numpy as np
 
     try:
-        dc = user32.CreateDCW("DISPLAY", device_name, None, None)
-        if not dc:
-            return False
-
-        try:
+        with _display_dc(device_name) as dc:
             # Normalize to 16-bit
             if red.max() <= 1.0:
                 red = (red * 65535).astype(np.uint16)
@@ -1349,9 +2201,6 @@ def set_gamma_ramp(device_name: str, red: np.ndarray, green: np.ndarray, blue: n
 
             result = gdi32.SetDeviceGammaRamp(dc, ctypes.byref(ramp))
             return bool(result)
-
-        finally:
-            user32.DeleteDC(dc)
 
     except Exception:
         return False

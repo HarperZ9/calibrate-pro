@@ -1,13 +1,12 @@
 """
-System-Wide sRGB Gamut Clamp
+sRGB Gamut Clamp Proposal Builder
 
 Wide-gamut displays (QD-OLED, P3, etc.) show oversaturated colors in
 non-color-managed applications -- games, browsers, the Windows desktop.
 This is the single most common complaint from wide-gamut display owners.
 
-This service applies a system-wide sRGB gamut clamp via dwm_lut that
-affects ALL applications, solving the oversaturation problem at the
-compositor level. Can be toggled instantly from the system tray.
+This service builds an sRGB gamut-clamp proposal. Applying it system-wide
+requires an interactive preview and a freshly confirmed actuation plan.
 
 The clamp LUT maps the panel's native gamut to sRGB using Oklab
 perceptual compression (no hue shifts in blue/purple).
@@ -22,33 +21,40 @@ logger = logging.getLogger(__name__)
 
 class GamutClamp:
     """
-    System-wide gamut clamp toggle.
+    System-wide gamut clamp proposal builder.
 
-    Applies or removes an sRGB compression LUT via dwm_lut.
-    Designed to be toggled instantly from the tray icon.
+    Generates or clears a staged sRGB compression LUT proposal without
+    changing display state.
     """
 
     def __init__(self, display_index: int = 0):
         self.display_index = display_index
         self._active = False
         self._lut_path: Path | None = None
+        self._staged = False
 
     @property
     def is_active(self) -> bool:
+        """Whether a clamp has been confirmed as active (never inferred here)."""
         return self._active
+
+    @property
+    def has_staged_proposal(self) -> bool:
+        """Whether a clamp proposal is ready for preview and confirmation."""
+        return self._staged
 
     def enable(self, panel_key: str | None = None) -> bool:
         """
-        Enable sRGB gamut clamp for the display.
+        Stage an sRGB gamut-clamp proposal for the display.
 
-        Generates (or reuses) an sRGB compression LUT and applies it
-        system-wide via dwm_lut.
+        Generates or reuses an sRGB compression LUT. This method never applies
+        the LUT to the display.
 
         Args:
             panel_key: Panel database key (auto-detects if None)
 
         Returns:
-            True if clamp was applied successfully
+            True if a proposal was staged successfully
         """
         # Generate the clamp LUT if we don't have one cached
         if self._lut_path is None or not self._lut_path.exists():
@@ -56,45 +62,26 @@ class GamutClamp:
             if self._lut_path is None:
                 return False
 
-        # Apply via dwm_lut
-        try:
-            from calibrate_pro.lut_system.dwm_lut import DwmLutController
-
-            dwm = DwmLutController()
-            if dwm.is_available:
-                if dwm.load_lut_file(self.display_index, self._lut_path):
-                    self._active = True
-                    return True
-        except Exception as e:
-            logger.error("GamutClamp enable failed: %s", e)
-
-        return False
+        self._staged = True
+        logger.info("Staged gamut-clamp proposal for display %d", self.display_index)
+        return True
 
     def disable(self) -> bool:
-        """Remove the sRGB gamut clamp."""
-        try:
-            from calibrate_pro.lut_system.dwm_lut import remove_lut
-
-            remove_lut(self.display_index)
-            self._active = False
-            return True
-        except Exception:
-            return False
+        """Clear the staged proposal without changing display state."""
+        self._staged = False
+        return True
 
     def toggle(self, panel_key: str | None = None) -> bool:
-        """Toggle the clamp on/off. Returns new state."""
-        if self._active:
+        """Toggle proposal staging. Returns whether a proposal is staged."""
+        if self._staged:
             self.disable()
             return False
-        else:
-            self.enable(panel_key)
-            return True
+        return self.enable(panel_key)
 
     def _generate_clamp_lut(self, panel_key: str | None = None) -> Path | None:
         """Generate an sRGB compression LUT for the panel."""
         try:
             from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.sensorless.neuralux import SensorlessEngine
 
             # Find panel
@@ -102,12 +89,7 @@ class GamutClamp:
             if panel_key:
                 panel = db.get_panel(panel_key)
             else:
-                displays = enumerate_displays()
-                if self.display_index < len(displays):
-                    key = identify_display(displays[self.display_index])
-                    panel = db.get_panel(key) if key else db.get_fallback()
-                else:
-                    panel = db.get_fallback()
+                panel = db.get_fallback()
 
             if panel is None:
                 return None

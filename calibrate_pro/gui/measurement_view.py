@@ -8,6 +8,7 @@ Displays real-time calibration measurements:
 - Measurement history
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -25,6 +26,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 # =============================================================================
 # Theme Colors
@@ -62,15 +65,15 @@ class Measurement:
     target_lab: tuple[float, float, float] = (50.0, 0.0, 0.0)
 
     # Measured values
-    measured_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    measured_lab: tuple[float, float, float] = (50.0, 0.0, 0.0)
-    measured_xy: tuple[float, float] = (0.3127, 0.3290)
+    measured_xyz: tuple[float, float, float] | None = None
+    measured_lab: tuple[float, float, float] | None = None
+    measured_xy: tuple[float, float] | None = None
 
     # Delta E
-    delta_e: float = 0.0
-    delta_l: float = 0.0
-    delta_c: float = 0.0
-    delta_h: float = 0.0
+    delta_e: MetricValue = field(default_factory=lambda: MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED))
+    delta_l: MetricValue = field(default_factory=lambda: MetricValue(None, "delta L", EvidenceKind.NOT_MEASURED))
+    delta_c: MetricValue = field(default_factory=lambda: MetricValue(None, "delta C", EvidenceKind.NOT_MEASURED))
+    delta_h: MetricValue = field(default_factory=lambda: MetricValue(None, "delta H", EvidenceKind.NOT_MEASURED))
 
 
 # =============================================================================
@@ -141,7 +144,7 @@ class ColorPatchDisplay(QFrame):
 
 
 class DeltaEDisplay(QFrame):
-    """Large Delta E value display with color coding."""
+    """Large Delta E display that always includes evidence provenance."""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -154,7 +157,7 @@ class DeltaEDisplay(QFrame):
             }}
         """)
 
-        self._delta_e = 0.0
+        self._delta_e = MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -166,41 +169,27 @@ class DeltaEDisplay(QFrame):
         self.label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 14px;")
         layout.addWidget(self.label)
 
-        self.value_label = QLabel("--")
+        self.value_label = QLabel("Not measured")
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setStyleSheet("font-size: 36px; font-weight: bold;")
         layout.addWidget(self.value_label)
 
-        self.quality_label = QLabel("")
-        self.quality_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.quality_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 12px;")
-        layout.addWidget(self.quality_label)
+        self.evidence_label = QLabel("Evidence: not measured")
+        self.evidence_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.evidence_label.setWordWrap(True)
+        self.evidence_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 10px;")
+        layout.addWidget(self.evidence_label)
 
-    def set_value(self, delta_e: float):
-        """Set Delta E value with color coding."""
+    def set_value(self, delta_e: MetricValue):
+        """Set Delta E only from an evidence-labelled metric."""
+        if not isinstance(delta_e, MetricValue):
+            raise TypeError("delta_e must be a MetricValue")
         self._delta_e = delta_e
-
-        # Color code
-        if delta_e < 1.0:
-            color = COLORS["success"]
-            quality = "Imperceptible"
-        elif delta_e < 2.0:
-            color = "#8bc34a"
-            quality = "Excellent"
-        elif delta_e < 3.0:
-            color = COLORS["warning"]
-            quality = "Good"
-        elif delta_e < 5.0:
-            color = "#ff5722"
-            quality = "Acceptable"
-        else:
-            color = COLORS["error"]
-            quality = "Poor"
-
-        self.value_label.setText(f"{delta_e:.3f}")
+        color = COLORS["text_secondary"] if delta_e.value is None else COLORS["accent"]
+        self.value_label.setText(delta_e.display_text(3))
         self.value_label.setStyleSheet(f"font-size: 36px; font-weight: bold; color: {color};")
-        self.quality_label.setText(quality)
-        self.quality_label.setStyleSheet(f"color: {color}; font-size: 12px;")
+        self.evidence_label.setText(f"Source: {delta_e.source}" if delta_e.source else "Evidence: not measured")
+        self.evidence_label.setStyleSheet(f"color: {color}; font-size: 10px;")
 
 
 # =============================================================================
@@ -339,23 +328,25 @@ class MeasurementHistoryTable(QWidget):
         self.table.setItem(row, 1, rgb_item)
 
         # XYZ
-        X, Y, Z = measurement.measured_xyz
-        self.table.setItem(row, 2, QTableWidgetItem(f"{X:.2f}, {Y:.2f}, {Z:.2f}"))
+        if measurement.measured_xyz is None:
+            self.table.setItem(row, 2, QTableWidgetItem("Not measured"))
+        else:
+            X, Y, Z = measurement.measured_xyz
+            self.table.setItem(row, 2, QTableWidgetItem(f"{X:.2f}, {Y:.2f}, {Z:.2f}"))
 
         # Lab
-        L, a, b = measurement.measured_lab
-        self.table.setItem(row, 3, QTableWidgetItem(f"{L:.1f}, {a:+.1f}, {b:+.1f}"))
+        if measurement.measured_lab is None:
+            self.table.setItem(row, 3, QTableWidgetItem("Not measured"))
+        else:
+            L, a, b = measurement.measured_lab
+            self.table.setItem(row, 3, QTableWidgetItem(f"{L:.1f}, {a:+.1f}, {b:+.1f}"))
 
         # Delta E
         de = measurement.delta_e
-        de_item = QTableWidgetItem(f"{de:.3f}")
-
-        if de < 1.0:
-            de_item.setForeground(QBrush(QColor(COLORS["success"])))
-        elif de < 3.0:
-            de_item.setForeground(QBrush(QColor(COLORS["warning"])))
-        else:
-            de_item.setForeground(QBrush(QColor(COLORS["error"])))
+        de_item = QTableWidgetItem(de.display_text(3))
+        color = COLORS["text_secondary"] if de.value is None else COLORS["accent"]
+        de_item.setForeground(QBrush(QColor(color)))
+        de_item.setToolTip(f"Evidence source: {de.source or 'Not measured'}")
 
         self.table.setItem(row, 4, de_item)
 
@@ -506,8 +497,15 @@ class MeasurementView(QWidget):
         self.target_values.set_xyz(*xyz)
         self.target_values.set_lab(*lab)
 
-    def set_measured(self, xyz: tuple[float, float, float], lab: tuple[float, float, float], delta_e: float):
+    def set_measured(
+        self,
+        xyz: tuple[float, float, float],
+        lab: tuple[float, float, float],
+        delta_e: MetricValue,
+    ):
         """Set measured values and Delta E."""
+        if not isinstance(delta_e, MetricValue):
+            raise TypeError("delta_e must be a MetricValue")
         # Convert XYZ to RGB for display (simplified)
         r = int(min(255, max(0, xyz[0] * 2.55)))
         g = int(min(255, max(0, xyz[1] * 2.55)))
@@ -537,7 +535,15 @@ class MeasurementView(QWidget):
         if not self.measurements:
             return
 
-        values = [m.delta_e for m in self.measurements]
+        metrics = [m.delta_e for m in self.measurements if m.delta_e.value is not None]
+        if not metrics:
+            self.avg_label.setText("Avg ΔE: Not measured")
+            self.max_label.setText("Max ΔE: Not measured")
+            self.min_label.setText("Min ΔE: Not measured")
+            self.p95_label.setText("95th %: Not measured")
+            return
+
+        values = [metric.value for metric in metrics if metric.value is not None]
 
         avg = sum(values) / len(values)
         max_val = max(values)
@@ -547,7 +553,20 @@ class MeasurementView(QWidget):
         p95_idx = int(len(sorted_vals) * 0.95)
         p95 = sorted_vals[p95_idx] if p95_idx < len(sorted_vals) else sorted_vals[-1]
 
-        self.avg_label.setText(f"Avg ΔE: {avg:.3f}")
-        self.max_label.setText(f"Max ΔE: {max_val:.3f}")
-        self.min_label.setText(f"Min ΔE: {min_val:.3f}")
-        self.p95_label.setText(f"95th %: {p95:.3f}")
+        sources = "|".join(metric.source or "" for metric in metrics)
+        receipt = "aggregate:" + hashlib.sha256(sources.encode("utf-8")).hexdigest()
+        evidence = (
+            EvidenceKind.MEASURED
+            if all(metric.evidence is EvidenceKind.MEASURED for metric in metrics)
+            else EvidenceKind.ESTIMATED
+        )
+        aggregates = (
+            (self.avg_label, "Avg ΔE", avg),
+            (self.max_label, "Max ΔE", max_val),
+            (self.min_label, "Min ΔE", min_val),
+            (self.p95_label, "95th %", p95),
+        )
+        for label, name, value in aggregates:
+            metric = MetricValue(value, "dE2000", evidence, receipt)
+            label.setText(f"{name}: {metric.display_text(3)}")
+            label.setToolTip(f"Evidence source: {receipt}")

@@ -25,11 +25,7 @@ def test_calibrate_source_contains_no_pyqt_imports_or_identifiers() -> None:
                 names = [node.module or ""]
             else:
                 names = []
-            if any(
-                name == binding or name.startswith(binding + ".")
-                for name in names
-                for binding in BANNED_BINDINGS
-            ):
+            if any(name == binding or name.startswith(binding + ".") for name in names for binding in BANNED_BINDINGS):
                 offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}:import")
             if isinstance(node, ast.Name) and node.id in BANNED_IDENTIFIERS:
                 offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}:{node.id}")
@@ -38,8 +34,8 @@ def test_calibrate_source_contains_no_pyqt_imports_or_identifiers() -> None:
 
 def test_gui_extra_selects_build_ui_2_pyside() -> None:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"build-ui[pyside6]>=2,<3"' in text
-    assert '"PySide6>=6.11.1,<7"' in text
+    assert '"build-ui>=2,<3"' in text
+    assert '"PySide6-Essentials>=6.11.1,<7"' in text
     assert "PyQt5" not in text
     assert "PyQt6" not in text
 
@@ -94,7 +90,7 @@ else:
     assert result.returncode == 0, result.stderr
 
 
-def test_gui_package_configures_qt_before_eager_imports() -> None:
+def test_gui_package_configures_qt_before_lazy_export_resolution() -> None:
     code = """
 import os
 import sys
@@ -111,9 +107,11 @@ class BindingOrderGuard:
         return None
 
 sys.meta_path.insert(0, BindingOrderGuard())
-import calibrate_pro.gui
-assert seen
+import calibrate_pro.gui as gui
+assert seen == []
 assert os.environ['QT_API'] == 'pyside6'
+_ = gui.CalibrateProWindow
+assert seen
 from qtpy import API_NAME
 assert API_NAME == 'PySide6'
 print(API_NAME)

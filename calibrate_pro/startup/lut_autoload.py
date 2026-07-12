@@ -1,203 +1,99 @@
-"""
-LUT Auto-Load Service
+"""Read-only compatibility surface for the retired LUT auto-loader.
 
-Automatically loads calibration LUTs on system startup.
-Runs silently in the background to apply per-display color corrections.
+Automatic LUT application at process startup is intentionally disabled.  The
+interactive confirmed-actuation workflow owns every display mutation, while
+this module can only report saved plans and legacy startup-registration state.
 """
+
+from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from calibrate_pro.utils.startup_manager import StartupManager
 
-from calibrate_pro.lut_system.dwm_lut import DwmLutController
-from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
+_DISABLED_MESSAGE = (
+    "Legacy LUT auto-load is disabled. Use Calibrate Pro to preview and confirm "
+    "a fresh apply plan; startup registration is managed only by StartupManager."
+)
 
 
-def setup_logging():
-    """Configure logging for the auto-load service."""
+def setup_logging() -> logging.Logger:
+    """Configure the read-only startup inventory logger."""
     log_dir = Path(os.environ.get("APPDATA", "")) / "CalibratePro" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = log_dir / "autoload.log"
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+        handlers=[logging.FileHandler(log_dir / "autoload.log"), logging.StreamHandler()],
     )
     return logging.getLogger("CalibratePro.AutoLoad")
 
 
-def load_calibration_luts():
-    """Load all calibration LUTs for detected displays."""
+def load_calibration_luts() -> bool:
+    """Report saved LUT plans without loading or changing display state."""
     logger = setup_logging()
-    logger.info("=" * 50)
-    logger.info("Calibrate Pro - LUT Auto-Load Service Starting")
-    logger.info("=" * 50)
-
-    try:
-        # Initialize components
-        dwm = DwmLutController()
-        manager = PerDisplayCalibrationManager()
-
-        logger.info(f"DWM LUT Available: {dwm.is_available}")
-
-        # Get all calibrated displays
-        displays = manager.list_displays()
-        logger.info(f"Detected {len(displays)} display(s)")
-
-        loaded_count = 0
-
-        for display in displays:
-            display_id = display["id"]
-            profile = manager.get_display_profile(display_id)
-
-            if not profile:
-                logger.warning(f"Display {display_id}: No profile found")
-                continue
-
-            if not profile.lut_path or not os.path.exists(profile.lut_path):
-                logger.warning(f"Display {display_id}: No LUT file found")
-                continue
-
-            # Load the LUT
-            logger.info(f"Display {display_id}: Loading {os.path.basename(profile.lut_path)}")
-
-            success = dwm.load_lut_file(display_id, profile.lut_path)
-
-            if success:
-                logger.info(f"Display {display_id}: LUT loaded successfully")
-                loaded_count += 1
-            else:
-                logger.error(f"Display {display_id}: Failed to load LUT")
-
-        logger.info(f"Loaded {loaded_count}/{len(displays)} LUTs")
-        logger.info("Auto-load complete")
-
-        return loaded_count > 0
-
-    except Exception as e:
-        logger.error(f"Auto-load failed: {e}")
-        return False
+    displays = StartupManager().config.displays
+    for key in sorted(displays):
+        state = displays[key]
+        logger.info(
+            "Pending plan: display=%s id=%d lut=%s",
+            state.display_name,
+            state.display_id,
+            state.lut_path or "none",
+        )
+    logger.warning(_DISABLED_MESSAGE)
+    return False
 
 
-def create_startup_shortcut():
-    """Create a Windows startup shortcut for auto-loading LUTs."""
-    try:
-        import winreg
-
-        # Get the path to this script
-        script_path = Path(__file__).resolve()
-        python_exe = sys.executable
-
-        # Create a batch file that runs silently
-        startup_dir = Path(os.environ.get("APPDATA", "")) / "CalibratePro"
-        startup_dir.mkdir(parents=True, exist_ok=True)
-
-        batch_file = startup_dir / "autoload_luts.bat"
-        vbs_file = startup_dir / "autoload_luts.vbs"
-
-        # Create batch file
-        batch_content = f'''@echo off
-cd /d "{script_path.parent.parent.parent}"
-"{python_exe}" -c "from calibrate_pro.startup.lut_autoload import load_calibration_luts; load_calibration_luts()"
-'''
-        batch_file.write_text(batch_content)
-
-        # Create VBS wrapper to run silently
-        vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run chr(34) & "{batch_file}" & chr(34), 0
-Set WshShell = Nothing
-'''
-        vbs_file.write_text(vbs_content)
-
-        # Add to Windows startup registry
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
-            winreg.SetValueEx(key, "CalibratePro_LUT_AutoLoad", 0, winreg.REG_SZ, f'wscript.exe "{vbs_file}"')
-
-        return True, str(vbs_file)
-
-    except Exception as e:
-        return False, str(e)
+def create_startup_shortcut() -> tuple[bool, str]:
+    """Refuse the duplicate legacy startup-registration writer."""
+    return False, _DISABLED_MESSAGE
 
 
-def remove_startup():
-    """Remove the auto-load from Windows startup."""
+def remove_startup() -> bool:
+    """Refuse the duplicate legacy startup-registration writer."""
+    setup_logging().warning(_DISABLED_MESSAGE)
+    return False
+
+
+def check_startup_enabled() -> tuple[bool, str | None]:
+    """Read the retired legacy value without creating, changing, or deleting it."""
+    if os.name != "nt":
+        return False, None
     try:
         import winreg
 
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
-            try:
-                winreg.DeleteValue(key, "CalibratePro_LUT_AutoLoad")
-            except FileNotFoundError:
-                pass
-
-        return True
-
-    except Exception:
-        return False
-
-
-def check_startup_enabled():
-    """Check if auto-load is enabled in Windows startup."""
-    try:
-        import winreg
-
-        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ) as key:
-            try:
-                value, _ = winreg.QueryValueEx(key, "CalibratePro_LUT_AutoLoad")
-                return True, value
-            except FileNotFoundError:
-                return False, None
-
-    except Exception:
+            value, _ = winreg.QueryValueEx(key, "CalibratePro_LUT_AutoLoad")
+            return True, str(value)
+    except (FileNotFoundError, OSError):
         return False, None
 
 
-if __name__ == "__main__":
+def main(args: list[str] | None = None) -> int:
+    """Expose inventory/status commands; mutation flags fail explicitly."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Calibrate Pro LUT Auto-Load")
-    parser.add_argument("--install", action="store_true", help="Install auto-load to Windows startup")
-    parser.add_argument("--uninstall", action="store_true", help="Remove auto-load from Windows startup")
-    parser.add_argument("--status", action="store_true", help="Check if auto-load is enabled")
-    parser.add_argument("--load", action="store_true", help="Load LUTs now")
+    parser = argparse.ArgumentParser(description="Calibrate Pro retired LUT auto-loader")
+    parser.add_argument("--install", action="store_true", help="Report how startup is now managed")
+    parser.add_argument("--uninstall", action="store_true", help="Report how startup is now managed")
+    parser.add_argument("--status", action="store_true", help="Read legacy startup status")
+    parser.add_argument("--load", action="store_true", help="Inventory saved LUT plans without applying")
+    parsed = parser.parse_args(args)
 
-    args = parser.parse_args()
-
-    if args.install:
-        success, result = create_startup_shortcut()
-        if success:
-            print(f"Auto-load installed: {result}")
-        else:
-            print(f"Failed to install: {result}")
-
-    elif args.uninstall:
-        if remove_startup():
-            print("Auto-load removed from startup")
-        else:
-            print("Failed to remove auto-load")
-
-    elif args.status:
+    if parsed.install or parsed.uninstall:
+        print(_DISABLED_MESSAGE)
+        return 2
+    if parsed.status:
         enabled, path = check_startup_enabled()
-        if enabled:
-            print(f"Auto-load is ENABLED: {path}")
-        else:
-            print("Auto-load is DISABLED")
+        print(f"Legacy auto-load value: {'present' if enabled else 'absent'}{f' ({path})' if path else ''}")
+        return 0
+    load_calibration_luts()
+    return 0
 
-    elif args.load:
-        load_calibration_luts()
 
-    else:
-        # Default: load LUTs
-        load_calibration_luts()
+if __name__ == "__main__":
+    raise SystemExit(main())

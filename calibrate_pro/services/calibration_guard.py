@@ -7,8 +7,8 @@ Windows 11 (especially 24H2) actively sabotages display calibration by:
 - Auto Color Management (ACM) overriding wide-gamut corrections
 - Sleep/wake cycles dropping calibration state
 
-This service monitors and reapplies calibration continuously,
-fighting against Windows' tendency to destroy calibration work.
+This service monitors calibration drift and reports when a newly confirmed
+restoration plan is required. It never writes display state.
 
 Runs as a background thread, checking every N seconds.
 """
@@ -41,30 +41,35 @@ class GuardedDisplay:
 
 class CalibrationGuard:
     """
-    Continuously monitors and reapplies display calibration.
+    Continuously monitors display calibration.
 
-    Detects when Windows resets the VCGT gamma ramp and immediately
-    reapplies the saved calibration curves. Also monitors ICC profile
-    associations and DWM LUT state.
+    Detects when Windows resets or changes the VCGT gamma ramp and notifies the
+    caller. Restoration must cross the interactive actuation boundary.
     """
 
     def __init__(self, check_interval: float = 10.0, on_restore: Callable[[str, str], None] | None = None):
         """
         Args:
             check_interval: Seconds between checks (default 10)
-            on_restore: Callback(display_name, reason) when calibration is restored
+            on_restore: Compatibility callback used as a drift notification.
+                No restoration has occurred when it is called.
         """
         self.check_interval = check_interval
         self.on_restore = on_restore
         self._guarded: dict[str, GuardedDisplay] = {}
         self._running = False
         self._thread: threading.Thread | None = None
-        self._restore_count = 0
+        self._drift_count = 0
 
     @property
     def restore_count(self) -> int:
-        """Number of times calibration has been restored."""
-        return self._restore_count
+        """Number of automatic restorations (always zero in the safe service)."""
+        return 0
+
+    @property
+    def drift_count(self) -> int:
+        """Number of detected mismatches requiring interactive confirmation."""
+        return self._drift_count
 
     @property
     def is_running(self) -> bool:
@@ -100,15 +105,15 @@ class CalibrationGuard:
 
     def check_now(self) -> list[str]:
         """
-        Perform an immediate check and restore if needed.
+        Perform an immediate read-only drift check.
 
-        Returns list of display names that were restored.
+        Returns display names whose calibration differs from the guarded state.
         """
-        restored = []
+        drifted = []
         for _device_name, display in self._guarded.items():
             if self._check_and_restore(display):
-                restored.append(display.display_name)
-        return restored
+                drifted.append(display.display_name)
+        return drifted
 
     # --- Internal ---
 
@@ -124,9 +129,9 @@ class CalibrationGuard:
 
     def _check_and_restore(self, display: GuardedDisplay) -> bool:
         """
-        Check if calibration is still applied, restore if not.
+        Check if calibration is still applied and notify on drift.
 
-        Returns True if restoration was needed.
+        Returns True if a fresh confirmed restoration plan is needed.
         """
         if display.vcgt_red is None:
             return False
@@ -144,19 +149,21 @@ class CalibrationGuard:
         is_matching = self._ramps_match(current_r, display.vcgt_red)
 
         if is_linear and not self._is_linear_ramp(display.vcgt_red):
-            # Windows reset our calibration to linear -- restore it
-            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)  # type: ignore[arg-type]  # numpy/dynamic typing
-            self._restore_count += 1
+            self._drift_count += 1
             if self.on_restore:
-                self.on_restore(display.display_name, "Windows reset gamma ramp to linear")
+                self.on_restore(
+                    display.display_name,
+                    "Windows reset gamma ramp to linear; interactive confirmation is required",
+                )
             return True
 
         if not is_matching and not is_linear:
-            # Something else changed the ramp -- could be another tool, restore ours
-            self._apply_vcgt(display.device_name, display.vcgt_red, display.vcgt_green, display.vcgt_blue)  # type: ignore[arg-type]  # numpy/dynamic typing
-            self._restore_count += 1
+            self._drift_count += 1
             if self.on_restore:
-                self.on_restore(display.display_name, "Gamma ramp was modified by another process")
+                self.on_restore(
+                    display.display_name,
+                    "Gamma ramp was modified by another process; interactive confirmation is required",
+                )
             return True
 
         return False
@@ -203,38 +210,6 @@ class CalibrationGuard:
         except Exception as e:
             logger.debug("VCGT read failed for %s: %s", device_name, e)
         return None
-
-    @staticmethod
-    def _apply_vcgt(device_name: str, red: np.ndarray, green: np.ndarray, blue: np.ndarray) -> bool:
-        """Apply VCGT gamma ramp to a display."""
-        try:
-            user32 = ctypes.windll.user32
-            gdi32 = ctypes.windll.gdi32
-
-            dc = user32.CreateDCW("DISPLAY", device_name, None, None)
-            if not dc:
-                return False
-
-            try:
-
-                class GAMMA_RAMP(ctypes.Structure):
-                    _fields_ = [
-                        ("Red", wintypes.WORD * 256),
-                        ("Green", wintypes.WORD * 256),
-                        ("Blue", wintypes.WORD * 256),
-                    ]
-
-                ramp = GAMMA_RAMP()
-                for i in range(256):
-                    ramp.Red[i] = int(red[i])
-                    ramp.Green[i] = int(green[i])
-                    ramp.Blue[i] = int(blue[i])
-
-                return bool(gdi32.SetDeviceGammaRamp(dc, ctypes.byref(ramp)))
-            finally:
-                user32.DeleteDC(dc)
-        except Exception:
-            return False
 
 
 def detect_acm_enabled() -> bool:

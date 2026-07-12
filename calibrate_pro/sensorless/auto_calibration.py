@@ -1,7 +1,7 @@
 """
 Automatic Self-Calibration Engine
 
-Zero-input display calibration achieving Delta E < 1.0 accuracy.
+Panel-characterization calibration with explicitly estimated metrics.
 No external instruments, no user interaction required.
 
 The System:
@@ -15,7 +15,10 @@ This is the first true "one-click" calibration system that requires
 nothing but the software, PC, and display.
 """
 
+import hashlib
 import logging
+import math
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -24,6 +27,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +83,102 @@ class UserConsent:
         return not (level == CalibrationRisk.HIGH and not self.hardware_modification_approved)
 
 
+def _missing_delta_e() -> MetricValue:
+    return MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
+
+
+def _missing_percent() -> MetricValue:
+    return MetricValue(None, "percent", EvidenceKind.NOT_MEASURED)
+
+
+def _panel_characterization_source(panel: object, profile_path: Path | None) -> str:
+    """Create a non-device-identifying receipt for an estimated result."""
+    model = getattr(panel, "name", getattr(panel, "model_pattern", "unknown"))
+    normalized = re.sub(r"[^a-z0-9]+", "-", str(model).casefold()).strip("-") or "unknown"
+    if profile_path is not None and profile_path.is_file():
+        digest = hashlib.sha256(profile_path.read_bytes()).hexdigest()
+    else:
+        digest = hashlib.sha256(repr(panel).encode("utf-8")).hexdigest()
+    return f"panel-characterization:{normalized}:{digest}"
+
+
+def _estimated_metric(value: object, unit: str, source: str) -> MetricValue:
+    """Label one finite panel-model value without turning invalid data into evidence."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        return MetricValue(None, unit, EvidenceKind.NOT_MEASURED)
+    return MetricValue(float(value), unit, EvidenceKind.ESTIMATED, source)
+
+
+def _label_estimated_verification(verification: dict[str, Any], source: str) -> dict[str, Any]:
+    """Attach panel-characterization evidence to every user-facing model metric."""
+    labeled = dict(verification)
+    for key, unit in {
+        "delta_e_avg": "dE2000",
+        "delta_e_max": "dE2000",
+        "cam16_delta_e_avg": "dE CAM16-UCS",
+        "cam16_delta_e_max": "dE CAM16-UCS",
+    }.items():
+        if key in labeled:
+            labeled[key] = _estimated_metric(labeled[key], unit, source)
+
+    for key, unit in {
+        "delta_e_values": "dE2000",
+        "cam16_delta_e_values": "dE CAM16-UCS",
+    }.items():
+        values = labeled.get(key)
+        if isinstance(values, list):
+            labeled[key] = [_estimated_metric(value, unit, source) for value in values]
+
+    patches = labeled.get("patches")
+    if isinstance(patches, list):
+        labeled_patches: list[object] = []
+        for patch in patches:
+            if not isinstance(patch, dict):
+                labeled_patches.append(patch)
+                continue
+            labeled_patch = dict(patch)
+            if "delta_e" in labeled_patch:
+                labeled_patch["delta_e"] = _estimated_metric(labeled_patch["delta_e"], "dE2000", source)
+            if "cam16_delta_e" in labeled_patch:
+                labeled_patch["cam16_delta_e"] = _estimated_metric(
+                    labeled_patch["cam16_delta_e"],
+                    "dE CAM16-UCS",
+                    source,
+                )
+            labeled_patches.append(labeled_patch)
+        labeled["patches"] = labeled_patches
+
+    coverage = labeled.get("gamut_coverage")
+    if isinstance(coverage, dict):
+        labeled_coverage = dict(coverage)
+        for key in ("srgb_pct", "dci_p3_pct", "bt2020_pct", "relative_to_srgb_pct"):
+            if key in labeled_coverage:
+                labeled_coverage[key] = _estimated_metric(labeled_coverage[key], "percent", source)
+        for key in ("panel_area", "srgb_area"):
+            if key in labeled_coverage:
+                labeled_coverage[key] = _estimated_metric(labeled_coverage[key], "xy-area", source)
+        labeled["gamut_coverage"] = labeled_coverage
+
+    color_volume = labeled.get("color_volume")
+    if isinstance(color_volume, dict):
+        labeled_volume = dict(color_volume)
+        for key in ("srgb_pct", "p3_pct", "bt2020_pct", "relative_to_srgb_pct"):
+            if key in labeled_volume:
+                labeled_volume[key] = _estimated_metric(labeled_volume[key], "percent", source)
+        gamut_areas = labeled_volume.get("gamut_area_per_level")
+        if isinstance(gamut_areas, list):
+            labeled_volume["gamut_area_per_level"] = [
+                _estimated_metric(value, "Lab-area", source) for value in gamut_areas
+            ]
+        labeled["color_volume"] = labeled_volume
+
+    labeled["grade"] = "Estimated model diagnostics"
+    labeled["mode"] = "sensorless"
+    labeled["evidence"] = EvidenceKind.ESTIMATED.value
+    labeled["source_receipt"] = source
+    return labeled
+
+
 @dataclass
 class CalibrationTarget:
     """Target color characteristics for calibration."""
@@ -101,7 +202,11 @@ class AutoCalibrationResult:
     panel_type: str = ""
 
     # Calibration data
-    delta_e_predicted: float = 0.0
+    delta_e_predicted: MetricValue = field(default_factory=_missing_delta_e)
+    delta_e_max: MetricValue = field(default_factory=_missing_delta_e)
+    gamut_coverage_srgb: MetricValue = field(default_factory=_missing_percent)
+    gamut_coverage_p3: MetricValue = field(default_factory=_missing_percent)
+    gamut_coverage_bt2020: MetricValue = field(default_factory=_missing_percent)
     icc_profile_path: str | None = None
     lut_path: str | None = None
 
@@ -121,6 +226,28 @@ class AutoCalibrationResult:
     message: str = ""
     warnings: list[str] = field(default_factory=list)
     steps_completed: list[CalibrationStep] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize public performance metrics with explicit provenance."""
+        return {
+            "success": self.success,
+            "mode": "sensorless",
+            "display_name": self.display_name,
+            "panel_matched": self.panel_matched,
+            "panel_type": self.panel_type,
+            "delta_e": self.delta_e_predicted.to_dict(),
+            "delta_e_max": self.delta_e_max.to_dict(),
+            "gamut_coverage_srgb": self.gamut_coverage_srgb.to_dict(),
+            "gamut_coverage_p3": self.gamut_coverage_p3.to_dict(),
+            "gamut_coverage_bt2020": self.gamut_coverage_bt2020.to_dict(),
+            "icc_profile_path": self.icc_profile_path,
+            "lut_path": self.lut_path,
+            "lut_application_method": self.lut_application_method,
+            "lut_applied": self.lut_applied,
+            "message": self.message,
+            "warnings": list(self.warnings),
+            "steps_completed": [step.name for step in self.steps_completed],
+        }
 
 
 # =============================================================================
@@ -144,7 +271,7 @@ SAFETY INFORMATION:
 - All changes can be reversed at any time
 
 BENEFITS:
-- Professional color accuracy (Delta E < 1.0)
+- Evidence-labelled model estimates that require instrument verification
 - Consistent colors across applications
 - Proper grayscale tracking
 
@@ -167,14 +294,14 @@ def generate_consent_warning(display_name: str, changes: list[str], risk_level: 
 
 class AutoCalibrationEngine:
     """
-    Automatic sensorless display calibration engine.
+        Automatic sensorless display calibration engine.
 
-    Achieves Delta E < 1.0 with zero user input by:
-    1. Detecting display via Windows APIs / EDID
-    2. Matching to panel database for known characteristics
-    3. Calculating precise corrections from factory measurements
-    4. Optionally adjusting DDC/CI hardware settings
-    5. Generating and applying ICC profile + 3D LUT
+    Builds a panel-characterization estimate by:
+        1. Detecting display via Windows APIs / EDID
+        2. Matching to panel database for known characteristics
+        3. Calculating precise corrections from factory measurements
+        4. Optionally adjusting DDC/CI hardware settings
+        5. Generating and applying ICC profile + 3D LUT
     """
 
     def __init__(self):
@@ -441,8 +568,38 @@ class AutoCalibrationEngine:
 
             # Step 10: Verify Calibration
             self._report_progress("Verifying calibration...", 0.95, CalibrationStep.VERIFY_CALIBRATION)
-            result.verification = self._verify_calibration(panel)
-            result.delta_e_predicted = result.verification.get("delta_e_avg", 0.0)
+            raw_verification = self._verify_calibration(panel)
+            source = _panel_characterization_source(panel, icc_path)
+            delta_e_avg = raw_verification.get("delta_e_avg")
+            delta_e_max = raw_verification.get("delta_e_max")
+            if (
+                isinstance(delta_e_avg, (int, float))
+                and not isinstance(delta_e_avg, bool)
+                and math.isfinite(float(delta_e_avg))
+            ):
+                result.delta_e_predicted = MetricValue(float(delta_e_avg), "dE2000", EvidenceKind.ESTIMATED, source)
+            if (
+                isinstance(delta_e_max, (int, float))
+                and not isinstance(delta_e_max, bool)
+                and math.isfinite(float(delta_e_max))
+            ):
+                result.delta_e_max = MetricValue(float(delta_e_max), "dE2000", EvidenceKind.ESTIMATED, source)
+            coverage = raw_verification.get("gamut_coverage")
+            if isinstance(coverage, dict):
+                coverage_fields = (
+                    ("srgb_pct", "gamut_coverage_srgb"),
+                    ("dci_p3_pct", "gamut_coverage_p3"),
+                    ("bt2020_pct", "gamut_coverage_bt2020"),
+                )
+                for source_key, field_name in coverage_fields:
+                    value = coverage.get(source_key)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)):
+                        setattr(
+                            result,
+                            field_name,
+                            MetricValue(float(value), "percent", EvidenceKind.ESTIMATED, source),
+                        )
+            result.verification = _label_estimated_verification(raw_verification, source)
             result.steps_completed.append(CalibrationStep.VERIFY_CALIBRATION)
 
             # Complete
@@ -463,10 +620,14 @@ class AutoCalibrationEngine:
             elif apply_lut:
                 lut_msg = " WARNING: LUT was not applied to the display."
 
-            result.message = (
-                f"Calibration successful. Predicted Delta E: {result.delta_e_predicted:.2f}."
-                f"{lut_msg} Files saved to {output_dir}"
-            )
+            if result.delta_e_predicted.value is None:
+                metric_message = "Estimated model Delta E: Not measured"
+            else:
+                metric_message = (
+                    f"Estimated model Delta E: {result.delta_e_predicted.value:.2f} dE2000 "
+                    f"(panel characterization; source {result.delta_e_predicted.source})"
+                )
+            result.message = f"Calibration assets generated. {metric_message}.{lut_msg} Files saved to {output_dir}"
             result.steps_completed.append(CalibrationStep.COMPLETE)
 
             # Generate HTML calibration report
@@ -1390,9 +1551,9 @@ class AutoCalibrationEngine:
                 lut = LUT3D.load(lut_path)
                 size = lut.data.shape[0]
 
-                r_curve = np.zeros(256, dtype=np.float64)
-                g_curve = np.zeros(256, dtype=np.float64)
-                b_curve = np.zeros(256, dtype=np.float64)
+                r_curve: np.ndarray = np.zeros(256, dtype=np.float64)
+                g_curve: np.ndarray = np.zeros(256, dtype=np.float64)
+                b_curve: np.ndarray = np.zeros(256, dtype=np.float64)
 
                 for i in range(256):
                     t = i / 255.0
@@ -1632,8 +1793,8 @@ def _persist_calibration(result: AutoCalibrationResult, display_index: int):
             lut_path=result.lut_path,
             icc_path=result.icc_profile_path,
             hdr_mode=False,
-            delta_e_avg=result.delta_e_predicted,
-            delta_e_max=result.verification.get("delta_e_max", 0.0),
+            delta_e_avg=result.delta_e_predicted.value,
+            delta_e_max=result.delta_e_max.value,
         )
     except (ImportError, OSError) as e:
         logger.error("Failed to persist calibration for display %d: %s", display_index, e)
@@ -1673,7 +1834,9 @@ if __name__ == "__main__":
         print(f"    Success: {result.success}")
         if result.success:
             print(f"    Panel: {result.panel_matched} ({result.panel_type})")
-            print(f"    Predicted Delta E: {result.delta_e_predicted:.2f}")
+            print(f"    Estimated Delta E: {result.delta_e_predicted.display_text()}")
+            if result.delta_e_predicted.source:
+                print(f"    Evidence source: {result.delta_e_predicted.source}")
             if result.icc_profile_path:
                 print(f"    ICC Profile: {result.icc_profile_path}")
             if result.lut_path:

@@ -1,7 +1,8 @@
 """
-Real-time Calibration Test Application
+Calibration Preview Test Application
 
-Uses Windows Gamma Ramp API for reliable display control.
+Builds gamma-ramp previews without writing display state. Applying a preview
+requires the normal interactive confirmation workflow.
 """
 
 import ctypes
@@ -50,7 +51,7 @@ class GAMMA_RAMP(Structure):
 
 
 class GammaController:
-    """Controls display gamma ramps via Windows GDI API."""
+    """Reads display gamma ramps and stages in-memory preview proposals."""
 
     DISPLAY_DEVICE_ACTIVE = 0x00000001
     DISPLAY_DEVICE_PRIMARY = 0x00000004
@@ -60,6 +61,7 @@ class GammaController:
         self.user32 = ctypes.windll.user32
         self.displays = []
         self.original_ramps = {}
+        self.pending_ramps: dict[int, GAMMA_RAMP] = {}
         self._enumerate_displays()
 
     def _enumerate_displays(self):
@@ -115,19 +117,12 @@ class GammaController:
 
         return ramp if result else None
 
-    def set_gamma_ramp(self, display_idx: int, ramp: GAMMA_RAMP) -> bool:
-        """Set gamma ramp for a display."""
+    def _stage_gamma_ramp(self, display_idx: int, ramp: GAMMA_RAMP) -> bool:
+        """Stage a gamma-ramp proposal without applying it."""
         if display_idx >= len(self.displays):
             return False
-
-        display_name = self.displays[display_idx]["name"]
-        hdc = self.gdi32.CreateDCW(display_name, None, None, None)
-        if not hdc:
-            return False
-
-        result = self.gdi32.SetDeviceGammaRamp(hdc, byref(ramp))
-        self.gdi32.DeleteDC(hdc)
-        return bool(result)
+        self.pending_ramps[display_idx] = ramp
+        return True
 
     def create_calibration_ramp(
         self,
@@ -196,24 +191,18 @@ class GammaController:
         b_offset: int = 0,
         gamma: float = 2.2,
     ) -> bool:
-        """Apply calibration settings to a display."""
+        """Build and stage calibration settings for interactive preview."""
         ramp = self.create_calibration_ramp(
             brightness, contrast, r_gain, g_gain, b_gain, r_offset, g_offset, b_offset, gamma
         )
-        return self.set_gamma_ramp(display_idx, ramp)
+        return self._stage_gamma_ramp(display_idx, ramp)
 
     def reset_display(self, display_idx: int) -> bool:
-        """Reset display to original gamma ramp."""
+        """Clear a staged proposal without changing the display."""
         if display_idx >= len(self.displays):
             return False
-
-        display_name = self.displays[display_idx]["name"]
-        if display_name in self.original_ramps:
-            return self.set_gamma_ramp(display_idx, self.original_ramps[display_name])
-
-        # If no original stored, create linear ramp
-        ramp = self.create_calibration_ramp(100, 100, 100, 100, 100, 0, 0, 0, 2.2)
-        return self.set_gamma_ramp(display_idx, ramp)
+        self.pending_ramps.pop(display_idx, None)
+        return True
 
 
 # ============================================================================
@@ -415,7 +404,7 @@ class ColorChecker(QFrame):
 
 
 class CalibrationTestWindow(QMainWindow):
-    """Main calibration test window using Windows Gamma Ramp API."""
+    """Main calibration preview window with no display actuation."""
 
     def __init__(self):
         super().__init__()
@@ -506,7 +495,7 @@ class CalibrationTestWindow(QMainWindow):
         self.monitor_combo.currentIndexChanged.connect(self.on_display_changed)
         monitor_layout.addWidget(self.monitor_combo)
 
-        self.status_label = QLabel("Using Windows Gamma Ramp API")
+        self.status_label = QLabel("Preview only — confirmation is required to apply")
         self.status_label.setStyleSheet("color: #4CAF50;")
         monitor_layout.addWidget(self.status_label)
 
@@ -751,7 +740,7 @@ class CalibrationTestWindow(QMainWindow):
         layout.addLayout(right_panel, 2)
 
     def apply_calibration(self):
-        """Apply current calibration settings to the display."""
+        """Stage current settings as an in-memory preview proposal."""
         result = self.gamma_ctrl.apply_calibration(
             self.current_display,
             self.brightness,
@@ -766,10 +755,10 @@ class CalibrationTestWindow(QMainWindow):
         )
 
         if result:
-            self.status_label.setText("Calibration applied successfully")
+            self.status_label.setText("Preview staged — no display state changed")
             self.status_label.setStyleSheet("color: #4CAF50;")
         else:
-            self.status_label.setText("Failed to apply calibration")
+            self.status_label.setText("Could not stage preview")
             self.status_label.setStyleSheet("color: #f44336;")
 
         # Update visual indicators
@@ -900,15 +889,14 @@ class CalibrationTestWindow(QMainWindow):
         self.green_offset_slider.setValue(0)
         self.blue_offset_slider.setValue(0)
 
-        # Reset display to original
+        # Clear only the in-memory proposal.
         self.gamma_ctrl.reset_display(self.current_display)
-        self.status_label.setText("Reset to default")
+        self.status_label.setText("Preview reset — no display state changed")
         self.status_label.setStyleSheet("color: #4CAF50;")
 
     def closeEvent(self, event):
-        """Restore original gamma when closing."""
-        for i in range(len(self.gamma_ctrl.displays)):
-            self.gamma_ctrl.reset_display(i)
+        """Close without performing any display writes."""
+        self.gamma_ctrl.pending_ramps.clear()
         event.accept()
 
 

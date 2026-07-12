@@ -1,17 +1,4 @@
-"""
-DDC/CI Hardware Control Page - Comprehensive Monitor Control.
-
-Features:
-- VCP Code Scanner: Discover all supported VCP codes
-- Raw VCP Control: Read/write any VCP code
-- Common Controls: Brightness, contrast, RGB, color presets
-- Monitor Info: Capabilities, firmware, usage time
-
-NOTE: Not all monitors support all features. Use the scanner
-to discover what your monitor actually supports.
-"""
-
-import time
+"""DDC/CI proposal editor with a strict, confirmed actuation boundary."""
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
@@ -33,13 +20,13 @@ from PySide6.QtWidgets import (
     QSlider,
     QSpinBox,
     QTableWidget,
-    QTableWidgetItem,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from calibrate_pro.gui.theme import COLORS
+from calibrate_pro.workflow import DDC_WRITE_CODES, ApplyPlan, CalibrationMethod
 
 
 class DDCControlPage(QWidget):
@@ -64,6 +51,8 @@ class DDCControlPage(QWidget):
         self._updating_sliders = False
         self._supported_features = {}
         self._discovered_vcp_codes = {}  # {code: (current, max)}
+        self._pending_changes: dict[str, int] = {}
+        self._pending_plan: ApplyPlan | None = None
         self._setup_ui()
         QTimer.singleShot(500, self._initialize_ddc)
 
@@ -779,257 +768,50 @@ class DDCControlPage(QWidget):
             self.colorimeter_status.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
 
     def _start_hardware_calibration(self):
-        """Start the full hardware calibration process."""
-        if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(self, "No Monitor", "Select a DDC/CI monitor first.")
-            return
-
+        """Build a measured-calibration preview without display writes."""
         self.auto_log.clear()
-        self.auto_progress.setValue(0)
-        self.auto_results.setText("")
-        self.start_calibration_btn.setEnabled(False)
-
-        try:
-            from calibrate_pro.hardware.hardware_calibration import (
-                CalibrationTargets,
-                HardwareCalibrationEngine,
-            )
-
-            engine = HardwareCalibrationEngine()
-
-            # Get colorimeter if available
-            colorimeter = getattr(self, "_colorimeter", None)
-
-            # Initialize
-            if not engine.initialize(
-                colorimeter=colorimeter,
-                ddc_controller=self.ddc_controller,
-                display_index=self.monitor_combo.currentIndex(),
-            ):
-                self.auto_log.appendPlainText("ERROR: Failed to initialize calibration engine")
-                return
-
-            # Set targets
-            targets = CalibrationTargets()
-            targets.target_luminance = self.auto_luminance_spin.value()
-
-            # White point
-            wp_map = {
-                "D65 (6504K)": (0.3127, 0.3290, 6504),
-                "D50 (5003K)": (0.3457, 0.3585, 5003),
-                "D55 (5503K)": (0.3324, 0.3474, 5503),
-                "D75 (7504K)": (0.2990, 0.3149, 7504),
-            }
-            wp_text = self.auto_whitepoint_combo.currentText()
-            if wp_text in wp_map:
-                targets.whitepoint_x, targets.whitepoint_y, targets.whitepoint_cct = wp_map[wp_text]
-
-            # Gamma
-            gamma_map = {"2.2 (Standard)": 2.2, "2.4 (BT.1886)": 2.4, "sRGB": 2.2, "2.0": 2.0, "2.6": 2.6}
-            targets.gamma = gamma_map.get(self.auto_gamma_combo.currentText(), 2.2)
-
-            # Progress callback
-            def update_progress(msg, progress, phase):
-                self.auto_log.appendPlainText(msg)
-                self.auto_progress.setValue(int(progress * 100))
-                self.auto_progress.setFormat(f"{phase.name}: {int(progress * 100)}%")
-                QApplication.processEvents()
-
-            engine.set_progress_callback(update_progress)
-
-            # Run calibration
-            self.auto_log.appendPlainText("Starting hardware calibration...")
-            result = engine.run_hardware_calibration(targets=targets)
-
-            # Display results
-            for log_entry in result.adjustments_log:
-                self.auto_log.appendPlainText(log_entry)
-
-            if result.success:
-                self.auto_progress.setValue(100)
-                self.auto_progress.setFormat("Complete!")
-
-                summary = "\u2713 Calibration Complete\n\n"
-                summary += f"White Point: {targets.whitepoint} ({targets.whitepoint_cct}K)\n"
-                summary += f"Target Luminance: {targets.target_luminance} cd/m\u00b2\n"
-
-                if result.delta_e_after > 0:
-                    summary += f"Final Delta E: {result.delta_e_after:.2f}\n"
-
-                summary += f"\nRGB Gains: R={result.final_state.red_gain}, "
-                summary += f"G={result.final_state.green_gain}, B={result.final_state.blue_gain}"
-
-                self.auto_results.setText(summary)
-                self.auto_results.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-
-                # Refresh common controls tab values
-                self._read_current_values()
-            else:
-                self.auto_progress.setFormat("Failed")
-                self.auto_results.setText(f"Calibration failed: {result.message}")
-                self.auto_results.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-
-        except Exception as e:
-            self.auto_log.appendPlainText(f"ERROR: {e}")
-            self.auto_results.setText(f"Error: {e}")
-            self.auto_results.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-
-        finally:
-            self.start_calibration_btn.setEnabled(True)
+        whitepoint = self.auto_whitepoint_combo.currentText().split(" ", 1)[0]
+        gamma = self.auto_gamma_combo.currentText().split(" ", 1)[0]
+        self._pending_plan = ApplyPlan(
+            display_id=str(max(0, self.monitor_combo.currentIndex())),
+            method=CalibrationMethod.MEASURED,
+            target_whitepoint=whitepoint,
+            target_gamma=gamma,
+            target_gamut=self.auto_gamut_combo.currentText(),
+            ddc_changes=tuple(self._pending_changes.items()),
+        )
+        self.auto_progress.setValue(100)
+        self.auto_progress.setFormat("Preview ready")
+        self.auto_log.appendPlainText("Measured plan staged. No DDC/CI command was sent.")
+        self.auto_results.setText("Preview ready — review and explicit confirmation are required before apply.")
+        self.auto_results.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _quick_white_balance(self):
-        """Run quick white balance adjustment."""
-        if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(self, "No Monitor", "Select a DDC/CI monitor first.")
-            return
-
-        colorimeter = getattr(self, "_colorimeter", None)
-        if not colorimeter:
-            QMessageBox.information(
-                self,
-                "Colorimeter Required",
-                "Quick white balance requires a colorimeter to measure actual display output.\n\n"
-                "Click 'Detect Colorimeter' first, or use 'Sensorless Calibration' instead.",
-            )
-            return
-
-        try:
-            from calibrate_pro.hardware.hardware_calibration import HardwareCalibrationEngine
-
-            engine = HardwareCalibrationEngine()
-            engine.initialize(
-                colorimeter=colorimeter,
-                ddc_controller=self.ddc_controller,
-                display_index=self.monitor_combo.currentIndex(),
-            )
-
-            self.auto_log.appendPlainText("Starting quick white balance...")
-            success, msg, (r, g, b) = engine.run_quick_white_balance()
-
-            self.auto_log.appendPlainText(msg)
-            self.auto_log.appendPlainText(f"Final RGB gains: R={r}, G={g}, B={b}")
-
-            if success:
-                self.auto_results.setText(f"\u2713 White balance achieved!\nRGB: ({r}, {g}, {b})")
-                self.auto_results.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-            else:
-                self.auto_results.setText(f"White balance: {msg}\nRGB: ({r}, {g}, {b})")
-                self.auto_results.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
-
-            self._read_current_values()
-
-        except Exception as e:
-            self.auto_log.appendPlainText(f"ERROR: {e}")
+        """Keep quick white balance behind the confirmed plan workflow."""
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No white-balance command was sent. Run measured calibration to build a reviewable plan.",
+        )
 
     def _run_sensorless_calibration(self):
-        """Run scientifically accurate sensorless calibration using panel database."""
-        if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(self, "No Monitor", "Select a DDC/CI monitor first.")
-            return
-
+        """Build a sensorless proposal without changing monitor state."""
         self.auto_log.clear()
-        self.auto_progress.setValue(0)
-
-        try:
-            from calibrate_pro.hardware.sensorless_calibration import (
-                ILLUMINANTS,
-                CalibrationTarget,
-                SensorlessCalibrationEngine,
-            )
-
-            engine = SensorlessCalibrationEngine()
-
-            def progress_callback(msg, progress):
-                self.auto_log.appendPlainText(msg)
-                self.auto_progress.setValue(int(progress * 100))
-                QApplication.processEvents()
-
-            engine.set_progress_callback(progress_callback)
-
-            # Initialize engine with DDC controller
-            if not engine.initialize(self.ddc_controller, self.monitor_combo.currentIndex()):
-                self.auto_log.appendPlainText("ERROR: Failed to initialize calibration engine")
-                return
-
-            # Get target settings from UI
-            whitepoint = self.auto_whitepoint_combo.currentText()
-            wp_xy = ILLUMINANTS.get(whitepoint, ILLUMINANTS["D65"])
-
-            target = CalibrationTarget(
-                whitepoint=whitepoint,
-                whitepoint_x=wp_xy[0],
-                whitepoint_y=wp_xy[1],
-                luminance=float(self.auto_luminance_spin.value()),
-                gamma=float(self.auto_gamma_combo.currentText()),
-                gamut=self.auto_gamut_combo.currentText(),
-            )
-
-            self.auto_log.appendPlainText("=" * 50)
-            self.auto_log.appendPlainText("SENSORLESS HARDWARE CALIBRATION")
-            self.auto_log.appendPlainText("=" * 50)
-            self.auto_log.appendPlainText("")
-            self.auto_log.appendPlainText("Using Newton-Raphson optimization with")
-            self.auto_log.appendPlainText("panel characterization database for")
-            self.auto_log.appendPlainText("scientifically accurate calibration.")
-            self.auto_log.appendPlainText("")
-
-            # Show panel info
-            if engine._panel_profile:
-                panel = engine._panel_profile
-                self.auto_log.appendPlainText(f"Panel: {panel.manufacturer} {panel.model_pattern.split('|')[0]}")
-                self.auto_log.appendPlainText(f"Type: {panel.panel_type}")
-            if engine._edid_colorimetry:
-                edid = engine._edid_colorimetry
-                self.auto_log.appendPlainText(f"EDID CCT: {edid['cct']}K")
-            self.auto_log.appendPlainText("")
-
-            # Run calibration
-            result = engine.calibrate(target, output_dir=None)
-
-            self.auto_progress.setValue(100)
-
-            # Log all messages
-            for msg in result.messages:
-                self.auto_log.appendPlainText(msg)
-
-            if result.success:
-                # Determine accuracy rating
-                if result.estimated_delta_e_white < 1.0:
-                    rating = "REFERENCE GRADE"
-                    rating_color = COLORS["success"]
-                elif result.estimated_delta_e_white < 2.0:
-                    rating = "PROFESSIONAL GRADE"
-                    rating_color = COLORS["success"]
-                elif result.estimated_delta_e_white < 3.0:
-                    rating = "PHOTO EDITING GRADE"
-                    rating_color = COLORS["warning"]
-                else:
-                    rating = "GENERAL USE"
-                    rating_color = COLORS["warning"]
-
-                self.auto_results.setText(
-                    f"CALIBRATION COMPLETE!\n\n"
-                    f"Accuracy: {rating}\n"
-                    f"White Point Delta E: {result.estimated_delta_e_white:.3f}\n"
-                    f"Grayscale Delta E: {result.estimated_delta_e_gray:.2f}\n"
-                    f"Estimated CCT: {result.estimated_cct}K\n\n"
-                    f"Applied Settings:\n"
-                    f"  Brightness: {result.brightness}\n"
-                    f"  RGB Gain: R={result.red_gain}, G={result.green_gain}, B={result.blue_gain}"
-                )
-                self.auto_results.setStyleSheet(f"color: {rating_color}; padding: 8px;")
-            else:
-                self.auto_results.setText("Calibration failed")
-                self.auto_results.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-
-            self._read_current_values()
-
-        except Exception as e:
-            import traceback
-
-            self.auto_log.appendPlainText(f"ERROR: {e}")
-            self.auto_log.appendPlainText(traceback.format_exc())
-            self.auto_results.setText(f"Error: {e}")
+        whitepoint = self.auto_whitepoint_combo.currentText().split(" ", 1)[0]
+        gamma = self.auto_gamma_combo.currentText().split(" ", 1)[0]
+        self._pending_plan = ApplyPlan(
+            display_id=str(max(0, self.monitor_combo.currentIndex())),
+            method=CalibrationMethod.SENSORLESS,
+            target_whitepoint=whitepoint,
+            target_gamma=gamma,
+            target_gamut=self.auto_gamut_combo.currentText(),
+            ddc_changes=tuple(self._pending_changes.items()),
+        )
+        self.auto_progress.setValue(100)
+        self.auto_progress.setFormat("Preview ready")
+        self.auto_log.appendPlainText("Sensorless plan staged. No DDC/CI command was sent.")
+        self.auto_results.setText("Preview ready — review and explicit confirmation are required before apply.")
+        self.auto_results.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _stop_calibration(self):
         """Stop ongoing calibration."""
@@ -1076,51 +858,30 @@ class DDCControlPage(QWidget):
         return {"layout": layout, "slider": slider, "value_label": value_lbl}
 
     def _initialize_ddc(self):
-        """Initialize DDC/CI controller and enumerate monitors."""
-        try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController
-
-            self.ddc_controller = DDCCIController()
-
-            if not self.ddc_controller.available:
-                self.status_label.setText(
-                    "\u274c DDC/CI is not available on this system. Monitor hardware control requires DDC/CI support."
-                )
-                self.status_label.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-                return
-
-            self._refresh_monitors()
-
-        except Exception as e:
-            self.status_label.setText(f"\u274c Failed to initialize DDC/CI: {e}")
-            self.status_label.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
+        """Populate basic Qt display observations without opening DDC/CI."""
+        self._refresh_monitors()
 
     def _refresh_monitors(self):
-        """Refresh the list of DDC/CI capable monitors."""
-        if not self.ddc_controller or not self.ddc_controller.available:
-            return
-
+        """Refresh Qt-observed displays for proposal targeting."""
         self.monitor_combo.clear()
-        self.monitors = self.ddc_controller.enumerate_monitors()
+        self.monitors = [
+            {"name": screen.name() or f"Display {index + 1}", "screen": screen}
+            for index, screen in enumerate(QApplication.screens())
+        ]
 
         if not self.monitors:
-            self.status_label.setText(
-                "\u26a0\ufe0f No DDC/CI capable monitors found. "
-                "Some monitors don't support DDC/CI, or it may be disabled in monitor settings."
-            )
+            self.status_label.setText("No displays were observed through Qt.")
             self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
             return
 
         for i, monitor in enumerate(self.monitors):
             name = monitor.get("name", f"Monitor {i + 1}")
-            caps = monitor.get("capabilities")
-            rgb_support = "\u2713 RGB" if caps and caps.has_rgb_gain else "\u25cb Basic"
-            self.monitor_combo.addItem(f"{name} [{rgb_support}]")
+            self.monitor_combo.addItem(str(name))
 
         self.status_label.setText(
-            f"\u2713 Found {len(self.monitors)} DDC/CI monitor(s). Adjust sliders to see live changes on your display."
+            f"Found {len(self.monitors)} display(s). Controls build a preview; confirmation is required before apply."
         )
-        self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
+        self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
         if self.monitors:
             self._on_monitor_changed(0)
@@ -1131,54 +892,15 @@ class DDCControlPage(QWidget):
             return
 
         self.current_monitor = self.monitors[index]
-        caps = self.current_monitor.get("capabilities")
-
-        # Track supported features for this monitor
+        # These are the only controls representable by ApplyPlan. Hardware
+        # support is validated later inside the confirmed transaction.
         self._supported_features = {
-            "brightness": False,
-            "contrast": False,
-            "rgb_gain": False,
-            "rgb_black": False,
+            "brightness": True,
+            "contrast": True,
+            "rgb_gain": True,
+            "rgb_black": True,
         }
-
-        if caps:
-            cap_text = []
-            supported_unsupported = []
-
-            # Check brightness (VCP 0x10)
-            if 0x10 in caps.supported_vcp_codes:
-                cap_text.append("Brightness \u2713")
-                self._supported_features["brightness"] = True
-            else:
-                supported_unsupported.append("Brightness \u2717")
-
-            # Check contrast (VCP 0x12)
-            if 0x12 in caps.supported_vcp_codes:
-                cap_text.append("Contrast \u2713")
-                self._supported_features["contrast"] = True
-            else:
-                supported_unsupported.append("Contrast \u2717")
-
-            # Check RGB Gain
-            if caps.has_rgb_gain:
-                cap_text.append("RGB Gain \u2713")
-                self._supported_features["rgb_gain"] = True
-            else:
-                supported_unsupported.append("RGB Gain \u2717")
-
-            # Check RGB Black Level
-            if caps.has_rgb_black_level:
-                cap_text.append("RGB Black Level \u2713")
-                self._supported_features["rgb_black"] = True
-            else:
-                supported_unsupported.append("RGB Black \u2717")
-
-            status = ", ".join(cap_text) if cap_text else "None"
-            if supported_unsupported:
-                status += f" | Not supported: {', '.join(supported_unsupported)}"
-            self.capabilities_label.setText(f"Capabilities: {status}")
-        else:
-            self.capabilities_label.setText("Capabilities: Could not query capabilities")
+        self.capabilities_label.setText("Capabilities: validated only during confirmed apply")
 
         # Enable/disable sliders based on support
         self._update_slider_states()
@@ -1224,69 +946,30 @@ class DDCControlPage(QWidget):
             self.black_group.setTitle("RGB Black Level (Shadow Balance) - NOT SUPPORTED")
 
     def _read_current_values(self):
-        """Read current DDC/CI values from the selected monitor."""
-        if not self.ddc_controller or not self.current_monitor:
-            return
-
-        self._updating_sliders = True
-
-        try:
-            settings = self.ddc_controller.get_settings(self.current_monitor)
-
-            if settings.brightness > 0:
-                self.brightness_slider["slider"].setValue(settings.brightness)
-            if settings.contrast > 0:
-                self.contrast_slider["slider"].setValue(settings.contrast)
-            if settings.red_gain > 0:
-                self.red_gain_slider["slider"].setValue(settings.red_gain)
-            if settings.green_gain > 0:
-                self.green_gain_slider["slider"].setValue(settings.green_gain)
-            if settings.blue_gain > 0:
-                self.blue_gain_slider["slider"].setValue(settings.blue_gain)
-            if settings.red_black_level > 0:
-                self.red_black_slider["slider"].setValue(settings.red_black_level)
-            if settings.green_black_level > 0:
-                self.green_black_slider["slider"].setValue(settings.green_black_level)
-            if settings.blue_black_level > 0:
-                self.blue_black_slider["slider"].setValue(settings.blue_black_level)
-
-        except Exception as e:
-            self.status_label.setText(f"\u26a0\ufe0f Error reading values: {e}")
-
-        self._updating_sliders = False
+        """Keep prior-state capture inside the confirmed transaction."""
+        self.status_label.setText("Current DDC values are captured only after confirmation")
 
     def _send_ddc_value(self, setting_name: str, value: int):
-        """Send a DDC/CI command to update a monitor setting."""
-        if not self.ddc_controller or not self.current_monitor:
+        """Stage an allowlisted DDC target without sending a command."""
+        code_map = {
+            "Brightness": "BRIGHTNESS",
+            "Contrast": "CONTRAST",
+            "Red Gain": "RED_GAIN",
+            "Green Gain": "GREEN_GAIN",
+            "Blue Gain": "BLUE_GAIN",
+            "Red Black": "RED_BLACK_LEVEL",
+            "Green Black": "GREEN_BLACK_LEVEL",
+            "Blue Black": "BLUE_BLACK_LEVEL",
+        }
+        code = code_map.get(setting_name)
+        if code not in DDC_WRITE_CODES:
+            self.status_label.setText(f"{setting_name} is not representable by the 1.1 ApplyPlan")
             return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            code_map = {
-                "Brightness": VCPCode.BRIGHTNESS,
-                "Contrast": VCPCode.CONTRAST,
-                "Red Gain": VCPCode.RED_GAIN,
-                "Green Gain": VCPCode.GREEN_GAIN,
-                "Blue Gain": VCPCode.BLUE_GAIN,
-                "Red Black": VCPCode.RED_BLACK_LEVEL,
-                "Green Black": VCPCode.GREEN_BLACK_LEVEL,
-                "Blue Black": VCPCode.BLUE_BLACK_LEVEL,
-            }
-
-            vcp_code = code_map.get(setting_name)
-            if vcp_code:
-                success = self.ddc_controller.set_vcp(self.current_monitor, vcp_code, value)
-                if success:
-                    self.status_label.setText(f"\u2713 Set {setting_name} to {value}")
-                    self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-                else:
-                    self.status_label.setText(f"\u26a0\ufe0f Failed to set {setting_name}")
-                    self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
-
-        except Exception as e:
-            self.status_label.setText(f"\u26a0\ufe0f Error: {e}")
-            self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
+        self._pending_changes[code] = value
+        self.status_label.setText(
+            f"Preview staged: {setting_name}={value} ({len(self._pending_changes)} change(s)); confirmation required"
+        )
+        self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _reset_to_defaults(self):
         """Reset all values to factory defaults."""
@@ -1319,88 +1002,19 @@ class DDCControlPage(QWidget):
 
         self._updating_sliders = False
 
-        # Apply all values
-        if self.ddc_controller and self.current_monitor:
-            self._send_ddc_value("Brightness", 50)
-            self._send_ddc_value("Contrast", 50)
-            self._send_ddc_value("Red Gain", 100)
-            self._send_ddc_value("Green Gain", 100)
-            self._send_ddc_value("Blue Gain", 100)
+        self._send_ddc_value("Brightness", 50)
+        self._send_ddc_value("Contrast", 50)
+        self._send_ddc_value("Red Gain", 100)
+        self._send_ddc_value("Green Gain", 100)
+        self._send_ddc_value("Blue Gain", 100)
 
     def _test_ddc_connection(self):
-        """Test DDC/CI by visibly flashing brightness."""
-        if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(self, "No Monitor", "No DDC/CI capable monitor is selected.")
-            return
-
-        # Check if brightness is supported
-        if not self._supported_features.get("brightness", False):
-            QMessageBox.warning(
-                self,
-                "Brightness Not Supported",
-                "This monitor does not support brightness control via DDC/CI.\n\n"
-                "DDC/CI control may not work on this monitor.\n"
-                "Many monitors have DDC/CI disabled by default - check your monitor's OSD settings.",
-            )
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            # Get current brightness
-            settings = self.ddc_controller.get_settings(self.current_monitor)
-            original_brightness = settings.brightness if settings.brightness > 0 else 100
-
-            self.status_label.setText("Testing DDC/CI... Watch for brightness changes!")
-            self.status_label.setStyleSheet(f"color: {COLORS['accent']}; padding: 8px;")
-            QApplication.processEvents()
-
-            # Flash sequence: dim -> bright -> original
-            test_sequence = [
-                (30, "Dimming to 30%..."),
-                (100, "Brightening to 100%..."),
-                (original_brightness, f"Restoring to {original_brightness}%..."),
-            ]
-
-            for brightness, msg in test_sequence:
-                self.status_label.setText(f"Testing: {msg}")
-                QApplication.processEvents()
-
-                success = self.ddc_controller.set_vcp(self.current_monitor, VCPCode.BRIGHTNESS, brightness)
-
-                if not success:
-                    QMessageBox.warning(
-                        self,
-                        "DDC/CI Test Failed",
-                        f"Failed to set brightness to {brightness}%.\n\n"
-                        "DDC/CI commands are being rejected by the monitor.\n"
-                        "This could mean:\n"
-                        "\u2022 DDC/CI is disabled in monitor OSD settings\n"
-                        "\u2022 Monitor doesn't fully support DDC/CI\n"
-                        "\u2022 Cable doesn't support DDC/CI (use HDMI or DisplayPort)\n"
-                        "\u2022 GPU driver issue",
-                    )
-                    return
-
-                time.sleep(0.8)  # Visible delay
-
-            self.status_label.setText("\u2713 DDC/CI test complete! If you saw brightness changes, DDC is working.")
-            self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-
-            QMessageBox.information(
-                self,
-                "DDC/CI Test",
-                "Did you see the screen brightness change?\n\n"
-                "YES - DDC/CI is working correctly.\n"
-                "NO - DDC/CI is not working. Check:\n"
-                "\u2022 Monitor OSD: Enable DDC/CI option\n"
-                "\u2022 Use HDMI or DisplayPort (not VGA)\n"
-                "\u2022 Some monitors ignore DDC brightness commands",
-            )
-
-        except Exception as e:
-            self.status_label.setText(f"\u274c Test failed: {e}")
-            self.status_label.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
+        """Avoid a visible write-based connection test outside confirmation."""
+        QMessageBox.information(
+            self,
+            "Connection Test Disabled",
+            "No brightness flash was sent. DDC/CI capability is validated during confirmed apply.",
+        )
 
     def _auto_calibrate_d65(self):
         """Attempt automatic D65 white point calibration."""
@@ -1421,115 +1035,21 @@ class DDCControlPage(QWidget):
     # =========================================================================
 
     def _scan_vcp_codes(self):
-        """Scan all VCP codes to discover monitor capabilities."""
-        if not self.ddc_controller or not self.current_monitor:
-            QMessageBox.warning(self, "No Monitor", "No DDC/CI monitor selected.")
-            return
-
-        self.scan_btn.setEnabled(False)
-        self.scan_btn.setText("Scanning...")
+        """Keep arbitrary VCP probing outside the 1.1 application surface."""
         self.vcp_table.setRowCount(0)
         self._discovered_vcp_codes = {}
-
-        # Import VCP_DESCRIPTIONS for code names
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCP_DESCRIPTIONS
-        except ImportError:
-            VCP_DESCRIPTIONS = {}
-
-        def update_progress(code, total):
-            self.scan_progress.setValue(code)
-            self.scan_progress.setFormat(f"Scanning 0x{code:02X} ({code}/{total})")
-            QApplication.processEvents()
-
-        try:
-            # Perform the scan
-            self._discovered_vcp_codes = self.ddc_controller.scan_all_vcp_codes(
-                self.current_monitor, progress_callback=update_progress
-            )
-
-            # Populate table
-            self.vcp_table.setRowCount(len(self._discovered_vcp_codes))
-
-            for row, (code, (current, maximum)) in enumerate(sorted(self._discovered_vcp_codes.items())):
-                # Code column
-                code_item = QTableWidgetItem(f"0x{code:02X}")
-                code_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.vcp_table.setItem(row, 0, code_item)
-
-                # Name column
-                if code in VCP_DESCRIPTIONS:
-                    name, desc = VCP_DESCRIPTIONS[code]
-                    name_item = QTableWidgetItem(f"{name}")
-                    name_item.setToolTip(desc)
-                else:
-                    name_item = QTableWidgetItem("Unknown")
-                self.vcp_table.setItem(row, 1, name_item)
-
-                # Current value column
-                current_item = QTableWidgetItem(str(current))
-                current_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.vcp_table.setItem(row, 2, current_item)
-
-                # Maximum value column
-                max_item = QTableWidgetItem(str(maximum))
-                max_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.vcp_table.setItem(row, 3, max_item)
-
-                # Actions column - Add a "Test" button
-                test_btn = QPushButton("Test")
-                test_btn.setMaximumWidth(60)
-                test_btn.clicked.connect(lambda checked, c=code, m=maximum: self._test_vcp_code(c, m))
-                self.vcp_table.setCellWidget(row, 4, test_btn)
-
-            self.scan_progress.setValue(256)
-            self.scan_progress.setFormat("Scan complete")
-            self.scan_summary.setText(
-                f"\u2713 Found {len(self._discovered_vcp_codes)} supported VCP codes on this monitor."
-            )
-            self.scan_summary.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-
-        except Exception as e:
-            self.scan_summary.setText(f"\u274c Scan failed: {e}")
-            self.scan_summary.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-
-        finally:
-            self.scan_btn.setEnabled(True)
-            self.scan_btn.setText("Scan All VCP Codes")
+        self.scan_progress.setValue(0)
+        self.scan_progress.setFormat("Disabled")
+        self.scan_summary.setText("Raw VCP scanning is disabled in version 1.1; no command was sent.")
+        self.scan_summary.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _test_vcp_code(self, code: int, maximum: int):
-        """Test a specific VCP code by toggling its value."""
-        if not self.ddc_controller or not self.current_monitor:
-            return
-
-        try:
-            # Read current
-            current, _ = self.ddc_controller.get_vcp(self.current_monitor, code)
-
-            # Try a different value
-            if maximum > 0:
-                test_value = maximum if current < maximum // 2 else 0
-            else:
-                test_value = 50 if current != 50 else 0
-
-            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, code, test_value)
-
-            if success:
-                QMessageBox.information(
-                    self,
-                    "VCP Test",
-                    f"VCP 0x{code:02X}: {msg}\n\nIf you saw a change on your monitor, this code is working!",
-                )
-            else:
-                QMessageBox.warning(
-                    self, "VCP Test", f"VCP 0x{code:02X}: {msg}\n\nThis code may be read-only or not fully supported."
-                )
-
-            # Restore original value
-            self.ddc_controller.set_vcp(self.current_monitor, code, current)
-
-        except Exception as e:
-            QMessageBox.warning(self, "VCP Test Error", f"Error testing VCP 0x{code:02X}: {e}")
+        """Reject arbitrary VCP toggle tests."""
+        QMessageBox.information(
+            self,
+            "VCP Test Disabled",
+            f"VCP 0x{code:02X} was not changed (reported max {maximum}).",
+        )
 
     # =========================================================================
     # Raw VCP Control Methods
@@ -1543,49 +1063,24 @@ class DDCControlPage(QWidget):
         return int(text)
 
     def _read_raw_vcp(self):
-        """Read a raw VCP code value."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.read_result.setText("Result: No monitor selected")
-            return
-
+        """Reject raw VCP reads outside the bounded capability adapter."""
         try:
             code = self._parse_vcp_code(self.read_code_input.text())
-
-            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, code)
-            self.read_result.setText(f"Result: Current={current}, Max={maximum}")
-            self.read_result.setStyleSheet(f"color: {COLORS['success']};")
-
+            self.read_result.setText(f"Result: VCP 0x{code:02X} raw access is disabled in 1.1")
+            self.read_result.setStyleSheet(f"color: {COLORS['warning']};")
         except ValueError:
             self.read_result.setText("Result: Invalid code format")
             self.read_result.setStyleSheet(f"color: {COLORS['error']};")
-        except Exception as e:
-            self.read_result.setText(f"Result: Error - {e}")
-            self.read_result.setStyleSheet(f"color: {COLORS['error']};")
 
     def _write_raw_vcp(self):
-        """Write a raw VCP code value."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.write_result.setText("Result: No monitor selected")
-            return
-
+        """Reject raw VCP writes that have no ApplyPlan representation."""
         try:
             code = self._parse_vcp_code(self.write_code_input.text())
             value = int(self.write_value_input.text().strip())
-
-            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, code, value)
-
-            if success:
-                self.write_result.setText(f"Result: {msg}")
-                self.write_result.setStyleSheet(f"color: {COLORS['success']};")
-            else:
-                self.write_result.setText(f"Result: {msg}")
-                self.write_result.setStyleSheet(f"color: {COLORS['warning']};")
-
+            self.write_result.setText(f"Result: VCP 0x{code:02X}={value} was not sent; disabled in 1.1")
+            self.write_result.setStyleSheet(f"color: {COLORS['warning']};")
         except ValueError:
             self.write_result.setText("Result: Invalid code or value format")
-            self.write_result.setStyleSheet(f"color: {COLORS['error']};")
-        except Exception as e:
-            self.write_result.setText(f"Result: Error - {e}")
             self.write_result.setStyleSheet(f"color: {COLORS['error']};")
 
     # =========================================================================
@@ -1593,146 +1088,28 @@ class DDCControlPage(QWidget):
     # =========================================================================
 
     def _apply_color_preset(self):
-        """Apply the selected color temperature preset."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.preset_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            # Extract value from combo selection (format: "N - Description")
-            selection = self.color_preset_combo.currentText()
-            value = int(selection.split(" - ")[0])
-
-            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.COLOR_PRESET, value)
-
-            if success:
-                self.preset_status.setText(f"Status: \u2713 {msg}")
-                self.preset_status.setStyleSheet(f"color: {COLORS['success']};")
-            else:
-                self.preset_status.setText(f"Status: \u26a0 {msg}")
-                self.preset_status.setStyleSheet(f"color: {COLORS['warning']};")
-
-        except Exception as e:
-            self.preset_status.setText(f"Status: \u274c Error - {e}")
-            self.preset_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep color presets disabled until they map to ApplyPlan."""
+        self.preset_status.setText("Status: disabled in 1.1 — no command sent")
+        self.preset_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_color_preset(self):
-        """Read the current color temperature preset."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.preset_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.COLOR_PRESET)
-            self.preset_status.setText(f"Status: Current preset = {current} (max: {maximum})")
-            self.preset_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
-
-            # Try to select the current preset in the combo
-            for i in range(self.color_preset_combo.count()):
-                if self.color_preset_combo.itemText(i).startswith(f"{current} "):
-                    self.color_preset_combo.setCurrentIndex(i)
-                    break
-
-        except Exception as e:
-            self.preset_status.setText(f"Status: \u274c Cannot read - {e}")
-            self.preset_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep preset reads inside the bounded capability adapter."""
+        self.preset_status.setText("Status: captured only during confirmed apply")
 
     def _apply_image_mode(self):
-        """Apply the selected image mode preset."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.image_mode_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            selection = self.image_mode_combo.currentText()
-            value = int(selection.split(" - ")[0])
-
-            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.IMAGE_MODE, value)
-
-            if success:
-                self.image_mode_status.setText(f"Status: \u2713 {msg}")
-                self.image_mode_status.setStyleSheet(f"color: {COLORS['success']};")
-            else:
-                self.image_mode_status.setText(f"Status: \u26a0 {msg}")
-                self.image_mode_status.setStyleSheet(f"color: {COLORS['warning']};")
-
-        except Exception as e:
-            self.image_mode_status.setText(f"Status: \u274c Error - {e}")
-            self.image_mode_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep image modes disabled until they map to ApplyPlan."""
+        self.image_mode_status.setText("Status: disabled in 1.1 — no command sent")
+        self.image_mode_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_image_mode(self):
-        """Read the current image mode."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.image_mode_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.IMAGE_MODE)
-            self.image_mode_status.setText(f"Status: Current mode = {current} (max: {maximum})")
-            self.image_mode_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
-
-            # Try to select the current mode in the combo
-            for i in range(self.image_mode_combo.count()):
-                if self.image_mode_combo.itemText(i).startswith(f"{current} "):
-                    self.image_mode_combo.setCurrentIndex(i)
-                    break
-
-        except Exception as e:
-            self.image_mode_status.setText(f"Status: \u274c Cannot read - {e}")
-            self.image_mode_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep image-mode reads inside the bounded capability adapter."""
+        self.image_mode_status.setText("Status: captured only during confirmed apply")
 
     def _apply_gamma_preset(self):
-        """Apply the selected gamma preset."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.gamma_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            selection = self.gamma_combo.currentText()
-            value = int(selection.split(" - ")[0])
-
-            success, msg = self.ddc_controller.try_set_vcp(self.current_monitor, VCPCode.GAMMA, value)
-
-            if success:
-                self.gamma_status.setText(f"Status: \u2713 {msg}")
-                self.gamma_status.setStyleSheet(f"color: {COLORS['success']};")
-            else:
-                self.gamma_status.setText(f"Status: \u26a0 {msg}")
-                self.gamma_status.setStyleSheet(f"color: {COLORS['warning']};")
-
-        except Exception as e:
-            self.gamma_status.setText(f"Status: \u274c Error - {e}")
-            self.gamma_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep gamma presets disabled until they map to ApplyPlan."""
+        self.gamma_status.setText("Status: disabled in 1.1 — no command sent")
+        self.gamma_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_gamma_preset(self):
-        """Read the current gamma preset."""
-        if not self.ddc_controller or not self.current_monitor:
-            self.gamma_status.setText("Status: No monitor selected")
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            current, maximum = self.ddc_controller.get_vcp(self.current_monitor, VCPCode.GAMMA)
-            self.gamma_status.setText(f"Status: Current gamma = {current} (max: {maximum})")
-            self.gamma_status.setStyleSheet(f"color: {COLORS['text_secondary']};")
-
-            # Try to select the current gamma in the combo
-            for i in range(self.gamma_combo.count()):
-                if self.gamma_combo.itemText(i).startswith(f"{current} "):
-                    self.gamma_combo.setCurrentIndex(i)
-                    break
-
-        except Exception as e:
-            self.gamma_status.setText(f"Status: \u274c Cannot read - {e}")
-            self.gamma_status.setStyleSheet(f"color: {COLORS['error']};")
+        """Keep gamma reads inside the bounded capability adapter."""
+        self.gamma_status.setText("Status: captured only during confirmed apply")

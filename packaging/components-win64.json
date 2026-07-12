@@ -1,0 +1,1031 @@
+{
+  "schema_version": 2,
+  "default": "reject",
+  "path_mode": "literal-posix",
+  "components": [
+    {
+      "id": "calibrate-pro-1.1.0",
+      "owner": "calibrate-pro",
+      "version": "1.1.0",
+      "license": "LicenseRef-FSL-1.1-MIT",
+      "notice_paths": [
+        "LICENSE"
+      ],
+      "provenance": [
+        {
+          "kind": "release_source",
+          "name": "calibrate_pro-1.1.0.tar.gz"
+        }
+      ]
+    },
+    {
+      "id": "pyinstaller-runtime-6.21.0",
+      "owner": "pyinstaller",
+      "version": "6.21.0",
+      "license": "GPL-2.0-or-later WITH Bootloader-exception",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/PyInstaller-6.21.0.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "pyinstaller-6.21.0"
+        },
+        {
+          "kind": "binary",
+          "name": "pyinstaller-6.21.0-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "cpython-3.12.10",
+      "owner": "python",
+      "version": "3.12.10",
+      "license": "PSF-2.0",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Python-3.12.10.txt",
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "cpython-3.12.10"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-spdx"
+        }
+      ]
+    },
+    {
+      "id": "bzip2-1.0.8",
+      "owner": "bzip2",
+      "version": "1.0.8",
+      "license": "bzip2-1.0.6",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "bzip2-1.0.8"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "expat-2.6.3",
+      "owner": "expat",
+      "version": "2.6.3",
+      "license": "MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "expat-2.6.3"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "hacl-star-bb3d0dc8",
+      "owner": "hacl-star",
+      "version": "bb3d0dc8d9d15a5cd51094d5b69e70aa09005ff0",
+      "license": "Apache-2.0 AND MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "hacl-star-bb3d0dc8d9d15a5cd51094d5b69e70aa09005ff0"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "libb2-0.98.1",
+      "owner": "libb2",
+      "version": "0.98.1",
+      "license": "CC0-1.0",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "libb2-0.98.1"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "libffi-3.4.4",
+      "owner": "libffi",
+      "version": "3.4.4",
+      "license": "MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "libffi-3.4.4"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "mpdecimal-2.5.1",
+      "owner": "mpdecimal",
+      "version": "2.5.1",
+      "license": "BSD-2-Clause",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "mpdecimal-2.5.1"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "openssl-3.0.16",
+      "owner": "openssl",
+      "version": "3.0.16",
+      "license": "Apache-2.0",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "openssl-3.0.16"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "xz-5.2.5",
+      "owner": "xz-utils",
+      "version": "5.2.5",
+      "license": "LicenseRef-XZ-5.2.5-Mixed",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/CPython-3.12.10-Windows-Externals-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "xz-5.2.5"
+        },
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "msvc-runtime-14.42.34438",
+      "owner": "microsoft-vc-runtime",
+      "version": "14.42.34438.0",
+      "license": "LicenseRef-Microsoft-Visual-Cpp-Redistributable",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Microsoft-Visual-Cpp-Runtime-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "binary",
+          "name": "cpython-3.12.10-amd64-installer"
+        }
+      ]
+    },
+    {
+      "id": "msvc-runtime-14.40.33810",
+      "owner": "microsoft-vc-runtime",
+      "version": "14.40.33810.0",
+      "license": "LicenseRef-Microsoft-Visual-Cpp-Redistributable",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Microsoft-Visual-Cpp-Runtime-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "binary",
+          "name": "numpy-2.5.1-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "msvc-runtime-14.44.35211",
+      "owner": "microsoft-vc-runtime",
+      "version": "14.44.35211.0",
+      "license": "LicenseRef-Microsoft-Visual-Cpp-Redistributable",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Microsoft-Visual-Cpp-Runtime-NOTICE.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "binary",
+          "name": "pyside6-essentials-6.11.1-win-amd64-wheel"
+        },
+        {
+          "kind": "binary",
+          "name": "shiboken6-6.11.1-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "build-color-1.0.2",
+      "owner": "build-color",
+      "version": "1.0.2",
+      "license": "LicenseRef-FSL-1.1-MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Build-Color-1.0.2.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "build-color-1.0.2"
+        }
+      ]
+    },
+    {
+      "id": "build-ui-2.0.0",
+      "owner": "build-ui",
+      "version": "2.0.0",
+      "license": "LicenseRef-FSL-1.1-MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Build-UI-2.0.0.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "build-ui-2.0.0"
+        }
+      ]
+    },
+    {
+      "id": "qtpy-2.4.3",
+      "owner": "qtpy",
+      "version": "2.4.3",
+      "license": "MIT",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/QtPy-2.4.3.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "qtpy-2.4.3"
+        }
+      ]
+    },
+    {
+      "id": "packaging-26.2",
+      "owner": "packaging",
+      "version": "26.2",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Packaging-26.2.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "packaging-26.2"
+        }
+      ]
+    },
+    {
+      "id": "numpy-2.5.1",
+      "owner": "numpy",
+      "version": "2.5.1",
+      "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/NumPy-2.5.1.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "numpy-2.5.1"
+        },
+        {
+          "kind": "binary",
+          "name": "numpy-2.5.1-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "numpy-openblas-0.3.33.112.0",
+      "owner": "openblas",
+      "version": "0.3.33.112.0",
+      "license": "BSD-3-Clause AND BSD-2-Clause",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/NumPy-2.5.1.txt",
+        "THIRD_PARTY_LICENSES/OpenBLAS.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "openblas-numpy-0.3.33.112.0"
+        },
+        {
+          "kind": "source",
+          "name": "openblas-libs-numpy-0.3.33.112.0"
+        },
+        {
+          "kind": "binary",
+          "name": "numpy-2.5.1-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "scipy-1.18.0",
+      "owner": "scipy",
+      "version": "1.18.0",
+      "license": "BSD-3-Clause",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/SciPy-1.18.0.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "scipy-1.18.0"
+        },
+        {
+          "kind": "binary",
+          "name": "scipy-1.18.0-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "scipy-openblas-0.3.31.22.0",
+      "owner": "openblas",
+      "version": "0.3.31.22.0",
+      "license": "BSD-3-Clause AND BSD-2-Clause",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/SciPy-1.18.0.txt",
+        "THIRD_PARTY_LICENSES/OpenBLAS.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "openblas-scipy-0.3.31.22.0"
+        },
+        {
+          "kind": "source",
+          "name": "openblas-libs-scipy-0.3.31.22.0"
+        },
+        {
+          "kind": "binary",
+          "name": "scipy-1.18.0-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "hidapi-0.15.0",
+      "owner": "hidapi",
+      "version": "0.15.0",
+      "license": "BSD-3-Clause OR GPL-3.0-only",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/hidapi-0.15.0.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "hidapi-0.15.0"
+        },
+        {
+          "kind": "binary",
+          "name": "hidapi-0.15.0-cp312-win-amd64-wheel"
+        }
+      ]
+    },
+    {
+      "id": "pyside-bindings-6.11.1",
+      "owner": "pyside6",
+      "version": "6.11.1",
+      "license": "LGPL-3.0-only",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Qt-for-Python-NOTICE.txt",
+        "THIRD_PARTY_LICENSES/LGPL-3.0-only.txt",
+        "THIRD_PARTY_LICENSES/LGPL_RELINKING.md",
+        "THIRD_PARTY_LICENSES/QT_SOURCE_OFFER.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "pyside-setup-6.11.1"
+        },
+        {
+          "kind": "binary",
+          "name": "pyside6-essentials-6.11.1-win-amd64-wheel"
+        }
+      ],
+      "qt_component": true
+    },
+    {
+      "id": "shiboken-bindings-6.11.1",
+      "owner": "shiboken6",
+      "version": "6.11.1",
+      "license": "LGPL-3.0-only",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Qt-for-Python-NOTICE.txt",
+        "THIRD_PARTY_LICENSES/LGPL-3.0-only.txt",
+        "THIRD_PARTY_LICENSES/LGPL_RELINKING.md",
+        "THIRD_PARTY_LICENSES/QT_SOURCE_OFFER.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "pyside-setup-6.11.1"
+        },
+        {
+          "kind": "binary",
+          "name": "shiboken6-6.11.1-win-amd64-wheel"
+        }
+      ],
+      "qt_component": true
+    },
+    {
+      "id": "qtbase-6.11.1",
+      "owner": "qt6",
+      "version": "6.11.1",
+      "license": "LGPL-3.0-only",
+      "notice_paths": [
+        "THIRD_PARTY_LICENSES/Qt-for-Python-NOTICE.txt",
+        "THIRD_PARTY_LICENSES/Qt-6.11.1-THIRD-PARTY-NOTICES.txt",
+        "THIRD_PARTY_LICENSES/LGPL-3.0-only.txt",
+        "THIRD_PARTY_LICENSES/LGPL_RELINKING.md",
+        "THIRD_PARTY_LICENSES/QT_SOURCE_OFFER.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "qtbase-6.11.1"
+        },
+        {
+          "kind": "binary",
+          "name": "pyside6-essentials-6.11.1-win-amd64-wheel"
+        }
+      ],
+      "qt_component": true
+    },
+    {
+      "id": "dwm-lut-3.8",
+      "owner": "dwm-lut",
+      "version": "3.8",
+      "license": "GPL-3.0-only",
+      "notice_paths": [
+        "dwm_lut/LICENSE"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "dwm-lut-3.8"
+        },
+        {
+          "kind": "binary",
+          "name": "dwm-lut-3.8-win-amd64-release"
+        }
+      ]
+    },
+    {
+      "id": "windows-display-api-1.3.0.13",
+      "owner": "windows-display-api",
+      "version": "1.3.0.13",
+      "license": "LGPL-3.0-only",
+      "notice_paths": [
+        "dwm_lut/LICENSE-THIRD-PARTY",
+        "THIRD_PARTY_LICENSES/LGPL-3.0-only.txt"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "windows-display-api-1.3.0.13"
+        },
+        {
+          "kind": "binary",
+          "name": "dwm-lut-3.8-win-amd64-release"
+        }
+      ]
+    },
+    {
+      "id": "minhook-1.3.3",
+      "owner": "minhook",
+      "version": "1.3.3",
+      "license": "BSD-2-Clause",
+      "notice_paths": [
+        "dwm_lut/LICENSE-THIRD-PARTY"
+      ],
+      "provenance": [
+        {
+          "kind": "source",
+          "name": "minhook-1.3.3"
+        },
+        {
+          "kind": "source",
+          "name": "msys2-mingw-packages-minhook-1.3.3-2"
+        },
+        {
+          "kind": "binary",
+          "name": "dwm-lut-3.8-win-amd64-release"
+        },
+        {
+          "kind": "binary",
+          "name": "msys2-minhook-1.3.3-2-any-package"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "paths": [
+        "_internal/_asyncio.pyd",
+        "_internal/_multiprocessing.pyd",
+        "_internal/_overlapped.pyd",
+        "_internal/_queue.pyd",
+        "_internal/_socket.pyd",
+        "_internal/_uuid.pyd",
+        "_internal/_wmi.pyd",
+        "_internal/base_library.zip",
+        "_internal/python3.dll",
+        "_internal/select.pyd",
+        "_internal/unicodedata.pyd",
+        "_internal/winsound.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_bz2.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "bzip2-1.0.8"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_ctypes.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "libffi-3.4.4"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_decimal.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "mpdecimal-2.5.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_elementtree.pyd",
+        "_internal/pyexpat.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "expat-2.6.3"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_hashlib.pyd",
+        "_internal/_ssl.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "openssl-3.0.16"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/_lzma.pyd"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "xz-5.2.5"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/build_color-1.0.2.dist-info/entry_points.txt",
+        "_internal/build_color-1.0.2.dist-info/INSTALLER",
+        "_internal/build_color-1.0.2.dist-info/licenses/AUTHORS.md",
+        "_internal/build_color-1.0.2.dist-info/licenses/LICENSE",
+        "_internal/build_color-1.0.2.dist-info/METADATA",
+        "_internal/build_color-1.0.2.dist-info/REQUESTED",
+        "_internal/build_color-1.0.2.dist-info/top_level.txt",
+        "_internal/build_color-1.0.2.dist-info/WHEEL"
+      ],
+      "component_ids": [
+        "build-color-1.0.2"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/build_ui-2.0.0.dist-info/INSTALLER",
+        "_internal/build_ui-2.0.0.dist-info/licenses/LICENSE",
+        "_internal/build_ui-2.0.0.dist-info/licenses/THIRD_PARTY_NOTICES.md",
+        "_internal/build_ui-2.0.0.dist-info/METADATA",
+        "_internal/build_ui-2.0.0.dist-info/REQUESTED",
+        "_internal/build_ui-2.0.0.dist-info/top_level.txt",
+        "_internal/build_ui-2.0.0.dist-info/WHEEL"
+      ],
+      "component_ids": [
+        "build-ui-2.0.0"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/dwm_lut/dwm_lut.dll"
+      ],
+      "component_ids": [
+        "dwm-lut-3.8",
+        "minhook-1.3.3"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/dwm_lut/DwmLutGUI.exe"
+      ],
+      "component_ids": [
+        "dwm-lut-3.8"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/dwm_lut/WindowsDisplayAPI.dll"
+      ],
+      "component_ids": [
+        "windows-display-api-1.3.0.13"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/hid.cp312-win_amd64.pyd",
+        "_internal/hidapi-0.15.0.dist-info/INSTALLER",
+        "_internal/hidapi-0.15.0.dist-info/licenses/LICENSE-bsd.txt",
+        "_internal/hidapi-0.15.0.dist-info/licenses/LICENSE-gpl3.txt",
+        "_internal/hidapi-0.15.0.dist-info/licenses/LICENSE-orig.txt",
+        "_internal/hidapi-0.15.0.dist-info/licenses/LICENSE.txt",
+        "_internal/hidapi-0.15.0.dist-info/METADATA",
+        "_internal/hidapi-0.15.0.dist-info/REQUESTED",
+        "_internal/hidapi-0.15.0.dist-info/top_level.txt",
+        "_internal/hidapi-0.15.0.dist-info/WHEEL"
+      ],
+      "component_ids": [
+        "hidapi-0.15.0"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/libcrypto-3.dll",
+        "_internal/libssl-3.dll"
+      ],
+      "component_ids": [
+        "openssl-3.0.16"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/libffi-8.dll"
+      ],
+      "component_ids": [
+        "libffi-3.4.4"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/numpy-2.5.1.dist-info/DELVEWHEEL",
+        "_internal/numpy-2.5.1.dist-info/entry_points.txt",
+        "_internal/numpy-2.5.1.dist-info/INSTALLER",
+        "_internal/numpy-2.5.1.dist-info/licenses/LICENSE.txt",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/src/highway/LICENSE",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/src/multiarray/dragon4_LICENSE.txt",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/ma/LICENSE",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/distributions/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/philox/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md",
+        "_internal/numpy-2.5.1.dist-info/METADATA",
+        "_internal/numpy-2.5.1.dist-info/REQUESTED",
+        "_internal/numpy-2.5.1.dist-info/WHEEL",
+        "_internal/numpy/_core/_multiarray_tests.cp312-win_amd64.pyd",
+        "_internal/numpy/_core/_multiarray_umath.cp312-win_amd64.pyd",
+        "_internal/numpy/fft/_pocketfft_umath.cp312-win_amd64.pyd",
+        "_internal/numpy/linalg/_umath_linalg.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_bounded_integers.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_common.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_generator.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_mt19937.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_pcg64.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_philox.cp312-win_amd64.pyd",
+        "_internal/numpy/random/_sfc64.cp312-win_amd64.pyd",
+        "_internal/numpy/random/bit_generator.cp312-win_amd64.pyd",
+        "_internal/numpy/random/mtrand.cp312-win_amd64.pyd"
+      ],
+      "component_ids": [
+        "numpy-2.5.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/numpy.libs/libscipy_openblas64_-b788215d9d47792bcba3a2e2a7114320.dll"
+      ],
+      "component_ids": [
+        "numpy-openblas-0.3.33.112.0"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/numpy.libs/msvcp140-a4c2229bdc2a2a630acdc095b4d86008.dll"
+      ],
+      "component_ids": [
+        "msvc-runtime-14.40.33810"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/packaging-26.2.dist-info/INSTALLER",
+        "_internal/packaging-26.2.dist-info/licenses/LICENSE",
+        "_internal/packaging-26.2.dist-info/licenses/LICENSE.APACHE",
+        "_internal/packaging-26.2.dist-info/licenses/LICENSE.BSD",
+        "_internal/packaging-26.2.dist-info/METADATA",
+        "_internal/packaging-26.2.dist-info/REQUESTED",
+        "_internal/packaging-26.2.dist-info/WHEEL"
+      ],
+      "component_ids": [
+        "packaging-26.2"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/pyside6_essentials-6.11.1.dist-info/entry_points.txt",
+        "_internal/pyside6_essentials-6.11.1.dist-info/INSTALLER",
+        "_internal/pyside6_essentials-6.11.1.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+        "_internal/pyside6_essentials-6.11.1.dist-info/METADATA",
+        "_internal/pyside6_essentials-6.11.1.dist-info/REQUESTED",
+        "_internal/pyside6_essentials-6.11.1.dist-info/top_level.txt",
+        "_internal/pyside6_essentials-6.11.1.dist-info/WHEEL",
+        "_internal/PySide6/pyside6.abi3.dll",
+        "_internal/PySide6/QtCore.pyd",
+        "_internal/PySide6/QtGui.pyd",
+        "_internal/PySide6/QtNetwork.pyd",
+        "_internal/PySide6/QtOpenGL.pyd",
+        "_internal/PySide6/QtOpenGLWidgets.pyd",
+        "_internal/PySide6/QtPrintSupport.pyd",
+        "_internal/PySide6/QtWidgets.pyd"
+      ],
+      "component_ids": [
+        "pyside-bindings-6.11.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/PySide6/MSVCP140_1.dll",
+        "_internal/PySide6/MSVCP140_2.dll",
+        "_internal/PySide6/MSVCP140.dll",
+        "_internal/PySide6/VCRUNTIME140_1.dll",
+        "_internal/PySide6/VCRUNTIME140.dll",
+        "_internal/shiboken6/MSVCP140.dll",
+        "_internal/shiboken6/VCRUNTIME140_1.dll",
+        "_internal/shiboken6/VCRUNTIME140.dll"
+      ],
+      "component_ids": [
+        "msvc-runtime-14.44.35211"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/PySide6/plugins/generic/qtuiotouchplugin.dll",
+        "_internal/PySide6/plugins/imageformats/qgif.dll",
+        "_internal/PySide6/plugins/imageformats/qico.dll",
+        "_internal/PySide6/plugins/imageformats/qjpeg.dll",
+        "_internal/PySide6/plugins/networkinformation/qnetworklistmanager.dll",
+        "_internal/PySide6/plugins/platforms/qdirect2d.dll",
+        "_internal/PySide6/plugins/platforms/qminimal.dll",
+        "_internal/PySide6/plugins/platforms/qoffscreen.dll",
+        "_internal/PySide6/plugins/platforms/qwindows.dll",
+        "_internal/PySide6/plugins/styles/qmodernwindowsstyle.dll",
+        "_internal/PySide6/plugins/tls/qcertonlybackend.dll",
+        "_internal/PySide6/plugins/tls/qopensslbackend.dll",
+        "_internal/PySide6/plugins/tls/qschannelbackend.dll",
+        "_internal/PySide6/Qt6Core.dll",
+        "_internal/PySide6/Qt6Gui.dll",
+        "_internal/PySide6/Qt6Network.dll",
+        "_internal/PySide6/Qt6OpenGL.dll",
+        "_internal/PySide6/Qt6OpenGLWidgets.dll",
+        "_internal/PySide6/Qt6PrintSupport.dll",
+        "_internal/PySide6/Qt6Widgets.dll"
+      ],
+      "component_ids": [
+        "qtbase-6.11.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/python312.dll"
+      ],
+      "component_ids": [
+        "cpython-3.12.10",
+        "hacl-star-bb3d0dc8",
+        "libb2-0.98.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/QtPy-2.4.3.dist-info/AUTHORS.md",
+        "_internal/QtPy-2.4.3.dist-info/entry_points.txt",
+        "_internal/QtPy-2.4.3.dist-info/INSTALLER",
+        "_internal/QtPy-2.4.3.dist-info/LICENSE.txt",
+        "_internal/QtPy-2.4.3.dist-info/METADATA",
+        "_internal/QtPy-2.4.3.dist-info/REQUESTED",
+        "_internal/QtPy-2.4.3.dist-info/top_level.txt",
+        "_internal/QtPy-2.4.3.dist-info/WHEEL"
+      ],
+      "component_ids": [
+        "qtpy-2.4.3"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/scipy-1.18.0.dist-info/DELVEWHEEL",
+        "_internal/scipy-1.18.0.dist-info/INSTALLER",
+        "_internal/scipy-1.18.0.dist-info/LICENSE.txt",
+        "_internal/scipy-1.18.0.dist-info/METADATA",
+        "_internal/scipy-1.18.0.dist-info/REQUESTED",
+        "_internal/scipy-1.18.0.dist-info/WHEEL",
+        "_internal/scipy/_cyutility.cp312-win_amd64.pyd",
+        "_internal/scipy/_lib/_ccallback_c.cp312-win_amd64.pyd",
+        "_internal/scipy/_lib/_fpumode.cp312-win_amd64.pyd",
+        "_internal/scipy/_lib/_uarray/_uarray.cp312-win_amd64.pyd",
+        "_internal/scipy/_lib/messagestream.cp312-win_amd64.pyd",
+        "_internal/scipy/fft/_duccfft/pyduccfft.cp312-win_amd64.pyd",
+        "_internal/scipy/integrate/_dop.cp312-win_amd64.pyd",
+        "_internal/scipy/integrate/_odepack.cp312-win_amd64.pyd",
+        "_internal/scipy/integrate/_quadpack.cp312-win_amd64.pyd",
+        "_internal/scipy/integrate/_vode.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_dierckx.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_fitpack.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_interpnd.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_ppoly.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_rbfinterp_pythran.cp312-win_amd64.pyd",
+        "_internal/scipy/interpolate/_rgi_cython.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_batched_linalg.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_cythonized_array_utils.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_decomp_interpolative.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_decomp_update.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_fblas.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_flapack.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_internal_matfuncs.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_linalg_pythran.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_matfuncs_sqrtm_triu.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/_solve_toeplitz.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/cython_blas.cp312-win_amd64.pyd",
+        "_internal/scipy/linalg/cython_lapack.cp312-win_amd64.pyd",
+        "_internal/scipy/ndimage/_nd_image.cp312-win_amd64.pyd",
+        "_internal/scipy/ndimage/_ni_label.cp312-win_amd64.pyd",
+        "_internal/scipy/ndimage/_rank_filter_1d.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_bglu_dense.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_direct.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_group_columns.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_highspy/_core.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_highspy/_highs_options.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_lbfgsb.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_lsap.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_lsq/givens_elimination.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_minpack.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_moduleTNC.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_pava_pybind.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_slsqplib.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_trlib/_trlib.cp312-win_amd64.pyd",
+        "_internal/scipy/optimize/_zeros.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/_csparsetools.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/_sparsetools.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_flow.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_matching.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_min_spanning_tree.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_reordering.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_shortest_path.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_tools.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/csgraph/_traversal.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/linalg/_dsolve/_superlu.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/linalg/_eigen/arpack/_arpacklib.cp312-win_amd64.pyd",
+        "_internal/scipy/sparse/linalg/_propack.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_ckdtree.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_distance_pybind.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_distance_wrap.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_hausdorff.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_qhull.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/_voronoi.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/transform/_rigid_transform_cy.cp312-win_amd64.pyd",
+        "_internal/scipy/spatial/transform/_rotation_cy.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_comb.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_ellip_harm_2.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_gufuncs.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_specfun.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_special_ufuncs.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_ufuncs_cxx.cp312-win_amd64.pyd",
+        "_internal/scipy/special/_ufuncs.cp312-win_amd64.pyd",
+        "_internal/scipy/special/cython_special.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_ansari_swilk_statistics.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_biasedurn.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_levy_stable/levyst.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_qmc_cy.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_qmvnt_cy.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_rcont/rcont.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_sobol.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_stats_pythran.cp312-win_amd64.pyd",
+        "_internal/scipy/stats/_stats.cp312-win_amd64.pyd"
+      ],
+      "component_ids": [
+        "scipy-1.18.0"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/scipy.libs/libscipy_openblas-197ee2fc9b4d071f7e048078cac74115.dll"
+      ],
+      "component_ids": [
+        "scipy-openblas-0.3.31.22.0"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/shiboken6-6.11.1.dist-info/INSTALLER",
+        "_internal/shiboken6-6.11.1.dist-info/licenses/LicenseRef-Qt-Commercial.txt",
+        "_internal/shiboken6-6.11.1.dist-info/METADATA",
+        "_internal/shiboken6-6.11.1.dist-info/REQUESTED",
+        "_internal/shiboken6-6.11.1.dist-info/top_level.txt",
+        "_internal/shiboken6-6.11.1.dist-info/WHEEL",
+        "_internal/shiboken6/Shiboken.pyd",
+        "_internal/shiboken6/shiboken6.abi3.dll"
+      ],
+      "component_ids": [
+        "shiboken-bindings-6.11.1"
+      ]
+    },
+    {
+      "paths": [
+        "_internal/VCRUNTIME140_1.dll",
+        "_internal/VCRUNTIME140.dll"
+      ],
+      "component_ids": [
+        "msvc-runtime-14.42.34438"
+      ]
+    },
+    {
+      "paths": [
+        "CalibratePro.exe",
+        "CalibrateProCLI.exe"
+      ],
+      "component_ids": [
+        "calibrate-pro-1.1.0",
+        "pyinstaller-runtime-6.21.0"
+      ]
+    }
+  ]
+}

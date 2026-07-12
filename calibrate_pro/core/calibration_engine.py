@@ -6,9 +6,12 @@ hardware colorimeter modes. Manages calibration workflow and
 profile/LUT generation.
 """
 
+import hashlib
+import json
+import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -31,6 +34,7 @@ from calibrate_pro.core.icc_profile import (
 from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
 from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase, get_database
 from calibrate_pro.sensorless.neuralux import SensorlessEngine, get_colorchecker_reference
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 if TYPE_CHECKING:
     from calibrate_pro.hardware.colorimeter_base import ColorimeterBase
@@ -54,6 +58,34 @@ class GammaTarget(Enum):
     BT1886 = "BT.1886"  # Broadcast standard
     LSTAR = "L*"  # CIE L* perceptual
     CUSTOM = "custom"  # User-defined
+
+
+def _missing_delta_e() -> MetricValue:
+    return MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
+
+
+def _normalized_source_part(value: object) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", str(value).casefold()).strip("-")
+    return normalized or "unknown"
+
+
+def _panel_characterization_source(panel: PanelCharacterization) -> str:
+    """Return a stable, non-device-identifying characterization receipt."""
+    payload: object = asdict(panel) if is_dataclass(panel) else vars(panel)  # type: ignore[arg-type]
+    canonical = json.dumps(payload, default=str, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(canonical).hexdigest()
+    model = _normalized_source_part(getattr(panel, "name", getattr(panel, "model_pattern", "unknown")))
+    return f"panel-characterization:{model}:{digest}"
+
+
+def _instrument_source(colorimeter: object) -> str:
+    """Return a receipt that identifies the driver but hashes device/run IDs."""
+    driver = _normalized_source_part(getattr(colorimeter, "driver_name", type(colorimeter).__name__))
+    raw_receipt = getattr(colorimeter, "receipt_id", None)
+    redacted = "redacted"
+    if raw_receipt:
+        redacted = hashlib.sha256(str(raw_receipt).encode("utf-8")).hexdigest()[:16]
+    return f"instrument:{driver}:{redacted}"
 
 
 class WhitepointTarget(Enum):
@@ -141,8 +173,8 @@ class CalibrationResult:
     target: CalibrationTarget = field(default_factory=CalibrationTarget)
 
     # Verification results
-    delta_e_avg: float = 0.0
-    delta_e_max: float = 0.0
+    delta_e_avg: MetricValue = field(default_factory=_missing_delta_e)
+    delta_e_max: MetricValue = field(default_factory=_missing_delta_e)
     grade: str = ""
     patch_results: list[dict] = field(default_factory=list)
 
@@ -161,8 +193,8 @@ class CalibrationResult:
             "panel_name": self.panel_name,
             "panel_type": self.panel_type,
             "mode": self.mode.value,
-            "delta_e_avg": self.delta_e_avg,
-            "delta_e_max": self.delta_e_max,
+            "delta_e_avg": self.delta_e_avg.to_dict(),
+            "delta_e_max": self.delta_e_max.to_dict(),
             "grade": self.grade,
             "icc_profile": str(self.icc_profile_path) if self.icc_profile_path else None,
             "lut": str(self.lut_path) if self.lut_path else None,
@@ -297,9 +329,10 @@ class CalibrationEngine:
         self._report_progress("Verifying calibration accuracy...", 0.8)
         verification = self.engine.verify_calibration(panel)
 
-        result.delta_e_avg = verification["delta_e_avg"]
-        result.delta_e_max = verification["delta_e_max"]
-        result.grade = verification["grade"]
+        source = _panel_characterization_source(panel)
+        result.delta_e_avg = MetricValue(float(verification["delta_e_avg"]), "dE2000", EvidenceKind.ESTIMATED, source)
+        result.delta_e_max = MetricValue(float(verification["delta_e_max"]), "dE2000", EvidenceKind.ESTIMATED, source)
+        result.grade = "Estimated panel characterization"
         result.patch_results = verification["patches"]
         result.success = True
 
@@ -431,8 +464,9 @@ class CalibrationEngine:
         self._report_progress("Verifying calibration...", 0.9)
         verification = self._verify_hardware(display_callback)
 
-        result.delta_e_avg = verification["delta_e_avg"]
-        result.delta_e_max = verification["delta_e_max"]
+        source = _instrument_source(self.colorimeter)
+        result.delta_e_avg = MetricValue(float(verification["delta_e_avg"]), "dE2000", EvidenceKind.MEASURED, source)
+        result.delta_e_max = MetricValue(float(verification["delta_e_max"]), "dE2000", EvidenceKind.MEASURED, source)
         result.grade = verification["grade"]
         result.patch_results = verification["patches"]
         result.success = True
@@ -503,8 +537,18 @@ class CalibrationEngine:
             panel_type=sensorless_result.panel_type,
             icc_profile_path=sensorless_result.icc_profile_path,
             lut_path=sensorless_result.lut_path,
-            delta_e_avg=verification["delta_e_avg"],
-            delta_e_max=verification["delta_e_max"],
+            delta_e_avg=MetricValue(
+                float(verification["delta_e_avg"]),
+                "dE2000",
+                EvidenceKind.MEASURED,
+                _instrument_source(self.colorimeter),
+            ),
+            delta_e_max=MetricValue(
+                float(verification["delta_e_max"]),
+                "dE2000",
+                EvidenceKind.MEASURED,
+                _instrument_source(self.colorimeter),
+            ),
             grade=verification["grade"],
             patch_results=verification["patches"],
             success=True,
@@ -728,7 +772,7 @@ class CalibrationEngine:
 
         # Determine grade
         if avg_de < 1.0:
-            grade = "Reference (Delta E < 1.0)"
+            grade = "Estimated panel characterization"
         elif avg_de < 2.0:
             grade = "Professional (Delta E < 2.0)"
         elif avg_de < 3.0:

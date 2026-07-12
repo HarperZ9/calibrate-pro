@@ -258,24 +258,12 @@ class ProfileCard(Card):
     # --- Actions ---
 
     def _on_activate(self):
-        """Activate this profile (load LUT + install ICC)."""
-        try:
-            cube = self._profile.get("cube_path")
-            icc = self._profile.get("icc_path")
-
-            if cube and cube.exists():
-                from calibrate_pro.lut_system.dwm_lut import load_lut
-
-                load_lut(str(cube), display_index=0)
-
-            if icc and icc.exists():
-                from calibrate_pro.panels.detection import install_profile
-
-                install_profile(str(icc))
-
-            QMessageBox.information(self, "Profile Activated", f"Activated: {self._profile['name']}")
-        except Exception as e:
-            QMessageBox.warning(self, "Activation Error", str(e))
+        """Select a profile for review without applying it."""
+        QMessageBox.information(
+            self,
+            "Profile Preview",
+            f"Selected: {self._profile['name']}\n\nNo LUT or ICC profile was applied. Confirm it in Calibrate.",
+        )
 
     def _on_export(self):
         """Export profile files to a chosen directory."""
@@ -466,24 +454,8 @@ class ProfilesPage(QWidget):
             cie = CIEDiagramWidget()
             cie.setFixedSize(350, 350)
 
-            # Try to load panel primaries for the display gamut
-            try:
-                from calibrate_pro.panels.database import PanelDatabase
-                from calibrate_pro.panels.detection import enumerate_displays, identify_display
-
-                db = PanelDatabase()
-                displays = enumerate_displays()
-                if displays:
-                    panel_key = identify_display(displays[0])
-                    panel = db.get_panel(panel_key) if panel_key else None
-                    if panel and panel.native_primaries:
-                        cie.set_display_gamut(
-                            r_xy=(panel.native_primaries.red.x, panel.native_primaries.red.y),
-                            g_xy=(panel.native_primaries.green.x, panel.native_primaries.green.y),
-                            b_xy=(panel.native_primaries.blue.x, panel.native_primaries.blue.y),
-                        )
-            except Exception:
-                pass
+            # Display primaries remain unset until an authoritative read-only
+            # EDID sensor supplies them; the profile can still be inspected.
 
             content_row.addWidget(cie)
         except Exception:

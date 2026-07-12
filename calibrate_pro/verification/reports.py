@@ -13,6 +13,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
+from html import escape
 from pathlib import Path
 
 # Optional imports for PDF generation
@@ -56,6 +57,8 @@ from calibrate_pro.verification.grayscale import (
 from calibrate_pro.verification.grayscale import (
     grade_to_string as gs_grade_to_string,
 )
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+from calibrate_pro.verification.report_generator import build_report_payload
 
 # =============================================================================
 # Enums
@@ -119,10 +122,57 @@ class VerificationSummary:
     colorchecker: ColorCheckerResult | None = None
     grayscale: GrayscaleResult | None = None
     gamut: GamutAnalysisResult | None = None
+    metrics: dict[str, MetricValue] = field(default_factory=dict)
 
-    overall_pass: bool = True
-    overall_grade: str = "Unknown"
+    overall_pass: bool = False
+    overall_grade: str = "Not measured"
     recommendations: list[str] = field(default_factory=list)
+
+
+def _summary_report_payload(summary: VerificationSummary) -> dict[str, object]:
+    return build_report_payload({"mode": "verification", "metrics": summary.metrics})
+
+
+def _metric_from_payload(value: object) -> MetricValue:
+    if not isinstance(value, dict):
+        raise TypeError("serialized report metric must be a mapping")
+    return MetricValue(
+        value["value"],
+        str(value["unit"]),
+        EvidenceKind(str(value["evidence"])),
+        value["source"],
+    )
+
+
+def _metric_rows(summary: VerificationSummary) -> list[tuple[str, MetricValue]]:
+    payload = _summary_report_payload(summary)
+    metrics = payload["metrics"]
+    if not isinstance(metrics, dict):
+        raise TypeError("report payload metrics must be a mapping")
+    return [(str(key), _metric_from_payload(value)) for key, value in sorted(metrics.items())]
+
+
+def _evidence_metrics_html(summary: VerificationSummary) -> str:
+    rows = []
+    for name, metric in _metric_rows(summary):
+        source = escape(metric.source) if metric.source else "Not measured"
+        rows.append(
+            "<tr>"
+            f"<td>{escape(name.replace('_', ' ').title())}</td>"
+            f"<td>{escape(metric.display_text())}</td>"
+            f"<td>{source}</td>"
+            "</tr>"
+        )
+    row_html = "".join(rows)
+    return f"""
+    <div class="summary-card">
+        <h2>Evidence Metrics</h2>
+        <table>
+            <tr><th>Metric</th><th>Value and evidence</th><th>Source receipt</th></tr>
+            {row_html}
+        </table>
+    </div>
+"""
 
 
 # =============================================================================
@@ -191,6 +241,7 @@ class ReportGenerator:
         Returns:
             Path to generated report
         """
+        _summary_report_payload(summary)
         if output_path:
             self.config.output_path = output_path
 
@@ -308,23 +359,19 @@ class ReportGenerator:
         story.append(Paragraph(summary_text, body_style))
         story.append(Spacer(1, 20))
 
-        # ColorChecker Results
-        if summary.colorchecker:
-            story.append(Paragraph("ColorChecker Verification", heading_style))
-            story.extend(self._create_colorchecker_section(summary.colorchecker, styles, body_style))
-            story.append(Spacer(1, 15))
-
-        # Grayscale Results
-        if summary.grayscale:
-            story.append(Paragraph("Grayscale Verification", heading_style))
-            story.extend(self._create_grayscale_section(summary.grayscale, styles, body_style))
-            story.append(Spacer(1, 15))
-
-        # Gamut Results
-        if summary.gamut:
-            story.append(Paragraph("Gamut Analysis", heading_style))
-            story.extend(self._create_gamut_section(summary.gamut, styles, body_style))
-            story.append(Spacer(1, 15))
+        # Evidence-bearing metrics are the sole numeric report surface.
+        story.append(Paragraph("Evidence Metrics", heading_style))
+        metric_table = [["Metric", "Value and evidence", "Source receipt"]]
+        for name, metric in _metric_rows(summary):
+            metric_table.append(
+                [
+                    name.replace("_", " ").title(),
+                    metric.display_text(),
+                    metric.source or "Not measured",
+                ]
+            )
+        story.append(Table(metric_table, colWidths=[1.5 * inch, 2 * inch, 2.5 * inch]))
+        story.append(Spacer(1, 15))
 
         # Recommendations
         if self.config.include_recommendations and summary.recommendations:
@@ -355,17 +402,8 @@ class ReportGenerator:
 
         lines.append(f"<br/>Overall Grade: {summary.overall_grade}")
 
-        if summary.colorchecker:
-            grade = cc_grade_to_string(summary.colorchecker.overall_grade)
-            lines.append(f"<br/>ColorChecker: {grade} (Mean ΔE = {summary.colorchecker.delta_e_mean:.2f})")
-
-        if summary.grayscale:
-            grade = gs_grade_to_string(summary.grayscale.overall_grade)
-            lines.append(f"<br/>Grayscale: {grade} (Mean ΔE = {summary.grayscale.delta_e_mean:.2f})")
-
-        if summary.gamut:
-            lines.append(f"<br/>sRGB Coverage: {summary.gamut.srgb_coverage.coverage_percent:.1f}%")
-            lines.append(f"<br/>DCI-P3 Coverage: {summary.gamut.p3_coverage.coverage_percent:.1f}%")
+        if not any(metric.value is not None for _name, metric in _metric_rows(summary)):
+            lines.append("<br/>Performance metrics: Not measured")
 
         return "".join(lines)
 
@@ -690,17 +728,7 @@ class ReportGenerator:
     </div>
 '''
 
-        # ColorChecker Section
-        if summary.colorchecker:
-            html += self._build_colorchecker_html(summary.colorchecker)
-
-        # Grayscale Section
-        if summary.grayscale:
-            html += self._build_grayscale_html(summary.grayscale)
-
-        # Gamut Section
-        if summary.gamut:
-            html += self._build_gamut_html(summary.gamut)
+        html += _evidence_metrics_html(summary)
 
         # Recommendations
         if summary.recommendations:
@@ -902,6 +930,33 @@ class ReportGenerator:
         else:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = Path(f"calibration_report_{timestamp}.json")
+
+        report_payload = _summary_report_payload(summary)
+        evidence_data = {
+            "schema_version": report_payload["schema_version"],
+            "mode": report_payload["mode"],
+            "generated_at": report_payload["generated_at"],
+            "metadata": {
+                "title": metadata.title,
+                "display_name": metadata.display_name,
+                "profile_name": metadata.profile_name,
+                "operator": metadata.operator,
+                "organization": metadata.organization,
+                "timestamp": metadata.timestamp,
+                "software_version": metadata.software_version,
+                "notes": metadata.notes,
+            },
+            "summary": {
+                "overall_pass": summary.overall_pass,
+                "overall_grade": summary.overall_grade,
+                "recommendations": summary.recommendations,
+            },
+            "metrics": report_payload["metrics"],
+            "source_receipts": report_payload["source_receipts"],
+        }
+        with open(output_path, "w", encoding="utf-8") as output:
+            json.dump(evidence_data, output, indent=2)
+        return str(output_path)
 
         data = {
             "metadata": {

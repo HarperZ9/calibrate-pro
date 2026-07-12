@@ -1,0 +1,13 @@
+build-color==1.0.2
+build-ui==2.0.0
+QtPy==2.4.3
+PySide6-Essentials==6.11.1
+numpy==2.5.1
+scipy==1.18.0
+hidapi==0.15.0
+pyinstaller==6.21.0
+build==1.5.1
+setuptools==83.0.0
+wheel==0.47.0
+pefile==2024.8.26
+twine==6.2.0

@@ -46,17 +46,14 @@ class ProfilesPage(QWidget):
         super().__init__(parent)
         self.color_loader = None
         self.active_profiles = {}  # display_index -> profile_path
+        self._pending_profile: tuple[str, int] | None = None
         self._setup_ui()
         self._init_color_loader()
 
     def _init_color_loader(self):
-        """Initialize the color loader for applying profiles."""
-        try:
-            from calibrate_pro.lut_system.color_loader import get_color_loader
-
-            self.color_loader = get_color_loader()
-        except Exception as e:
-            print(f"Could not initialize color loader: {e}")
+        """Keep profile application behind the confirmed actuator."""
+        self.color_loader = None
+        self.global_status.setText("Preview only — confirmation required")
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -380,7 +377,7 @@ class ProfilesPage(QWidget):
             self.detail_lut.setStyleSheet(f"color: {COLORS['text_secondary']};")
 
     def _activate_profile(self):
-        """Activate the selected profile for the selected display."""
+        """Stage the selected profile for review without applying it."""
         current_item = self.profile_list.currentItem()
         if not current_item:
             QMessageBox.warning(self, "No Selection", "Please select a profile to activate.")
@@ -395,57 +392,13 @@ class ProfilesPage(QWidget):
 
         path = Path(profile_path)
 
-        try:
-            # Load and apply the profile/LUT
-            if self.color_loader:
-                success = False
-
-                # Try ICC profile first
-                if path.suffix.lower() in (".icc", ".icm"):
-                    success = self.color_loader.load_icc_profile(display_idx, str(path))
-
-                    # Also try to load associated .cube LUT
-                    lut_path = path.with_suffix(".cube")
-                    if lut_path.exists():
-                        self.color_loader.load_lut_file(display_idx, str(lut_path))
-
-                elif path.suffix.lower() in (".cube", ".3dl"):
-                    success = self.color_loader.load_lut_file(display_idx, str(path))
-
-                if success:
-                    # Start the loader service if not running
-                    self.color_loader.start()
-
-                    # Save as active profile
-                    settings = QSettings(APP_ORGANIZATION, APP_NAME)
-                    settings.setValue(f"cm/display_{display_idx}/active_profile", str(path))
-                    settings.sync()
-
-                    QMessageBox.information(
-                        self,
-                        "Profile Activated",
-                        f"Color profile activated for Display {display_idx + 1}!\n\n"
-                        f"Profile: {path.name}\n\n"
-                        "You should see visible changes to your display colors.\n"
-                        "The VCGT gamma curves have been applied.",
-                    )
-
-                    self._update_display_status()
-                    self._on_selection_changed()
-                else:
-                    QMessageBox.warning(
-                        self,
-                        "Activation Failed",
-                        "Could not activate profile. The profile may not contain VCGT data,\n"
-                        "or the system could not apply the gamma ramp.",
-                    )
-            else:
-                QMessageBox.warning(
-                    self, "Color Loader Unavailable", "The color loader is not available. Cannot apply profiles."
-                )
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to activate profile:\n\n{str(e)}")
+        self._pending_profile = (str(path), display_idx)
+        QMessageBox.information(
+            self,
+            "Profile Preview",
+            f"Selected {path.name} for Display {display_idx + 1}.\n\n"
+            "No ICC profile, VCGT, or LUT was applied. Review and confirm the exact plan in Calibrate.",
+        )
 
     def _deactivate_profile(self):
         """Deactivate color management for the selected display."""
@@ -462,27 +415,11 @@ class ProfilesPage(QWidget):
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        try:
-            if self.color_loader:
-                self.color_loader.reset_display(display_idx)
-
-            # Clear active profile setting
-            settings = QSettings(APP_ORGANIZATION, APP_NAME)
-            settings.remove(f"cm/display_{display_idx}/active_profile")
-            settings.sync()
-
-            QMessageBox.information(
-                self,
-                "Profile Deactivated",
-                f"Color management disabled for Display {display_idx + 1}.\n\n"
-                "Display is now using linear gamma (no correction).",
-            )
-
-            self._update_display_status()
-            self._on_selection_changed()
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to deactivate:\n\n{str(e)}")
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            f"No correction was removed from Display {display_idx + 1}. Confirm a reset plan in Calibrate.",
+        )
 
     def _reset_all_displays(self):
         """Reset all displays to linear gamma."""
@@ -496,41 +433,19 @@ class ProfilesPage(QWidget):
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        try:
-            if self.color_loader:
-                self.color_loader.reset_all()
-
-            # Clear all active profile settings
-            settings = QSettings(APP_ORGANIZATION, APP_NAME)
-            screens = QGuiApplication.screens()
-            for i in range(len(screens)):
-                settings.remove(f"cm/display_{i}/active_profile")
-            settings.sync()
-
-            QMessageBox.information(
-                self, "Reset Complete", "All displays reset to linear gamma.\n\nNo color correction is active."
-            )
-
-            self._update_display_status()
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to reset:\n\n{str(e)}")
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No display was reset. Build and confirm one exact reset plan per display in Calibrate.",
+        )
 
     def _reload_active_profiles(self):
-        """Reload all active profiles."""
-        try:
-            if self.color_loader:
-                results = self.color_loader.apply_all()
-                success_count = sum(1 for v in results.values() if v)
-
-                QMessageBox.information(
-                    self,
-                    "Profiles Reloaded",
-                    f"Reloaded {success_count} active profile(s).\n\n"
-                    "This is useful if another application has overridden your color settings.",
-                )
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to reload:\n\n{str(e)}")
+        """Keep profile reload behind explicit confirmation."""
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No profile was reloaded. Select a profile and confirm its exact apply plan in Calibrate.",
+        )
 
     def _import_profile(self):
         """Import an ICC profile or LUT file."""

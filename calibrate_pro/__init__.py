@@ -2,7 +2,7 @@
 Calibrate Pro - Professional Display Calibration Suite
 
 A comprehensive display calibration application featuring:
-- Sensorless Calibration (Delta E < 1.0)
+- Sensorless panel-characterization estimates with explicit evidence labels
 - Hardware Colorimeter Integration (ArgyllCMS)
 - System-wide 3D LUT Support (dwm_lut)
 - Full HDR Suite (HDR10, HDR10+, HLG, Dolby Vision)

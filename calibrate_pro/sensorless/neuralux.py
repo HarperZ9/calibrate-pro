@@ -1,7 +1,7 @@
 """
 Sensorless Calibration Engine
 
-Sensorless display calibration achieving Delta E < 1.0 accuracy
+Sensorless display calibration with panel-characterization evidence
 using panel characterization database and precision color science.
 
 This engine uses factory-measured panel characteristics to compute
@@ -93,7 +93,7 @@ class SensorlessEngine:
     """
     Sensorless Calibration Engine.
 
-    Achieves Delta E < 1.0 accuracy by using:
+    Produces an estimated correction model by using:
     - Factory-measured panel primaries and gamma curves
     - Bradford chromatic adaptation
     - Per-channel gamma correction

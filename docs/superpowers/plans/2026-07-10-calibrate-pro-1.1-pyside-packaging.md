@@ -1075,7 +1075,7 @@ git commit -m "fix: require explicit provenance for HDR results"
 
 ---
 
-### Task 6: Add Capability-Gated Workflow, Confirmation, and the Sole Production Actuator Adapter
+### Task 6: Add Capability-Gated Workflow, Confirmation, and the Candidate Production Actuator Adapter
 
 **Files:**
 - Create: `calibrate_pro/workflow.py`
@@ -1085,10 +1085,37 @@ git commit -m "fix: require explicit provenance for HDR results"
 - Create: `calibrate_pro/adapters/windows_display_state.py`
 - Create: `tests/test_workflow.py`
 - Create: `tests/test_windows_display_state_adapter.py`
+- Create: `tests/test_ddc_ci_safety.py`
+- Create: `tests/test_profile_installer_safety.py`
+- Modify: `calibrate_pro/hardware/ddc_ci.py`
+- Modify: `calibrate_pro/profiles/profile_installer.py`
+- Modify: `SECURITY.md`
+- Modify: `docs/superpowers/specs/2026-07-09-calibrate-pro-packaging-polish-design.md`
 
 **Interfaces:**
 - Consumes: existing Windows DDC/CI, profile, gamma-ramp, and DWM LUT readers/writers only through `DefaultWindowsDisplayPorts`.
-- Produces: `WorkflowStage`, `CalibrationMethod`, `CapabilityState`, `ApplyPlan`, `DisplayStateSnapshot`, `ApplyReceipt`, `DisplayStateAdapter`, `ActuationCoordinator`, and `WindowsDisplayStateAdapter`.
+- Produces: `WorkflowStage`, `CalibrationMethod`, `CapabilityState`, `ApplyPlan`, `DisplayStateSnapshot`, `IccLifecycleSnapshot`, `IccActivationEffect`, `ApplyReceipt`, `DisplayStateAdapter`, `ActuationCoordinator`, and `WindowsDisplayStateAdapter`.
+
+#### Task 6 safety amendment (supersedes conflicting details below)
+
+Repository inspection showed that the existing Windows readers cannot always distinguish an absent value from a failed read, and that `DwmLutController.get_active_luts()` reports only controller-process memory while `unload_lut()` can remove the managed source file. A path-only snapshot therefore cannot support the truthful restoration promised by this task. Implement the following stricter contract:
+
+- `CapturedState[T]` distinguishes `CAPTURED` (where `value=None` is a legitimate captured value) from `NOT_CAPTURED` (which requires a non-empty failure detail). Unrequested domains are represented by an absent `CapturedState`, not by a fabricated captured value.
+- `DisplayStateSnapshot` uses typed captured state for ICC, gamma, and DWM. A requested `NOT_CAPTURED` domain aborts capture before the first write. Restoration touches only domains that were requested and captured.
+- `DwmLutSnapshot` preserves explicit `DwmLutKind` (`SDR` or `HDR`), original path, exact payload bytes, and a verified SHA-256 digest. DWM verification compares kind and payload digest, not path spelling.
+- `ApplyPlan` carries explicit DWM kind and SHA-256 plus SHA-256 values for every ICC/VCGT input. The confirmation digest therefore binds the exact external asset bytes. ICC and DWM inputs are capped at 64 MiB and VCGT at 16 MiB before parser allocation; the adapter verifies and parses every requested asset before its first write.
+- `ApplyPlan.ddc_changes` is an exact tuple with unique uppercase codes from the closed calibration allowlist (`BRIGHTNESS`, `CONTRAST`, RGB gains, and RGB black levels), exact non-boolean integer targets, and range `[0,65535]`. The selected monitor's exact current/maximum `DdcReading` is captured with unscoped WMI fallback disabled; a target above the reported maximum aborts before writing.
+- `CapabilityState` reports DWM write availability separately from authoritative DWM state-capture availability. A DWM apply or clear requires both. The default adapter reports capture failure until an authoritative Windows reader exists; process-local `get_active_luts()` is not accepted as evidence of prior display state.
+- The production ICC reader uses a sized system-wide WCS default-profile query and never treats a temporary DC profile as persistent evidence. Gamma readers convert ambiguous `None` results into `NOT_CAPTURED`. Injected test ports may truthfully return `CAPTURED(None)` to prove absence and restoration behavior.
+- ICC targets use the exact reserved filename `calibrate-pro-{sha256}.icc`, are published exclusively, and never overwrite a user/source basename. Reuse and newly created output are accepted only through one no-write/no-delete-share native handle that proves the exact final path is a regular disk file, is not a reparse point, has exactly one link, and contains the exact bounded content-addressed bytes. These point-in-time checks prove the object used and reject aliases observed at each validation point; they do not prove creator/ACL provenance or post-lease filesystem immutability. Later drift is rejected before reuse. A process-plus-named mutex keyed by the content digest serializes cooperating Calibrate Pro profile lifecycles across displays. System-wide WCS enumeration captures and revalidates target installation and per-display association membership; sized WCS get/set calls capture, select, and read back the persistent default. Its exact name, bytes, and digest are recaptured immediately before activation, and already-observed drift aborts before target selection. The production port holds a native read lease that denies write/delete sharing throughout activation. Stepwise effects are authoritatively reconciled after ambiguous failures; compensation withholds writes when the authoritative pre-write comparison shows a third state, restores a recognized transaction target to the prior default, and reads completed writes and target association back. Because WCS offers no atomic compare-and-swap, unrelated external post-comparison races remain possible. Transaction compensation never unregisters or deletes the globally reusable cache entry. Legacy install/uninstall holds one delete-capable verified handle across exclusive creation, native registration/unregistration, revalidation, exact-object failure cleanup, and delete disposition; it also rejects case, trailing-dot/space, resolved-path, active 8.3, symlink, and hard-link aliases of the cache namespace. Any future collector requires a separately designed authoritative all-display/all-scope scan.
+- DDC resolution re-enumerates immediately before every read and write, requires exactly one exact display/path match, and binds that captured interface path to the selected enumerated physical handle. Handles enter the cleanup registry before optional capability parsing. Each cleanup pass attempts every eligible recorded destroy at most once while later handles are still attempted after a failure. False or pre-call-interrupted destroys remain registered for explicit retry; uncertain native-call outcomes remain registered and poisoned against a possible double destroy. Failures are surfaced, and only successful native destroys are claimed closed. Every used DXVA2 enumeration, capability, VCP, and destruction entrypoint has an explicit pointer-sized ctypes signature. Zero/multiple matches, probe failure, ABI ambiguity, or topology-identity drift fail closed. `DisplayStateSnapshot.ddc_values` retains the complete captured `DdcReading` current/maximum pair; apply and compensation revalidate identity and maximum before writing. DDC has no atomic external compare-and-write primitive, so the comparison protects against already-observed drift rather than unrelated post-comparison writers.
+- One non-reentrant per-display process mutex and a lazy `Global\\` Windows named mutex serialize cooperating Calibrate Pro capture through verification/compensation; ICC plans additionally hold the digest mutex before the display mutex. `WAIT_ABANDONED` persistently poisons that process-wide key. Acquisition, release, and multi-lease cleanup cover `BaseException`, attempt every recorded handle, and poison uncertain ownership. Every successful compensation is authoritatively read back; a silent no-op writer is a restore failure. Applying one DWM kind preserves the other captured kind unless the plan explicitly clears all LUTs.
+- `ActuationCoordinator` requires a capability provider, validates an isolated private probe at preview and immediately before capture, rechecks both the probe and submitted digests after callbacks, and gives the writer a separate private plan copy. It holds one expiring confirmation and consumes every recognized token on any apply attempt. A new preview supersedes the old token. A coordinator-wide apply lock serializes the full capability, authorization, capture, and transaction handoff so concurrent confirmed applies cannot invert the one-slot closure. Every `WindowsDisplayStateAdapter`, including one over a proxy, decorator, or custom ports implementation, always requires the separate opaque one-use authorization created by the coordinator's private closure. The adapter exposes no bind/mint hook, defaults to the production mutex, and direct recovery/helper or adapter calls fail before hardware access. Arbitrary same-process Python reflection remains inside the trusted process boundary; this is not process isolation.
+- Restore accepts only the exact object-identical snapshot still owned by the adapter's active transaction. The adapter also retains private deep copies and digests of the confirmed plan and snapshot, recomputes ICC/DWM hashes from actual payload bytes, revalidates them across phases, and uses only sealed evidence for writers. Publicly constructed, copied, substituted, same-object-mutated, completed, or standalone snapshots are rejected before any writer call, and restore independently revalidates the closed DDC calibration allowlist.
+- `ApplyPlan` validates exact enum/non-empty-string/tuple/boolean types, every `CapabilityState` field is an exact boolean, and every injected clock sample is a finite real number whose TTL sum remains finite.
+- Recovery is explicitly `IN_PROCESS_BEST_EFFORT`, not crash-safe or power-loss-safe. Durable rollback requires a separately designed write-ahead journal/startup lifecycle and is not claimed by Task 6.
+- Every underlying writer result of `False` or `(False, message)` becomes an exception. Typed GDI32 DC/profile/gamma calls fail closed when `DeleteDC` is uncertain, shared `EnumDisplayDevicesW` users retain a layout-compatible `c_void_p` ABI across import orders, and Win32 `BOOL` contracts use the four-byte `wintypes.BOOL` ABI. Empty exception messages receive a type-name fallback. Snapshot sealing and active-state publication remain inside capture cleanup; apply/verify publication either completes or marks the transaction compensatable; commit clears finished state even if cancellation arrives after mutex release. While ownership remains recorded, `KeyboardInterrupt` and `SystemExit` are deferred while every applicable compensation domain and recorded release is attempted, then the original cancellation is re-raised with recovery notes. After commit releases ownership, state is cleared without unlocked compensation. Cleanup failures remain visible and may poison the transaction; successful cleanup is not guaranteed.
+- Constructors perform no dynamic hardware imports, controller construction, enumeration, reads, directory creation, or writes. All tests use injected in-memory ports and must never exercise physical display APIs.
 
 - [ ] **Step 1: Write failing capability, confirmation, and recovery tests**
 
@@ -1096,11 +1123,17 @@ Create `tests/test_workflow.py` with a `make_plan(**changes)` helper and these a
 
 ```python
 def test_preview_rejects_each_missing_write_capability() -> None:
+    dwm_change = {
+        "dwm_lut_path": "display.cube",
+        "dwm_lut_kind": DwmLutKind.SDR,
+        "dwm_lut_sha256": "a" * 64,
+    }
     cases = (
-        (CapabilityState(True, False, True, True, True), {"ddc_changes": (("BRIGHTNESS", 42),)}, "DDC/CI"),
-        (CapabilityState(True, True, False, True, True), {"dwm_lut_path": "display.cube"}, "DWM LUT"),
-        (CapabilityState(True, True, True, False, True), {"icc_profile_path": "display.icc"}, "profile association"),
-        (CapabilityState(True, True, True, True, False), {"vcgt_path": "display.vcgt"}, "gamma ramp"),
+        (CapabilityState(True, False, True, True, True, True), {"ddc_changes": (("BRIGHTNESS", 42),)}, "DDC/CI"),
+        (CapabilityState(True, True, False, True, True, True), dwm_change, "DWM LUT"),
+        (CapabilityState(True, True, True, False, True, True), dwm_change, "authoritative"),
+        (CapabilityState(True, True, True, True, False, True), {"icc_profile_path": "display.icc", "icc_profile_sha256": "a" * 64}, "profile association"),
+        (CapabilityState(True, True, True, True, True, False), {"vcgt_path": "display.cal", "vcgt_sha256": "a" * 64}, "gamma ramp"),
     )
     for capabilities, changes, message in cases:
         controller = ready_controller(capabilities)
@@ -1115,6 +1148,7 @@ def test_confirmation_is_bound_to_one_plan_and_consumed_once() -> None:
     token = coordinator.preview(plan)
     with pytest.raises(PermissionError, match="confirmation"):
         coordinator.apply(plan, token, confirmed=False)
+    token = coordinator.preview(plan)
     receipt = coordinator.apply(plan, token, confirmed=True)
     assert receipt.success is True
     with pytest.raises(PermissionError, match="consumed"):
@@ -1122,13 +1156,13 @@ def test_confirmation_is_bound_to_one_plan_and_consumed_once() -> None:
 
 
 def test_capture_failure_returns_a_non_apply_receipt() -> None:
-    receipt = apply_transactionally(FakeAdapter(capture_error="capture failed"), make_plan())
+    receipt = _apply_confirmed_with_best_effort_recovery(FakeAdapter(capture_error="capture failed"), make_plan())
     assert receipt == ApplyReceipt(False, False, False, False, False, False, "capture failed", None)
 
 
 def test_restore_failure_preserves_both_errors() -> None:
     adapter = FakeAdapter(apply_error="apply failed", restore_error="restore failed")
-    receipt = apply_transactionally(adapter, make_plan())
+    receipt = _apply_confirmed_with_best_effort_recovery(adapter, make_plan())
     assert receipt.success is False
     assert receipt.restore_attempted is True
     assert receipt.restored is False
@@ -1175,6 +1209,7 @@ class CapabilityState:
     sensor_available: bool
     ddc_available: bool
     dwm_lut_available: bool
+    dwm_state_capture_available: bool
     profile_write_available: bool
     vcgt_available: bool
 
@@ -1186,7 +1221,11 @@ class CapabilityState:
     def validate(self, plan: ApplyPlan) -> None:
         checks = (
             (bool(plan.ddc_changes), self.ddc_available, "DDC/CI writes are unavailable for this display."),
-            (plan.dwm_lut_path is not None, self.dwm_lut_available, "DWM LUT application is unavailable."),
+            (
+                plan.dwm_lut_path is not None or plan.clear_existing_lut,
+                self.dwm_lut_available and self.dwm_state_capture_available,
+                "DWM LUT application requires write and authoritative state-capture support.",
+            ),
             (plan.icc_profile_path is not None, self.profile_write_available, "ICC profile association is unavailable."),
             (plan.vcgt_path is not None, self.vcgt_available, "Display gamma ramp application is unavailable."),
         )
@@ -1204,8 +1243,12 @@ class ApplyPlan:
     target_gamut: str
     ddc_changes: tuple[tuple[str, int], ...] = ()
     icc_profile_path: str | None = None
+    icc_profile_sha256: str | None = None
     vcgt_path: str | None = None
+    vcgt_sha256: str | None = None
     dwm_lut_path: str | None = None
+    dwm_lut_kind: DwmLutKind | None = None
+    dwm_lut_sha256: str | None = None
     clear_existing_lut: bool = False
     output_files: tuple[str, ...] = ()
 ```
@@ -1220,10 +1263,11 @@ Create `calibrate_pro/recovery.py` with:
 @dataclass(frozen=True)
 class DisplayStateSnapshot:
     display_id: str
-    ddc_values: tuple[tuple[str, int], ...]
-    icc_profile_path: str | None
-    gamma_ramp: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None
-    dwm_lut_paths: tuple[str, ...]
+    ddc_target: DdcTargetIdentity | None
+    ddc_values: tuple[tuple[str, DdcReading], ...]
+    icc_profile: CapturedState[IccProfileSnapshot] | None
+    gamma_ramp: CapturedState[tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]] | None
+    dwm_luts: CapturedState[tuple[DwmLutSnapshot, ...]] | None
 
 
 @dataclass(frozen=True)
@@ -1238,30 +1282,35 @@ class ApplyReceipt:
     restore_error: str | None
 ```
 
-`DisplayStateAdapter` is a `Protocol` whose signatures are `capture(plan: ApplyPlan) -> DisplayStateSnapshot`, `apply(plan: ApplyPlan) -> None`, `verify(plan: ApplyPlan) -> bool`, and `restore(snapshot: DisplayStateSnapshot) -> None`. `apply_transactionally()` catches capture failure before any write; on apply exception or false verification it attempts restoration in a second `try`, preserves both errors, and sets every receipt flag from operations actually completed. It never reports `restored=True` when `restore()` raised.
+`DisplayStateAdapter` is a `Protocol` whose signatures are `capture(plan: ApplyPlan, *, authorization: object | None = None) -> DisplayStateSnapshot`, `apply(plan: ApplyPlan) -> None`, `verify(plan: ApplyPlan) -> bool`, `commit(plan: ApplyPlan) -> None`, and `restore(snapshot: DisplayStateSnapshot) -> None`. Generic injected test adapters may ignore the authorization keyword; `WindowsDisplayStateAdapter` requires and consumes the opaque one-use coordinator authorization. The private `_apply_confirmed_with_best_effort_recovery()` runner catches capture failure before any write; on apply exception, non-boolean/false verification, or verification exception it attempts in-process compensation while the lease remains held, preserves both errors, and sets every receipt flag from operations actually completed. Successful verification does not release ownership; `commit()` is the sole release point. A commit/release failure returns `verified=true`, performs no now-unsafe compensation, and poisons the adapter transaction. Every receipt carries `recovery_guarantee=IN_PROCESS_BEST_EFFORT`; there is no public raw-plan recovery alias.
 
 - [ ] **Step 5: Bind explicit confirmation to a canonical plan digest**
 
-Create `calibrate_pro/actuation.py`. `canonical_plan_sha256(plan)` JSON-serializes `dataclasses.asdict(plan)` with `sort_keys=True`, compact separators, and UTF-8, then returns SHA-256. `ActuationCoordinator.preview(plan) -> str` stores `{token: plan_digest}` using `secrets.token_urlsafe(32)`. `apply(plan, token, *, confirmed)` rejects `confirmed=False`, an unknown token, or a digest mismatch; it removes the token before invoking `apply_transactionally()` so confirmation is one-use even if application fails.
+Create `calibrate_pro/actuation.py`. `canonical_plan_sha256(plan)` JSON-serializes `dataclasses.asdict(plan)` with `sort_keys=True`, compact separators, and UTF-8, then returns SHA-256. `ActuationCoordinator` requires a `CapabilityProvider`, an injectable monotonic clock, and a finite positive confirmation TTL. `preview(plan) -> str` invalidates any prior preview, validates current capabilities, and stores one token/digest/display/expiry tuple from `secrets.token_urlsafe(32)`. `apply(plan, token, *, confirmed)` leaves the current preview intact only for an unknown token; every recognized token is consumed before decline, expiry, digest comparison, refreshed capability validation, or best-effort application.
 
 - [ ] **Step 6: Add the injected Windows production adapter**
 
 Create `calibrate_pro/adapters/windows_display_state.py` with a `WindowsDisplayPorts` protocol exposing only these read/write pairs:
 
 ```python
-read_ddc(display_id: str, code: str) -> int
-write_ddc(display_id: str, code: str, value: int) -> None
-get_icc_profile(display_id: str) -> str | None
-set_icc_profile(display_id: str, profile_path: str | None) -> None
-get_gamma_ramp(display_id: str) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None
-set_gamma_ramp(display_id: str, ramp: tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]] | None) -> None
-get_dwm_lut_paths(display_id: str) -> tuple[str, ...]
-set_dwm_lut_paths(display_id: str, paths: tuple[str, ...]) -> None
+resolve_ddc_target(display_id: str) -> DdcTargetIdentity
+read_ddc(target: DdcTargetIdentity, code: str) -> DdcReading
+write_ddc(target: DdcTargetIdentity, code: str, value: int, *, expected_maximum: int) -> None
+capture_icc_profile(display_id: str) -> CapturedState[IccProfileSnapshot]
+is_icc_profile_installed(profile_name: str) -> bool
+is_icc_profile_associated(display_id: str, profile_name: str) -> bool
+materialize_icc_profile(profile: IccProfileSnapshot) -> IccInstallEffect
+activate_icc_profile(display_id: str, profile: IccProfileSnapshot, *, register: bool, associate: bool) -> IccActivationEffect
+deactivate_icc_profile(display_id: str, profile_name: str) -> None
+capture_gamma_ramp(display_id: str) -> CapturedState[GammaRamp]
+set_gamma_ramp(display_id: str, ramp: GammaRamp | None) -> None
+capture_dwm_luts(display_id: str) -> CapturedState[tuple[DwmLutSnapshot, ...]]
+set_dwm_luts(display_id: str, luts: tuple[DwmLutSnapshot, ...]) -> None
 ```
 
-`DefaultWindowsDisplayPorts` lazily maps DDC methods to `DDCCIController.get_vcp/set_vcp`, gamma methods to `panels.detection.get_gamma_ramp/set_gamma_ramp/reset_gamma_ramp`, and DWM methods to `DwmLutController.get_active_luts/load_lut_file/unload_lut/start_dwm_lut_gui`. ICC reads use `panels.detection.get_display_profile`. For a non-`None` ICC target, `set_icc_profile()` installs/associates that path and makes it default. For a `None` target, it first reads the current associated path; if present, it passes `Path(current).name` and `display_id` to `profiles.profile_installer.disassociate_profile_from_display`, raising `RuntimeError` when the returned success flag is false. It never passes `None` to `panels.detection.set_display_profile`, whose profile argument is a string. Thus restoring a snapshot with `icc_profile_path=None` removes the profile applied by the failed transaction, while restoring a captured path reassociates that exact prior path.
+`DefaultWindowsDisplayPorts` lazily maps each DDC operation to a fresh, finally-cleaned `DDCCIController` monitor session and `get_vcp/set_vcp` with WMI fallback disabled; stable `DdcTargetIdentity.monitor_device_path` comes from the exact active PnP/interface path bound to the enumerated physical handle, never an `HMONITOR` or friendly description alone. Gamma methods map to `panels.detection.get_gamma_ramp/set_gamma_ramp/reset_gamma_ramp`, and DWM writes map to `DwmLutController.load_lut_file/unload_lut/start_dwm_lut_gui`. ICC capture repeatedly samples the sized system-wide WCS default through `profile_installer.get_default_profile_for_display` around the exact-byte lease. WCS enumeration proves installation and association membership. A non-`None` target is staged into the durable cache, registered only when absent, associated only when absent, made default, and authoritatively read back; `IccActivationEffect` preserves every completed step even when a later step fails. A `None` prior target requires a provable captured absence; compensation disassociates only a newly added target, and apply fails before selection when a preexisting association makes absence non-restorable. The default DWM reader always returns `NOT_CAPTURED` without constructing the controller because `get_active_luts()` is process-local and cannot prove the prior OS state.
 
-`WindowsDisplayStateAdapter.capture(plan)` reads only the DDC codes present in the plan plus ICC, gamma, and DWM state; `apply()` performs only requested fields; `verify()` reads every changed field back; `restore()` restores all captured fields and raises one combined `RuntimeError` listing every failed restoration. No constructor probes hardware or writes state.
+`WindowsDisplayStateAdapter.capture(plan, authorization=...)` first consumes the one-use plan-bound authorization, acquires all ordered leases, verifies/privately stages/parses every external asset, then reads only the domains the plan changes. `apply()` requires that exact successful capture and uses the staged evidence even if a source path later changes. `verify()` reads every changed field back; `restore()` accepts only the active object-identical snapshot, restores only captured domains, reads every compensation back, and raises one combined `RuntimeError` listing every failed restoration. No constructor probes hardware or writes state.
 
 - [ ] **Step 7: Run focused and full tests**
 
@@ -1275,7 +1324,7 @@ Expected: capability, confirmation, capture failure, apply failure, verification
 - [ ] **Step 8: Commit the sole actuator boundary**
 
 ```powershell
-git add calibrate_pro/workflow.py calibrate_pro/recovery.py calibrate_pro/actuation.py calibrate_pro/adapters tests/test_workflow.py tests/test_windows_display_state_adapter.py
+git add calibrate_pro/workflow.py calibrate_pro/recovery.py calibrate_pro/actuation.py calibrate_pro/adapters calibrate_pro/hardware/ddc_ci.py calibrate_pro/profiles/profile_installer.py tests/test_workflow.py tests/test_windows_display_state_adapter.py tests/test_ddc_ci_safety.py tests/test_profile_installer_safety.py SECURITY.md docs/superpowers/specs/2026-07-09-calibrate-pro-packaging-polish-design.md docs/superpowers/plans/2026-07-10-calibrate-pro-1.1-pyside-packaging.md
 git commit -m "feat: enforce one transactional display actuator"
 ```
 

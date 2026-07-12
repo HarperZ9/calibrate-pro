@@ -1,52 +1,20 @@
 """
 Professional Display Calibration GUI
 
-Comprehensive calibration interface combining:
-- DDC/CI hardware control (brightness, contrast, RGB gains/offsets, gamma)
-- System-wide 3D LUT via dwm_lut (HDR and SDR)
+Comprehensive calibration-proposal interface combining:
+- DDC/CI target planning (brightness, contrast, RGB gains/offsets, gamma)
+- SDR and HDR 3D LUT parameter planning
 - ICC profile generation
 - Scientifically accurate color transformations
 
-This application requires Administrator privileges for:
-- DDC/CI monitor access
-- dwm_lut DWM injection
-- Writing to system LUT directory
+This application runs unelevated and never changes display state directly.
+Every proposal must be reviewed and confirmed by the actuation workflow.
 
 Designed to match or exceed Light Illusion ColourSpace and DisplayCAL.
 """
 
-import ctypes
-import os
 import sys
 import time
-from pathlib import Path
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
-def is_admin() -> bool:
-    """Check if running with administrator privileges."""
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
-
-
-def run_as_admin():
-    """Re-launch with administrator privileges."""
-    if is_admin():
-        return True
-    try:
-        script = os.path.abspath(sys.argv[0])
-        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
-        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
-        if result > 32:
-            sys.exit(0)
-        return False
-    except Exception:
-        return False
-
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QPainter, QPalette, QPen
@@ -68,15 +36,6 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-)
-
-# Import calibration modules
-from calibrate_pro.hardware.ddc_ci import DDCCIController, VCPCode
-from calibrate_pro.lut_system.dwm_lut import (
-    DwmLutController,
-    LUTType,
-    generate_hdr_calibration_lut,
-    generate_sdr_calibration_lut,
 )
 
 # =============================================================================
@@ -203,17 +162,16 @@ class ColorSwatch(QWidget):
 
 
 class ProfessionalCalibrationWindow(QMainWindow):
-    """Main Professional Calibration Window."""
+    """Professional controls that stage proposals without display mutation."""
+
+    proposalStaged = Signal(dict)
 
     def __init__(self):
         super().__init__()
 
-        # Initialize controllers
-        self.ddc_controller = DDCCIController()
-        self.lut_controller = DwmLutController()
-
         self.current_ddc_monitor = None
         self.current_lut_monitor = None
+        self.pending_proposals: list[dict[str, object]] = []
         self.live_ddc = False
         self.live_lut = False
 
@@ -236,10 +194,6 @@ class ProfessionalCalibrationWindow(QMainWindow):
         self._setup_ui()
         self._refresh_monitors()
         self._update_status()
-
-        # Auto-start DwmLutGUI
-        if is_admin() and self.lut_controller.is_available:
-            QTimer.singleShot(500, self._auto_start_dwm)
 
         # Status update timer
         self.status_timer = QTimer()
@@ -275,14 +229,12 @@ class ProfessionalCalibrationWindow(QMainWindow):
         status_group = QGroupBox("System Status")
         status_layout = QFormLayout(status_group)
 
-        self.status_admin = QLabel("Yes ✓" if is_admin() else "No ✗")
-        self.status_admin.setStyleSheet(
-            "color: green; font-weight: bold;" if is_admin() else "color: red; font-weight: bold;"
-        )
-        status_layout.addRow("Administrator:", self.status_admin)
+        self.status_admin = QLabel("Standard user ✓")
+        self.status_admin.setStyleSheet("color: green; font-weight: bold;")
+        status_layout.addRow("Process:", self.status_admin)
 
-        self.status_dwm = QLabel("Checking...")
-        status_layout.addRow("DwmLutGUI:", self.status_dwm)
+        self.status_dwm = QLabel("Confirmed workflow")
+        status_layout.addRow("Actuation:", self.status_dwm)
 
         self.status_ddc = QLabel("Checking...")
         status_layout.addRow("DDC/CI:", self.status_ddc)
@@ -486,15 +438,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
         # Buttons
         btn_layout = QHBoxLayout()
 
-        self.hw_live_check = QCheckBox("Live Update")
+        self.hw_live_check = QCheckBox("Live Proposal Preview")
         self.hw_live_check.toggled.connect(lambda c: setattr(self, "live_ddc", c))
         btn_layout.addWidget(self.hw_live_check)
 
-        apply_btn = QPushButton("Apply Hardware Settings")
+        apply_btn = QPushButton("Stage Hardware Plan")
         apply_btn.clicked.connect(self._apply_hardware_settings)
         btn_layout.addWidget(apply_btn)
 
-        reset_btn = QPushButton("Reset to Defaults")
+        reset_btn = QPushButton("Reset Controls")
         reset_btn.clicked.connect(self._reset_hardware_settings)
         btn_layout.addWidget(reset_btn)
 
@@ -576,15 +528,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
         # Buttons
         btn_layout = QHBoxLayout()
 
-        self.sdr_live_check = QCheckBox("Live Update")
+        self.sdr_live_check = QCheckBox("Live Proposal Preview")
         btn_layout.addWidget(self.sdr_live_check)
 
-        apply_btn = QPushButton("Apply SDR LUT")
+        apply_btn = QPushButton("Stage SDR LUT Plan")
         apply_btn.clicked.connect(self._apply_sdr_lut)
         btn_layout.addWidget(apply_btn)
 
-        remove_btn = QPushButton("Remove LUT")
-        remove_btn.clicked.connect(lambda: self._remove_lut(LUTType.SDR))
+        remove_btn = QPushButton("Stage SDR LUT Removal")
+        remove_btn.clicked.connect(lambda: self._remove_lut("sdr"))
         btn_layout.addWidget(remove_btn)
 
         layout.addLayout(btn_layout)
@@ -673,15 +625,15 @@ class ProfessionalCalibrationWindow(QMainWindow):
         # Buttons
         btn_layout = QHBoxLayout()
 
-        self.hdr_live_check = QCheckBox("Live Update")
+        self.hdr_live_check = QCheckBox("Live Proposal Preview")
         btn_layout.addWidget(self.hdr_live_check)
 
-        apply_btn = QPushButton("Apply HDR LUT")
+        apply_btn = QPushButton("Stage HDR LUT Plan")
         apply_btn.clicked.connect(self._apply_hdr_lut)
         btn_layout.addWidget(apply_btn)
 
-        remove_btn = QPushButton("Remove LUT")
-        remove_btn.clicked.connect(lambda: self._remove_lut(LUTType.HDR))
+        remove_btn = QPushButton("Stage HDR LUT Removal")
+        remove_btn.clicked.connect(lambda: self._remove_lut("hdr"))
         btn_layout.addWidget(remove_btn)
 
         layout.addLayout(btn_layout)
@@ -693,7 +645,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        info = QLabel("Apply pre-configured calibration presets for common targets.")
+        info = QLabel("Stage pre-configured calibration presets for common targets.")
         info.setStyleSheet("color: #888;")
         layout.addWidget(info)
 
@@ -735,7 +687,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
         reset_group = QGroupBox("Factory Reset")
         reset_layout = QVBoxLayout(reset_group)
 
-        factory_btn = QPushButton("Reset Monitor to Factory Defaults")
+        factory_btn = QPushButton("Stage Factory Reset Request")
         factory_btn.setStyleSheet("background-color: #8B0000;")
         factory_btn.clicked.connect(self._factory_reset)
         reset_layout.addWidget(factory_btn)
@@ -755,54 +707,35 @@ class ProfessionalCalibrationWindow(QMainWindow):
         self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
 
     def _refresh_monitors(self):
-        """Refresh monitor list."""
+        """Refresh a read-only Qt screen inventory."""
         self.monitor_combo.clear()
-
-        # Get DDC monitors
-        ddc_monitors = self.ddc_controller.enumerate_monitors()
-
-        # Get LUT monitors
-        lut_monitors = self.lut_controller.get_monitors()
-
-        # Combine and display
-        for i, lut_mon in enumerate(lut_monitors):
-            hdr_str = " [HDR]" if lut_mon.is_hdr else ""
-            primary_str = " (Primary)" if lut_mon.is_primary else ""
-
-            # Find matching DDC monitor
-            ddc_mon = ddc_monitors[i] if i < len(ddc_monitors) else None
-            ddc_str = " [DDC/CI]" if ddc_mon else ""
-
-            self.monitor_combo.addItem(
-                f"{lut_mon.friendly_name}{primary_str}{hdr_str}{ddc_str}", {"lut": lut_mon, "ddc": ddc_mon, "index": i}
-            )
-
-        self._log(f"Found {len(lut_monitors)} monitor(s)")
+        primary = QApplication.primaryScreen()
+        screens = QApplication.screens()
+        for index, screen in enumerate(screens):
+            size = screen.size()
+            monitor: dict[str, object] = {
+                "display_id": f"qt-screen:{index}:{screen.name()}",
+                "friendly_name": screen.name() or f"Display {index + 1}",
+                "is_primary": screen is primary,
+                "is_hdr": False,
+                "size": (size.width(), size.height()),
+            }
+            primary_str = " (Primary)" if monitor["is_primary"] else ""
+            self.monitor_combo.addItem(f"{monitor['friendly_name']}{primary_str}", monitor)
+        self._log(f"Found {len(screens)} monitor(s) using read-only Qt inventory")
 
     def _on_monitor_changed(self, index: int):
         """Handle monitor selection change."""
         if index >= 0:
             data = self.monitor_combo.itemData(index)
-            if data:
-                self.current_lut_monitor = data.get("lut")
-                self.current_ddc_monitor = data.get("ddc")
+            if isinstance(data, dict):
+                self.current_lut_monitor = data
+                self.current_ddc_monitor = data
                 self._update_capabilities()
                 self._read_current_settings()
 
     def _update_capabilities(self):
         """Update capability display for selected monitor."""
-        if self.current_ddc_monitor:
-            caps = self.current_ddc_monitor.get("capabilities")
-            if caps:
-                self.cap_brightness.setText("✓" if 0x10 in caps.supported_vcp_codes else "✗")
-                self.cap_contrast.setText("✓" if 0x12 in caps.supported_vcp_codes else "✗")
-                self.cap_rgb_gain.setText("✓" if caps.has_rgb_gain else "✗")
-                self.cap_rgb_offset.setText("✓" if caps.has_rgb_black_level else "✗")
-                self.cap_gamma.setText(
-                    "✓" if 0xF2 in caps.supported_vcp_codes or 0x72 in caps.supported_vcp_codes else "✗"
-                )
-                return
-
         self.cap_brightness.setText("--")
         self.cap_contrast.setText("--")
         self.cap_rgb_gain.setText("--")
@@ -810,146 +743,84 @@ class ProfessionalCalibrationWindow(QMainWindow):
         self.cap_gamma.setText("--")
 
     def _update_status(self):
-        """Update status display."""
-        # DwmLutGUI status
-        if self.lut_controller._is_dwm_lut_running():
-            self.status_dwm.setText("Running ✓")
-            self.status_dwm.setStyleSheet("color: green; font-weight: bold;")
-        else:
-            self.status_dwm.setText("Not running ✗")
-            self.status_dwm.setStyleSheet("color: red;")
-
-        # DDC/CI status
+        """Update read-only inventory and proposal status."""
         if self.current_ddc_monitor:
-            self.status_ddc.setText("Connected ✓")
-            self.status_ddc.setStyleSheet("color: green;")
+            self.status_ddc.setText("Inventory only")
+            self.status_ddc.setStyleSheet("color: gray;")
         else:
             self.status_ddc.setText("Not available")
             self.status_ddc.setStyleSheet("color: orange;")
 
-        # HDR status
-        if self.current_lut_monitor and self.current_lut_monitor.is_hdr:
+        if self.current_lut_monitor and bool(self.current_lut_monitor.get("is_hdr", False)):
             self.status_hdr.setText("Enabled ✓")
             self.status_hdr.setStyleSheet("color: green;")
         else:
-            self.status_hdr.setText("Disabled")
+            self.status_hdr.setText("Not reported by Qt")
             self.status_hdr.setStyleSheet("color: gray;")
 
     def _read_current_settings(self):
-        """Read current hardware settings from monitor."""
-        if not self.current_ddc_monitor:
-            return
-
-        try:
-            settings = self.ddc_controller.get_settings(self.current_ddc_monitor)
-
-            self.cur_brightness.setText(str(settings.brightness))
-            self.cur_contrast.setText(str(settings.contrast))
-            self.cur_rgb.setText(f"R:{settings.red_gain} G:{settings.green_gain} B:{settings.blue_gain}")
-            self.cur_offset.setText(
-                f"R:{settings.red_black_level} G:{settings.green_black_level} B:{settings.blue_black_level}"
-            )
-
-            # Update sliders
-            self.hw_brightness.setValue(settings.brightness)
-            self.hw_contrast.setValue(settings.contrast)
-            self.hw_red_gain.setValue(settings.red_gain)
-            self.hw_green_gain.setValue(settings.green_gain)
-            self.hw_blue_gain.setValue(settings.blue_gain)
-            self.hw_red_offset.setValue(settings.red_black_level)
-            self.hw_green_offset.setValue(settings.green_black_level)
-            self.hw_blue_offset.setValue(settings.blue_black_level)
-
-            self._log("Read current hardware settings")
-
-        except Exception as e:
-            self._log(f"Error reading settings: {e}")
-
-    def _auto_start_dwm(self):
-        """Auto-start DwmLutGUI."""
-        if not self.lut_controller._is_dwm_lut_running():
-            try:
-                self.lut_controller.start_dwm_lut_gui()
-                self._log("Auto-started DwmLutGUI")
-            except Exception as e:
-                self._log(f"Could not start DwmLutGUI: {e}")
+        """Explain that legacy GUI hardware reads are no longer controller-owned."""
+        self.cur_brightness.setText("--")
+        self.cur_contrast.setText("--")
+        self.cur_rgb.setText("--")
+        self.cur_offset.setText("--")
+        self._log("Hardware reads are available only through the capability-gated workflow")
 
     # =========================================================================
     # Hardware Control
     # =========================================================================
 
     def _on_hw_change(self, setting: str, value: int):
-        """Handle hardware setting change."""
+        """Refresh a pending proposal when live preview is enabled."""
         if self.live_ddc and self.current_ddc_monitor:
             self._apply_single_hw_setting(setting, value)
 
+    def _stage_proposal(self, proposal: dict[str, object], summary: str) -> None:
+        """Publish an in-memory proposal without executing it."""
+        self.pending_proposals.append(proposal)
+        self.proposalStaged.emit(dict(proposal))
+        self._log(f"{summary}; no display changes made")
+
     def _apply_single_hw_setting(self, setting: str, value: int):
-        """Apply a single hardware setting."""
+        """Stage one hardware target for later confirmation."""
         if not self.current_ddc_monitor:
             return
-
-        code_map = {
-            "brightness": VCPCode.BRIGHTNESS,
-            "contrast": VCPCode.CONTRAST,
-            "red_gain": VCPCode.RED_GAIN,
-            "green_gain": VCPCode.GREEN_GAIN,
-            "blue_gain": VCPCode.BLUE_GAIN,
-            "red_offset": VCPCode.RED_BLACK_LEVEL,
-            "green_offset": VCPCode.GREEN_BLACK_LEVEL,
-            "blue_offset": VCPCode.BLUE_BLACK_LEVEL,
-            "gamma": 0xF2,  # Manufacturer-specific gamma
-        }
-
-        if setting in code_map:
-            try:
-                self.ddc_controller.set_vcp(self.current_ddc_monitor, code_map[setting], value)
-            except Exception as e:
-                self._log(f"DDC error: {e}")
+        self._stage_proposal(
+            {
+                "action": "ddc_targets",
+                "display_id": self.current_ddc_monitor["display_id"],
+                "changes": {setting: value},
+            },
+            f"Staged {setting}={value}",
+        )
 
     def _apply_hardware_settings(self):
-        """Apply all hardware settings."""
+        """Stage all hardware targets for later confirmation."""
         if not self.current_ddc_monitor:
             self._log("No DDC/CI monitor selected")
             return
-
-        try:
-            # Brightness and Contrast
-            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.BRIGHTNESS, self.hw_brightness.value())
-            self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.CONTRAST, self.hw_contrast.value())
-
-            # RGB Gains
-            self.ddc_controller.set_rgb_gain(
-                self.current_ddc_monitor,
-                self.hw_red_gain.value(),
-                self.hw_green_gain.value(),
-                self.hw_blue_gain.value(),
-            )
-
-            # RGB Offsets
-            self.ddc_controller.set_rgb_black_level(
-                self.current_ddc_monitor,
-                self.hw_red_offset.value(),
-                self.hw_green_offset.value(),
-                self.hw_blue_offset.value(),
-            )
-
-            # Gamma (try both common codes)
-            try:
-                self.ddc_controller.set_vcp(self.current_ddc_monitor, 0xF2, self.hw_gamma.value())
-            except Exception:
-                try:
-                    self.ddc_controller.set_vcp(self.current_ddc_monitor, 0x72, self.hw_gamma.value())
-                except Exception:
-                    pass  # Gamma VCP code not supported by this monitor
-
-            self._log("Applied hardware settings via DDC/CI")
-            self._read_current_settings()
-
-        except Exception as e:
-            self._log(f"Error applying hardware settings: {e}")
+        changes = {
+            "brightness": self.hw_brightness.value(),
+            "contrast": self.hw_contrast.value(),
+            "red_gain": self.hw_red_gain.value(),
+            "green_gain": self.hw_green_gain.value(),
+            "blue_gain": self.hw_blue_gain.value(),
+            "red_offset": self.hw_red_offset.value(),
+            "green_offset": self.hw_green_offset.value(),
+            "blue_offset": self.hw_blue_offset.value(),
+            "gamma": self.hw_gamma.value(),
+        }
+        self._stage_proposal(
+            {
+                "action": "ddc_targets",
+                "display_id": self.current_ddc_monitor["display_id"],
+                "changes": changes,
+            },
+            "Staged hardware target plan",
+        )
 
     def _reset_hardware_settings(self):
-        """Reset hardware to default values."""
+        """Reset controls to defaults without touching monitor hardware."""
         self.hw_brightness.setValue(50)
         self.hw_contrast.setValue(80)
         self.hw_red_gain.setValue(100)
@@ -960,7 +831,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
         self.hw_blue_offset.setValue(50)
         self.hw_gamma.setValue(22)
 
-        self._apply_hardware_settings()
+        self._log("Hardware controls reset; no display changes made")
 
     # =========================================================================
     # LUT Control
@@ -972,76 +843,62 @@ class ProfessionalCalibrationWindow(QMainWindow):
         return sizes[combo.currentIndex()]
 
     def _apply_sdr_lut(self):
-        """Apply SDR 3D LUT."""
+        """Stage an SDR LUT-generation proposal."""
         if not self.current_lut_monitor:
             self._log("No monitor selected")
             return
-
-        try:
-            size = self._get_lut_size(self.sdr_lut_size)
-
-            lut = generate_sdr_calibration_lut(
-                size=size,
-                target_gamma=self.sdr_gamma.value(),
-                rgb_gains=(self.sdr_r_gain.value(), self.sdr_g_gain.value(), self.sdr_b_gain.value()),
-                rgb_offsets=(self.sdr_r_offset.value(), self.sdr_g_offset.value(), self.sdr_b_offset.value()),
-            )
-
-            success = self.lut_controller.load_lut(self.current_lut_monitor, lut, LUTType.SDR, "SDR Calibration LUT")
-
-            if success:
-                self._log(f"Applied SDR LUT ({size}³)")
-            else:
-                self._log("Failed to apply SDR LUT")
-
-        except Exception as e:
-            self._log(f"Error: {e}")
+        size = self._get_lut_size(self.sdr_lut_size)
+        self._stage_proposal(
+            {
+                "action": "generate_lut",
+                "display_id": self.current_lut_monitor["display_id"],
+                "kind": "sdr",
+                "size": size,
+                "target_gamma": self.sdr_gamma.value(),
+                "rgb_gains": (self.sdr_r_gain.value(), self.sdr_g_gain.value(), self.sdr_b_gain.value()),
+                "rgb_offsets": (self.sdr_r_offset.value(), self.sdr_g_offset.value(), self.sdr_b_offset.value()),
+            },
+            f"Staged SDR LUT plan ({size}³)",
+        )
 
     def _apply_hdr_lut(self):
-        """Apply HDR 3D LUT."""
+        """Stage an HDR LUT-generation proposal."""
         if not self.current_lut_monitor:
             self._log("No monitor selected")
             return
+        size = self._get_lut_size(self.hdr_lut_size)
+        self._stage_proposal(
+            {
+                "action": "generate_lut",
+                "display_id": self.current_lut_monitor["display_id"],
+                "kind": "hdr",
+                "size": size,
+                "peak_luminance": self.hdr_peak.value(),
+                "rgb_gains": (self.hdr_r_gain.value(), self.hdr_g_gain.value(), self.hdr_b_gain.value()),
+                "rgb_offsets": (self.hdr_r_offset.value(), self.hdr_g_offset.value(), self.hdr_b_offset.value()),
+            },
+            f"Staged HDR LUT plan ({size}³)",
+        )
 
-        try:
-            size = self._get_lut_size(self.hdr_lut_size)
-
-            lut = generate_hdr_calibration_lut(
-                size=size,
-                rgb_gains=(self.hdr_r_gain.value(), self.hdr_g_gain.value(), self.hdr_b_gain.value()),
-                rgb_offsets=(self.hdr_r_offset.value(), self.hdr_g_offset.value(), self.hdr_b_offset.value()),
-                peak_luminance=float(self.hdr_peak.value()),
-            )
-
-            success = self.lut_controller.load_lut(
-                self.current_lut_monitor, lut, LUTType.HDR, f"HDR Calibration LUT - Peak {self.hdr_peak.value()} nits"
-            )
-
-            if success:
-                self._log(f"Applied HDR LUT ({size}³)")
-            else:
-                self._log("Failed to apply HDR LUT")
-
-        except Exception as e:
-            self._log(f"Error: {e}")
-
-    def _remove_lut(self, lut_type: LUTType):
-        """Remove LUT from monitor."""
+    def _remove_lut(self, lut_type: str):
+        """Stage LUT removal for later confirmation."""
         if not self.current_lut_monitor:
             return
-
-        try:
-            self.lut_controller.unload_lut(self.current_lut_monitor, lut_type)
-            self._log(f"Removed {lut_type.value.upper()} LUT")
-        except Exception as e:
-            self._log(f"Error: {e}")
+        self._stage_proposal(
+            {
+                "action": "clear_lut",
+                "display_id": self.current_lut_monitor["display_id"],
+                "kind": lut_type,
+            },
+            f"Staged {lut_type.upper()} LUT removal",
+        )
 
     # =========================================================================
     # Presets
     # =========================================================================
 
     def _apply_preset(self, name: str):
-        """Apply a calibration preset."""
+        """Stage a calibration preset."""
         presets = {
             "D65 sRGB (Gamma 2.2)": {
                 "hw": {
@@ -1117,7 +974,7 @@ class ProfessionalCalibrationWindow(QMainWindow):
             self._apply_hardware_settings()
             self._apply_sdr_lut()
 
-            self._log(f"Applied preset: {name}")
+            self._log(f"Staged preset: {name}")
 
     def _save_preset(self):
         """Save current settings as a named preset."""
@@ -1175,30 +1032,26 @@ class ProfessionalCalibrationWindow(QMainWindow):
         self._log(f"Loaded preset: {name}")
 
     def _factory_reset(self):
-        """Reset monitor to factory defaults."""
+        """Stage a factory-reset request without sending it to hardware."""
         reply = QMessageBox.question(
             self,
-            "Factory Reset",
-            "This will reset the monitor to factory defaults.\nContinue?",
+            "Stage Factory Reset",
+            "Stage a factory-reset request for later review and confirmation?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
 
         if reply == QMessageBox.StandardButton.Yes and self.current_ddc_monitor:
-            try:
-                self.ddc_controller.set_vcp(self.current_ddc_monitor, VCPCode.RESTORE_FACTORY_DEFAULTS, 1)
-                self._log("Factory reset sent")
-                QTimer.singleShot(2000, self._read_current_settings)
-            except Exception as e:
-                self._log(f"Factory reset failed: {e}")
+            self._stage_proposal(
+                {
+                    "action": "factory_reset_request",
+                    "display_id": self.current_ddc_monitor["display_id"],
+                },
+                "Staged factory-reset request",
+            )
 
 
 def main():
-    """Main entry point."""
-    # Request admin privileges
-    if not is_admin():
-        run_as_admin()
-        return
-
+    """Launch the proposal UI as the current standard user."""
     app = QApplication(sys.argv)
 
     # Dark theme

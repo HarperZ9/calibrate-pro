@@ -172,22 +172,25 @@ def test_new_notice_payloads_identify_exact_evidence() -> None:
     assert "Apache License" in packaging_notice
     assert "Copyright (c) Donald Stufft and individual contributors." in packaging_notice
 
-    cpython_notice = (
-        NOTICE_DIR / "CPython-3.12.10-Windows-Externals-NOTICE.txt"
-    ).read_text(encoding="utf-8")
-    for name in ("bzip2 1.0.8", "Expat 2.6.3", "HACL*", "libb2 0.98.1", "libffi 3.4.4", "mpdecimal 2.5.1", "OpenSSL 3.0.16", "XZ Utils 5.2.5"):
+    cpython_notice = (NOTICE_DIR / "CPython-3.12.10-Windows-Externals-NOTICE.txt").read_text(encoding="utf-8")
+    for name in (
+        "bzip2 1.0.8",
+        "Expat 2.6.3",
+        "HACL*",
+        "libb2 0.98.1",
+        "libffi 3.4.4",
+        "mpdecimal 2.5.1",
+        "OpenSSL 3.0.16",
+        "XZ Utils 5.2.5",
+    ):
         assert name in cpython_notice
     assert "1905207f988375b65dccbe3a1aafb22cc96b03f7826a4867c1b34006c214e571" in cpython_notice
 
-    msvc_notice = (NOTICE_DIR / "Microsoft-Visual-Cpp-Runtime-NOTICE.txt").read_text(
-        encoding="utf-8"
-    )
+    msvc_notice = (NOTICE_DIR / "Microsoft-Visual-Cpp-Runtime-NOTICE.txt").read_text(encoding="utf-8")
     assert "Microsoft Visual C++ Runtime" in msvc_notice
     assert "not corresponding source" in msvc_notice
 
-    qt_notice = (NOTICE_DIR / "Qt-6.11.1-THIRD-PARTY-NOTICES.txt").read_text(
-        encoding="utf-8"
-    )
+    qt_notice = (NOTICE_DIR / "Qt-6.11.1-THIRD-PARTY-NOTICES.txt").read_text(encoding="utf-8")
     assert "Qt Base 6.11.1" in qt_notice
     assert "qt_attribution.json" in qt_notice
 

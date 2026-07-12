@@ -1,12 +1,13 @@
 """
 Verify Page -- Calibration verification with ColorChecker grid and stats.
 
-Shows a 6x4 ColorChecker grid (reference vs. predicted), Delta E statistics,
-accuracy grade, and gamut coverage bars. Runs verification in a QThread.
+Shows a 6x4 ColorChecker grid, evidence-labelled Delta E statistics, and
+gamut coverage. Runs verification in a QThread.
 """
 
-import sys
+import hashlib
 import traceback
+from html import escape
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, Signal
@@ -27,8 +28,26 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat
+from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat, qt_display_snapshots
 from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+
+
+def _not_measured(unit: str) -> MetricValue:
+    return MetricValue(None, unit, EvidenceKind.NOT_MEASURED)
+
+
+def _metric_or_not_measured(value: object, unit: str) -> MetricValue:
+    return value if isinstance(value, MetricValue) else _not_measured(unit)
+
+
+def _estimated_metric(value: object, unit: str, source: str) -> MetricValue:
+    if isinstance(value, MetricValue):
+        return value
+    if type(value) in {int, float}:
+        return MetricValue(float(value), unit, EvidenceKind.ESTIMATED, source)
+    return _not_measured(unit)
+
 
 # Worker Thread
 
@@ -39,31 +58,20 @@ class VerifyWorker(QThread):
     finished = Signal(bool, object)  # success, results dict or error string
     progress = Signal(int, int)  # current patch index, total patches
 
-    def __init__(self, display_index: int = 0, parent=None):
+    def __init__(self, display_index: int = 0, display_name: str = "Generic Display", parent=None):
         super().__init__(parent)
         self.display_index = display_index
+        self.display_name = display_name
 
     def run(self):
         try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
             from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
             from calibrate_pro.sensorless.neuralux import SensorlessEngine
-
-            displays = enumerate_displays()
-            if self.display_index >= len(displays):
-                self.finished.emit(False, "Display index out of range")
-                return
 
             self.progress.emit(0, 24)
 
-            display = displays[self.display_index]
             db = PanelDatabase()
-            panel_key = identify_display(display)
-            panel = db.get_panel(panel_key) if panel_key else None
-            if panel is None:
-                self.finished.emit(False, "Could not identify panel in database")
-                return
+            panel = db.find_panel(self.display_name) or db.get_fallback()
 
             self.progress.emit(2, 24)
 
@@ -83,6 +91,21 @@ class VerifyWorker(QThread):
                 return result
 
             results = verify_with_progress(panel)
+            receipt = hashlib.sha256(repr(panel).encode("utf-8")).hexdigest()
+            source = f"panel-characterization:{panel.name}:{receipt}"
+            for key in ("delta_e_avg", "delta_e_max", "cam16_delta_e_avg", "cam16_delta_e_max"):
+                results[key] = _estimated_metric(results.get(key), "dE2000", source)
+            for patch in results.get("patches", []):
+                if isinstance(patch, dict):
+                    patch["delta_e"] = _estimated_metric(patch.get("delta_e"), "dE2000", source)
+                    patch["cam16_delta_e"] = _estimated_metric(patch.get("cam16_delta_e"), "CAM16-UCS dE", source)
+            gamut = results.get("gamut_coverage")
+            if isinstance(gamut, dict):
+                for key in ("srgb_pct", "dci_p3_pct", "bt2020_pct"):
+                    gamut[key] = _estimated_metric(gamut.get(key), "%", source)
+            results.pop("grade", None)
+            results["evidence_source"] = source
+            results["accuracy_note"] = "Estimated from panel characterization; not instrument measured."
 
             # Attach panel primaries so the GUI can populate the CIE diagram
             try:
@@ -212,15 +235,18 @@ class NativeVerifyWorker(QThread):
 
             self.log_line.emit(f"White Y = {white_Y:.1f} cd/m2")
 
-            # Build results in same format as sensorless verification
+            receipt = hashlib.sha256(bytes(resp) + white_xyz.tobytes()).hexdigest()
+            source = f"instrument:i1display3:{receipt}"
+
+            # A white reading is not a ColorChecker verification. Keep Delta E
+            # explicitly unmeasured while retaining the observed luminance.
             results = {
-                "patches": {},
-                "avg_de": 0.0,
-                "max_de": 0.0,
-                "pass_count": 0,
-                "total_count": 24,
+                "patches": [],
+                "delta_e_avg": _not_measured("dE2000"),
+                "delta_e_max": _not_measured("dE2000"),
                 "method": "native_measured",
-                "white_Y": white_Y,
+                "white_luminance": MetricValue(white_Y, "cd/m²", EvidenceKind.MEASURED, source),
+                "evidence_source": source,
             }
 
             # Note: full patch measurement needs fullscreen window
@@ -250,20 +276,27 @@ class ColorPatchWidget(QWidget):
         self,
         name: str = "",
         ref_srgb: tuple = (0.5, 0.5, 0.5),
-        pred_srgb: tuple = (0.5, 0.5, 0.5),
-        delta_e: float = 0.0,
+        pred_srgb: tuple | None = None,
+        delta_e: MetricValue | None = None,
         parent=None,
     ):
         super().__init__(parent)
         self._name = name
         self._ref = ref_srgb
         self._pred = pred_srgb
-        self._de = delta_e
+        self._de = delta_e or _not_measured("dE2000")
+        if not isinstance(self._de, MetricValue):
+            raise TypeError("delta_e must be a MetricValue")
         self.setFixedSize(64, 64)
         self.setToolTip(
-            f"{name}\ndE: {delta_e:.2f}\n"
+            f"{name}\ndE: {self._de.display_text()}\n"
+            f"Evidence source: {self._de.source or 'Not measured'}\n"
             f"Ref  sRGB: ({ref_srgb[0]:.3f}, {ref_srgb[1]:.3f}, {ref_srgb[2]:.3f})\n"
-            f"Pred sRGB: ({pred_srgb[0]:.3f}, {pred_srgb[1]:.3f}, {pred_srgb[2]:.3f})"
+            + (
+                f"Observed sRGB: ({pred_srgb[0]:.3f}, {pred_srgb[1]:.3f}, {pred_srgb[2]:.3f})"
+                if pred_srgb is not None
+                else "Observed sRGB: Not measured"
+            )
         )
 
     def paintEvent(self, event):
@@ -271,13 +304,7 @@ class ColorPatchWidget(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         w, h = self.width(), self.height()
 
-        # Border color based on Delta E
-        if self._de < 2.0:
-            border_color = QColor(C.GREEN_HI)
-        elif self._de < 3.0:
-            border_color = QColor(C.YELLOW)
-        else:
-            border_color = QColor(C.RED)
+        border_color = QColor(C.ACCENT_TX if self._de.value is not None else C.BORDER)
 
         # Border
         p.setPen(QPen(border_color, 2))
@@ -295,10 +322,11 @@ class ColorPatchWidget(QWidget):
         p.drawRoundedRect(3, 3, w - 6, (h - 6) // 2, 2, 2)
 
         # Bottom half -- predicted color
+        pred = self._pred or (0.5, 0.5, 0.5)
         pred_color = QColor(
-            int(max(0, min(1, self._pred[0])) * 255),
-            int(max(0, min(1, self._pred[1])) * 255),
-            int(max(0, min(1, self._pred[2])) * 255),
+            int(max(0, min(1, pred[0])) * 255),
+            int(max(0, min(1, pred[1])) * 255),
+            int(max(0, min(1, pred[2])) * 255),
         )
         p.setBrush(pred_color)
         top_of_bottom = 3 + (h - 6) // 2
@@ -309,7 +337,8 @@ class ColorPatchWidget(QWidget):
         font = QFont("Segoe UI", 8, QFont.Weight.Bold)
         p.setFont(font)
         text_rect = QRectF(0, 0, float(w), float(h))
-        p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, f"{self._de:.1f}")
+        text = "N/M" if self._de.value is None else f"{self._de.value:.1f}"
+        p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, text)
 
         p.end()
 
@@ -347,10 +376,10 @@ class ColorCheckerGrid(QWidget):
 
             ref_srgb = patch_data.get("ref_srgb", (0.5, 0.5, 0.5))
 
-            # Approximate predicted sRGB from displayed Lab
-            pred_srgb = self._lab_to_approx_srgb(patch_data.get("displayed_lab", patch_data.get("ref_lab", (50, 0, 0))))
+            displayed_lab = patch_data.get("displayed_lab")
+            pred_srgb = self._lab_to_approx_srgb(displayed_lab) if displayed_lab is not None else None
 
-            de = patch_data.get("delta_e", 0.0)
+            de = _metric_or_not_measured(patch_data.get("delta_e"), "dE2000")
             name = patch_data.get("name", f"Patch {idx + 1}")
 
             pw = ColorPatchWidget(name, ref_srgb, pred_srgb, de, self)
@@ -405,7 +434,8 @@ class GrayscaleTrackingChart(QWidget):
         self._target_gamma: float = 2.2
         self._measured: list[float] = []
         self._per_channel: dict[str, list[float]] | None = None
-        self._delta_es: list[float] = []
+        self._delta_es: list[MetricValue] = []
+        self._evidence_source: str | None = None
 
     def set_data(
         self,
@@ -413,7 +443,8 @@ class GrayscaleTrackingChart(QWidget):
         target_gamma: float,
         measured_luminances: list[float],
         per_channel: dict[str, list[float]] | None = None,
-        delta_es: list[float] | None = None,
+        delta_es: list[MetricValue] | None = None,
+        evidence_source: str | None = None,
     ):
         """
         Populate the chart.
@@ -424,27 +455,16 @@ class GrayscaleTrackingChart(QWidget):
             measured_luminances: list of float (normalized 0-1).
             per_channel: optional dict with 'red', 'green', 'blue' lists
                          of normalized luminances.
-            delta_es: optional list of per-step delta E values; if None,
-                      they are computed from the deviation.
+            delta_es: optional evidence-labelled per-step Delta E values.
+            evidence_source: receipt for observed luminance/channel values.
         """
         self._steps = list(steps)
         self._target_gamma = target_gamma
-        self._measured = list(measured_luminances)
-        self._per_channel = per_channel
-
-        # Compute delta E approximations if not supplied
-        if delta_es is not None:
-            self._delta_es = list(delta_es)
-        else:
-            self._delta_es = []
-            for i, s in enumerate(self._steps):
-                target_y = s**target_gamma
-                meas_y = self._measured[i] if i < len(self._measured) else target_y
-                # Approximate perceptual dE from luminance deviation
-                # Using a simple L* difference scaled to dE-like units
-                t_lstar = 116.0 * (target_y ** (1.0 / 3.0)) - 16.0 if target_y > 0.008856 else 903.3 * target_y
-                m_lstar = 116.0 * (meas_y ** (1.0 / 3.0)) - 16.0 if meas_y > 0.008856 else 903.3 * meas_y
-                self._delta_es.append(abs(t_lstar - m_lstar) / 10.0)
+        self._evidence_source = evidence_source.strip() if evidence_source and evidence_source.strip() else None
+        self._measured = list(measured_luminances) if self._evidence_source else []
+        self._per_channel = per_channel if self._evidence_source else None
+        self._delta_es = [metric for metric in (delta_es or []) if isinstance(metric, MetricValue)]
+        self.setToolTip(f"Evidence source: {self._evidence_source or 'Not measured'}")
 
         self.update()
 
@@ -595,15 +615,8 @@ class GrayscaleTrackingChart(QWidget):
                 if i >= len(self._measured):
                     break
                 meas_y = self._measured[i]
-                de = self._delta_es[i] if i < len(self._delta_es) else 0.0
-
-                # Color by dE
-                if de < 1.0:
-                    dot_color = QColor(C.GREEN)
-                elif de < 3.0:
-                    dot_color = QColor(C.YELLOW)
-                else:
-                    dot_color = QColor(C.RED)
+                metric = self._delta_es[i] if i < len(self._delta_es) else _not_measured("dE2000")
+                dot_color = QColor(C.ACCENT_TX if metric.value is not None else C.TEXT3)
 
                 pt = to_px(s, meas_y)
                 p.setPen(Qt.PenStyle.NoPen)
@@ -623,9 +636,7 @@ class GrayscaleTrackingChart(QWidget):
         ly = chart_y + 8
         legend_items = [
             (C.TEXT3, f"Target (gamma {gamma:.1f})"),
-            (C.GREEN, "dE < 1.0"),
-            (C.YELLOW, "dE < 3.0"),
-            (C.RED, "dE >= 3.0"),
+            (C.ACCENT_TX, "Observed (receipt required)"),
         ]
         for color_str, label in legend_items:
             p.setPen(Qt.PenStyle.NoPen)
@@ -646,9 +657,9 @@ class GamutCoverageSection(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._srgb = 0.0
-        self._p3 = 0.0
-        self._bt2020 = 0.0
+        self._srgb = _not_measured("%")
+        self._p3 = _not_measured("%")
+        self._bt2020 = _not_measured("%")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -658,17 +669,17 @@ class GamutCoverageSection(QWidget):
         heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         layout.addWidget(heading)
 
-        self._bar = GamutBar(0, 0, 0)
+        self._bar = GamutBar(self._srgb, self._p3, self._bt2020)
         self._bar.setFixedHeight(40)
         layout.addWidget(self._bar)
 
-    def set_values(self, srgb: float, p3: float, bt2020: float):
-        self._srgb = srgb
-        self._p3 = p3
-        self._bt2020 = bt2020
+    def set_values(self, srgb: MetricValue, p3: MetricValue, bt2020: MetricValue):
+        self._srgb = _metric_or_not_measured(srgb, "%")
+        self._p3 = _metric_or_not_measured(p3, "%")
+        self._bt2020 = _metric_or_not_measured(bt2020, "%")
         # Replace bar widget with updated values
         old_bar = self._bar
-        self._bar = GamutBar(srgb, p3, bt2020)
+        self._bar = GamutBar(self._srgb, self._p3, self._bt2020)
         self._bar.setFixedHeight(40)
         self.layout().replaceWidget(old_bar, self._bar)
         old_bar.deleteLater()
@@ -750,7 +761,7 @@ class VerifyPage(QWidget):
         grid_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
         left_col.addWidget(grid_heading)
 
-        grid_desc = QLabel("Top: reference  |  Bottom: predicted  |  Center: Delta E")
+        grid_desc = QLabel("Top: reference  |  Bottom: observed/estimated  |  Center: evidence-labelled Delta E")
         grid_desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT3};")
         left_col.addWidget(grid_desc)
 
@@ -758,7 +769,7 @@ class VerifyPage(QWidget):
         left_col.addWidget(self._checker_grid)
 
         # Prediction label
-        self._method_label = QLabel("Predicted (sensorless)")
+        self._method_label = QLabel("Evidence: Not measured")
         self._method_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT3}; font-style: italic;")
         left_col.addWidget(self._method_label)
 
@@ -771,18 +782,18 @@ class VerifyPage(QWidget):
         right_card.setMaximumWidth(360)
         right_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
 
-        stats_heading = QLabel("Accuracy")
+        stats_heading = QLabel("Evidence")
         stats_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
         right_lay.addWidget(stats_heading)
 
-        self._stat_avg_de = Stat("Average Delta E", "--")
+        self._stat_avg_de = Stat("Average Delta E", "Not measured")
         right_lay.addWidget(self._stat_avg_de)
 
-        self._stat_max_de = Stat("Maximum Delta E", "--")
+        self._stat_max_de = Stat("Maximum Delta E", "Not measured")
         right_lay.addWidget(self._stat_max_de)
 
-        self._stat_grade = Stat("Grade", "--")
-        right_lay.addWidget(self._stat_grade)
+        self._stat_evidence = Stat("Evidence source", "Not measured")
+        right_lay.addWidget(self._stat_evidence)
 
         # Separator
         sep = QFrame()
@@ -954,90 +965,30 @@ class VerifyPage(QWidget):
                         "name": cp.name,
                         "ref_srgb": cp.srgb,
                         "ref_lab": cp.lab_d50,
-                        "displayed_lab": cp.lab_d50,
-                        "delta_e": 0.0,
+                        "delta_e": _not_measured("dE2000"),
                     }
                 )
             self._checker_grid.set_results(patches)
         except Exception:
             pass
 
-        # Seed the grayscale tracking chart with simulated data
-        self._seed_grayscale_chart()
+        self._show_unmeasured_grayscale()
 
-    def _seed_grayscale_chart(self):
-        """Populate the grayscale chart with realistic simulated data."""
-        import random
-
-        random.seed(42)  # Deterministic demo data
-
-        # 11 steps from 0% to 100% in 10% increments
+    def _show_unmeasured_grayscale(self):
+        """Show only the requested target curve before evidence exists."""
         steps = [i / 10.0 for i in range(11)]
-        target_gamma = 2.2
-
-        # Simulate measured luminances with small realistic deviations
-        measured = []
-        delta_es = []
-        for s in steps:
-            target_y = s**target_gamma
-            if s == 0.0:
-                # Black level -- slight offset simulating backlight bleed
-                deviation = random.uniform(0.001, 0.005)
-            elif s < 0.3:
-                # Shadows -- slightly more deviation
-                deviation = random.uniform(-0.015, 0.02)
-            else:
-                # Mid to highlights -- tight tracking
-                deviation = random.uniform(-0.008, 0.012)
-            meas_y = max(0.0, min(1.0, target_y + deviation))
-            measured.append(meas_y)
-
-            # Compute a perceptual dE from luminance deviation
-            t_L = 116.0 * (target_y ** (1.0 / 3.0)) - 16.0 if target_y > 0.008856 else 903.3 * target_y
-            m_L = 116.0 * (meas_y ** (1.0 / 3.0)) - 16.0 if meas_y > 0.008856 else 903.3 * meas_y
-            de = abs(t_L - m_L) / 10.0
-            delta_es.append(de)
-
-        # Simulate per-channel data with slight inter-channel divergence
-        per_channel = {}
-        for ch_name, bias in [("red", 0.006), ("green", -0.003), ("blue", 0.010)]:
-            ch_data = []
-            for _i, s in enumerate(steps):
-                target_y = s**target_gamma
-                ch_dev = bias * s + random.uniform(-0.005, 0.005)
-                ch_data.append(max(0.0, min(1.0, target_y + ch_dev)))
-            per_channel[ch_name] = ch_data
-
-        self._gs_chart.set_data(
-            steps,
-            target_gamma,
-            measured,
-            per_channel=per_channel,
-            delta_es=delta_es,
-        )
-
-        # Update stats labels
-        if delta_es:
-            avg_de = sum(delta_es) / len(delta_es)
-            max_de = max(delta_es)
-            avg_color = C.GREEN_HI if avg_de < 1.0 else C.YELLOW if avg_de < 3.0 else C.RED
-            max_color = C.GREEN_HI if max_de < 1.0 else C.YELLOW if max_de < 3.0 else C.RED
-            self._gs_avg_label.setText(f"Avg grayscale dE: {avg_de:.2f}")
-            self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {avg_color}; font-weight: 500;")
-            self._gs_max_label.setText(f"Max grayscale dE: {max_de:.2f}")
-            self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {max_color}; font-weight: 500;")
+        self._gs_chart.set_data(steps, 2.2, [])
+        self._gs_avg_label.setText("Avg grayscale dE: Not measured")
+        self._gs_max_label.setText("Max grayscale dE: Not measured")
 
     # Display Detection
 
     def _detect_displays(self):
         self._display_combo.clear()
         try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
-
-            self._displays = enumerate_displays()
+            self._displays = qt_display_snapshots()
             for i, d in enumerate(self._displays):
-                name = get_display_name(d)
+                name = d.name
                 res = f"{d.width}x{d.height}"
                 self._display_combo.addItem(f"{i + 1}. {name}  ({res})")
         except Exception as exc:
@@ -1074,7 +1025,12 @@ class VerifyPage(QWidget):
         self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};")
 
         display_index = max(0, self._display_combo.currentIndex())
-        self._worker = VerifyWorker(display_index)
+        display_name = (
+            self._displays[display_index].name
+            if hasattr(self, "_displays") and display_index < len(self._displays)
+            else "Generic Display"
+        )
+        self._worker = VerifyWorker(display_index, display_name)
         self._worker.progress.connect(self._on_progress)
         self._worker.finished.connect(self._on_finished)
         self._worker.start()
@@ -1116,143 +1072,74 @@ class VerifyPage(QWidget):
         # Populate the ColorChecker grid
         self._checker_grid.set_results(patches)
 
-        # Stats
-        avg_de = results.get("delta_e_avg", 0.0)
-        max_de = results.get("delta_e_max", 0.0)
+        avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
+        max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
+        avg_color = C.ACCENT_TX if avg_de.value is not None else C.TEXT3
+        max_color = C.ACCENT_TX if max_de.value is not None else C.TEXT3
+        self._stat_avg_de.set_value(avg_de.display_text(), avg_color)
+        self._stat_max_de.set_value(max_de.display_text(), max_color)
+        source = avg_de.source or max_de.source or results.get("evidence_source")
+        self._stat_evidence.set_value(str(source or "Not measured"), C.TEXT3)
 
-        # Color-code the average Delta E
-        if avg_de < 1.0:
-            avg_color = C.GREEN_HI
-        elif avg_de < 2.0:
-            avg_color = C.GREEN
-        elif avg_de < 3.0:
-            avg_color = C.YELLOW
-        else:
-            avg_color = C.RED
-
-        self._stat_avg_de.set_value(f"{avg_de:.2f}", avg_color)
-
-        if max_de < 2.0:
-            max_color = C.GREEN_HI
-        elif max_de < 3.0:
-            max_color = C.YELLOW
-        else:
-            max_color = C.RED
-        self._stat_max_de.set_value(f"{max_de:.2f}", max_color)
-
-        # Grade -- compute from avg dE with defined scale
-        if avg_de < 1.0:
-            grade_text = "Excellent"
-            grade_color = C.GREEN_HI
-        elif avg_de < 2.0:
-            grade_text = "Good"
-            grade_color = C.GREEN
-        elif avg_de < 3.0:
-            grade_text = "Acceptable"
-            grade_color = C.YELLOW
-        else:
-            grade_text = "Needs work"
-            grade_color = C.RED
-        self._stat_grade.set_value(grade_text, grade_color)
-
-        # Method label -- show method and avg dE result
         method = results.get("method", "")
-        accuracy_note = results.get("accuracy_note", "")
-        if method == "native_measured" or "Measured" in accuracy_note:
+        if avg_de.evidence is EvidenceKind.MEASURED or method == "native_measured":
             sensor_name = results.get("sensor_name", "i1Display3")
             method_text = f"Measured ({sensor_name})"
+        elif avg_de.evidence is EvidenceKind.ESTIMATED:
+            method_text = "Estimated (panel characterization)"
         else:
-            method_text = "Predicted (sensorless)"
-        method_color = avg_color
-        self._method_label.setText(f"{method_text} \u2014 avg dE {avg_de:.2f}")
-        self._method_label.setStyleSheet(f"font-size: 11px; color: {method_color}; font-style: italic;")
+            method_text = "Not measured"
+        self._method_label.setText(f"{method_text} \u2014 {avg_de.display_text()}; source: {source or 'Not measured'}")
+        self._method_label.setStyleSheet(f"font-size: 11px; color: {avg_color}; font-style: italic;")
 
         # Gamut coverage
         gamut = results.get("gamut_coverage", {})
-        srgb_pct = gamut.get("srgb_pct", 0)
-        p3_pct = gamut.get("dci_p3_pct", 0)
-        bt2020_pct = gamut.get("bt2020_pct", 0)
+        srgb_pct = _metric_or_not_measured(gamut.get("srgb_pct") if isinstance(gamut, dict) else None, "%")
+        p3_pct = _metric_or_not_measured(gamut.get("dci_p3_pct") if isinstance(gamut, dict) else None, "%")
+        bt2020_pct = _metric_or_not_measured(gamut.get("bt2020_pct") if isinstance(gamut, dict) else None, "%")
         self._gamut_section.set_values(srgb_pct, p3_pct, bt2020_pct)
 
         # CIE 1931 chromaticity diagram -- populate with display primaries
         dp = results.get("display_primaries")
         if dp:
             self._cie_diagram.set_display_gamut(dp["R"], dp["G"], dp["B"], dp.get("W"))
-        else:
-            # Clear previous overlay if no primaries available
-            self._cie_diagram.set_display_gamut((0.640, 0.330), (0.300, 0.600), (0.150, 0.060))
 
-        # Grayscale tracking chart -- use data from results if available,
-        # otherwise generate from the grayscale patches in the results.
         gs_data = results.get("grayscale")
-        if gs_data:
+        if isinstance(gs_data, dict) and source:
+            gs_des = [
+                metric
+                for raw in gs_data.get("delta_es", [])
+                if (metric := _metric_or_not_measured(raw, "dE2000")).value is not None
+            ]
             self._gs_chart.set_data(
                 gs_data.get("steps", []),
                 gs_data.get("target_gamma", 2.2),
                 gs_data.get("measured", []),
                 per_channel=gs_data.get("per_channel"),
-                delta_es=gs_data.get("delta_es"),
+                delta_es=gs_des,
+                evidence_source=str(source),
             )
-            gs_des = gs_data.get("delta_es", [])
         else:
-            # Synthesize grayscale data from the last 6 patches (row 4 of
-            # the ColorChecker, which are neutral patches) plus black/white
-            self._seed_grayscale_from_patches(patches)
-            gs_des = list(self._gs_chart._delta_es)
+            self._show_unmeasured_grayscale()
+            gs_des = []
 
-        # Update grayscale stats labels
         if gs_des:
-            gs_avg = sum(gs_des) / len(gs_des)
-            gs_max = max(gs_des)
-            avg_c = C.GREEN_HI if gs_avg < 1.0 else C.YELLOW if gs_avg < 3.0 else C.RED
-            max_c = C.GREEN_HI if gs_max < 1.0 else C.YELLOW if gs_max < 3.0 else C.RED
-            self._gs_avg_label.setText(f"Avg grayscale dE: {gs_avg:.2f}")
-            self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {avg_c}; font-weight: 500;")
-            self._gs_max_label.setText(f"Max grayscale dE: {gs_max:.2f}")
-            self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {max_c}; font-weight: 500;")
-
-    def _seed_grayscale_from_patches(self, patches: list):
-        """Build grayscale chart data from the neutral patches in the results."""
-        import random
-
-        random.seed(7)
-
-        # Use 11 steps; if we have real neutral patch data, interpolate
-        steps = [i / 10.0 for i in range(11)]
-        target_gamma = 2.2
-        measured = []
-        delta_es = []
-
-        for s in steps:
-            target_y = s**target_gamma
-            # Add small noise to simulate measured tracking
-            dev = random.uniform(-0.01, 0.015) * (1.0 + s)
-            meas_y = max(0.0, min(1.0, target_y + dev))
-            measured.append(meas_y)
-
-            t_L = 116.0 * (target_y ** (1.0 / 3.0)) - 16.0 if target_y > 0.008856 else 903.3 * target_y
-            m_L = 116.0 * (meas_y ** (1.0 / 3.0)) - 16.0 if meas_y > 0.008856 else 903.3 * meas_y
-            delta_es.append(abs(t_L - m_L) / 10.0)
-
-        self._gs_chart.set_data(steps, target_gamma, measured, delta_es=delta_es)
+            values = [metric.value for metric in gs_des if metric.value is not None]
+            evidence = gs_des[0].evidence
+            gs_avg = MetricValue(sum(values) / len(values), "dE2000", evidence, str(source))
+            gs_max = MetricValue(max(values), "dE2000", evidence, str(source))
+            self._gs_avg_label.setText(f"Avg grayscale dE: {gs_avg.display_text()}")
+            self._gs_max_label.setText(f"Max grayscale dE: {gs_max.display_text()}")
 
     # Export Report
 
     def _build_html_report(self, results: dict) -> str:
         """Build a self-contained HTML report string from verification results."""
-        avg_de = results.get("delta_e_avg", 0.0)
-        max_de = results.get("delta_e_max", 0.0)
-        method = results.get("method", "sensorless")
+        avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
+        max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
+        method = str(results.get("method") or "Not measured")
         patches = results.get("patches", [])
-
-        if avg_de < 1.0:
-            grade = "Excellent"
-        elif avg_de < 2.0:
-            grade = "Good"
-        elif avg_de < 3.0:
-            grade = "Acceptable"
-        else:
-            grade = "Needs work"
+        evidence_source = avg_de.source or max_de.source or results.get("evidence_source")
 
         lines = [
             "<!DOCTYPE html><html><head>",
@@ -1265,23 +1152,25 @@ class VerifyPage(QWidget):
             "  table { border-collapse: collapse; margin-top: 16px; }",
             "  th, td { border: 1px solid #ede4da; padding: 6px 14px;             text-align: left; }",
             "  th { background: #faf5f0; }",
-            "  .good { color: #92ad7e; } .warn { color: #e0c87a; }   .bad { color: #d08888; }",
             "  @media print { body { background: white; } }",
             "</style></head><body>",
             "<h1>Calibrate Pro - Verification Report</h1>",
-            f"<p><strong>Method:</strong> {method}</p>",
-            f"<p><strong>Average Delta E:</strong> {avg_de:.2f}</p>",
-            f"<p><strong>Maximum Delta E:</strong> {max_de:.2f}</p>",
-            f"<p><strong>Grade:</strong> {grade}</p>",
+            f"<p><strong>Method:</strong> {escape(method)}</p>",
+            f"<p><strong>Average Delta E:</strong> {escape(avg_de.display_text())}</p>",
+            f"<p><strong>Maximum Delta E:</strong> {escape(max_de.display_text())}</p>",
+            f"<p><strong>Evidence source:</strong> {escape(str(evidence_source or 'Not measured'))}</p>",
+            "<p>No quality grade is assigned without an approved rubric.</p>",
         ]
         if patches:
             lines.append("<h2>Patch Results</h2>")
-            lines.append("<table><tr><th>Patch</th><th>Delta E</th></tr>")
+            lines.append("<table><tr><th>Patch</th><th>Delta E</th><th>Evidence source</th></tr>")
             for p in patches:
-                de = p.get("delta_e", 0.0)
-                css = "good" if de < 2.0 else "warn" if de < 3.0 else "bad"
-                name = p.get("name", "?")
-                lines.append(f"<tr><td>{name}</td><td class='{css}'>{de:.2f}</td></tr>")
+                if not isinstance(p, dict):
+                    continue
+                de = _metric_or_not_measured(p.get("delta_e"), "dE2000")
+                name = escape(str(p.get("name") or "Unnamed patch"))
+                source = escape(str(de.source or "Not measured"))
+                lines.append(f"<tr><td>{name}</td><td>{escape(de.display_text())}</td><td>{source}</td></tr>")
             lines.append("</table>")
         lines.append("</body></html>")
         return "\n".join(lines)
@@ -1309,32 +1198,9 @@ class VerifyPage(QWidget):
                 # Build HTML content, then convert to PDF
                 html_content = self._build_html_report(results)
 
-                # Try the dedicated report generator for richer HTML
-                try:
-                    # The generator writes to a file; generate to temp HTML
-                    # then use that content for PDF conversion
-                    import tempfile
-
-                    from calibrate_pro.verification.report_generator import (
-                        generate_calibration_report,
-                    )
-
-                    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w", encoding="utf-8") as tmp:
-                        tmp.write(html_content)
-                        tmp_path = tmp.name
-                except Exception:
-                    tmp_path = None
-
                 from calibrate_pro.verification.pdf_export import export_report_pdf
 
                 success = export_report_pdf(html_content, path)
-
-                # Clean up temp file
-                if tmp_path:
-                    try:
-                        Path(tmp_path).unlink(missing_ok=True)
-                    except Exception:
-                        pass
 
                 if success:
                     # Check if the PDF was actually created (WebEngine path)
@@ -1356,50 +1222,38 @@ class VerifyPage(QWidget):
                     QMessageBox.warning(self, "Export Error", "Could not export PDF. Please try HTML format instead.")
                 return
 
-            # Non-PDF export: HTML or TXT
-            try:
-                from calibrate_pro.verification.report_generator import (
-                    generate_calibration_report,
-                )
+            # Non-PDF export uses the same evidence-aware rendering as the UI.
+            if path.endswith(".html"):
+                content = self._build_html_report(results)
+            else:
+                avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
+                max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
+                method = str(results.get("method") or "Not measured")
+                patches = results.get("patches", [])
+                evidence_source = avg_de.source or max_de.source or results.get("evidence_source")
 
-                generate_calibration_report(results, None, results, path)
-            except (ImportError, Exception):
-                if path.endswith(".html"):
-                    content = self._build_html_report(results)
-                else:
-                    avg_de = results.get("delta_e_avg", 0.0)
-                    max_de = results.get("delta_e_max", 0.0)
-                    method = results.get("method", "sensorless")
-                    patches = results.get("patches", [])
+                lines = [
+                    "Calibrate Pro - Verification Report",
+                    "=" * 40,
+                    f"Method:          {method}",
+                    f"Average Delta E: {avg_de.display_text()}",
+                    f"Maximum Delta E: {max_de.display_text()}",
+                    f"Evidence source: {evidence_source or 'Not measured'}",
+                    "Quality grade:   Not assigned (no approved rubric)",
+                    "",
+                ]
+                if patches:
+                    lines.append("Patch Results:")
+                    lines.append("-" * 30)
+                    for p in patches:
+                        if not isinstance(p, dict):
+                            continue
+                        name = str(p.get("name") or "Unnamed patch")
+                        de = _metric_or_not_measured(p.get("delta_e"), "dE2000")
+                        lines.append(f"  {name:20s}  {de.display_text()}  source: {de.source or 'Not measured'}")
+                content = "\n".join(lines)
 
-                    if avg_de < 1.0:
-                        grade = "Excellent"
-                    elif avg_de < 2.0:
-                        grade = "Good"
-                    elif avg_de < 3.0:
-                        grade = "Acceptable"
-                    else:
-                        grade = "Needs work"
-
-                    lines = [
-                        "Calibrate Pro - Verification Report",
-                        "=" * 40,
-                        f"Method:          {method}",
-                        f"Average Delta E: {avg_de:.2f}",
-                        f"Maximum Delta E: {max_de:.2f}",
-                        f"Grade:           {grade}",
-                        "",
-                    ]
-                    if patches:
-                        lines.append("Patch Results:")
-                        lines.append("-" * 30)
-                        for p in patches:
-                            name = p.get("name", "?")
-                            de = p.get("delta_e", 0.0)
-                            lines.append(f"  {name:20s}  dE {de:.2f}")
-                    content = "\n".join(lines)
-
-                Path(path).write_text(content, encoding="utf-8")
+            Path(path).write_text(content, encoding="utf-8")
 
         except Exception as exc:
             QMessageBox.warning(self, "Export Error", str(exc))

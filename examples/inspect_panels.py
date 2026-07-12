@@ -10,8 +10,9 @@ package on PYTHONPATH):
 
     python examples/inspect_panels.py
 
-For the calibration commands that DO touch hardware/system state
-(`auto`, `calibrate`, `verify`, ...), see USAGE.md.
+Legacy action names (`auto`, `calibrate`, `verify`, `detect`, ...) are
+proposal-only and exit with code 2 without changing display state. The GUI is
+the confirmed workflow; see USAGE.md.
 """
 
 import calibrate_pro
@@ -47,9 +48,9 @@ def main() -> int:
         if panel.notes:
             print(f"  Notes:        {panel.notes}")
 
-    print("\nNext steps (require hardware / admin - see USAGE.md):")
-    print("  calibrate-pro detect      # list displays, sensors, DDC/CI monitors")
-    print("  calibrate-pro auto        # automatic calibration of all displays")
+    print("\nNext steps (see USAGE.md):")
+    print("  Legacy action names are proposal-only and exit with code 2.")
+    print("  calibrate-pro gui         # preview and explicitly confirm supported changes")
     print(f"  calibrate-pro info {example_key}")
     return 0
 

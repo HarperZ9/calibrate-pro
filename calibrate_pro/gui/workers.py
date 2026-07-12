@@ -6,6 +6,7 @@ color management state tracking.
 """
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from PySide6.QtCore import QThread, Signal
@@ -32,28 +33,23 @@ class CalibrationWorker(QThread):
 
     def run(self):
         try:
-            from calibrate_pro.sensorless.auto_calibration import AutoCalibrationEngine, UserConsent
+            from calibrate_pro.workflow import ApplyPlan, CalibrationMethod
 
-            engine = AutoCalibrationEngine()
-
-            def progress_callback(msg, prog, step):
-                self.progress.emit(msg, prog)
-
-            engine.set_progress_callback(progress_callback)
-
-            # Create consent if DDC approved
-            consent = None
-            if self.apply_ddc:
-                consent = UserConsent(user_acknowledged_risks=True, hardware_modification_approved=True)
-
-            result = engine.run_calibration(
-                apply_ddc=self.apply_ddc,
-                display_index=self.display_index,
-                consent=consent,
-                profile_name=self.profile_name,
-                display_name=self.display_name,
+            self.progress.emit("Building calibration preview", 0.5)
+            plan = ApplyPlan(
+                display_id=str(self.display_index),
+                method=CalibrationMethod.SENSORLESS,
+                target_whitepoint="D65",
+                target_gamma="2.2",
+                target_gamut="sRGB",
             )
-
+            result = SimpleNamespace(
+                success=True,
+                preview_only=True,
+                message="Preview ready — no display settings were changed. Explicit confirmation is required.",
+                plan=plan,
+            )
+            self.progress.emit("Preview ready", 1.0)
             self.finished.emit(result)
 
         except Exception as e:

@@ -384,53 +384,23 @@ class AutoCalibrationManager:
 
 
 def register_startup(script_path: str | None = None) -> bool:
-    """Register auto-calibration to run at Windows startup."""
-    import winreg
+    """Refuse the retired duplicate startup writer.
 
-    STARTUP_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-    APP_NAME = "CalibratePro_AutoCalibration"
-
-    if script_path is None:
-        # Use current script
-        script_path = os.path.abspath(__file__)
-
-    # Build command - use pythonw for silent execution
-    python_path = sys.executable.replace("python.exe", "pythonw.exe")
-    if not os.path.exists(python_path):
-        python_path = sys.executable
-
-    cmd = f'"{python_path}" "{script_path}" --apply'
-
-    try:
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
-        winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, cmd)
-        winreg.CloseKey(key)
-        logger.info(f"Registered startup: {cmd}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to register startup: {e}")
-        return False
+    Startup registration is consolidated in ``utils.startup_manager`` and the
+    startup process is observation-only.  ``script_path`` remains accepted for
+    source compatibility but is never executed or persisted.
+    """
+    del script_path
+    logger.warning(
+        "Automatic calibration startup registration is disabled; use StartupManager for the read-only monitor."
+    )
+    return False
 
 
 def unregister_startup() -> bool:
-    """Remove auto-calibration from Windows startup."""
-    import winreg
-
-    STARTUP_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-    APP_NAME = "CalibratePro_AutoCalibration"
-
-    try:
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_KEY, 0, winreg.KEY_SET_VALUE)
-        try:
-            winreg.DeleteValue(key, APP_NAME)
-        except OSError:
-            pass
-        winreg.CloseKey(key)
-        logger.info("Removed from startup")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to unregister startup: {e}")
-        return False
+    """Refuse the retired duplicate startup writer."""
+    logger.warning("Startup registration changes are owned exclusively by StartupManager.")
+    return False
 
 
 def is_startup_registered() -> bool:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calibrate Pro - Professional Sensorless Display Calibration</title>
+<title>Calibrate Pro - Characterized and Measured Display Calibration</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --coral: #E8A87C; --sand: #D4A373; --bg: #121212; --surface: #1E1E1E; --card: #252525; --text: #E0E0E0; --muted: #9E9E9E; }
@@ -68,13 +68,13 @@
 <header class="hero">
   <div class="container">
     <h1>Calibrate <span>Pro</span></h1>
-    <p class="tagline">Professional Sensorless Display Calibration</p>
+    <p class="tagline">Characterized and Measured Display Calibration</p>
     <p style="color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem;">
-      Detect, characterize, and calibrate your displays with panel-accurate color<br>
-      correction &mdash; no colorimeter required.
+      Detect a display, preview an exact plan, explicitly confirm supported changes,<br>
+      and keep measured observations separate from estimates.
     </p>
-    <a href="https://github.com/zain-harper/calibrate-pro/releases" class="btn btn-primary">Download</a>
-    <a href="https://github.com/zain-harper/calibrate-pro" class="btn btn-outline">View on GitHub</a>
+    <a href="https://github.com/HarperZ9/calibrate-pro/releases" class="btn btn-primary">Download</a>
+    <a href="https://github.com/HarperZ9/calibrate-pro" class="btn btn-outline">View on GitHub</a>
   </div>
 </header>
 
@@ -84,27 +84,27 @@
     <div class="features">
       <div class="card">
         <h3>58-Panel Database</h3>
-        <p>Characterized display profiles covering OLED, QD-OLED, IPS, and VA panels with predicted dE &lt; 1.0 accuracy.</p>
+        <p>Nominal characterizations for OLED, QD-OLED, IPS, and VA panels. Sensorless results are estimates, not measurements of the attached unit.</p>
       </div>
       <div class="card">
         <h3>DDC/CI Hardware Control</h3>
-        <p>Touch-free OSD configuration &mdash; picture mode, color preset, gamma, brightness, and RGB gains via DDC/CI.</p>
+        <p>Supported brightness, contrast, RGB gain, and RGB black-level changes are bounded, previewed, and explicitly confirmed before a write.</p>
       </div>
       <div class="card">
         <h3>3D LUT Generation</h3>
-        <p>Residual correction 3D LUTs applied system-wide through DWM with VCGT gamma ramp fallback.</p>
+        <p>Generate correction LUT assets for supported consumers. Applying an asset is a separate capability-checked and confirmed operation.</p>
       </div>
       <div class="card">
         <h3>ICC Profile Export</h3>
-        <p>ICC v4 profiles with per-channel TRC and measured primaries, installed automatically for system-wide color management.</p>
+        <p>Export ICC v4 profiles with per-channel TRCs and evidence-labelled characterization or instrument inputs. Installation is never automatic.</p>
       </div>
       <div class="card">
         <h3>Sensorless Mode</h3>
-        <p>Full calibration without a colorimeter using panel-database characterization. Optional i1Display3 for measured accuracy.</p>
+        <p>Build an estimated plan from panel characterization without claiming measured accuracy. A supported i1Display3 provides instrument observations.</p>
       </div>
       <div class="card">
-        <h3>CalibrationGuard Watchdog</h3>
-        <p>15-second watchdog prevents Windows from resetting your calibration. Persists across reboots via startup integration.</p>
+        <h3>Read-Only Monitoring</h3>
+        <p>Tray, guard, and startup surfaces monitor or report only. Automatic reapply is disabled; a fresh plan and confirmation are required.</p>
       </div>
     </div>
   </div>
@@ -121,18 +121,18 @@
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <h3>Characterize</h3>
-        <p>Configure monitor OSD settings and adjust hardware controls via DDC/CI.</p>
+        <h3>Choose</h3>
+        <p>Select a characterized or measured method and a calibration target.</p>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <h3>Calibrate</h3>
-        <p>Generate a correction 3D LUT and ICC profile from panel or sensor data.</p>
+        <h3>Preview and Confirm</h3>
+        <p>Review the immutable plan and explicitly confirm it before any supported write.</p>
       </div>
       <div class="step">
         <div class="step-num">4</div>
-        <h3>Verify</h3>
-        <p>CalibrationGuard locks in your settings and protects against OS resets.</p>
+        <h3>Verify and Report</h3>
+        <p>Inspect evidence-labelled results: measured, estimated, simulated, replayed, or Not measured.</p>
       </div>
     </div>
   </div>
@@ -144,7 +144,7 @@
     <ul class="req-list">
       <li><strong>OS:</strong> Windows 10 / 11</li>
       <li><strong>Python:</strong> 3.10+</li>
-      <li><strong>GUI:</strong> PyQt6</li>
+      <li><strong>GUI:</strong> PySide6</li>
       <li><strong>Sensor:</strong> Optional &mdash; i1Display3 family</li>
     </ul>
   </div>
@@ -157,11 +157,12 @@
       <h3>Install</h3>
       <pre>pip install ".[all]"</pre>
       <h3>Launch GUI</h3>
-      <pre>calibrate-pro</pre>
-      <h3>CLI Usage</h3>
-      <pre>calibrate-pro auto          <span class="comment"># Calibrate all displays (sensorless)</span>
-calibrate-pro detect        <span class="comment"># Show connected displays + sensors</span>
-calibrate-pro ddc-info      <span class="comment"># Show DDC/CI capabilities per monitor</span></pre>
+      <pre>calibrate-pro gui</pre>
+      <h3>Read-Only CLI</h3>
+      <pre>calibrate-pro doctor        <span class="comment"># Installation and capability diagnostics</span>
+calibrate-pro list-targets  <span class="comment"># List calibration target presets</span>
+calibrate-pro list-panels   <span class="comment"># List characterized panel profiles</span></pre>
+      <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, <code>restore</code>, and <code>verify</code> are proposal-only in 1.1. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
     </div>
   </div>
 </section>
@@ -169,7 +170,7 @@ calibrate-pro ddc-info      <span class="comment"># Show DDC/CI capabilities per
 <footer>
   <div class="container">
     <p>&copy; 2022&ndash;2026 Zain Dana Harper &middot;
-      <a href="https://github.com/zain-harper/calibrate-pro">GitHub</a>
+      <a href="https://github.com/HarperZ9/calibrate-pro">GitHub</a>
     </p>
   </div>
 </footer>

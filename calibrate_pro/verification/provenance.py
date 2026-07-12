@@ -38,13 +38,7 @@ class MetricValue:
     def display_text(self, decimals: int = 2) -> str:
         if self.value is None:
             return "Not measured"
-        label = {
-            EvidenceKind.ESTIMATED: "estimated",
-            EvidenceKind.SIMULATED: "simulated",
-            EvidenceKind.REPLAYED: "replayed",
-        }.get(self.evidence)
-        suffix = f" ({label})" if label else ""
-        return f"{self.value:.{decimals}f} {self.unit}{suffix}"
+        return f"{self.value:.{decimals}f} {self.unit} ({self.evidence.value})"
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -559,6 +559,7 @@ _JZ_G = 0.66
 _JZ_D = -0.56
 _JZ_D0 = 1.6295499532821566e-11
 
+
 def _pq_encode(x: np.ndarray) -> np.ndarray:
     """PQ perceptual quantizer encode (for JzAzBz)."""
     return _canonical_pq_oetf(x)

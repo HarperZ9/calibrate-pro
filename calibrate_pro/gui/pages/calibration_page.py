@@ -25,10 +25,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.dialogs import ConsentDialog, SimulatedMeasurementWindow
+from calibrate_pro.gui.dialogs import ConsentDialog
 from calibrate_pro.gui.pages.dashboard_page import DashboardPage
 from calibrate_pro.gui.theme import APP_NAME, APP_ORGANIZATION, COLORS
 from calibrate_pro.gui.workers import CalibrationWorker
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 
 class CalibrationPage(QWidget):
@@ -179,7 +180,7 @@ class CalibrationPage(QWidget):
 
         hw_first_desc = QLabel(
             "Step 1: Adjust monitor OSD settings (RGB gain, gamma)\n"
-            "Step 2: Fine-tune with 3D LUT. Best quality, Delta E < 0.5"
+            "Step 2: Fine-tune with a previewed 3D LUT; verify with an instrument"
         )
         hw_first_desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px; margin-left: 24px;")
         hw_first_desc.setWordWrap(True)
@@ -188,7 +189,7 @@ class CalibrationPage(QWidget):
         self.sensorless_radio = QRadioButton("Sensorless Calibration")
         mode_layout.addWidget(self.sensorless_radio)
 
-        sensorless_desc = QLabel("Uses panel database and advanced algorithms. Delta E < 1.0 typical.")
+        sensorless_desc = QLabel("Uses panel characterization; results are explicitly estimated, not measured.")
         sensorless_desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px; margin-left: 24px;")
         sensorless_desc.setWordWrap(True)
         mode_layout.addWidget(sensorless_desc)
@@ -196,7 +197,7 @@ class CalibrationPage(QWidget):
         self.hardware_radio = QRadioButton("Hardware Colorimeter Only")
         mode_layout.addWidget(self.hardware_radio)
 
-        hardware_desc = QLabel("Direct measurement without OSD adjustment. Delta E < 0.5 typical.")
+        hardware_desc = QLabel("Uses instrument readings and reports metrics only with a measurement receipt.")
         hardware_desc.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px; margin-left: 24px;")
         hardware_desc.setWordWrap(True)
         mode_layout.addWidget(hardware_desc)
@@ -232,7 +233,7 @@ class CalibrationPage(QWidget):
         """)
 
         # Add gamut info labels
-        gamut_info = QLabel("Panel Gamut: 99.2% DCI-P3, 87.3% BT.2020\nTarget Gamut: sRGB (100% coverage)")
+        gamut_info = QLabel("Panel gamut: Not measured\nTarget transform: sRGB (preview only)")
         gamut_info.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 16px;")
         gamut_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -338,28 +339,9 @@ class CalibrationPage(QWidget):
         display_index = self.display_combo.currentIndex()
         self._current_display_index = display_index
 
-        # Get target screen for measurement window
-        screens = QGuiApplication.screens()
-        target_screen = screens[display_index] if display_index < len(screens) else None
-
-        # Launch simulated measurement window
-        self._measurement_window = SimulatedMeasurementWindow(screen=target_screen)
-        self._measurement_window.sequence_complete.connect(self._on_measurement_complete)
-        self._measurement_window.closed.connect(self._on_measurement_closed)
-
-        # Add some random patches for variety
-        self._measurement_window.add_random_patches(8)
-
-        # Show measurement window and start
-        self._measurement_window.show_fullscreen(target_screen)
-        self._measurement_window.start_measurements()
-
-        # Store DDC approval for when measurements complete
+        # Store approval on the proposal. The Task 8 worker is preview-only and
+        # does not infer or fabricate a measurement sequence.
         self._apply_ddc = dialog.hardware_approved
-
-    def _on_measurement_complete(self):
-        """Called when simulated measurement sequence finishes."""
-        self.progress_label.setText("Measurements complete. Generating profile...")
 
         # Get custom names
         display_name, profile_name = self._get_custom_names()
@@ -379,15 +361,6 @@ class CalibrationPage(QWidget):
         self._worker.error.connect(self._on_calibration_error)
         self._worker.start()
 
-    def _on_measurement_closed(self):
-        """Called when measurement window is closed (possibly cancelled)."""
-        if not hasattr(self, "_worker") or self._worker is None or not self._worker.isRunning():
-            # Measurement was cancelled before calibration started
-            self.start_btn.setEnabled(True)
-            self.cancel_btn.setEnabled(False)
-            self.progress_bar.setValue(0)
-            self.progress_label.setText("Measurement cancelled")
-
     def _on_calibration_progress(self, message: str, progress: float):
         """Handle calibration progress updates."""
         self.progress_bar.setValue(int(progress * 100))
@@ -398,15 +371,20 @@ class CalibrationPage(QWidget):
         self.start_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
 
+        if getattr(result, "preview_only", False):
+            self.progress_bar.setValue(100)
+            self.progress_label.setText(result.message)
+            QMessageBox.information(self, "Preview Ready", result.message)
+            return
+
         if result.success:
             self.progress_bar.setValue(100)
-            self.progress_label.setText(
-                f"Calibration complete! Est. Delta E: {result.delta_e_predicted:.2f} (see notes)"
+            delta_e = (
+                result.delta_e_predicted
+                if isinstance(getattr(result, "delta_e_predicted", None), MetricValue)
+                else MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
             )
-
-            # Mark display as calibrated in settings
-            display_index = getattr(self, "_current_display_index", 0)
-            DashboardPage.mark_display_calibrated(display_index, result.delta_e_predicted)
+            self.progress_label.setText(f"Calibration assets generated — {delta_e.display_text()}")
 
             # Try to refresh the dashboard if we can find it
             try:
@@ -424,31 +402,26 @@ class CalibrationPage(QWidget):
             msg.setWindowTitle("Calibration Complete")
             msg.setIcon(QMessageBox.Icon.Information)
 
-            # Determine grade and confidence
-            grade = result.verification.get("grade", "Unknown")
-            delta_e = result.delta_e_predicted
-
             msg.setText(
                 f"Display calibration profile generated!\n\n"
                 f"Panel Matched: {result.panel_matched}\n"
-                f"Estimated Delta E: {delta_e:.2f}\n"
-                f"Estimated Grade: {grade}"
+                f"Delta E: {delta_e.display_text()}\n"
+                f"Evidence source: {delta_e.source or 'Not measured'}"
             )
 
             # HONEST informative text about what was actually done
             honest_info = (
                 "IMPORTANT - What This Means:\n\n"
                 "\u2713 ICC Profile and 3D LUT were generated based on panel database\n"
-                "\u2713 VCGT gamma curves can be applied to correct display output\n\n"
-                "\u26a0\ufe0f ESTIMATED values (not measured):\n"
-                f"\u2022 The Delta E value ({delta_e:.2f}) is a prediction based on known\n"
-                "  panel characteristics, NOT an actual measurement.\n\n"
+                "\u2713 Display changes still require Preview and explicit confirmation\n\n"
+                f"\u2022 Delta E: {delta_e.display_text()}\n"
+                f"\u2022 Evidence source: {delta_e.source or 'Not measured'}\n\n"
                 "To verify ACTUAL color accuracy, you need:\n"
                 "\u2022 A hardware colorimeter (i1Display, Spyder, etc.)\n"
                 "\u2022 Use the 'Verify' tab to run verification\n\n"
-                "For VISIBLE color changes:\n"
-                "\u2022 Go to 'Profiles' tab and ACTIVATE the profile\n"
-                "\u2022 Use 'DDC Control' tab for hardware adjustments"
+                "To change the display:\n"
+                "\u2022 Review the exact proposal in the Preview stage\n"
+                "\u2022 Confirm Apply through the bounded actuation workflow"
             )
 
             if result.icc_profile_path:
@@ -456,21 +429,13 @@ class CalibrationPage(QWidget):
 
             msg.setInformativeText(honest_info)
 
-            # Add detailed text about verification
+            # Keep evidence semantics explicit; do not infer a quality grade.
             msg.setDetailedText(
-                "Sensorless Calibration Accuracy Notes:\n\n"
-                "This calibration uses sensorless technology which:\n"
-                "1. Identifies your panel type from EDID/database\n"
-                "2. Uses factory-measured panel characteristics\n"
-                "3. Applies known corrections for that panel type\n\n"
-                "Typical Results:\n"
-                "\u2022 Well-known panels (OLED, high-end IPS): Delta E 0.5-1.5\n"
-                "\u2022 Generic/unknown panels: Delta E 1.5-3.0\n"
-                "\u2022 Older/aged panels: May vary significantly\n\n"
-                "For Professional Work:\n"
-                "Use a hardware colorimeter for verified results.\n"
-                "The estimated values are useful for consumer use but\n"
-                "should not be trusted for color-critical workflows."
+                "Evidence contract:\n\n"
+                "\u2022 Not measured means no instrument observation exists.\n"
+                "\u2022 Estimated values must identify a characterization receipt.\n"
+                "\u2022 Measured values must identify an instrument receipt.\n"
+                "\u2022 No quality grade is assigned without an approved rubric."
             )
 
             msg.exec()
@@ -487,28 +452,9 @@ class CalibrationPage(QWidget):
         QMessageBox.critical(self, "Calibration Error", error_msg)
 
     def _check_ddc_support(self):
-        """Check DDC/CI support for the selected display."""
-        try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController
-
-            controller = DDCCIController()
-            if controller.available:
-                monitors = controller.enumerate_monitors()
-                if monitors:
-                    caps = monitors[0].get("capabilities")
-                    if caps and caps.has_rgb_gain:
-                        self.ddc_status.setText("DDC/CI: RGB gain control available")
-                        self.ddc_status.setStyleSheet(f"color: {COLORS['success']}; font-size: 11px; margin-top: 8px;")
-                    else:
-                        self.ddc_status.setText("DDC/CI: Limited support - use OSD for RGB adjustment")
-                        self.ddc_status.setStyleSheet(f"color: {COLORS['warning']}; font-size: 11px; margin-top: 8px;")
-                else:
-                    self.ddc_status.setText("DDC/CI: No monitors detected")
-                controller.close()
-            else:
-                self.ddc_status.setText("DDC/CI: Not available on this system")
-        except Exception:
-            self.ddc_status.setText("DDC/CI: Check failed")
+        """Describe the capability boundary without opening a DDC writer."""
+        self.ddc_status.setText("DDC/CI: capability checked during confirmed apply")
+        self.ddc_status.setStyleSheet(f"color: {COLORS['warning']}; font-size: 11px; margin-top: 8px;")
 
     def _populate_displays(self):
         """Populate display combo with detected displays."""
@@ -516,26 +462,13 @@ class CalibrationPage(QWidget):
         self._displays = []
 
         try:
-            from calibrate_pro.panels.detection import (
-                enumerate_displays,
-                get_edid_from_registry,
-                parse_edid,
-            )
-
-            displays = enumerate_displays()
+            displays = QGuiApplication.screens()
 
             for i, display in enumerate(displays):
-                # Try to get better name from EDID
-                name = display.monitor_name or f"Display {i + 1}"
-
-                edid_data = get_edid_from_registry(display.device_id)
-                if edid_data:
-                    edid_info = parse_edid(edid_data)
-                    if edid_info.get("monitor_name") and "Generic" not in edid_info["monitor_name"]:
-                        name = edid_info["monitor_name"]
-
-                resolution = f"{display.width}x{display.height}"
-                primary = " (Primary)" if display.is_primary else ""
+                name = display.name() or f"Display {i + 1}"
+                geometry = display.geometry()
+                resolution = f"{geometry.width()}x{geometry.height()}"
+                primary = " (Primary)" if display is QGuiApplication.primaryScreen() else ""
 
                 display_text = f"Display {i + 1}: {name} ({resolution}){primary}"
                 self.display_combo.addItem(display_text)
@@ -556,27 +489,12 @@ class CalibrationPage(QWidget):
         if not hasattr(self, "_displays") or index >= len(self._displays):
             return
 
-        display = self._displays[index]
-
         try:
-            from calibrate_pro.panels.database import get_database
-            from calibrate_pro.panels.detection import identify_display
-
-            # Try to identify the panel
-            panel_key = identify_display(display)
-            db = get_database()
-
-            if panel_key:
-                panel = db.get_panel(panel_key)
-                if panel:
-                    self.panel_label.setText(f"{panel.panel_type} ({panel.manufacturer})")
-                    self.panel_label.setStyleSheet(f"color: {COLORS['success']};")
-                else:
-                    self.panel_label.setText(f"Matched: {panel_key}")
-                    self.panel_label.setStyleSheet(f"color: {COLORS['accent']};")
-            else:
-                self.panel_label.setText("Using generic profile")
-                self.panel_label.setStyleSheet(f"color: {COLORS['warning']};")
+            display = self._displays[index]
+            manufacturer = display.manufacturer() or "Unknown manufacturer"
+            model = display.model() or display.name() or "Unknown model"
+            self.panel_label.setText(f"{model} ({manufacturer})")
+            self.panel_label.setStyleSheet(f"color: {COLORS['accent']};")
 
             # Also update DDC status for the new display
             self._check_ddc_support()

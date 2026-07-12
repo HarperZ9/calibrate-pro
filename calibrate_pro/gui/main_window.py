@@ -425,32 +425,20 @@ class MainWindow(QMainWindow):
     def _install_profile(self):
         path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
         if path:
-            try:
-                from calibrate_pro.panels.detection import install_profile
-
-                install_profile(path)
-                self.status_label.setText(f"Installed: {path}")
-                QMessageBox.information(self, "Profile Installed", f"ICC profile installed:\n{path}")
-            except (ImportError, OSError) as e:
-                QMessageBox.warning(self, "Install Failed", str(e))
+            self.status_label.setText(f"Selected: {Path(path).name} — confirmation required")
+            QMessageBox.information(
+                self,
+                "Profile Preview",
+                "The ICC profile was selected but not installed. Review and confirm the apply plan before changing display state.",
+            )
 
     def _reset_gamma(self):
-        try:
-            from calibrate_pro.lut_system.dwm_lut import remove_lut
-            from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
-
-            displays = enumerate_displays()
-            for i, d in enumerate(displays):
-                reset_gamma_ramp(d.device_name)
-                try:
-                    remove_lut(i)
-                except OSError:
-                    pass
-            self.cm_status.clear()
-            self._refresh_all_cm_displays()
-            self.status_label.setText("Gamma reset to default")
-        except (ImportError, OSError) as e:
-            QMessageBox.warning(self, "Reset Failed", str(e))
+        self.status_label.setText("Reset proposal ready — confirmation required")
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No gamma ramp or LUT was changed. Review and confirm a reset plan in Calibrate.",
+        )
 
     def _show_test_patterns(self):
         try:

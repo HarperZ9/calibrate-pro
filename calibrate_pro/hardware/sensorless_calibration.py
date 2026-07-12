@@ -8,7 +8,7 @@ Achieves scientifically accurate pixel-level color calibration WITHOUT a colorim
 4. Calculating precise DDC/CI adjustments using Bradford CAT
 5. Using CIEDE2000 perceptual uniformity for optimization
 
-This approach can achieve Delta E < 2.0 for well-characterized panels,
+This approach estimates color error for well-characterized panels,
 approaching colorimeter accuracy for known display models.
 """
 
@@ -235,7 +235,7 @@ def delta_E_2000(Lab1: np.ndarray, Lab2: np.ndarray) -> float:
     Calculate CIEDE2000 color difference.
 
     This is the gold standard for perceptual color difference.
-    Delta E < 1.0: Not perceptible by human eye
+    Lower Delta E generally indicates a smaller modeled color difference.
     Delta E 1-2: Perceptible through close observation
     Delta E 2-10: Perceptible at a glance
     Delta E > 10: Colors are more similar than opposite
@@ -1539,7 +1539,7 @@ class SensorlessCalibrationEngine:
     def _get_accuracy_rating(self, delta_e: float) -> str:
         """Get human-readable accuracy rating."""
         if delta_e < 1.0:
-            return "EXCELLENT (Delta E < 1.0) - Reference grade"
+            return "LOW MODELED ERROR (estimated from panel characterization)"
         elif delta_e < 2.0:
             return "VERY GOOD (Delta E < 2.0) - Professional grade"
         elif delta_e < 3.0:

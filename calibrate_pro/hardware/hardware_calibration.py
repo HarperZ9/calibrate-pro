@@ -4,7 +4,7 @@ Hardware-Based Display Calibration Engine
 Achieves scientifically accurate calibration by:
 1. Measuring actual display output with colorimeter/spectrophotometer
 2. Iteratively adjusting DDC/CI hardware settings
-3. Applying precise corrections for Delta E < 1.0 accuracy
+3. Building corrections from instrument readings and retaining their receipt
 
 This is the ONLY way to achieve true pixel-level color accuracy,
 as software-only methods cannot measure what the display actually outputs.
@@ -320,7 +320,7 @@ class HardwareCalibrationEngine:
     1. Measure actual display output with colorimeter
     2. Compare to target (D65, gamma 2.2, etc.)
     3. Adjust DDC/CI settings
-    4. Repeat until Delta E < 1.0
+        4. Repeat until the configured measured tolerance or iteration limit
     """
 
     def __init__(self):
@@ -520,7 +520,7 @@ class HardwareCalibrationEngine:
         - Measures actual display output
         - Iteratively adjusts DDC/CI settings
         - Generates ICC profile based on real measurements
-        - Achieves Delta E < 1.0 when possible
+        - Reports measured Delta E only with an instrument receipt
 
         Args:
             targets: Calibration target settings

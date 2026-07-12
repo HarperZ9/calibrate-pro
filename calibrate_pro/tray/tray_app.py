@@ -1,12 +1,11 @@
 """
 Calibrate Pro - System Tray Application
 
-Provides two runtime paths:
+Provides two read-only runtime paths:
   1. **pystray + PIL** -- a real Windows system-tray icon with right-click
      context menu (green square = calibrated, grey = uncalibrated).
   2. **Console fallback** -- when pystray/PIL are not installed the app runs
-     the calibration-loader service with visible console output so that the
-     user still gets persistent calibration.
+     the read-only calibration monitor with visible console output.
 
 Public API
 ----------
@@ -15,7 +14,7 @@ Public API
 
 import logging
 import os
-import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -160,42 +159,14 @@ def _run_pystray():
     # ---- Menu actions ----
 
     def on_calibrate_all(icon, item):
-        """Run ``auto_calibrate_all`` in a background thread."""
-
-        def _work():
-            try:
-                from calibrate_pro.sensorless.auto_calibration import auto_calibrate_all
-
-                auto_calibrate_all()
-                # Refresh icon colour -- freshly calibrated, not stale
-                icon.icon = _create_icon_image(True, stale=False)
-                icon.title = f"Calibrate Pro v{__version__}"
-            except Exception as exc:
-                logger.error("Calibrate all failed: %s", exc)
-
-        threading.Thread(target=_work, daemon=True).start()
+        """Notify that calibration requires an interactive confirmed plan."""
+        logger.info("Calibration requested from tray; open Calibrate Pro to preview and confirm")
+        icon.title = f"Calibrate Pro v{__version__} - confirmation required"
 
     def on_restore(icon, item):
-        """Reset calibrations on all displays."""
-
-        def _work():
-            try:
-                from calibrate_pro.panels.detection import (
-                    enumerate_displays,
-                    reset_gamma_ramp,
-                )
-
-                for display in enumerate_displays():
-                    try:
-                        reset_gamma_ramp(display.device_name)
-                    except Exception:
-                        pass
-                icon.icon = _create_icon_image(False)
-                icon.title = f"Calibrate Pro v{__version__}"
-            except Exception as exc:
-                logger.error("Restore defaults failed: %s", exc)
-
-        threading.Thread(target=_work, daemon=True).start()
+        """Notify that restoration requires an interactive confirmed plan."""
+        logger.info("Restore requested from tray; open Calibrate Pro to preview and confirm")
+        icon.title = f"Calibrate Pro v{__version__} - confirmation required"
 
     def on_show_status(icon, item):
         """Print calibration status to console."""
@@ -211,36 +182,15 @@ def _run_pystray():
         if report:
             webbrowser.open(str(report.absolute()))
 
-    def _startup_enabled():
-        try:
-            from calibrate_pro.utils.startup_manager import is_auto_start_enabled
-
-            return is_auto_start_enabled()
-        except Exception:
-            return False
-
     def on_toggle_startup(icon, item):
-        try:
-            from calibrate_pro.utils.startup_manager import (
-                disable_auto_start,
-                enable_auto_start,
-                is_auto_start_enabled,
-            )
-
-            if is_auto_start_enabled():
-                disable_auto_start()
-            else:
-                enable_auto_start(silent=True)
-        except Exception as exc:
-            logger.error("Toggle startup failed: %s", exc)
+        logger.info("Startup setting change requested; use the application settings confirmation flow")
+        icon.title = f"Calibrate Pro v{__version__} - settings confirmation required"
 
     def on_exit(icon, item):
         icon.stop()
 
     def startup_text(item):
-        if _startup_enabled():
-            return "Disable Startup"
-        return "Enable Startup"
+        return "Startup Settings (confirmation required)"
 
     # ---- Build menu ----
 
@@ -252,8 +202,8 @@ def _run_pystray():
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Calibration Status", on_show_status),
-        pystray.MenuItem("Calibrate All Displays", on_calibrate_all),
-        pystray.MenuItem("Restore Defaults", on_restore),
+        pystray.MenuItem("Calibrate Displays (confirmation required)", on_calibrate_all),
+        pystray.MenuItem("Restore Defaults (confirmation required)", on_restore),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Open Last Report", on_open_report),
         pystray.MenuItem(startup_text, on_toggle_startup),
@@ -273,14 +223,6 @@ def _run_pystray():
         menu=menu,
     )
 
-    # Apply saved calibrations on launch
-    try:
-        from calibrate_pro.startup.calibration_loader import apply_saved_calibrations
-
-        apply_saved_calibrations()
-    except Exception:
-        pass
-
     icon.run()
 
 
@@ -293,8 +235,8 @@ def _run_console_service():
     """
     Fallback when pystray is not installed.
 
-    Applies saved calibrations and then runs the persistent
-    calibration-loader service with console output.
+    Reports saved calibration proposals and then runs the read-only topology
+    monitor with console output.
     """
     print(f"Calibrate Pro v{__version__} - Background Calibration Service")
     print("=" * 60)
@@ -302,24 +244,16 @@ def _run_console_service():
     print()
 
     try:
-        from calibrate_pro.startup.calibration_loader import (
-            apply_saved_calibrations,
-            run_service,
-        )
-
-        print("Applying saved calibrations...")
-        result = apply_saved_calibrations()
-        if result:
-            print("[OK] Calibrations applied.")
+        if _is_calibrated():
+            print("[--] Saved calibration plans require interactive confirmation.")
         else:
-            print("[--] No saved calibrations found.")
+            print("[--] No saved calibration proposals found.")
 
         print()
-        print("Running calibration persistence service.")
+        print("Running read-only calibration status monitor.")
         print("Press Ctrl+C to stop.\n")
-
-        run_service(silent=False)
-
+        while True:
+            time.sleep(30)
     except KeyboardInterrupt:
         print("\nService stopped.")
     except Exception as exc:
@@ -339,7 +273,7 @@ def run_tray_app():
     Run the system tray application.
 
     Tries pystray first; if unavailable, falls back to a console service
-    that still applies and persists calibrations.
+    that reports saved proposals without applying them.
     """
     try:
         return _run_pystray()

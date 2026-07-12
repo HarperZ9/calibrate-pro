@@ -1,8 +1,7 @@
-"""
-Calibrate Pro -- DDC Control Page
+"""DDC/CI proposal editor.
 
-Hardware DDC/CI monitor control: brightness, contrast, RGB gain, RGB offset.
-Communicates directly with the display over the DDC/CI protocol.
+Allowlisted calibration controls are staged in memory. Raw VCP, preset, and
+factory-reset operations remain unavailable until they have a confirmed plan.
 """
 
 from typing import Any
@@ -23,7 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading, StatusDot
+from calibrate_pro.gui.app import C, Card, Heading, StatusDot, qt_display_snapshots
+from calibrate_pro.workflow import DDC_WRITE_CODES
 
 # Slider Stylesheet
 
@@ -131,6 +131,7 @@ class DDCControlPage(QWidget):
         self._controller = None
         self._monitors: list[dict[str, Any]] = []
         self._current_monitor: dict[str, Any] | None = None
+        self._pending_changes: dict[str, int] = {}
         self._build()
 
     def _build(self):
@@ -523,41 +524,20 @@ class DDCControlPage(QWidget):
     # Controller & Monitor Management
 
     def _init_controller(self):
-        """Initialize the DDC/CI controller and detect monitors."""
-        try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController
-
-            self._controller = DDCCIController()
-
-            if not self._controller.available:
-                self._display_combo.clear()
-                self._display_combo.addItem("DDC/CI not available on this system")
-                self._status_dot.set_color(C.RED)
-                return
-
-            self._monitors = self._controller.enumerate_monitors()
-            self._display_combo.clear()
-
-            if not self._monitors:
-                self._display_combo.addItem("No DDC/CI monitors found")
-                self._status_dot.set_color(C.YELLOW)
-                return
-
-            for mon in self._monitors:
-                name = mon.get("name", "Unknown Monitor")
-                self._display_combo.addItem(str(name))
-
-            self._status_dot.set_color(C.GREEN)
-
-            # Auto-select first monitor and read settings
-            if self._monitors:
-                self._current_monitor = self._monitors[0]
-                self._read_current()
-
-        except Exception as e:
-            self._display_combo.clear()
-            self._display_combo.addItem(f"Error: {e}")
-            self._status_dot.set_color(C.RED)
+        """List Qt-observed displays without opening a DDC writer."""
+        self._display_combo.clear()
+        self._monitors = [
+            {"name": display.name, "display_id": display.device_name} for display in qt_display_snapshots()
+        ]
+        if not self._monitors:
+            self._display_combo.addItem("No displays detected")
+            self._status_dot.set_color(C.YELLOW)
+            return
+        for monitor in self._monitors:
+            self._display_combo.addItem(str(monitor["name"]))
+        self._current_monitor = self._monitors[0]
+        self._status_dot.set_color(C.YELLOW)
+        self._status_label.setText("Preview only — confirmation required before DDC/CI writes")
 
     def _on_display_changed(self, index: int):
         """Handle display selector change."""
@@ -568,33 +548,8 @@ class DDCControlPage(QWidget):
     # Read / Write VCP
 
     def _read_current(self):
-        """Read all control values from the currently selected monitor."""
-        if not self._controller or not self._current_monitor:
-            return
-
-        try:
-            settings = self._controller.get_settings(self._current_monitor)
-
-            # Block signals while updating sliders to avoid writing back
-            for slider, value in [
-                (self._brightness_slider, settings.brightness),
-                (self._contrast_slider, settings.contrast),
-                (self._red_gain_slider, settings.red_gain),
-                (self._green_gain_slider, settings.green_gain),
-                (self._blue_gain_slider, settings.blue_gain),
-                (self._red_offset_slider, settings.red_black_level),
-                (self._green_offset_slider, settings.green_black_level),
-                (self._blue_offset_slider, settings.blue_black_level),
-            ]:
-                slider.blockSignals(True)
-                slider.setValue(value)
-                slider.blockSignals(False)
-
-            self._status_dot.set_color(C.GREEN)
-
-        except Exception as e:
-            QMessageBox.warning(self, "Read Error", f"Failed to read monitor settings:\n{e}")
-            self._status_dot.set_color(C.RED)
+        """Explain why unconfirmed legacy DDC reads are not exposed here."""
+        self._status_label.setText("Current DDC values are captured only inside a confirmed transaction")
 
     def _set_brightness(self, value: int):
         """Set brightness via DDC/CI."""
@@ -605,111 +560,34 @@ class DDCControlPage(QWidget):
         self._set_vcp_safe("CONTRAST", value)
 
     def _set_vcp_safe(self, code_name: str, value: int):
-        """Safely set a VCP code, with error feedback."""
-        if not self._controller or not self._current_monitor:
+        """Stage an allowlisted calibration control; never write it directly."""
+        if code_name not in DDC_WRITE_CODES:
+            self._status_label.setText(f"{code_name} is disabled in 1.1; no approved ApplyPlan mapping")
+            self._status_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
             return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            code = getattr(VCPCode, code_name)
-            self._controller.set_vcp(self._current_monitor, code, value)
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).debug("DDC set %s=%d failed: %s", code_name, value, e)
-            # Show brief status feedback
-            if hasattr(self, "_status_label"):
-                self._status_label.setText(f"DDC command failed: {code_name}")
-                self._status_label.setStyleSheet("font-size: 11px; color: #d08888;")
+        self._pending_changes[code_name] = value
+        self._status_label.setText(
+            f"Preview staged: {code_name}={value} ({len(self._pending_changes)} change(s)); confirmation required"
+        )
+        self._status_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
 
     def _raw_vcp_read(self):
-        """Read a raw VCP code and display the current/max values."""
-        if not self._controller or not self._current_monitor:
-            self._vcp_result_label.setText("No monitor selected.")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.RED}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
-            self._vcp_result_label.show()
-            return
-
+        """Keep raw VCP access disabled outside the confirmed actuator."""
         code = self._vcp_code_spin.value()
-        try:
-            current, maximum = self._controller.get_vcp(self._current_monitor, code)
-            self._vcp_result_label.setText(f"VCP 0x{code:02X}:  current = {current}  |  max = {maximum}")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.GREEN}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
-            # Pre-fill the write value with the current value
-            self._vcp_value_spin.setValue(current)
-        except Exception as e:
-            self._vcp_result_label.setText(f"Read VCP 0x{code:02X} failed: {e}")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.RED}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
+        self._vcp_result_label.setText(f"VCP 0x{code:02X} raw access is disabled in 1.1")
         self._vcp_result_label.show()
 
     def _raw_vcp_write(self):
-        """Write a raw VCP value to the selected monitor."""
-        if not self._controller or not self._current_monitor:
-            self._vcp_result_label.setText("No monitor selected.")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.RED}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
-            self._vcp_result_label.show()
-            return
-
+        """Reject raw VCP writes that cannot form an approved ApplyPlan."""
         code = self._vcp_code_spin.value()
         value = self._vcp_value_spin.value()
-        try:
-            self._controller.set_vcp(self._current_monitor, code, value)
-            self._vcp_result_label.setText(f"VCP 0x{code:02X} set to {value}  \u2714")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.GREEN}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
-        except Exception as e:
-            self._vcp_result_label.setText(f"Write VCP 0x{code:02X} = {value} failed: {e}")
-            self._vcp_result_label.setStyleSheet(
-                f"font-size: 11px; color: {C.RED}; "
-                f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-                f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-            )
+        self._vcp_result_label.setText(f"VCP 0x{code:02X}={value} was not sent; raw writes are disabled in 1.1")
         self._vcp_result_label.show()
 
     def _reset_defaults(self):
-        """Reset all controls to factory defaults."""
-        if not self._controller or not self._current_monitor:
-            QMessageBox.information(self, "No Monitor", "No DDC/CI monitor is selected.")
-            return
-
-        reply = QMessageBox.question(
+        """Reject factory reset until it has a safe confirmed plan."""
+        QMessageBox.information(
             self,
-            "Reset to Default",
-            "Reset all monitor settings to factory defaults?\n\nThis sends the DDC/CI factory-reset command.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            "Factory Reset Disabled",
+            "No command was sent. Factory reset has no approved ApplyPlan mapping in version 1.1.",
         )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import VCPCode
-
-            self._controller.set_vcp(
-                self._current_monitor,
-                VCPCode.RESTORE_FACTORY_DEFAULTS,
-                1,
-            )
-            # Re-read after reset
-            self._read_current()
-        except Exception as e:
-            QMessageBox.warning(self, "Reset Error", f"Factory reset failed:\n{e}")

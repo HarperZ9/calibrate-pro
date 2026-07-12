@@ -1,0 +1,19 @@
+[
+  "APP_NAME", "APP_ORGANIZATION", "APP_VERSION", "BeforeAfterView", "CIEDiagramWidget", "COLORS",
+  "CalibrationConfig", "CalibrationMode", "CalibrationModeStep", "CalibrationPage", "CalibrationReport",
+  "CalibrationStatus", "CalibrationWizard", "CalibrationWorker", "ColorCheckerResult", "ColorGrid",
+  "ColorInfoPanel", "ColorManagementStatus", "ColorPatchDisplay", "ColorSwatch", "ComparisonSwatch",
+  "ConsentDialog", "CurveData", "DARK_STYLESHEET", "DDCControlPage", "DashboardPage", "DeltaEBarChart",
+  "DeltaEDisplay", "DeltaEMeasurement", "DeltaEQuality", "DeltaEStatsPanel", "DisplayInfo",
+  "DisplayInfoPanel", "DisplayLayoutPreview", "DisplayMonitorWidget", "DisplaySelectionStep", "DisplaySelector",
+  "DisplayTechnology", "GAMUTS", "GammaCurveWidget", "GammaInfoPanel", "GammaTarget", "GamutCoverage",
+  "GamutTarget", "GrayscaleResult", "IconFactory", "LUT3D", "LUTCubeView", "LUTPreviewWidget",
+  "LUTSliceView", "MainWindow", "MeasuredPoint", "Measurement", "MeasurementHistoryTable", "MeasurementStep",
+  "MeasurementView", "PatternCanvas", "PatternConfig", "PatternRenderer", "PatternSequencer", "PatternType",
+  "PatternWindow", "ProfileGenerationStep", "ProfilesPage", "ReportSummaryPanel", "ReportViewer",
+  "SPECTRAL_LOCUS", "SettingsPage", "SimulatedMeasurementWindow", "SoftwareColorControlPage", "SummaryCard",
+  "TargetSettingsStep", "VCGTToolsPage", "ValuesPanel", "VerificationPage", "VerificationStep", "WHITE_POINTS",
+  "WhitepointTarget", "WizardStep", "bt1886_eotf", "classify_delta_e", "delta_e_2000",
+  "get_delta_e_color", "l_star_eotf", "power_law_eotf", "rgb_to_lab", "rgb_to_xyz", "run_application",
+  "srgb_eotf", "srgb_oetf", "xyz_to_lab"
+]

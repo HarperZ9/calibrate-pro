@@ -45,7 +45,7 @@ try:
     user32.EnumDisplayDevicesW.argtypes = [
         wintypes.LPCWSTR,
         wintypes.DWORD,
-        ctypes.POINTER(DISPLAY_DEVICE),
+        ctypes.c_void_p,
         wintypes.DWORD,
     ]
     user32.EnumDisplayDevicesW.restype = wintypes.BOOL

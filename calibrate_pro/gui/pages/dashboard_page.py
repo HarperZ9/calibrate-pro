@@ -15,6 +15,13 @@ from PySide6.QtWidgets import (
 )
 
 from calibrate_pro.gui.theme import APP_NAME, APP_ORGANIZATION, COLORS
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+
+
+def _not_measured_delta_e() -> MetricValue:
+    return MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
+
+
 from calibrate_pro.gui.workers import ColorManagementStatus
 
 
@@ -76,10 +83,10 @@ class DashboardPage(QWidget):
         stats_layout = QGridLayout(stats_group)
         stats_layout.setSpacing(12)
 
-        self.avg_delta_e = self._create_stat_widget("Avg Delta E", "0.65", COLORS["success"])
-        self.max_delta_e = self._create_stat_widget("Max Delta E", "2.93", COLORS["warning"])
-        self.profiles_count = self._create_stat_widget("ICC Profiles", "3", COLORS["accent"])
-        self.luts_count = self._create_stat_widget("3D LUTs", "2", COLORS["accent"])
+        self.avg_delta_e = self._create_stat_widget("Avg Delta E", "Not measured", COLORS["text_secondary"])
+        self.max_delta_e = self._create_stat_widget("Max Delta E", "Not measured", COLORS["text_secondary"])
+        self.profiles_count = self._create_stat_widget("ICC Profiles", "Not counted", COLORS["text_secondary"])
+        self.luts_count = self._create_stat_widget("3D LUTs", "Not counted", COLORS["text_secondary"])
 
         stats_layout.addWidget(self.avg_delta_e, 0, 0)
         stats_layout.addWidget(self.max_delta_e, 0, 1)
@@ -92,11 +99,7 @@ class DashboardPage(QWidget):
         activity_group = QGroupBox("Recent Activity")
         activity_layout = QVBoxLayout(activity_group)
 
-        activities = [
-            ("Calibration completed", "PG27UCDM - Delta E 0.65", "2 hours ago"),
-            ("Profile installed", "sRGB_D65_2.2.icc", "Yesterday"),
-            ("Verification passed", "ColorChecker 24 patches", "2 days ago"),
-        ]
+        activities = [("No recorded activity", "Run a workflow to create an evidence-backed entry", "")]
 
         for title, detail, time in activities:
             item = QFrame()
@@ -196,7 +199,7 @@ class DashboardPage(QWidget):
         return frame
 
     def _create_display_card(
-        self, name: str, resolution: str, panel_type: str, delta_e: float, calibrated: bool
+        self, name: str, resolution: str, panel_type: str, delta_e: MetricValue, calibrated: bool
     ) -> QFrame:
         card = QFrame()
         card.setStyleSheet(f"""
@@ -240,16 +243,19 @@ class DashboardPage(QWidget):
 
         # Delta E display
         if calibrated:
-            de_color = COLORS["success"] if delta_e < 1 else COLORS["warning"] if delta_e < 2 else COLORS["error"]
+            if not isinstance(delta_e, MetricValue):
+                delta_e = _not_measured_delta_e()
+            de_color = COLORS["accent"] if delta_e.value is not None else COLORS["text_secondary"]
             de_frame = QFrame()
             de_frame.setStyleSheet(f"background-color: {COLORS['surface_alt']}; border-radius: 6px;")
             de_layout = QVBoxLayout(de_frame)
             de_layout.setContentsMargins(12, 6, 12, 6)
             de_layout.setSpacing(0)
 
-            de_value = QLabel(f"{delta_e:.2f}")
+            de_value = QLabel(delta_e.display_text())
             de_value.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {de_color};")
             de_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            de_value.setToolTip(f"Evidence source: {delta_e.source or 'Not measured'}")
             de_layout.addWidget(de_value)
 
             de_label = QLabel("Delta E")
@@ -279,23 +285,20 @@ class DashboardPage(QWidget):
         # Load calibration status from settings and calibration manager
         settings = QSettings(APP_ORGANIZATION, APP_NAME)
 
-        # Try to get real calibration data
+        # Read persisted calibration metadata without opening an actuator.
         calibration_profiles = {}
         try:
-            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
-            from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.utils.startup_manager import StartupManager
 
-            manager = PerDisplayCalibrationManager()
-            db = PanelDatabase()
-
-            for profile_data in manager.list_displays():
-                display_id = profile_data["id"]
-                profile = manager.get_display_profile(display_id)
-                panel = (
-                    db.get_panel(profile_data.get("database_match", "")) if profile_data.get("database_match") else None
-                )
-
-                calibration_profiles[display_id] = {"profile": profile, "panel": panel, "data": profile_data}
+            for state in StartupManager().get_all_calibrations().values():
+                calibration_profiles[state.display_id + 1] = {
+                    "profile": None,
+                    "panel": None,
+                    "data": {
+                        "saved_state": state,
+                        "panel_type": "",
+                    },
+                }
         except Exception:
             pass
 
@@ -333,16 +336,22 @@ class DashboardPage(QWidget):
                 panel_type = self._detect_panel_type(screen, i)
 
             # Calibration status from real profile
-            if profile and profile.is_calibrated:
+            saved_state = profile_data.get("saved_state")
+            if saved_state and (saved_state.lut_path or saved_state.icc_path):
                 is_calibrated = True
-                # Calculate Delta E based on panel type
-                delta_e = 0.27 if "OLED" in panel_type.upper() else 0.24
+                delta_e = (
+                    saved_state.delta_e_avg
+                    if isinstance(saved_state.delta_e_avg, MetricValue)
+                    else _not_measured_delta_e()
+                )
+            elif profile and profile.is_calibrated:
+                is_calibrated = True
+                delta_e = _not_measured_delta_e()
             else:
                 # Fallback to settings
                 cal_key = f"calibration/display_{i}/calibrated"
-                de_key = f"calibration/display_{i}/delta_e"
                 is_calibrated = settings.value(cal_key, False, type=bool)
-                delta_e = settings.value(de_key, 0.0, type=float)
+                delta_e = _not_measured_delta_e()
 
             # Create enhanced card with profile details
             card = self._create_display_card_enhanced(
@@ -361,7 +370,7 @@ class DashboardPage(QWidget):
         name: str,
         resolution: str,
         panel_type: str,
-        delta_e: float,
+        delta_e: MetricValue,
         calibrated: bool,
         profile=None,
         panel=None,
@@ -416,16 +425,19 @@ class DashboardPage(QWidget):
 
         # Delta E display
         if calibrated:
-            de_color = COLORS["success"] if delta_e < 1 else COLORS["warning"] if delta_e < 2 else COLORS["error"]
+            if not isinstance(delta_e, MetricValue):
+                delta_e = _not_measured_delta_e()
+            de_color = COLORS["accent"] if delta_e.value is not None else COLORS["text_secondary"]
             de_frame = QFrame()
             de_frame.setStyleSheet(f"background-color: {COLORS['surface_alt']}; border-radius: 6px;")
             de_layout = QVBoxLayout(de_frame)
             de_layout.setContentsMargins(12, 6, 12, 6)
             de_layout.setSpacing(0)
 
-            de_value = QLabel(f"{delta_e:.2f}")
+            de_value = QLabel(delta_e.display_text())
             de_value.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {de_color};")
             de_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            de_value.setToolTip(f"Evidence source: {delta_e.source or 'Not measured'}")
             de_layout.addWidget(de_value)
 
             de_label = QLabel("Delta E")
@@ -532,9 +544,11 @@ class DashboardPage(QWidget):
         self._populate_demo_data()
 
     @staticmethod
-    def mark_display_calibrated(display_index: int, delta_e: float):
-        """Mark a display as calibrated and store the delta E value."""
+    def mark_display_calibrated(display_index: int, delta_e: MetricValue):
+        """Mark a display calibrated while preserving metric provenance."""
+        if not isinstance(delta_e, MetricValue):
+            raise TypeError("delta_e must be a MetricValue")
         settings = QSettings(APP_ORGANIZATION, APP_NAME)
         settings.setValue(f"calibration/display_{display_index}/calibrated", True)
-        settings.setValue(f"calibration/display_{display_index}/delta_e", delta_e)
+        settings.setValue(f"calibration/display_{display_index}/delta_e", delta_e.to_dict())
         settings.sync()

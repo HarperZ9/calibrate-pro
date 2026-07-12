@@ -27,6 +27,7 @@ class VCGTToolsPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._pending_vcgt_source: str | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -238,156 +239,36 @@ class VCGTToolsPage(QWidget):
             self.lut_info.setStyleSheet(f"color: {COLORS['error']};")
 
     def _convert_to_vcgt(self):
-        """Convert loaded LUT to VCGT."""
+        """Defer conversion until pure exporters are separated from writers."""
         lut_path = self.lut_path.text()
         if not lut_path:
             QMessageBox.warning(self, "No LUT", "Please select a 3D LUT file first.")
             return
-
-        try:
-            from pathlib import Path
-
-            from calibrate_pro.core.lut_engine import LUT3D
-            from calibrate_pro.core.vcgt import export_vcgt_cal, export_vcgt_csv, export_vcgt_cube1d, lut3d_to_vcgt
-
-            # Load the LUT
-            lut = LUT3D.load(lut_path)
-
-            # Get output size
-            size_map = {"256 points": 256, "1024 points": 1024, "4096 points": 4096, "16384 points": 16384}
-            output_size = size_map.get(self.output_size.currentText(), 4096)
-
-            # Get method
-            method_map = {
-                "Neutral Axis (grayscale extraction)": "neutral_axis",
-                "Channel Maximum (preserve saturation)": "channel_max",
-                "Luminance Weighted (perceptual)": "luminance",
-                "Diagonal Average": "diagonal",
-            }
-            method = method_map.get(self.method_combo.currentText(), "neutral_axis")
-
-            # Convert
-            vcgt = lut3d_to_vcgt(lut.data, output_size=output_size, method=method)
-
-            # Export
-            base_path = Path(lut_path).with_suffix("")
-            exported = []
-
-            if self.export_cal.isChecked():
-                cal_path = str(base_path) + "_vcgt.cal"
-                export_vcgt_cal(vcgt, cal_path)
-                exported.append(cal_path)
-
-            if self.export_csv.isChecked():
-                csv_path = str(base_path) + "_vcgt.csv"
-                export_vcgt_csv(vcgt, csv_path)
-                exported.append(csv_path)
-
-            if self.export_cube1d.isChecked():
-                cube_path = str(base_path) + "_1d.cube"
-                export_vcgt_cube1d(vcgt, cube_path)
-                exported.append(cube_path)
-
-            # Update stats
-            import numpy as np
-
-            linear = np.linspace(0, 1, vcgt.size)
-            self.stats_max_r.setText(f"{np.max(np.abs(vcgt.red - linear)):.4f}")
-            self.stats_max_g.setText(f"{np.max(np.abs(vcgt.green - linear)):.4f}")
-            self.stats_max_b.setText(f"{np.max(np.abs(vcgt.blue - linear)):.4f}")
-            avg_dev = np.mean(
-                [
-                    np.mean(np.abs(vcgt.red - linear)),
-                    np.mean(np.abs(vcgt.green - linear)),
-                    np.mean(np.abs(vcgt.blue - linear)),
-                ]
-            )
-            self.stats_avg.setText(f"{avg_dev:.4f}")
-
-            QMessageBox.information(self, "Conversion Complete", "VCGT curves exported to:\n\n" + "\n".join(exported))
-
-        except Exception as e:
-            QMessageBox.critical(self, "Conversion Error", str(e))
+        self._pending_vcgt_source = lut_path
+        QMessageBox.information(
+            self,
+            "Conversion Deferred",
+            "No VCGT was exported or applied. Version 1.1 keeps conversion disabled until its pure exporter is isolated from display writers.",
+        )
 
     def _apply_vcgt(self):
-        """Apply VCGT to current display via Windows gamma ramp API."""
+        """Stage a VCGT source selection without applying a gamma ramp."""
         lut_path = self.lut_path.text()
         if not lut_path:
             QMessageBox.warning(self, "No LUT", "Please select and convert a 3D LUT file first.")
             return
 
-        # Confirm with user
-        reply = QMessageBox.question(
+        self._pending_vcgt_source = lut_path
+        QMessageBox.information(
             self,
-            "Apply VCGT",
-            "This will apply the VCGT gamma correction to your primary display.\n\n"
-            "The changes modify the Windows gamma ramp and will remain active "
-            "until system restart or manual reset.\n\n"
-            "Do you want to continue?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
+            "Confirmation Required",
+            "No gamma ramp was changed. Convert to a bounded VCGT asset, then review and confirm its exact apply plan.",
         )
 
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            from calibrate_pro.core.lut_engine import LUT3D
-            from calibrate_pro.core.vcgt import apply_vcgt_windows, lut3d_to_vcgt
-
-            # Load the 3D LUT
-            lut = LUT3D.load(lut_path)
-
-            # Get the conversion method from combo
-            method_map = {
-                "Neutral Axis (grayscale extraction)": "neutral_axis",
-                "Channel Maximum (preserve saturation)": "channel_max",
-                "Luminance Weighted (perceptual)": "luminance",
-                "Diagonal Average": "diagonal",
-            }
-            method = method_map.get(self.method_combo.currentText(), "neutral_axis")
-
-            # Convert 3D LUT to VCGT curves
-            vcgt = lut3d_to_vcgt(lut.data, output_size=256, method=method)
-
-            # Apply to primary display (index 0)
-            success = apply_vcgt_windows(vcgt, display_index=0)
-
-            if success:
-                QMessageBox.information(
-                    self,
-                    "VCGT Applied",
-                    "VCGT gamma correction has been applied to the primary display.\n\n"
-                    "The correction is now active. To remove it:\n"
-                    "- Use the 'Reset Gamma' button below, or\n"
-                    "- Restart your computer",
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "Application Failed",
-                    "Failed to apply VCGT. This may be due to:\n"
-                    "- Insufficient permissions\n"
-                    "- Display driver limitations\n"
-                    "- Windows color management restrictions\n\n"
-                    "Try running as Administrator.",
-                )
-
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to apply VCGT:\n\n{str(e)}")
-
     def _reset_vcgt(self):
-        """Reset display gamma to linear (remove VCGT correction)."""
-        try:
-            from calibrate_pro.core.vcgt import reset_vcgt_windows
-
-            success = reset_vcgt_windows(display_index=0)
-
-            if success:
-                QMessageBox.information(
-                    self, "Reset Complete", "Display gamma has been reset to linear (no correction)."
-                )
-            else:
-                QMessageBox.warning(self, "Reset Failed", "Failed to reset gamma ramp.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+        """Keep gamma reset behind an explicit confirmed plan."""
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No gamma ramp was reset. Review and confirm a reset plan in Calibrate.",
+        )

@@ -26,6 +26,9 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 
+_MAX_PHYSICAL_MONITORS_PER_LOGICAL_DISPLAY = 64
+_MAX_DDC_CAPABILITIES_STRING_BYTES = 64 * 1024
+
 # =============================================================================
 # DDC/CI VCP (Virtual Control Panel) Codes - VESA MCCS Standard
 # =============================================================================
@@ -393,6 +396,59 @@ class DDCCIController:
         try:
             self.dxva2 = ctypes.windll.dxva2
             self.user32 = ctypes.windll.user32
+            self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR.argtypes = [
+                wintypes.HMONITOR,
+                ctypes.POINTER(wintypes.DWORD),
+            ]
+            self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR.restype = wintypes.BOOL
+            self.dxva2.GetPhysicalMonitorsFromHMONITOR.argtypes = [
+                wintypes.HMONITOR,
+                wintypes.DWORD,
+                ctypes.POINTER(PHYSICAL_MONITOR),
+            ]
+            self.dxva2.GetPhysicalMonitorsFromHMONITOR.restype = wintypes.BOOL
+            self.dxva2.GetCapabilitiesStringLength.argtypes = [
+                wintypes.HANDLE,
+                ctypes.POINTER(wintypes.DWORD),
+            ]
+            self.dxva2.GetCapabilitiesStringLength.restype = wintypes.BOOL
+            self.dxva2.CapabilitiesRequestAndCapabilitiesReply.argtypes = [
+                wintypes.HANDLE,
+                ctypes.POINTER(ctypes.c_char),
+                wintypes.DWORD,
+            ]
+            self.dxva2.CapabilitiesRequestAndCapabilitiesReply.restype = wintypes.BOOL
+            self.dxva2.GetVCPFeatureAndVCPFeatureReply.argtypes = [
+                wintypes.HANDLE,
+                ctypes.c_ubyte,
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+                ctypes.POINTER(wintypes.DWORD),
+            ]
+            self.dxva2.GetVCPFeatureAndVCPFeatureReply.restype = wintypes.BOOL
+            self.dxva2.SetVCPFeature.argtypes = [
+                wintypes.HANDLE,
+                ctypes.c_ubyte,
+                wintypes.DWORD,
+            ]
+            self.dxva2.SetVCPFeature.restype = wintypes.BOOL
+            self.dxva2.DestroyPhysicalMonitor.argtypes = [wintypes.HANDLE]
+            self.dxva2.DestroyPhysicalMonitor.restype = wintypes.BOOL
+            monitor_enum_proc = ctypes.WINFUNCTYPE(
+                wintypes.BOOL,
+                wintypes.HMONITOR,
+                wintypes.HDC,
+                ctypes.POINTER(wintypes.RECT),
+                wintypes.LPARAM,
+            )
+            self.user32.EnumDisplayMonitors.argtypes = [
+                wintypes.HDC,
+                ctypes.POINTER(wintypes.RECT),
+                monitor_enum_proc,
+                wintypes.LPARAM,
+            ]
+            self.user32.EnumDisplayMonitors.restype = wintypes.BOOL
+            self._monitor_enum_proc_type = monitor_enum_proc
             self._available = True
         except OSError:
             self._available = False
@@ -401,6 +457,90 @@ class DDCCIController:
     def available(self) -> bool:
         """Check if DDC/CI is available on this system."""
         return self._available
+
+    @staticmethod
+    def _exception_detail(exc: BaseException) -> str:
+        return str(exc).strip() or type(exc).__name__
+
+    @staticmethod
+    def _add_exception_note(exc: BaseException, note: str) -> None:
+        add_note = getattr(exc, "add_note", None)
+        if callable(add_note):
+            add_note(note)
+
+    def _destroy_monitor_handles(self, monitors: list[dict[str, Any]]) -> list[BaseException]:
+        """Destroy owned records without forgetting a false, skipped, or uncertain close."""
+        failures: list[BaseException] = []
+        if not self._available:
+            return failures
+        for monitor in tuple(monitors):
+            handle = monitor["handle"]
+            if monitor.get("_destroy_uncertain") is True:
+                failures.append(
+                    RuntimeError(
+                        f"physical monitor handle {handle!r} has an uncertain prior destroy outcome; manual recovery is required"
+                    )
+                )
+                continue
+            native_entered: list[bool] = []
+            destroyed = False
+            try:
+                destroyed = (native_entered.append(True), bool(self.dxva2.DestroyPhysicalMonitor(handle)))[1]  # fmt: skip
+                if not destroyed:
+                    failures.append(RuntimeError(f"failed to destroy physical monitor handle {handle!r}"))
+                    continue
+                self._monitors.remove(monitor)
+            except BaseException as exc:
+                if destroyed:
+                    if monitor in self._monitors:
+                        self._monitors.remove(monitor)
+                elif native_entered:
+                    monitor["_destroy_uncertain"] = True
+                failures.append(exc)
+        return failures
+
+    def _raise_cleanup_failures(
+        self,
+        primary: BaseException | None,
+        failures: list[BaseException],
+        *,
+        context: str,
+    ) -> None:
+        control_flow = primary if primary is not None and not isinstance(primary, Exception) else None
+        if control_flow is None:
+            control_flow = next((failure for failure in failures if not isinstance(failure, Exception)), None)
+        if control_flow is not None:
+            if primary is not None and primary is not control_flow:
+                self._add_exception_note(
+                    control_flow,
+                    f"{context} also failed: {self._exception_detail(primary)}",
+                )
+            for failure in failures:
+                if failure is control_flow:
+                    continue
+                self._add_exception_note(
+                    control_flow,
+                    f"additional {context} failure: {self._exception_detail(failure)}",
+                )
+            raise control_flow
+        if primary is not None:
+            if failures:
+                details = "; ".join(self._exception_detail(failure) for failure in failures)
+                raise RuntimeError(f"{self._exception_detail(primary)}; {context} failed: {details}") from primary
+            raise primary
+        if failures:
+            first = failures[0]
+            details = "; ".join(self._exception_detail(failure) for failure in failures)
+            raise RuntimeError(details) from first
+
+    @staticmethod
+    def _build_monitor_record(hmonitor: object, physical_monitor: PHYSICAL_MONITOR) -> dict[str, Any]:
+        return {
+            "handle": physical_monitor.hPhysicalMonitor,
+            "name": physical_monitor.szPhysicalMonitorDescription,
+            "hmonitor": hmonitor,
+            "capabilities": None,
+        }
 
     def enumerate_monitors(self) -> list[dict[str, Any]]:
         """
@@ -412,43 +552,98 @@ class DDCCIController:
         if not self._available:
             return []
 
-        self._monitors = []
+        self.close()
 
         # Callback for EnumDisplayMonitors
-        MONITORENUMPROC = ctypes.WINFUNCTYPE(
-            wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC, ctypes.POINTER(wintypes.RECT), wintypes.LPARAM
+        MONITORENUMPROC = getattr(
+            self,
+            "_monitor_enum_proc_type",
+            ctypes.WINFUNCTYPE(
+                wintypes.BOOL,
+                wintypes.HMONITOR,
+                wintypes.HDC,
+                ctypes.POINTER(wintypes.RECT),
+                wintypes.LPARAM,
+            ),
         )
 
+        callback_failure: BaseException | None = None
+        pending_native_batches: list[list[object]] = []
+
         def monitor_callback(hMonitor, hdcMonitor, lprcMonitor, dwData):
+            nonlocal callback_failure
             try:
                 # Get number of physical monitors
                 num_physical = wintypes.DWORD()
-                if self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, ctypes.byref(num_physical)):
-                    # Get physical monitor handles
-                    physical_monitors = (PHYSICAL_MONITOR * num_physical.value)()
-                    if self.dxva2.GetPhysicalMonitorsFromHMONITOR(hMonitor, num_physical.value, physical_monitors):
-                        for pm in physical_monitors:
-                            monitor_info = {
-                                "handle": pm.hPhysicalMonitor,
-                                "name": pm.szPhysicalMonitorDescription,
-                                "hmonitor": hMonitor,
-                                "capabilities": None,
-                            }
+                if not self.dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, ctypes.byref(num_physical)):
+                    raise RuntimeError("failed to count physical monitors for a logical display")
 
-                            # Try to get capabilities
-                            try:
-                                caps = self._get_capabilities(pm.hPhysicalMonitor)
-                                monitor_info["capabilities"] = caps
-                            except OSError:
-                                pass
+                physical_monitor_count = int(num_physical.value)
+                if not 1 <= physical_monitor_count <= _MAX_PHYSICAL_MONITORS_PER_LOGICAL_DISPLAY:
+                    raise RuntimeError(
+                        "invalid physical monitor count "
+                        f"{physical_monitor_count}; expected 1..{_MAX_PHYSICAL_MONITORS_PER_LOGICAL_DISPLAY}"
+                    )
 
-                            self._monitors.append(monitor_info)
-            except OSError:
-                pass
+                physical_monitors = (PHYSICAL_MONITOR * physical_monitor_count)()
+                if not self.dxva2.GetPhysicalMonitorsFromHMONITOR(
+                    hMonitor,
+                    physical_monitor_count,
+                    physical_monitors,
+                ):
+                    raise RuntimeError("failed to acquire physical monitor handles for a logical display")
+
+                native_handles = [physical_monitor.hPhysicalMonitor for physical_monitor in physical_monitors]
+                pending_native_batches.append(native_handles)
+                acquired = [
+                    self._build_monitor_record(hMonitor, physical_monitor) for physical_monitor in physical_monitors
+                ]
+                self._monitors.extend(acquired)
+                pending_native_batches.remove(native_handles)
+
+                for monitor_info in acquired:
+                    try:
+                        monitor_info["capabilities"] = self._get_capabilities(monitor_info["handle"])
+                    except OSError:
+                        # Capability text is optional; ownership of the handle is not.
+                        pass
+            except BaseException as exc:
+                if "physical_monitors" in locals():
+                    batch = [physical_monitor.hPhysicalMonitor for physical_monitor in physical_monitors]
+                    if batch and batch not in pending_native_batches:
+                        registered = [monitor["handle"] for monitor in self._monitors]
+                        if any(handle not in registered for handle in batch):
+                            pending_native_batches.append(batch)
+                callback_failure = exc
+                return False
             return True
 
         callback = MONITORENUMPROC(monitor_callback)
-        self.user32.EnumDisplayMonitors(None, None, callback, 0)
+        try:
+            enumeration_succeeded = bool(self.user32.EnumDisplayMonitors(None, None, callback, 0))
+        except BaseException as exc:
+            callback_failure = callback_failure or exc
+            enumeration_succeeded = False
+
+        if callback_failure is not None or not enumeration_succeeded:
+            failure = callback_failure or RuntimeError("EnumDisplayMonitors failed")
+            registered_handles = [monitor["handle"] for monitor in self._monitors]
+            for batch in pending_native_batches:
+                for handle in batch:
+                    if handle not in registered_handles:
+                        self._monitors.append({"handle": handle, "_cleanup_only": True})
+                        registered_handles.append(handle)
+            cleanup_failures: list[BaseException] = []
+            try:
+                self.close()
+            except BaseException as cleanup_error:
+                cleanup_failures.append(cleanup_error)
+            self._raise_cleanup_failures(
+                failure,
+                cleanup_failures,
+                context="DDC/CI enumeration cleanup",
+            )
+            raise AssertionError("DDC/CI enumeration failure did not propagate")
 
         return self._monitors
 
@@ -461,9 +656,16 @@ class DDCCIController:
         if not self.dxva2.GetCapabilitiesStringLength(handle, ctypes.byref(caps_len)):
             return caps
 
+        capabilities_length = int(caps_len.value)
+        if not 1 <= capabilities_length <= _MAX_DDC_CAPABILITIES_STRING_BYTES:
+            raise RuntimeError(
+                "invalid DDC/CI capabilities string length "
+                f"{capabilities_length}; expected 1..{_MAX_DDC_CAPABILITIES_STRING_BYTES} bytes"
+            )
+
         # Get capabilities string
-        caps_str = ctypes.create_string_buffer(caps_len.value + 1)
-        if not self.dxva2.CapabilitiesRequestAndCapabilitiesReply(handle, caps_str, caps_len.value):
+        caps_str = ctypes.create_string_buffer(capabilities_length + 1)
+        if not self.dxva2.CapabilitiesRequestAndCapabilitiesReply(handle, caps_str, capabilities_length):
             return caps
 
         caps.raw_capabilities = caps_str.value.decode("ascii", errors="ignore")
@@ -548,7 +750,14 @@ class DDCCIController:
             time.sleep((self._MIN_COMMAND_INTERVAL_MS - elapsed) / 1000.0)
         self._last_command_time = time.time() * 1000
 
-    def get_vcp(self, monitor: dict, code: VCPCode, retries: int = 3) -> tuple[int, int]:
+    def get_vcp(
+        self,
+        monitor: dict,
+        code: VCPCode,
+        retries: int = 3,
+        *,
+        allow_wmi_fallback: bool = True,
+    ) -> tuple[int, int]:
         """
         Get VCP value from monitor with retry logic.
 
@@ -583,14 +792,22 @@ class DDCCIController:
                 time.sleep(0.1 * (attempt + 1))
 
         # Fallback: WMI for brightness
-        if code == VCPCode.BRIGHTNESS:
+        if allow_wmi_fallback and code == VCPCode.BRIGHTNESS:
             wmi_val = self._get_brightness_wmi(monitor)
             if wmi_val is not None:
                 return (wmi_val, 100)
 
         raise RuntimeError(f"Failed to get VCP code 0x{code:02X}")
 
-    def set_vcp(self, monitor: dict, code: VCPCode, value: int, retries: int = 3) -> bool:
+    def set_vcp(
+        self,
+        monitor: dict,
+        code: VCPCode,
+        value: int,
+        retries: int = 3,
+        *,
+        allow_wmi_fallback: bool = True,
+    ) -> bool:
         """
         Set VCP value on monitor with retry logic.
 
@@ -625,7 +842,7 @@ class DDCCIController:
                 time.sleep(0.1 * (attempt + 1))
 
         # Fallback: WMI for brightness
-        if code == VCPCode.BRIGHTNESS:
+        if allow_wmi_fallback and code == VCPCode.BRIGHTNESS:
             return self._set_brightness_wmi(value)
 
         return False
@@ -1077,13 +1294,8 @@ class DDCCIController:
 
     def close(self):
         """Release monitor handles."""
-        if self._available:
-            for monitor in self._monitors:
-                try:
-                    self.dxva2.DestroyPhysicalMonitor(monitor["handle"])
-                except OSError:
-                    pass
-        self._monitors = []
+        failures = self._destroy_monitor_handles(list(self._monitors))
+        self._raise_cleanup_failures(None, failures, context="physical monitor cleanup")
 
 
 # =============================================================================

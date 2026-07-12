@@ -284,11 +284,15 @@ reducing ambiguity:
 3. **Preview:** show target white point, gamma, gamut, proposed DDC changes, and
    output files before modifying the display.
 4. **Apply:** require a deliberate action, show progress, and retain the prior
-   state needed for restoration. One injected Windows adapter is the sole
+   state needed for restoration. In the release architecture, one injected Windows adapter is the sole
    application-level importer of DDC, ICC, VCGT, DWM LUT, and elevation writers.
    DDC sliders, profiles, HDR controls, tray actions, restore-default actions,
    and services submit preview plans to the same one-use confirmation boundary;
-   the 1.1 calibration monitor may notify but never reapply automatically.
+   the production adapter additionally consumes one opaque coordinator-issued
+   authorization before capture, and the 1.1 calibration monitor may notify but
+   never reapply automatically. Task 6 supplies this transaction boundary; legacy
+   callers remain explicitly non-release-safe until Task 8 removes every bypass and
+   whole-process elevation path.
 5. **Verify:** present measured Delta E only for actual instrument readings;
    otherwise present model diagnostics explicitly as estimates.
 6. **Save/Report:** save ICC/LUT/report outputs with mode and provenance
@@ -302,10 +306,67 @@ replaces the current Windows/macOS wording.
 
 Errors use a typed category, plain-language summary, technical detail for logs,
 and a next action. Hardware and operating-system failures never become a
-successful calibration result. Application of a correction is transactional at
-the workflow level: capture restorable state, attempt the change, verify the
-reported outcome, and restore on failure where the platform adapter supports
-restoration.
+successful calibration result. Application uses ordered in-process compensating
+recovery: authoritatively capture every requested domain, materialize and parse
+the exact confirmed asset bytes, attempt the change, read the state back, and on
+failure attempt restoration plus a second authoritative readback. This is not a
+durable transaction: process termination, power loss, or operating-system failure
+can interrupt compensation. The UI and every receipt label the guarantee
+`IN_PROCESS_BEST_EFFORT`; a future crash-safe guarantee requires a separately
+designed write-ahead journal and startup-recovery lifecycle.
+
+Restoration accepts only the object-identical snapshot retained by the adapter's
+active authorized transaction, and private deep-copy/digest seals prevent mutation
+of that same object or confirmed plan from altering a writer. Constructed, copied,
+substituted, mutated, completed, and standalone snapshots cannot invoke a writer.
+Capability callbacks see only an isolated probe; callback/caller mutation is detected,
+the writer receives another private plan copy, and one full-apply lock prevents
+concurrent authorization handoffs from inverting the one-slot closure.
+Every Windows adapter requires a coordinator-closure authorization regardless of
+the concrete ports type and defaults to the process-plus-global mutex; arbitrary
+same-process Python reflection remains trusted. Verification retains every mutex;
+only a separate commit releases them. An abandoned mutex persistently poisons its
+process-wide key, and a partially released lease poisons the adapter and forbids
+compensation under uncertain ownership.
+ICC files named `calibrate-pro-{sha256}.icc` use a reserved, content-addressed,
+non-overwriting cache namespace. A digest-scoped global mutex and native
+no-write/no-delete-share read lease protect bounded-byte activation and repeated stable
+readback. The held handle proves the exact object used is at the final path, is a regular
+non-reparse disk file with exactly one link, and contains the expected bytes at each
+validation point. Those checks reject currently observed aliases; they do not prove
+creator/ACL provenance or post-lease filesystem immutability, and later drift is rejected
+before reuse. System-wide WCS enumeration captures and revalidates installation and
+per-display association, while sized WCS queries capture and restore the persistent
+default. Exact prior name, bytes, and digest are recaptured immediately before activation.
+Compensation withholds writes when its authoritative pre-write comparison already shows
+a third state, restores a recognized transaction target to the prior default, reconciles
+target association, and reads completed writes back. The mutex serializes cooperating
+Calibrate Pro transactions only; WCS provides no atomic compare-and-swap against unrelated
+external post-comparison writers. Registration, association, and default selection are
+separate reconciled effects. Compensation never transactionally deletes the cache file;
+legacy install/uninstall holds one delete-capable verified handle across native
+registration/unregistration, revalidation, exact-object failure cleanup, and delete
+disposition. It also refuses Win32-equivalent cache aliases pending a separately designed
+collector. DDC capture retains the stable PnP/interface identity and complete
+current/maximum reading; every read, write, verification, and compensation binds that path
+to the freshly selected physical handle, rejects already-observed identity or maximum
+drift, and disables WMI fallback. Every handle is registered before optional capability
+parsing. Each cleanup pass attempts every eligible recorded destroy at most once, and
+remaining destroys are still attempted after a failure. False or pre-call-interrupted
+destroys remain registered for explicit retry; uncertain native-call outcomes remain
+registered and poisoned against a possible double destroy. Failures are surfaced, and
+only successful native destroys are claimed closed. Every DXVA2 call used by that path has
+an explicit pointer-sized ctypes contract. VCGT uses typed GDI32 display-DC calls; failed
+or cancelled DC release is not reported as success.
+
+ICC and DWM inputs are capped at 64 MiB and VCGT at 16 MiB before parser allocation.
+Snapshot sealing, phase publication, and the verified-to-commit handoff remain
+cleanup-protected. While ownership remains recorded, `KeyboardInterrupt` and `SystemExit`
+are deferred while every applicable compensation domain and recorded release is attempted,
+then the original cancellation is re-raised with recovery notes. After commit releases
+ownership, state is cleared without unsafe unlocked compensation. Cleanup failures are
+surfaced and may poison the transaction; successful cleanup is not guaranteed. These are
+resource and in-process recovery guarantees, not crash-safe rollback.
 
 The GUI must remain usable when optional capabilities are absent. For example,
 an absent colorimeter disables the measured path but leaves sensorless profile
