@@ -85,7 +85,7 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
 
     assert "windows-candidate:" in text
     assert "runs-on: windows-2022" in text
-    assert 'python-version: "3.12.10"' in text
+    assert "cpython-3.12.10-amd64-installer" in windows
     assert "scripts/build_windows.ps1" in text
     assert "scripts/verify_reproducibility.ps1" in text
     assert "windows-release-candidate" in text
@@ -98,7 +98,29 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
     assert "pytest==9.0.3" in windows
     assert windows.index("--require-hashes") < windows.index("pytest==9.0.3")
     assert windows.index("pytest==9.0.3") < windows.index("scripts/build_windows.ps1")
-    assert re.search(r"(?m)^\s*python -m pytest -q\s*$", build_script)
+    assert re.search(r"(?m)^\s*& \$hostPython -m pytest -q\s*$", build_script)
+
+
+def test_windows_candidate_builds_with_the_hash_locked_official_cpython_runtime() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    windows = text.split("\n  windows-candidate:\n", 1)[1].split("\n  verify-publish-assets:\n", 1)[0]
+    build_script = WINDOWS_BUILD.read_text(encoding="utf-8")
+
+    assert "actions/setup-python@" not in windows
+    assert "packaging/binary-provenance.lock.json" in windows
+    assert "cpython-3.12.10-amd64-installer" in windows
+    assert "Invoke-WebRequest -Uri $pythonEntry.artifact_url" in windows
+    assert "$pythonEntry.sha256" in windows
+    assert "Get-AuthenticodeSignature -LiteralPath $pythonInstaller" in windows
+    assert "Start-Process -FilePath $pythonInstaller" in windows
+    assert "'libcrypto-3.dll', 'libssl-3.dll'" in windows
+    assert "libcrypto-3-x64.dll" not in windows
+    assert "libssl-3-x64.dll" not in windows
+    assert '"CALIBRATE_PRO_RELEASE_PYTHON=$python"' in windows
+    assert "& $env:CALIBRATE_PRO_RELEASE_PYTHON -m pip" in windows
+    assert "$env:CALIBRATE_PRO_RELEASE_PYTHON" in build_script
+    assert "& $hostPython -m pytest -q" in build_script
+    assert "& $hostPython -m venv $venvRoot" in build_script
 
 
 def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows() -> None:

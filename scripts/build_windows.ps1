@@ -17,6 +17,13 @@ $toolchainPath = Join-Path $repoRoot 'packaging\toolchain-win64.json'
 $lockPath = Join-Path $repoRoot 'packaging\requirements-win64-py312.lock'
 $toolchain = Get-Content -Raw -LiteralPath $toolchainPath | ConvertFrom-Json
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+$hostPython = if ([string]::IsNullOrWhiteSpace($env:CALIBRATE_PRO_RELEASE_PYTHON)) {
+    $command = Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    [IO.Path]::GetFullPath($command.Source)
+}
+else {
+    [IO.Path]::GetFullPath($env:CALIBRATE_PRO_RELEASE_PYTHON)
+}
 $callerOwnsOutput = -not [string]::IsNullOrWhiteSpace($OutputRoot)
 $venvRoot = Join-Path $tempRoot ('calibrate-pro-venv-' + [guid]::NewGuid().ToString('N'))
 $temporaryOutput = $false
@@ -83,10 +90,11 @@ foreach ($name in @('SOURCE_DATE_EPOCH', 'PYTHONHASHSEED', 'PYTHONUTF8', 'TZ', '
 
 try {
     if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitProcess) { throw 'Windows x64 is required' }
+    if (-not (Test-Path -LiteralPath $hostPython -PathType Leaf)) { throw "Release Python does not exist: $hostPython" }
     if ($SkipSourceProvenance -and (-not $Unsigned -or -not $SkipInstaller)) {
         throw 'Source provenance may be skipped only for unsigned installer-free reproducibility builds'
     }
-    $hostVersion = (& python -c "import platform; print(platform.python_version())").Trim()
+    $hostVersion = (& $hostPython -c "import platform; print(platform.python_version())").Trim()
     if ($hostVersion -ne [string]$toolchain.python) { throw "Python $($toolchain.python) is required; found $hostVersion" }
 
     $env:SOURCE_DATE_EPOCH = [string]$toolchain.source_date_epoch
@@ -123,10 +131,10 @@ try {
             }
         }
 
-        python -m pytest -q
+        & $hostPython -m pytest -q
         if ($LASTEXITCODE -ne 0) { throw 'Source verification failed' }
 
-        python -m venv $venvRoot
+        & $hostPython -m venv $venvRoot
         $releasePython = Join-Path $venvRoot 'Scripts\python.exe'
         & $releasePython -m pip install --require-hashes -r $lockPath
         if ($LASTEXITCODE -ne 0) { throw 'Hash-locked dependency installation failed' }

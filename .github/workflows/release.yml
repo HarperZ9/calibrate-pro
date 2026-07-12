@@ -61,13 +61,52 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.12.10"
+      - name: Install the hash-locked official CPython release runtime
+        shell: pwsh
+        run: |
+          $binaryLock = Get-Content -Raw -LiteralPath 'packaging/binary-provenance.lock.json' | ConvertFrom-Json
+          $pythonEntries = @(
+            $binaryLock.components | Where-Object { $_.name -eq 'cpython-3.12.10-amd64-installer' }
+          )
+          if ($pythonEntries.Count -ne 1) { throw "Expected exactly one locked CPython installer; found $($pythonEntries.Count)" }
+          $pythonEntry = $pythonEntries[0]
+          if ($pythonEntry.version -ne '3.12.10' -or $pythonEntry.artifact_type -ne 'exe') {
+            throw 'The locked CPython release runtime does not match the approved toolchain'
+          }
+          $pythonUri = [Uri]$pythonEntry.artifact_url
+          if ($pythonUri.Scheme -ne 'https' -or @($pythonEntry.allowed_final_hosts) -notcontains $pythonUri.Host) {
+            throw "The locked CPython installer URL is not an approved HTTPS origin: $pythonUri"
+          }
+          $pythonInstaller = Join-Path $env:RUNNER_TEMP ([string]$pythonEntry.filename)
+          $pythonRoot = Join-Path $env:RUNNER_TEMP 'python-3.12.10-official'
+          Invoke-WebRequest -Uri $pythonEntry.artifact_url -MaximumRedirection 0 -OutFile $pythonInstaller
+          $actualHash = (Get-FileHash -LiteralPath $pythonInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne [string]$pythonEntry.sha256) { throw "Unexpected CPython installer hash: $actualHash" }
+          $signature = Get-AuthenticodeSignature -LiteralPath $pythonInstaller
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Python Software Foundation') {
+            throw "CPython installer signature is not valid for the Python Software Foundation: $($signature.Status)"
+          }
+          $pythonInstall = Start-Process -FilePath $pythonInstaller `
+            -ArgumentList @(
+              '/quiet', 'InstallAllUsers=0', "TargetDir=$pythonRoot", 'Include_launcher=0',
+              'InstallLauncherAllUsers=0', 'Include_test=0', 'Include_doc=0', 'Shortcuts=0',
+              'AssociateFiles=0', 'PrependPath=0', 'AppendPath=0'
+            ) -Wait -PassThru -WindowStyle Hidden
+          if ($pythonInstall.ExitCode -ne 0) { throw "CPython installation failed: $($pythonInstall.ExitCode)" }
+          $python = Join-Path $pythonRoot 'python.exe'
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'The official CPython runtime was not installed' }
+          $actualVersion = (& $python -c 'import platform; print(platform.python_version())').Trim()
+          if ($actualVersion -ne [string]$pythonEntry.version) { throw "Unexpected CPython runtime version: $actualVersion" }
+          foreach ($runtimeName in @('libcrypto-3.dll', 'libssl-3.dll')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $pythonRoot "DLLs\$runtimeName") -PathType Leaf)) {
+              throw "The official CPython runtime is missing its classified OpenSSL library: $runtimeName"
+            }
+          }
+          "CALIBRATE_PRO_RELEASE_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Install the pinned host verification environment
         run: |
-          python -m pip install --disable-pip-version-check --require-hashes -r packaging/requirements-win64-py312.lock
-          python -m pip install --disable-pip-version-check pytest==9.0.3
+          & $env:CALIBRATE_PRO_RELEASE_PYTHON -m pip install --disable-pip-version-check --require-hashes -r packaging/requirements-win64-py312.lock
+          & $env:CALIBRATE_PRO_RELEASE_PYTHON -m pip install --disable-pip-version-check pytest==9.0.3
       - name: Install the pinned Inno Setup compiler
         shell: pwsh
         run: |
