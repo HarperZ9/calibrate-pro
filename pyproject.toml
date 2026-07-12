@@ -75,6 +75,7 @@ show_missing = true
 
 [tool.mypy]
 python_version = "3.10"
+platform = "win32"
 files = ["calibrate_pro"]
 # External native/GUI libraries (hidapi, PySide6, pystray, pyobjc, win32) ship no type
 # stubs; ignore their missing imports rather than vendor stubs.

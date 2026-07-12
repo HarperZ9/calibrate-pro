@@ -739,10 +739,10 @@ class ICCProfile:
 
         md5_hash = hashlib.md5(bytes(profile_for_hash)).digest()
 
-        profile = bytearray(profile)
-        profile[84:100] = md5_hash
+        profile_with_id = bytearray(profile)
+        profile_with_id[84:100] = md5_hash
 
-        return bytes(profile)
+        return bytes(profile_with_id)
 
     def save(self, path: str | Path):
         """Save profile to file."""

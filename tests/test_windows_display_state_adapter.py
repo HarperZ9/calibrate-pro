@@ -5078,10 +5078,12 @@ def _opcode_offset(function: object, predicate: object) -> int:
     return matches[-1]
 
 
-_OPCODE_MONITOR_TOOL_ID = sys.monitoring.OPTIMIZER_ID
+_OPCODE_MONITOR_TOOL_ID = getattr(getattr(sys, "monitoring", None), "OPTIMIZER_ID", None)
 
 
 def _clear_opcode_interrupt() -> None:
+    if _OPCODE_MONITOR_TOOL_ID is None:
+        return
     try:
         sys.monitoring.set_events(_OPCODE_MONITOR_TOOL_ID, 0)
         sys.monitoring.register_callback(
@@ -5095,6 +5097,8 @@ def _clear_opcode_interrupt() -> None:
 
 
 def _interrupt_at_opcode(function: object, offset: int, interruption: BaseException) -> None:
+    if _OPCODE_MONITOR_TOOL_ID is None:
+        pytest.skip("opcode-level cancellation injection requires sys.monitoring (Python 3.12+)")
     code = function.__code__  # type: ignore[attr-defined]
     _clear_opcode_interrupt()
     sys.monitoring.use_tool_id(_OPCODE_MONITOR_TOOL_ID, "calibrate-pro opcode ownership tests")
@@ -5123,6 +5127,8 @@ def _interrupt_at_opcode_after_event(
     entered: threading.Event,
 ) -> None:
     """Raise at one ownership boundary only after the native worker is in flight."""
+    if _OPCODE_MONITOR_TOOL_ID is None:
+        pytest.skip("opcode-level cancellation injection requires sys.monitoring (Python 3.12+)")
     code = function.__code__  # type: ignore[attr-defined]
     _clear_opcode_interrupt()
     sys.monitoring.use_tool_id(_OPCODE_MONITOR_TOOL_ID, "calibrate-pro in-flight ownership tests")
