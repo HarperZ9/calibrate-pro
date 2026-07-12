@@ -120,8 +120,10 @@ excludes = sorted(generated_excludes | fixed_excludes)
 # Qt's generic GUI hook collects optional format, software-renderer, PDF, SVG,
 # and virtual-keyboard plugins. Calibrate Pro's frozen widgets surface uses
 # PNG/ICO assets and QPrinter PDF output; it does not import those optional
-# modules or formats. Keep the redistribution graph equal to that approved
-# runtime surface instead of silently shipping unrelated native components.
+# modules or formats. The Windows target uses Schannel, so omit the OpenSSL TLS
+# plugin rather than letting it discover unprovenanced DLLs from a user's PATH.
+# Keep the redistribution graph equal to that approved runtime surface instead
+# of silently shipping unrelated native components.
 unused_qt_binaries = {
     "PySide6/opengl32sw.dll",
     "PySide6/Qt6Pdf.dll",
@@ -141,6 +143,7 @@ unused_qt_binaries = {
     "PySide6/plugins/imageformats/qwbmp.dll",
     "PySide6/plugins/imageformats/qwebp.dll",
     "PySide6/plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
+    "PySide6/plugins/tls/qopensslbackend.dll",
 }
 unused_system_binaries = {"ucrtbase.dll"}
 unused_system_binary_prefixes = ("api-ms-win-",)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 import json
+import os
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,6 +171,7 @@ def test_spec_prunes_the_unused_virtual_keyboard_qml_binary_chain() -> None:
         "PySide6/plugins/imageformats/qwbmp.dll",
         "PySide6/plugins/imageformats/qwebp.dll",
         "PySide6/plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
+        "PySide6/plugins/tls/qopensslbackend.dll",
     }
     assert _literal_set_assignment("unused_system_binaries") == {"ucrtbase.dll"}
     assert _literal_tuple_assignment("unused_system_binary_prefixes") == ("api-ms-win-",)
@@ -179,3 +182,19 @@ def test_spec_prunes_the_unused_virtual_keyboard_qml_binary_chain() -> None:
     assert 'entry[0].replace("\\\\", "/") not in unused_qt_binaries' in source
     assert 'not entry[0].replace("\\\\", "/").startswith(unused_system_binary_prefixes)' in source
     assert 'not entry[0].replace("\\\\", "/").startswith(unused_qt_data_prefixes)' in source
+
+
+def test_frozen_runtime_forces_windows_schannel_and_excludes_qt_openssl(
+    monkeypatch,
+) -> None:
+    hook = ROOT / "packaging" / "pyi_rth_qt_api.py"
+    monkeypatch.setenv("QT_API", "unexpected")
+    monkeypatch.setenv("QT_TLS_BACKEND", "openssl")
+
+    runpy.run_path(str(hook))
+
+    assert os.environ["QT_API"] == "pyside6"
+    assert os.environ["QT_TLS_BACKEND"] == "schannel"
+    for policy_name in ("components-win64.json", "qt-components.json"):
+        policy = json.loads((ROOT / "packaging" / policy_name).read_text(encoding="utf-8"))
+        assert "qopensslbackend.dll" not in json.dumps(policy).casefold()

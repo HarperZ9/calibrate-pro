@@ -51,6 +51,31 @@ function Assert-SafeTemporaryPath([string]$Path, [string[]]$Prefixes) {
     }
 }
 
+function Get-ProvenanceSafePyInstallerPath([string]$ReleasePython, [string]$BasePrefix) {
+    $candidates = @(
+        (Split-Path $ReleasePython -Parent),
+        $BasePrefix,
+        (Join-Path $BasePrefix 'DLLs'),
+        $env:SystemRoot,
+        (Join-Path $env:SystemRoot 'System32')
+    )
+    $trusted = [Collections.Generic.List[string]]::new()
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($candidate in $candidates) {
+        $resolved = [IO.Path]::GetFullPath($candidate).TrimEnd('\')
+        if (-not (Test-Path -LiteralPath $resolved -PathType Container)) {
+            throw "Required PyInstaller search directory does not exist: $resolved"
+        }
+        foreach ($ambientName in @('libcrypto-3-x64.dll', 'libssl-3-x64.dll')) {
+            if (Test-Path -LiteralPath (Join-Path $resolved $ambientName) -PathType Leaf) {
+                throw "Unapproved ambient OpenSSL library in the PyInstaller search path: $resolved\$ambientName"
+            }
+        }
+        if ($seen.Add($resolved)) { $trusted.Add($resolved) }
+    }
+    return [string]::Join([IO.Path]::PathSeparator, $trusted)
+}
+
 function Sign-One([string]$Path) {
     if ($Unsigned) { return }
     $signTool = $env:CALIBRATE_PRO_SIGNTOOL
@@ -136,6 +161,10 @@ try {
 
         & $hostPython -m venv $venvRoot
         $releasePython = Join-Path $venvRoot 'Scripts\python.exe'
+        $releaseBasePrefix = (& $releasePython -I -c "import sys; print(sys.base_prefix)").Trim()
+        if (-not (Test-Path -LiteralPath $releaseBasePrefix -PathType Container)) {
+            throw "Release Python base prefix does not exist: $releaseBasePrefix"
+        }
         & $releasePython -m pip install --require-hashes -r $lockPath
         if ($LASTEXITCODE -ne 0) { throw 'Hash-locked dependency installation failed' }
         & $releasePython -m pip check
@@ -178,10 +207,32 @@ try {
 
         $buildDir = Join-Path $OutputRoot 'build'
         $distDir = Join-Path $OutputRoot 'dist'
-        & $releasePython -m PyInstaller --clean --noconfirm --workpath $buildDir --distpath $distDir 'calibrate-pro.spec'
-        if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
+        $savedPyInstallerPath = $env:PATH
+        try {
+            $env:PATH = Get-ProvenanceSafePyInstallerPath $releasePython $releaseBasePrefix
+            & $releasePython -m PyInstaller --clean --noconfirm --workpath $buildDir --distpath $distDir 'calibrate-pro.spec'
+            if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
+        }
+        finally {
+            $env:PATH = $savedPyInstallerPath
+        }
 
         $stagedDir = Join-Path $distDir 'CalibratePro'
+        foreach ($runtimeName in @('libcrypto-3.dll', 'libssl-3.dll')) {
+            $hostOpenSsl = Join-Path $releaseBasePrefix "DLLs\$runtimeName"
+            $stagedOpenSsl = Join-Path $stagedDir "_internal\$runtimeName"
+            if (-not (Test-Path -LiteralPath $hostOpenSsl -PathType Leaf)) {
+                throw "Selected CPython runtime is missing its classified OpenSSL library: $hostOpenSsl"
+            }
+            if (-not (Test-Path -LiteralPath $stagedOpenSsl -PathType Leaf)) {
+                throw "Frozen application is missing its classified OpenSSL library: $stagedOpenSsl"
+            }
+            $hostOpenSslHash = (Get-FileHash -LiteralPath $hostOpenSsl -Algorithm SHA256).Hash
+            $stagedOpenSslHash = (Get-FileHash -LiteralPath $stagedOpenSsl -Algorithm SHA256).Hash
+            if ($stagedOpenSslHash -ne $hostOpenSslHash) {
+                throw "Staged OpenSSL library does not match the selected CPython runtime: $runtimeName"
+            }
+        }
         $releaseDir = Join-Path $OutputRoot 'release'
         New-Item -ItemType Directory -Path $releaseDir | Out-Null
         Copy-Item -LiteralPath $wheel[0].FullName -Destination $releaseDir
