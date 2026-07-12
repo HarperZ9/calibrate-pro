@@ -7,9 +7,11 @@ import json
 import os
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import scripts.release_artifacts as release_artifacts
 from scripts.release_artifacts import (
     audit_analysis_toc,
     audit_staged_tree,
@@ -42,6 +44,42 @@ def test_probe_authenticode_passes_target_and_handles_missing_certificates(tmp_p
     assert signature["SignerThumbprint"] is None
     assert signature["SignerSubject"] is None
     assert signature["TimestampThumbprint"] is None
+
+
+def test_probe_authenticode_uses_inbox_security_module_and_sanitizes_module_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "unsigned.exe"
+    target.write_bytes(b"MZ\x00\x00")
+    captured: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> object:
+        captured["command"] = command
+        captured["environment"] = kwargs["env"]
+        return SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "Status": "NotSigned",
+                    "SignerThumbprint": None,
+                    "SignerSubject": None,
+                    "TimestampThumbprint": None,
+                }
+            )
+        )
+
+    monkeypatch.setenv("PSModulePath", "poisoned-by-parent-shell")
+    monkeypatch.setattr(release_artifacts.subprocess, "run", fake_run)
+
+    probe_authenticode(target)
+
+    command = captured["command"]
+    environment = captured["environment"]
+    assert isinstance(command, list)
+    assert isinstance(environment, dict)
+    assert "$PSHOME" in command[-1]
+    assert "Microsoft.PowerShell.Security.psd1" in command[-1]
+    assert "PSModulePath" not in environment
 
 
 def _write_json(path: Path, payload: object) -> Path:

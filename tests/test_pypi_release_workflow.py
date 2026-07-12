@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 WINDOWS_BUILD = ROOT / "scripts" / "build_windows.ps1"
+PYPROJECT = ROOT / "pyproject.toml"
 
 
 def test_release_workflow_uses_oidc_and_an_explicit_publish_gate() -> None:
@@ -112,6 +113,16 @@ def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows(
     assert '-m "not windows"' in linux
     assert "if: runner.os == 'Windows'" in windows
     assert '-m "not windows"' not in windows
+
+
+def test_ci_pins_static_analysis_and_type_checks_the_windows_target() -> None:
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    pyproject = PYPROJECT.read_text(encoding="utf-8")
+
+    assert "ruff==0.15.21" in text
+    assert "mypy==2.2.0" in text
+    assert "mypy --platform win32" in text
+    assert 'platform = "win32"' in pyproject
 
 
 def test_automation_resolves_public_dependencies_without_git_installs() -> None:

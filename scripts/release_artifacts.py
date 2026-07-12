@@ -725,6 +725,9 @@ def probe_authenticode(path: str | Path) -> dict[str, Any]:
     target = Path(path).resolve()
     script = (
         "$ErrorActionPreference = 'Stop'; "
+        "$securityModule = Join-Path $PSHOME "
+        "'Modules\\Microsoft.PowerShell.Security\\Microsoft.PowerShell.Security.psd1'; "
+        "Import-Module -Name $securityModule -Force -ErrorAction Stop; "
         "$target = $env:CALIBRATE_PRO_AUTHENTICODE_TARGET; "
         "if ([string]::IsNullOrWhiteSpace($target)) { throw 'missing Authenticode target' }; "
         "$signature = Get-AuthenticodeSignature -LiteralPath $target; "
@@ -739,6 +742,7 @@ def probe_authenticode(path: str | Path) -> dict[str, Any]:
         "TimestampThumbprint=$timestampThumbprint} | ConvertTo-Json -Compress"
     )
     environment = os.environ.copy()
+    environment.pop("PSModulePath", None)
     environment["CALIBRATE_PRO_AUTHENTICODE_TARGET"] = str(target)
     completed = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
