@@ -51,4 +51,6 @@ jobs:
         run: pytest tests/ -q -m "not windows" --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=15
       - name: Run complete Windows tests with coverage
         if: runner.os == 'Windows'
+        env:
+          COVERAGE_CORE: ${{ matrix.python-version == '3.12' && 'sysmon' || 'ctrace' }}
         run: pytest tests/ -q --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=15
