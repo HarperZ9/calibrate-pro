@@ -44,6 +44,11 @@ from calibrate_pro.recovery import (
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, CapabilityState, DwmLutKind
 
 pytestmark = pytest.mark.windows
+_OPCODE_MONITORING_AVAILABLE = hasattr(sys, "monitoring")
+REQUIRES_OPCODE_MONITORING = pytest.mark.skipif(
+    not _OPCODE_MONITORING_AVAILABLE,
+    reason="opcode-level cancellation injection requires sys.monitoring (Python 3.12+)",
+)
 
 GammaRamp = tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
 
@@ -3091,6 +3096,7 @@ def test_windows_icc_lease_closes_created_handle_when_publication_is_interrupted
     assert closes == [handle]
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("CreateFileW result handoff"), SystemExit(100)])
 def test_windows_icc_lease_closes_handle_when_createfile_result_handoff_is_interrupted(
     interruption: BaseException,
@@ -3138,6 +3144,7 @@ def test_windows_icc_lease_closes_handle_when_createfile_result_handoff_is_inter
     assert closes == [123]
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("ICC factory result handoff"), SystemExit(101)])
 def test_icc_factory_result_handoff_cancellation_closes_exact_lease_and_reuses_capacity(
     monkeypatch: pytest.MonkeyPatch,
@@ -4518,6 +4525,7 @@ def test_composite_mutex_release_continues_after_child_state_publication_interru
     assert lease.poisoned is True  # type: ignore[attr-defined]
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("operation", ["resolve", "read", "write"])
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("controller handoff"), SystemExit(68)])
 def test_default_ports_close_ddc_controller_when_post_acquisition_handoff_is_interrupted(
@@ -5069,6 +5077,8 @@ def test_restore_outer_retry_owner_does_not_repeat_poisoned_child_release(
 
 
 def _opcode_offset(function: object, predicate: object) -> int:
+    if not _OPCODE_MONITORING_AVAILABLE:
+        pytest.skip("opcode-level cancellation injection requires sys.monitoring (Python 3.12+)")
     matches = [
         instruction.offset
         for instruction in dis.get_instructions(function)  # type: ignore[arg-type]
@@ -5272,6 +5282,7 @@ def test_production_acquire_sink_releases_child_lost_at_store_opcode(
     assert releases == ["process"]
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("capture append"), SystemExit(83)])
 def test_capture_acquisition_sink_releases_lease_lost_before_append_opcode(
     interruption: BaseException,
@@ -5315,6 +5326,7 @@ def test_capture_acquisition_sink_releases_lease_lost_before_append_opcode(
     assert adapter._phase is None
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("release pop"), SystemExit(84)])
 def test_release_reconciles_terminal_lease_after_pop_opcode_cancellation(
     interruption: BaseException,
@@ -5942,6 +5954,7 @@ def test_mutex_sink_stack_corruption_still_reconciles_exact_unclaimed_lease() ->
     assert any("stack" in note for note in getattr(primary, "__notes__", ()))
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("mutex acknowledgment handoff"), SystemExit(102)])
 def test_mutex_acknowledgment_retirement_cancellation_preserves_primary_and_retries(
     monkeypatch: pytest.MonkeyPatch,
@@ -6577,6 +6590,7 @@ def test_shutdown_releases_active_named_mutex_on_its_owner_thread() -> None:
     assert lease.native_handle is None  # type: ignore[attr-defined]
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("domain", ["unclaimed", "icc", "native"])
 def test_drain_claim_publication_cancellation_rolls_back_exact_claim(domain: str) -> None:
     if domain == "unclaimed":
@@ -6643,6 +6657,7 @@ def test_drain_claim_publication_cancellation_rolls_back_exact_claim(domain: str
         WindowsNamedDisplayTransactionMutex._poisoned_native_leases.clear()
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("domain", ["icc", "native"])
 def test_capacity_reservation_return_cancellation_retires_pending_slot(domain: str) -> None:
     interruption = KeyboardInterrupt(f"{domain} reservation return")
@@ -7489,6 +7504,8 @@ def test_composite_settlement_during_release_does_not_pop_adapter_evidence_early
 
 
 def _post_call_offset(function: object, source_fragment: str) -> int:
+    if not _OPCODE_MONITORING_AVAILABLE:
+        pytest.skip("opcode-level cancellation injection requires sys.monitoring (Python 3.12+)")
     source, first_line = inspect.getsourcelines(function)
     call_line = first_line + next(index for index, line in enumerate(source) if source_fragment in line)
     instructions = list(dis.get_instructions(function))  # type: ignore[arg-type]
@@ -7686,6 +7703,8 @@ def test_native_resource_thread_start_failure_retires_unentered_reservation(
 
 
 def _native_start_dispatch_offsets() -> tuple[int, ...]:
+    if not _OPCODE_MONITORING_AVAILABLE:
+        return (0,)
     function = windows_state._NativeCallState._start
     source, first_line = inspect.getsourcelines(function)
     call_line = first_line + next(
@@ -7707,6 +7726,7 @@ def _native_start_dispatch_offsets() -> tuple[int, ...]:
     return tuple(instruction.offset for instruction in instructions[first_line_index : call_index + 1])
 
 
+@REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("pre-start cancellation"), SystemExit(114)])
 @pytest.mark.parametrize("start_offset", _native_start_dispatch_offsets())
 def test_native_resource_pre_dispatch_cancellation_retires_all_pending_capacity(
@@ -8050,6 +8070,8 @@ def _offset_after_source_instruction(
     source_fragment: str,
     opnames: set[str],
 ) -> int:
+    if not _OPCODE_MONITORING_AVAILABLE:
+        pytest.skip("opcode-level cancellation injection requires sys.monitoring (Python 3.12+)")
     source, first_line = inspect.getsourcelines(function)
     source_line = first_line + next(index for index, line in enumerate(source) if source_fragment in line)
     instructions = list(dis.get_instructions(function))  # type: ignore[arg-type]
