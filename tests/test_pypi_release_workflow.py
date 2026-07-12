@@ -10,6 +10,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 WINDOWS_BUILD = ROOT / "scripts" / "build_windows.ps1"
 PYPROJECT = ROOT / "pyproject.toml"
+GITATTRIBUTES = ROOT / ".gitattributes"
 
 
 def test_release_workflow_uses_oidc_and_an_explicit_publish_gate() -> None:
@@ -99,6 +100,19 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
     assert windows.index("--require-hashes") < windows.index("pytest==9.0.3")
     assert windows.index("pytest==9.0.3") < windows.index("scripts/build_windows.ps1")
     assert re.search(r"(?m)^\s*& \$hostPython -m pytest -q\s*$", build_script)
+
+
+def test_windows_candidate_pins_checkout_line_endings_before_checkout() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    windows = text.split("\n  windows-candidate:\n", 1)[1].split(
+        "\n  verify-publish-assets:\n", 1
+    )[0]
+
+    assert "git config --global core.autocrlf true" in windows
+    assert windows.index("git config --global core.autocrlf true") < windows.index(
+        "actions/checkout@"
+    )
+    assert "* text=auto eol=lf" in GITATTRIBUTES.read_text(encoding="utf-8")
 
 
 def test_windows_candidate_builds_with_the_hash_locked_official_cpython_runtime() -> None:
