@@ -297,6 +297,7 @@ raise SystemExit(result)
     assert result.returncode == (0 if report["ok"] else 1)
 
 
+@pytest.mark.windows
 def test_dwm_lut_search_uses_packaged_resource_first(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

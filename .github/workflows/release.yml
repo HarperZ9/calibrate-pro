@@ -44,7 +44,7 @@ jobs:
           python -m pip install --upgrade build pytest pytest-cov twine
           python -m pip install ".[all,test]"
       - name: Verify source candidate
-        run: python -m pytest -q
+        run: python -m pytest -q -m "not windows"
       - name: Verify corresponding-source archives
         run: python scripts/verify_source_provenance.py packaging/source-provenance.lock.json
       - name: Build distributions
@@ -64,6 +64,10 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12.10"
+      - name: Install the pinned host verification environment
+        run: |
+          python -m pip install --disable-pip-version-check --require-hashes -r packaging/requirements-win64-py312.lock
+          python -m pip install --disable-pip-version-check pytest==9.0.3
       - name: Install the pinned Inno Setup compiler
         shell: pwsh
         run: |

@@ -43,6 +43,8 @@ from calibrate_pro.recovery import (
 )
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, CapabilityState, DwmLutKind
 
+pytestmark = pytest.mark.windows
+
 GammaRamp = tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]
 
 

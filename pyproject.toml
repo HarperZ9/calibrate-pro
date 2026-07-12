@@ -62,6 +62,9 @@ calibrate_pro = ["resources/*.ico", "resources/*.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "windows: requires the Windows runtime contracts exercised by the canonical Windows candidate",
+]
 
 [tool.coverage.run]
 source = ["calibrate_pro"]
