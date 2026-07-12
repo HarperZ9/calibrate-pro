@@ -2077,7 +2077,9 @@ def test_profile_handle_acquisition_survives_call_to_store_fast_cancellation(
     native_threads.clear()
     retained.clear()
     instructions = tuple(dis.get_instructions(function))
-    target = next(instruction.offset for instruction in instructions if instruction.opname == "RETURN_CONST")
+    target = next(
+        instruction.offset for instruction in instructions if instruction.opname in {"RETURN_CONST", "RETURN_VALUE"}
+    )
     trace = interrupt_at_opcode(function, target, interruption)
 
     sys.settrace(trace)
@@ -2126,7 +2128,7 @@ def test_profile_delete_disposition_retries_instruction_cancellation_before_nati
     target = next(
         instruction.offset
         for instruction in dis.get_instructions(function)
-        if instruction.opname == "LOAD_ATTR" and instruction.argval == "start"
+        if instruction.opname in {"LOAD_ATTR", "LOAD_METHOD"} and instruction.argval == "start"
     )
     trace = interrupt_at_opcode(function, target, interruption)
     cleanup_errors: list[BaseException] = []

@@ -66,6 +66,14 @@ def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def assert_exception_note_if_supported(exception: BaseException, fragment: str) -> None:
+    notes = getattr(exception, "__notes__", ())
+    if callable(getattr(exception, "add_note", None)):
+        assert any(fragment in note for note in notes)
+    else:
+        assert notes == ()
+
+
 def valid_icc_payload(marker: bytes = b"") -> bytes:
     payload = bytearray(132 + len(marker))
     payload[0:4] = len(payload).to_bytes(4, "big")
@@ -745,7 +753,7 @@ def test_cancellation_during_restore_is_deferred_until_all_domains_and_release_f
     with pytest.raises(KeyboardInterrupt) as caught:
         run_confirmed(adapter, plan)
     assert caught.value is verification_interrupt
-    assert any("DDC restoration cancelled" in note for note in getattr(caught.value, "__notes__", ()))
+    assert_exception_note_if_supported(caught.value, "DDC restoration cancelled")
     assert ports.gamma_ramp == CapturedState.captured(original_gamma)
     assert ports.dwm_luts == CapturedState.captured(original_dwm)
     assert adapter._active is None
@@ -3405,7 +3413,7 @@ def test_default_ports_ddc_preserves_primary_control_flow_when_close_fails(
 
     assert caught.value is interruption
     assert close_calls == 1
-    assert any("close failed" in note for note in getattr(caught.value, "__notes__", ()))
+    assert_exception_note_if_supported(caught.value, "close failed")
 
 
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("return cancelled"), SystemExit(50)])
@@ -5848,7 +5856,9 @@ def test_close_worker_retries_inner_instruction_cancellation_before_native_entry
     )
     lease = windows_state._WindowsIccFileLease("cache.icc", kernel32_loader=lambda: kernel32)
     helper = windows_state._invoke_windows_handle_close
-    calls = [instruction.offset for instruction in dis.get_instructions(helper) if instruction.opname == "CALL"]
+    calls = [
+        instruction.offset for instruction in dis.get_instructions(helper) if instruction.opname.startswith("CALL")
+    ]
     assert calls
 
     sys.settrace(_interrupt_at_opcode(helper, calls[-1], interruption))
@@ -5951,7 +5961,7 @@ def test_mutex_sink_stack_corruption_still_reconciles_exact_unclaimed_lease() ->
 
     assert releases == [lease]
     assert sink._token not in windows_state._UNCLAIMED_MUTEX_LEASES
-    assert any("stack" in note for note in getattr(primary, "__notes__", ()))
+    assert_exception_note_if_supported(primary, "stack")
 
 
 @REQUIRES_OPCODE_MONITORING
