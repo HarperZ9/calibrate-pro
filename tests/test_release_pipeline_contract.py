@@ -60,6 +60,28 @@ def test_build_freezes_the_isolated_installed_wheel_and_always_finalizes() -> No
     assert "--expected-signer-thumbprint" in text
 
 
+def test_pyinstaller_cannot_harvest_ambient_path_libraries() -> None:
+    text = (ROOT / "scripts/build_windows.ps1").read_text(encoding="utf-8")
+    executable = _executable_lines(text)
+
+    assert "Get-ProvenanceSafePyInstallerPath" in text
+    assert "$savedPyInstallerPath = $env:PATH" in text
+    assert "$env:PATH = Get-ProvenanceSafePyInstallerPath" in text
+    assert "$env:PATH = $savedPyInstallerPath" in text
+    assert executable.index("$env:PATH = Get-ProvenanceSafePyInstallerPath") < executable.index("-m PyInstaller")
+    assert executable.index("-m PyInstaller") < executable.index("$env:PATH = $savedPyInstallerPath")
+
+
+def test_staged_openssl_bytes_must_match_the_selected_cpython_runtime() -> None:
+    text = (ROOT / "scripts/build_windows.ps1").read_text(encoding="utf-8")
+
+    assert "libcrypto-3.dll" in text
+    assert "libssl-3.dll" in text
+    assert "$hostOpenSslHash" in text
+    assert "$stagedOpenSslHash" in text
+    assert "Staged OpenSSL library does not match the selected CPython runtime" in text
+
+
 def test_built_pe_manifests_are_checked_not_inferred_from_spec() -> None:
     build_text = (ROOT / "scripts/build_windows.ps1").read_text(encoding="utf-8")
     verifier = (ROOT / "scripts/verify_pe_manifest.py").read_text(encoding="utf-8")

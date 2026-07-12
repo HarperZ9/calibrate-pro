@@ -38,7 +38,6 @@
         "_internal/PySide6/plugins/platforms/qwindows.dll",
         "_internal/PySide6/plugins/styles/qmodernwindowsstyle.dll",
         "_internal/PySide6/plugins/tls/qcertonlybackend.dll",
-        "_internal/PySide6/plugins/tls/qopensslbackend.dll",
         "_internal/PySide6/plugins/tls/qschannelbackend.dll",
         "_internal/PySide6/Qt6Core.dll",
         "_internal/PySide6/Qt6Gui.dll",
