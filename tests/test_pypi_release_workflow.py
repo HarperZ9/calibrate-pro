@@ -104,14 +104,10 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
 
 def test_windows_candidate_pins_checkout_line_endings_before_checkout() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    windows = text.split("\n  windows-candidate:\n", 1)[1].split(
-        "\n  verify-publish-assets:\n", 1
-    )[0]
+    windows = text.split("\n  windows-candidate:\n", 1)[1].split("\n  verify-publish-assets:\n", 1)[0]
 
     assert "git config --global core.autocrlf true" in windows
-    assert windows.index("git config --global core.autocrlf true") < windows.index(
-        "actions/checkout@"
-    )
+    assert windows.index("git config --global core.autocrlf true") < windows.index("actions/checkout@")
     assert "* text=auto eol=lf" in GITATTRIBUTES.read_text(encoding="utf-8")
 
 
