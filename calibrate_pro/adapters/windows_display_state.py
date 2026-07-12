@@ -992,6 +992,14 @@ def _under_interruption_safe_lock(lock: Any, callback: Callable[[], T]) -> T:
     recursion_count = (
         cast(Callable[[], int], recursion_count_candidate) if callable(recursion_count_candidate) else None
     )
+    if recursion_count is None:
+        is_owned = getattr(lock, "_is_owned", None)
+        if callable(is_owned) and cast(Callable[[], bool], is_owned)():
+            # CPython 3.10 RLock exposes ownership but not recursion depth.  The
+            # caller already protects this reentrant critical section, so avoid
+            # adding an indistinguishable acquisition that exception repair could
+            # accidentally consume or leak.
+            return callback()
     baseline_depth = recursion_count() if recursion_count is not None else None
     try:
         with lock:
@@ -1171,6 +1179,9 @@ def _publish_native_terminal(
 
 def _deliver_native_terminal(record: _RetainedNativeTerminal) -> bool:
     """Give one thread the callback claim and preserve successful delivery evidence."""
+    is_owned = getattr(record.delivery_guard, "_is_owned", None)
+    if callable(is_owned) and cast(Callable[[], bool], is_owned)():
+        return False
 
     def deliver() -> bool:
         if record.results:
