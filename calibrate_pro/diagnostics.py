@@ -76,9 +76,13 @@ def _capability(software_supported: bool, probe: str, detail: str | None = None)
     }
 
 
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
 def _windows_symbol(dll_name: str, symbol: str) -> bool:
     """Check a system-library export without calling it or probing a device."""
-    if os.name != "nt":
+    if not _is_windows():
         return False
     try:
         library = ctypes.WinDLL(dll_name, use_last_error=True)
@@ -191,7 +195,7 @@ def _pq_report() -> dict[str, object]:
 
 def _capabilities_report() -> dict[str, dict[str, object]]:
     return {
-        "display_enumeration": _capability(os.name == "nt", "platform"),
+        "display_enumeration": _capability(_is_windows(), "platform"),
         "ddc_ci": _capability(
             _windows_symbol("Dxva2.dll", "GetVCPFeatureAndVCPFeatureReply"),
             "library_symbol",

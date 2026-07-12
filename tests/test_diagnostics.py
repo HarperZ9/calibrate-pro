@@ -117,7 +117,7 @@ def test_doctor_report_is_complete_byte_stable_and_does_not_probe_devices(
         return True
 
     monkeypatch.setattr(diagnostics, "_windows_symbol", fake_symbol)
-    monkeypatch.setattr(diagnostics.os, "name", "nt")
+    monkeypatch.setattr(diagnostics, "_is_windows", lambda: True)
     monkeypatch.setattr(diagnostics.importlib.util, "find_spec", lambda name: object() if name == "hid" else None)
 
     before = set(sys.modules)
@@ -173,7 +173,7 @@ def test_missing_resource_is_reported_truthfully_and_exits_one(
     (root / "dwm_lut" / "WindowsDisplayAPI.dll").unlink()
     _fake_dependency_versions(monkeypatch)
     monkeypatch.setattr(diagnostics, "_windows_symbol", lambda dll_name, symbol: True)
-    monkeypatch.setattr(diagnostics.os, "name", "nt")
+    monkeypatch.setattr(diagnostics, "_is_windows", lambda: True)
     monkeypatch.setattr(diagnostics.importlib.util, "find_spec", lambda name: object())
 
     report = diagnostics.build_doctor_report(root=root, frozen=True)
@@ -198,7 +198,7 @@ def test_invalid_component_notice_path_fails_closed(
     policy_path.write_text(json.dumps(policy), encoding="utf-8")
     _fake_dependency_versions(monkeypatch)
     monkeypatch.setattr(diagnostics, "_windows_symbol", lambda dll_name, symbol: True)
-    monkeypatch.setattr(diagnostics.os, "name", "nt")
+    monkeypatch.setattr(diagnostics, "_is_windows", lambda: True)
     monkeypatch.setattr(diagnostics.importlib.util, "find_spec", lambda name: object())
 
     report = diagnostics.build_doctor_report(root=root, frozen=True)
@@ -217,7 +217,7 @@ def test_python_distribution_does_not_require_frozen_desktop_resources(
 
     _fake_dependency_versions(monkeypatch)
     monkeypatch.setattr(diagnostics, "_windows_symbol", lambda dll_name, symbol: True)
-    monkeypatch.setattr(diagnostics.os, "name", "nt")
+    monkeypatch.setattr(diagnostics, "_is_windows", lambda: True)
     monkeypatch.setattr(diagnostics.importlib.util, "find_spec", lambda name: object())
 
     report = diagnostics.build_doctor_report(root=tmp_path, frozen=False)
