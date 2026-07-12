@@ -135,6 +135,7 @@ def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows(
     assert '-m "not windows"' in linux
     assert "if: runner.os == 'Windows'" in windows
     assert '-m "not windows"' not in windows
+    assert "COVERAGE_CORE: ${{ matrix.python-version == '3.12' && 'sysmon' || 'ctrace' }}" in windows
 
 
 def test_ci_pins_static_analysis_and_type_checks_the_windows_target() -> None:
