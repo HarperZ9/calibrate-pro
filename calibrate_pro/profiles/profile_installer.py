@@ -16,7 +16,6 @@ import json
 import os
 import re
 import threading
-import winreg
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from ctypes import wintypes
@@ -25,6 +24,11 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from pathlib import Path, PureWindowsPath
 from typing import Any, TypeGuard
+
+try:
+    import winreg
+except ImportError:  # pragma: no cover - exercised by the subprocess portability gate
+    winreg = None  # type: ignore[assignment]
 
 WCS_PROFILE_MANAGEMENT_SCOPE_SYSTEM_WIDE = 0
 CPT_ICC = 0
@@ -2522,6 +2526,8 @@ def get_associated_profiles(device_name: str) -> list[str]:
         List of profile filenames
     """
     profiles = []
+    if winreg is None:
+        return profiles
 
     # Read from registry
     try:

@@ -75,8 +75,10 @@ jobs:
           if ($actualInstaller -ne $expectedInstaller) { throw "Unexpected Inno installer hash: $actualInstaller" }
           $signature = Get-AuthenticodeSignature -LiteralPath $installer
           if ($signature.Status -ne 'Valid') { throw "Inno installer signature is not valid: $($signature.Status)" }
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER "/DIR=$innoRoot"
-          if ($LASTEXITCODE -ne 0) { throw "Inno installation failed: $LASTEXITCODE" }
+          $innoInstall = Start-Process -FilePath $installer `
+            -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$innoRoot") `
+            -Wait -PassThru -WindowStyle Hidden
+          if ($innoInstall.ExitCode -ne 0) { throw "Inno installation failed: $($innoInstall.ExitCode)" }
           $iscc = Join-Path $innoRoot 'ISCC.exe'
           if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw 'ISCC.exe was not installed' }
           "CALIBRATE_PRO_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
