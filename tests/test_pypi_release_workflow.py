@@ -83,6 +83,10 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
     assert "scripts/verify_reproducibility.ps1" in text
     assert "windows-release-candidate" in text
     assert "needs: [candidate, windows-candidate]" in text
+    assert "Start-Process -FilePath $installer" in text
+    assert "-Wait -PassThru" in text
+    assert "$innoInstall.ExitCode" in text
+    assert "& $installer /VERYSILENT" not in text
 
 
 def test_automation_resolves_public_dependencies_without_git_installs() -> None:
