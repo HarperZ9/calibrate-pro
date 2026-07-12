@@ -132,6 +132,7 @@ def pq_oetf_10000(Y: np.ndarray) -> np.ndarray:
     """Encode luminance using the fixed 10,000-nit compatibility reference."""
     return _canonical_pq_oetf(Y, peak_luminance=_ST2084_PEAK_NITS)
 
+
 # =============================================================================
 # Public API
 # =============================================================================

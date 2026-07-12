@@ -1,53 +1,42 @@
-# Calibrate Pro v1.0.0
+# Calibrate Pro v1.1.0
 
-Professional display calibration for Windows. Sensorless or measured.
+Calibrate Pro 1.1 is a safety, truthfulness, Qt, and Windows-packaging release.
 
 ## Download
 
-- **calibrate-pro.exe** (233 MB) -- Standalone Windows executable. No Python required. Requests admin for DWM LUT and DDC/CI access.
+- `CalibratePro-1.1.0-Setup.exe`: per-user Windows x64 installer.
+- `CalibratePro-1.1.0-win64.zip`: portable Windows x64 package.
+- `calibrate_pro-1.1.0-py3-none-any.whl`: Python package for supported source installs.
 
-## What's Included
+The Windows packages include Python, Build Color, Build UI 2, PySide6/Qt, NumPy, SciPy, hidapi, and approved `dwm_lut` runtime files. They do not require Python, pip, Git, or network access after download.
 
-### Calibration Modes
-- **Sensorless**: Calibrate any of 58 characterized displays without hardware. Predicted dE < 1.0.
-- **Measured**: Native USB driver for i1Display3 family with CCMX spectral correction. Measured dE ~3.7 (44% improvement over uncorrected).
-- **Hybrid**: Measured + iterative refinement via ArgyllCMS.
+The 1.1.0 Windows artifacts are not Authenticode-signed. Windows may display a SmartScreen warning; verify downloads against the release's `SHA256SUMS.txt` before execution.
 
-### Hardware Control
-- DDC/CI monitor control (brightness, contrast, RGB gains, color presets, gamma)
-- Automatic OSD configuration before calibration
-- 58-panel database with per-display DDC/CI recommendations
+## Highlights
 
-### Output
-- 3D LUT (.cube, .clf, .3dlut) for DaVinci Resolve, OBS, MadVR
-- ICC v4 profiles for Windows color management
-- ReShade/Special K LUT textures (.png)
-- mpv player config, OBS LUT
-- HTML calibration report with CIE diagram and gamma curves
+- Migrated the desktop interface to PySide6 through a fail-closed Qt runtime boundary.
+- Added the six-stage Detect -> Method -> Preview -> Apply -> Verify -> Save/Report workflow.
+- Made legacy mutation-capable CLI commands proposal-only; direct CLI invocation performs no display write.
+- Added immutable, digest-bound apply plans, prior-state capture, bounded inputs, explicit confirmation, compensation, and read-back verification.
+- Consolidated display writers behind one Windows adapter and removed application-layer actuator bypasses.
+- Made the tray and calibration guard read-only, monitor-and-notify surfaces.
+- Added evidence-labelled report values: measured, estimated, simulated, replayed, or **Not measured**.
+- Removed seeded/random observations and unsupported accuracy grades from the desktop and report paths.
+- Added read-only `doctor` diagnostics, including stable JSON output.
+- Added a hash-locked Windows build, exact frozen-module allowlist, redistribution notices, source provenance, installer/portable packaging, manifest inspection, and frozen smoke tests.
 
-### GUI
-- 8-page dark-themed interface (Dashboard, Calibrate, Verify, Profiles, VCGT Tools, Color Control, DDC Control, Settings)
-- System tray with color-coded status icon
-- Keyboard shortcuts (Ctrl+1-6, F5, Esc)
+## Least-privilege behavior
 
-### System Integration
-- DWM 3D LUT (system-wide, via bundled dwm_lut)
-- VCGT gamma ramp fallback
-- CalibrationGuard watchdog (re-applies every 15 seconds)
-- Persists across reboots via Windows startup
+Both desktop executables start unelevated (`asInvoker`). An Apply is available only when the requested capability and authoritative prior-state capture are present. Rejected, expired, substituted, or unsupported plans perform no write. Hardware-dependent operations can remain unavailable on displays, drivers, or systems that cannot meet those checks.
 
-## Supported Displays
+## Evidence boundary
 
-58 characterized panels: QD-OLED (17), WOLED (10), IPS (20), Mini-LED (4), VA (3), RGB OLED (2). Unknown monitors calibrated via EDID chromaticity.
+Sensorless results are estimates derived from characterization inputs; they are not measurements of the attached unit. Measured results require a supported instrument. Missing observations display as **Not measured**, and numeric report values carry an evidence kind and source receipt.
 
-## Requirements
+## Known limitations
 
-- Windows 10/11
-- Admin rights (for DWM LUT and DDC/CI)
-- Optional: i1Display3 for measured calibration
-
-## Known Limitations
-
-- Windows only (macOS/Linux planned)
-- QD-OLED spectral correction requires EDID with valid chromaticity data
-- Some monitors have limited DDC/CI support (ASUS ROG series fully tested)
+- The packaged desktop release targets Windows x64.
+- Display controls differ by monitor and driver; unsupported controls fail closed.
+- Measured calibration requires a supported colorimeter.
+- DWM LUT application remains unavailable unless authoritative prior-state capture is possible.
+- Calibrate Pro does not promise a particular accuracy, gamut, or luminance result without recorded measurements from the attached display.

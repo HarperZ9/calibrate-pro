@@ -9,12 +9,10 @@ Displays detailed calibration information for each monitor including:
 - Auto-load status
 """
 
+import hashlib
 import os
-from datetime import datetime
-from pathlib import Path
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -30,6 +28,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 # Colors matching main theme
 COLORS = {
@@ -174,34 +174,24 @@ class CalibrationProfileCard(QFrame):
         return value_widget
 
     def _load_profile(self):
-        """Load calibration profile data for this display."""
+        """Load persisted, read-only calibration metadata for this display."""
         try:
-            import sys
-
-            sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-            from calibrate_pro.lut_system.dwm_lut import DwmLutController
-            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
             from calibrate_pro.panels.database import PanelDatabase
+            from calibrate_pro.utils.startup_manager import StartupManager
 
-            manager = PerDisplayCalibrationManager()
+            manager = StartupManager()
             db = PanelDatabase()
-            dwm = DwmLutController()
 
-            # Get profile
-            profile = manager.get_display_profile(self.display_id)
+            profile = manager.get_display_calibration(self.display_id)
             if not profile:
                 self._show_no_profile()
                 return
 
-            # Get panel data
-            panel = db.get_panel(profile.panel_database_key) if profile.panel_database_key else None
+            panel = db.get_panel(profile.model) if profile.model else None
 
-            # Update title
-            self.title_label.setText(f"Display {self.display_id} - {profile.manufacturer or 'Unknown'}")
+            self.title_label.setText(f"Display {self.display_id} - {profile.display_name or 'Unknown'}")
 
-            # Update status
-            if profile.is_calibrated:
+            if profile.lut_path or profile.icc_path:
                 self.status_label.setText("CALIBRATED")
                 self.status_label.setStyleSheet(f"""
                     background-color: {COLORS["success"]};
@@ -220,10 +210,9 @@ class CalibrationProfileCard(QFrame):
                     font-weight: 600;
                 """)
 
-            # Panel info
-            self.manufacturer_label.setText(profile.manufacturer or "Unknown")
-            self.model_label.setText(profile.panel_database_key or "Unknown")
-            self.panel_type_label.setText(profile.panel_type or "Unknown")
+            self.manufacturer_label.setText("Unknown")
+            self.model_label.setText(profile.model or "Unknown")
+            self.panel_type_label.setText(panel.panel_type if panel else "Unknown")
 
             if panel:
                 gamut = "Wide Gamut (DCI-P3+)" if panel.capabilities.wide_gamut else "sRGB"
@@ -232,20 +221,21 @@ class CalibrationProfileCard(QFrame):
                 self.hdr_label.setText(hdr)
 
             # Calibration info
-            self.target_label.setText(profile.target.value if profile.target else "sRGB")
+            self.target_label.setText("HDR" if profile.hdr_mode else "sRGB")
 
-            # Calculate approximate Delta E
-            if profile.is_calibrated:
-                delta_e = 0.27 if "OLED" in (profile.panel_type or "") else 0.24
-                self.delta_e_label.setText(f"{delta_e:.2f}")
+            if profile.lut_path or profile.icc_path:
+                delta_e = (
+                    profile.delta_e_avg
+                    if isinstance(profile.delta_e_avg, MetricValue)
+                    else MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
+                )
+                self.delta_e_label.setText(delta_e.display_text())
+                self.delta_e_label.setToolTip(f"Evidence source: {delta_e.source or 'Not measured'}")
+                self.grade_label.setText("Not assigned")
+                self.grade_label.setToolTip("No quality grade is assigned without an approved rubric.")
 
-                grade = "A+ (Reference)" if delta_e < 0.5 else "A (Professional)" if delta_e < 1.0 else "B"
-                self.grade_label.setText(grade)
-                self.grade_label.setStyleSheet(f"font-weight: 700; color: {COLORS['success']};")
-
-            if profile.calibration_time:
-                cal_date = datetime.fromtimestamp(profile.calibration_time).strftime("%Y-%m-%d %H:%M")
-                self.calibrated_date_label.setText(cal_date)
+            if profile.last_calibrated:
+                self.calibrated_date_label.setText(profile.last_calibrated.replace("T", " ")[:16])
 
             # LUT info
             if profile.lut_path and os.path.exists(profile.lut_path):
@@ -254,14 +244,8 @@ class CalibrationProfileCard(QFrame):
                 self.lut_size_label.setText(f"{size_kb:.0f} KB")
                 self.lut_nodes_label.setText("33x33x33 (35,937 nodes)")
 
-                # Check if LUT is loaded
-                active_luts = dwm.get_active_luts()
-                if self.display_id in active_luts:
-                    self.lut_status_label.setText("ACTIVE")
-                    self.lut_status_label.setStyleSheet(f"color: {COLORS['success']}; font-weight: 700;")
-                else:
-                    self.lut_status_label.setText("Loaded")
-                    self.lut_status_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: 500;")
+                self.lut_status_label.setText("SAVED — apply confirmation required")
+                self.lut_status_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: 500;")
             else:
                 self.lut_file_label.setText("Not generated")
                 self.lut_status_label.setText("None")
@@ -289,6 +273,7 @@ class CalibrationProfileCard(QFrame):
 
         srgb = {"Red": (0.64, 0.33), "Green": (0.30, 0.60), "Blue": (0.15, 0.06), "White": (0.3127, 0.3290)}
 
+        source = None
         if panel:
             native = {
                 "Red": (panel.native_primaries.red.x, panel.native_primaries.red.y),
@@ -296,67 +281,51 @@ class CalibrationProfileCard(QFrame):
                 "Blue": (panel.native_primaries.blue.x, panel.native_primaries.blue.y),
                 "White": (panel.native_primaries.white.x, panel.native_primaries.white.y),
             }
+            receipt = hashlib.sha256(repr(panel).encode("utf-8")).hexdigest()
+            source = f"panel-characterization:{type(panel).__name__}:{receipt}"
         else:
-            native = srgb
+            native = None
 
         for i, color in enumerate(colors):
             self.correction_table.setItem(i, 0, QTableWidgetItem(color))
 
-            nx, ny = native[color]
-            self.correction_table.setItem(i, 1, QTableWidgetItem(f"({nx:.3f}, {ny:.3f})"))
+            native_xy = native[color] if native else None
+            if native_xy is None:
+                self.correction_table.setItem(i, 1, QTableWidgetItem("Not measured"))
+            else:
+                nx, ny = native_xy
+                self.correction_table.setItem(i, 1, QTableWidgetItem(f"({nx:.3f}, {ny:.3f})"))
 
             sx, sy = srgb[color]
             self.correction_table.setItem(i, 2, QTableWidgetItem(f"({sx:.3f}, {sy:.3f})"))
 
-            import math
+            if native_xy is None or source is None:
+                delta = MetricValue(None, "xy distance", EvidenceKind.NOT_MEASURED)
+            else:
+                import math
 
-            delta = math.sqrt((sx - nx) ** 2 + (sy - ny) ** 2)
-            delta_item = QTableWidgetItem(f"{delta:.4f}")
-            if delta > 0.01:
-                delta_item.setForeground(QColor(COLORS["warning"]))
+                nx, ny = native_xy
+                value = math.sqrt((sx - nx) ** 2 + (sy - ny) ** 2)
+                delta = MetricValue(value, "xy distance", EvidenceKind.ESTIMATED, source)
+            delta_item = QTableWidgetItem(delta.display_text(4))
+            delta_item.setToolTip(f"Evidence source: {delta.source or 'Not measured'}")
             self.correction_table.setItem(i, 3, delta_item)
 
     def _reload_lut(self):
-        """Reload the LUT for this display."""
-        try:
-            from calibrate_pro.lut_system.dwm_lut import DwmLutController
-            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
-
-            manager = PerDisplayCalibrationManager()
-            dwm = DwmLutController()
-
-            profile = manager.get_display_profile(self.display_id)
-            if profile and profile.lut_path:
-                success = dwm.load_lut_file(self.display_id, profile.lut_path)
-                if success:
-                    QMessageBox.information(
-                        self, "LUT Reloaded", f"LUT successfully reloaded for Display {self.display_id}"
-                    )
-                    self._load_profile()
-                else:
-                    QMessageBox.warning(self, "Reload Failed", "Failed to reload LUT. Check if file exists.")
-            else:
-                QMessageBox.warning(self, "No LUT", "No LUT file found for this display.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to reload LUT: {e}")
+        """Explain the confirmed workflow; never reload directly from a card."""
+        QMessageBox.information(
+            self,
+            "Confirmation Required",
+            "No LUT was loaded. Open Calibrate to preview and confirm the exact display change.",
+        )
 
     def _recalibrate(self):
-        """Trigger recalibration for this display."""
-        try:
-            from calibrate_pro.lut_system.per_display_calibration import CalibrationTarget, PerDisplayCalibrationManager
-
-            manager = PerDisplayCalibrationManager()
-            success = manager.calibrate_display(self.display_id, CalibrationTarget.SRGB)
-
-            if success:
-                QMessageBox.information(
-                    self, "Calibration Complete", f"Display {self.display_id} calibrated successfully!"
-                )
-                self._load_profile()
-            else:
-                QMessageBox.warning(self, "Calibration Failed", "Calibration failed. Check display connection.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Calibration failed: {e}")
+        """Route recalibration to the review-first workflow."""
+        QMessageBox.information(
+            self,
+            "Open Calibrate",
+            f"No change was made to Display {self.display_id}. Build and confirm a new plan in Calibrate.",
+        )
 
 
 class CalibrationDetailsWidget(QWidget):
@@ -424,28 +393,17 @@ class CalibrationDetailsWidget(QWidget):
                 item.widget().deleteLater()
 
         try:
-            import sys
+            from calibrate_pro.utils.startup_manager import StartupManager
 
-            sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+            manager = StartupManager()
+            displays = manager.get_all_calibrations().values()
 
-            from calibrate_pro.lut_system.per_display_calibration import PerDisplayCalibrationManager
-            from calibrate_pro.startup.lut_autoload import check_startup_enabled
-
-            manager = PerDisplayCalibrationManager()
-            displays = manager.list_displays()
-
-            # Update auto-load status
-            enabled, _ = check_startup_enabled()
-            if enabled:
-                self.autoload_label.setText("Auto-Load: ENABLED")
-                self.autoload_label.setStyleSheet(f"color: {COLORS['success']}; font-weight: 600;")
-            else:
-                self.autoload_label.setText("Auto-Load: Disabled")
-                self.autoload_label.setStyleSheet(f"color: {COLORS['warning']};")
+            self.autoload_label.setText("Auto-Apply: Disabled — confirmation required")
+            self.autoload_label.setStyleSheet(f"color: {COLORS['warning']};")
 
             # Create card for each display
             for display in displays:
-                card = CalibrationProfileCard(display["id"])
+                card = CalibrationProfileCard(display.display_id)
                 self.content_layout.addWidget(card)
 
             # Add spacer at bottom

@@ -2,7 +2,7 @@
 Camera-Based Self-Calibration System
 
 Revolutionary instrument-free calibration using any camera (webcam, phone, DSLR).
-Achieves Delta E < 1 through clever relative measurement techniques.
+Produces camera-relative estimates that require explicit evidence labels.
 
 The Key Insight:
 While cameras aren't calibrated colorimeters, they CAN accurately measure:

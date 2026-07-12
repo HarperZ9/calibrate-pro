@@ -1,69 +1,111 @@
 # Architecture
 
-Calibrate Pro is a Windows display-calibration toolkit. It detects monitors, identifies
-their panel characteristics, computes color corrections, applies them system-wide, and
-verifies the result. The package is organized into focused layers, each owning one stage
-of that pipeline. The pure-Python color and calibration science is type-checked and
-tested; the layers that talk to native Windows/GPU/USB APIs are boundary code.
+Calibrate Pro 1.1 separates color computation, workflow policy, user confirmation, and
+Windows display actuation. The central rule is simple: application-facing code can
+propose a display change, but only the confirmation coordinator and canonical Windows
+adapter can execute it.
 
-## Package layout
+## Layers
 
-```
+```text
 calibrate_pro/
-  core/           Color math, LUT engine, ICC v4 profiles, ACES, color models, VCGT
-  panels/         Display detection, the characterized-panel database, DDC recommendations
-  sensorless/     Sensorless calibration engine (Oklab / JzAzBz gamut mapping)
-  calibration/    Native measurement loop, CCMX spectral correction, CCSS import
-  verification/   Patch sets, grayscale tracking, CIEDE2000 / CAM16-UCS grading, reports
-  profiles/       Profile persistence and management
-  hdr/            HDR detection, mastering standards, PQ/HLG handling
-  services/       CalibrationGuard, GamutClamp, AppSwitcher, DriftMonitor (watchdogs)
-  advanced/       Ambient light, automation, network calibration, uniformity, LUT optimization
-  lut_system/     DWM 3D LUT, VCGT gamma ramp, AMD/NVIDIA GPU APIs (OS/GPU driver adapter)
-  hardware/       i1Display3 native USB HID, DDC/CI with retry + WMI fallback (native adapter)
-  platform/       Windows (full) + macOS (planned) OS integration (native adapter)
-  gui/            PyQt6 dark-theme GUI, 8 pages, system tray (GUI adapter)
-  app.py, main.py Application shell + CLI entry point
+  core/             color math, profiles, LUT generation, transforms
+  targets/          SDR/HDR calibration target definitions
+  panels/           characterized-panel data and read-only detection
+  calibration/      instrument measurement and calibration algorithms
+  sensorless/       characterization-derived estimation algorithms
+  verification/     evidence types, patch analysis, reports, PDF export
+
+  workflow.py       pure six-stage state machine and immutable ApplyPlan
+  actuation.py      one-use confirmation and transaction coordination
+  recovery.py       transaction phases, compensation, and receipts
+  diagnostics.py    deterministic, read-only installation report
+  runtime.py        source/frozen resource resolution
+
+  adapters/
+    windows_display_state.py
+                    canonical DDC/CI, ICC, VCGT, and DWM write boundary
+
+  gui/              PySide6 presentation; emits proposals, never raw writes
+  commands/         unelevated desktop/HDR launch and read-only doctor command
+  main.py           read-only CLI dispatch and proposal-only legacy names
+  frozen_main.py    two frozen executable entry points
 ```
 
-## Data flow
+Low-level Windows modules still contain native API wrappers. Application code cannot
+import or call their writer primitives directly; `DefaultWindowsDisplayAdapter` is the
+sole production bridge from a confirmed transaction to those wrappers.
 
+## Workflow
+
+The user-visible state machine is:
+
+```text
+Detect -> Method -> Preview -> Apply -> Verify -> Save/Report
 ```
-detect            panels/ + hardware/ (DDC-CI) enumerate displays and capabilities
-  -> characterize panels/ matches the display against the panel database (or EDID chromaticity)
-  -> profile       core/ + calibration/ derive per-channel TRC + primaries
-                   (sensorless from the model, or measured via the i1Display3 loop + CCMX)
-  -> correct       core/ builds a residual 3D LUT + ICC v4 profile
-  -> apply         lut_system/ installs the LUT via DWM (VCGT gamma-ramp fallback)
-  -> guard         services/ watches for Windows resetting the calibration (watchdog)
-  -> verify        verification/ measures against patch sets and reports CIEDE2000 / CAM16-UCS
-```
 
-## Key design decisions
+1. Detection gathers display identity and capability information without granting write
+   authority.
+2. Method selection chooses sensorless or measured evidence.
+3. Preview constructs an immutable `ApplyPlan`. External ICC, VCGT, and DWM inputs are
+   bounded and bound to the plan by SHA-256.
+4. Confirmation is consumed once. The coordinator revalidates capabilities and hands an
+   opaque authorization to the adapter while holding the apply gate.
+5. The adapter captures the requested prior state, applies the sealed plan, and reads the
+   result back. A failure invokes compensation and verifies that compensation before it
+   reports restoration.
+6. Verification and reports preserve the evidence kind and source of every performance
+   metric.
 
-- **Sensorless vs measured are distinct paths, and the difference is stated honestly.**
-  Sensorless calibration is a prediction from the panel-database model (no ground truth on
-  the specific unit); the only measured-accuracy figure the tool reports is from the
-  i1Display3 path. The two are never conflated in output.
-- **DWM 3D LUT with a VCGT fallback.** System-wide correction prefers the DWM 3D LUT path
-  and falls back to a VCGT gamma ramp where DWM injection is unavailable.
-- **Native i1Display3 USB HID.** The colorimeter is driven directly over USB HID, reading
-  per-unit calibration matrices from device EEPROM; no ArgyllCMS dependency is required.
-- **Boundary-typed adapters.** `lut_system`, `hardware`, `platform`, `gui`, and the `app`
-  shell interface untyped native Windows/GPU/Qt/USB libraries. They are checked at their
-  public boundary; the color/calibration/verification science core is strict-typed.
+Rejecting, expiring, copying, substituting, or mutating a plan does not authorize a
+write. Legacy mutation-capable CLI names are proposal-only and return without changing
+display state.
 
-## Operator surfaces
+## Capability and recovery model
 
-- A 26-command `calibrate-pro` CLI (`detect`, `auto`, `ddc-info`, `verify`, `status`,
-  `native-calibrate`, `restore`, `list-panels`, `patterns`, …).
-- An 8-page PyQt6 GUI (default when launched with no arguments).
-- The Project Telos `telos.display.calibration` MCP contract, so a host agent can request
-  a calibration, read the verification report, and recheck drift through the shared
-  action envelope. CLI and MCP expose the same surface.
+`CapabilityState` distinguishes sensor, DDC/CI, DWM write, authoritative DWM capture,
+ICC association, and VCGT capabilities. A requested operation is disabled unless its
+capability is positively present. In particular, DWM application requires both write
+support and authoritative prior-state capture; process-local LUT memory is not accepted
+as evidence of operating-system state.
 
-## Testing
+Transactions use per-display process and Windows named mutexes. ICC content-addressed
+cache operations also use a digest-scoped mutex and native file lease. Native resources
+remain registered until cleanup is positively known, and uncertain outcomes fail closed.
+Recovery is an in-process compensating transaction rather than a promise of crash-safe
+rollback across power loss or operating-system termination.
 
-`tests/` covers color-math round-trips, the auto-calibration path, the panel database, the
-LUT engine, verification grading, HDR workflow, the native loop, platform behavior, and
-professional features. `ruff check .`, `mypy`, and `pytest --cov` gate every change.
+## Evidence model
+
+Performance fields cross the report boundary as `MetricValue`, not bare numbers. Each is
+labelled `measured`, `estimated`, `simulated`, `replayed`, or `not_measured`, and numeric
+values retain a source receipt. Sensorless computation can inform a plan, but it does not
+become an observation of the attached display.
+
+## Entry points
+
+- `CalibratePro.exe` / `calibrate-pro gui`: main PySide6 workflow.
+- `CalibrateProCLI.exe`: frozen `doctor`, `gui`, and `hdr` dispatcher; `hdr` opens the
+  HDR target/proposal workflow.
+- `calibrate-pro doctor [--json]`: deterministic, read-only installation diagnostics.
+- `list-targets`, `list-panels`, `info`, `hdr-status`, `patterns`, and `plugins`:
+  read-only or visual-inspection utilities.
+- Tray and calibration guard: monitor-and-notify only in 1.1.
+
+Both frozen executables use `asInvoker`; the installer is per-user and lowest privilege.
+
+## Release architecture
+
+The Windows release uses one PyInstaller analysis and two onedir executables. An exact
+first-party/distribution allowlist, Qt-component policy, component-to-notice policy, and
+source-provenance lock fail closed on unknown staged content. The build produces a
+portable ZIP, per-user installer, wheel, analysis/manifest/smoke receipts, and sorted
+SHA-256 inventory from a hash-locked environment.
+
+## Verification
+
+Tests cover the pure color/HDR core, workflow state machine, confirmation and recovery,
+Windows API contracts, native-resource lifecycle, least-privilege boundary, GUI
+truthfulness, Qt selection, frozen module closure, redistribution notices, and release
+artifact construction. Publication additionally requires frozen offscreen smoke tests,
+PE manifest inspection, component/source audits, and a clean install proof.

@@ -1,0 +1,106 @@
+"""The PyPI job must publish the exact accepted GitHub release distributions."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
+
+
+def test_release_workflow_uses_oidc_and_an_explicit_publish_gate() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "environment: pypi" in text
+    assert "id-token: write" in text
+    assert "inputs.publish" in text
+    assert "release_tag" in text
+    assert "types: [published]" in text
+
+
+def test_pypi_job_downloads_and_verifies_exact_release_assets() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert 'gh release download "$RELEASE_TAG"' in text
+    assert "sha256sum --check SHA256SUMS.txt" in text
+    assert "scripts/verify_release_asset_set.py accepted" in text
+    assert "windows-release-candidate" in text
+    assert "cmp --silent" in text
+    assert "verified-pypi-distributions" in text
+    assert "pypi-dist/" in text
+    assert "packages-dir: pypi-dist/" in text
+    assert "skip-existing" not in text
+
+
+def test_oidc_job_only_downloads_verified_artifacts_and_publishes() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    publish = text.split("\n  publish:\n", 1)[1]
+
+    assert "needs: verify-publish-assets" in publish
+    assert "id-token: write" in publish
+    assert "actions/download-artifact@" in publish
+    assert "pypa/gh-action-pypi-publish@" in publish
+    assert "actions/checkout@" not in publish
+    assert "actions/setup-python@" not in publish
+    assert "pip install" not in publish
+    assert "run:" not in publish
+
+
+def test_release_asset_verification_has_no_oidc_permission() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    verify = text.split("\n  verify-publish-assets:\n", 1)[1].split("\n  publish:\n", 1)[0]
+
+    assert "id-token: write" not in verify
+    assert "actions: read" in verify
+    assert "windows-release-candidate" in verify
+    assert "verified-pypi-distributions" in verify
+
+
+def test_candidate_runs_tests_builds_and_checks_distributions() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "python -m pytest" in text
+    assert "python -m build" in text
+    assert "python -m twine check dist/*" in text
+    assert "scripts/verify_source_provenance.py" in text
+
+
+def test_manual_and_release_candidates_checkout_the_requested_tag() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert text.count("github.event.release.tag_name || inputs.release_tag") >= 4
+    assert "ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}" in text
+
+
+def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "windows-candidate:" in text
+    assert "runs-on: windows-2022" in text
+    assert 'python-version: "3.12.10"' in text
+    assert "scripts/build_windows.ps1" in text
+    assert "scripts/verify_reproducibility.ps1" in text
+    assert "windows-release-candidate" in text
+    assert "needs: [candidate, windows-candidate]" in text
+
+
+def test_automation_resolves_public_dependencies_without_git_installs() -> None:
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    assert workflows
+    offenders = [path.name for path in workflows if "git+https" in path.read_text(encoding="utf-8")]
+
+    assert offenders == []
+
+
+def test_third_party_actions_are_pinned_to_immutable_commits() -> None:
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    uses = [
+        line.strip()
+        for path in workflows
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("- uses:") or line.strip().startswith("uses:")
+    ]
+
+    assert uses
+    assert all(re.search(r"@[0-9a-f]{40}(?:\s+#|$)", line) for line in uses)

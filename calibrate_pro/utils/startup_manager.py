@@ -35,8 +35,8 @@ class DisplayCalibrationState:
     icc_path: str | None = None
     hdr_mode: bool = False
     last_calibrated: str | None = None
-    delta_e_avg: float = 0.0
-    delta_e_max: float = 0.0
+    delta_e_avg: float | None = None
+    delta_e_max: float | None = None
 
 
 @dataclass
@@ -197,8 +197,8 @@ class StartupManager:
         lut_path: str | None = None,
         icc_path: str | None = None,
         hdr_mode: bool = False,
-        delta_e_avg: float = 0.0,
-        delta_e_max: float = 0.0,
+        delta_e_avg: float | None = None,
+        delta_e_max: float | None = None,
     ):
         """Save calibration state for a display."""
         state = DisplayCalibrationState(

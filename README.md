@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v1.1.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
 </p>
 <!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
 
@@ -9,20 +9,21 @@
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
 
-[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](LICENSE)
+[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![version](https://img.shields.io/badge/version-1.0.1-informational.svg)
+![version](https://img.shields.io/badge/version-1.1.0-informational.svg)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
 [![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
-Calibrate Pro detects your monitors, identifies their panel characteristics from a database of 58 characterized displays, and applies color corrections via DDC/CI hardware adjustments and 3D LUTs. Works without a colorimeter (sensorless mode) or with an i1Display3 for measured accuracy with CCMX spectral correction.
+Calibrate Pro is a Windows display-calibration toolkit for characterized and measured workflows. It combines display discovery, calibration targets, DDC/CI, ICC/VCGT and LUT tooling, and evidence-labelled reports behind one preview-and-confirm workflow. Sensorless values are explicitly labelled as estimates; measured values require an instrument and retain their evidence source.
 
 ## Try it
 
 ```bash
-calibrate-pro detect
-calibrate-pro status
-calibrate-pro verify
+calibrate-pro doctor
+calibrate-pro list-targets
+calibrate-pro list-panels
+calibrate-pro gui
 ```
 
 Install from the Windows release build or run from source with `pip install -e ".[all]"`.
@@ -33,22 +34,24 @@ Display color is part of the creative pipeline. If the screen is wrong, every de
 
 ## What to test first
 
-- Run `calibrate-pro detect` and confirm the tool identifies your displays and available DDC/CI controls.
-- Run `calibrate-pro status` to check whether an existing profile is present and how old it is.
-- Run `calibrate-pro verify` after calibration and inspect the report instead of trusting the adjustment blindly.
+- Launch `calibrate-pro gui`, select a display, and inspect the detected identity and available capabilities.
+- Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
+- Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
 
 ## Current status
 
-- **Release:** Calibrate Pro 1.0.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; standalone `.exe` available.
-- **Operator surface:** the `calibrate-pro` CLI exposes a 26-command surface (`auto`, `detect`, `ddc-info`, `verify`, `status`, `native-calibrate`, `restore`, `list-panels`, `patterns`, and more) alongside an 8-page PyQt6 GUI. Within Project Telos it reaches host agents through the `telos.display.calibration` MCP contract, so a model can request a calibration, read the verification report, and recheck drift through the same action envelope the other flagships use. CLI and MCP share one surface.
-- **Public role:** the measured-color flagship of Project Telos: panel database, DDC/CI control, 3D-LUT and ICC v4 output, and CIEDE2000 verification, with calibration drift kept on the record.
-- **Housekeeping:** [CHANGELOG.md](CHANGELOG.md) tracks the Project Telos presentation and operator-surface pass under Unreleased.
+- **Release:** Calibrate Pro 1.1.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
+- **Operator surface:** a PySide6 desktop workflow plus read-only CLI diagnostics, target and panel listings, HDR status, patterns, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the GUI rather than changing display state.
+- **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
+- **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
 
 ## Install
 
 ### Standalone (Windows)
 
-Download `calibrate-pro.exe` from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). Run it. No Python required. Requests admin (needed for DWM LUT and DDC/CI).
+Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated; unavailable hardware or operating-system capabilities fail closed and are reported by `calibrate-pro doctor`.
+
+The 1.1.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
 
 ### From source
 
@@ -63,46 +66,41 @@ Requires Python 3.10+ and Windows 10/11.
 
 ## Usage
 
-Double-click the exe or run without arguments to launch the GUI. CLI:
+Launch the installed application or run `calibrate-pro gui`. Read-only CLI surfaces include:
 
 ```bash
-calibrate-pro                   # Launch GUI (default)
-calibrate-pro auto              # Calibrate all displays (sensorless + DDC)
-calibrate-pro detect            # Show connected displays + sensors
-calibrate-pro ddc-info          # Show DDC/CI capabilities per monitor
-calibrate-pro verify            # Verify calibration accuracy (ColorChecker)
-calibrate-pro status            # Show calibration age and drift status
-calibrate-pro native-calibrate  # Measured calibration with i1Display3
-calibrate-pro restore           # Undo calibration (reset to defaults)
-calibrate-pro list-panels       # Show all 58 supported panel profiles
-calibrate-pro patterns          # Display fullscreen test patterns
+calibrate-pro doctor            # Read-only installation/capability diagnostics
+calibrate-pro doctor --json     # Stable machine-readable diagnostics
+calibrate-pro list-targets      # List calibration targets
+calibrate-pro list-panels       # List characterized panel profiles
+calibrate-pro info <panel>      # Show stored characterization evidence
+calibrate-pro hdr-status        # Query Windows HDR state
+calibrate-pro patterns          # Display visual test patterns
+calibrate-pro gui               # Launch the calibration workflow
 ```
 
-Run `calibrate-pro --help` for the full 26-command list.
+Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, `restore`, and `verify` are proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the GUI.
 
-See [USAGE.md](USAGE.md) for installation, every command, worked examples with expected output, and a runnable demo under [`examples/`](examples/).
+See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v1.1.0/examples).
 
 ## How It Works
 
-1. **Configures** monitor OSD via DDC/CI (picture mode, color preset, gamma)
-2. **Adjusts** brightness, contrast, RGB gains iteratively with colorimeter feedback
-3. **Profiles** the hardware-calibrated display (per-channel TRC + primaries)
-4. **Generates** a residual correction 3D LUT + ICC v4 profile
-5. **Applies** system-wide via DWM 3D LUT (with VCGT gamma ramp fallback)
-6. **Guards** calibration against Windows resetting it (15-second watchdog)
-7. **Persists** across reboots via Windows startup
+1. **Detects** the selected display and reports available capabilities.
+2. **Chooses** a sensorless or measured method and calibration target.
+3. **Previews** an immutable plan, including bounded DDC changes and SHA-256-bound external assets.
+4. **Confirms** the exact plan with a one-use confirmation before the first write.
+5. **Applies** only supported operations after capturing restorable prior state; failures trigger verified compensation.
+6. **Verifies** the result and labels every performance value by evidence kind.
+7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 1.1.
 
 ## Calibration Modes
 
-| Mode | Requires | Accuracy |
+| Mode | Requires | Evidence |
 |------|----------|----------|
-| Sensorless | Nothing | Model estimate only, panel-database dependent (not a measured guarantee) |
-| Measured | i1Display3 | Measured dE ~3.7 (44% improvement over uncalibrated, CCMX-corrected) |
-| Hybrid | i1Display3 + ArgyllCMS | Measured + iterative refinement |
+| Sensorless | A characterized panel profile or EDID-derived inputs | Estimated; never presented as a measurement of the attached unit |
+| Measured | A supported colorimeter | Instrument observations with source/provenance attached |
 
-The sensorless figure is a prediction from the panel-database model, not a measured
-result: without a colorimeter there is nothing to measure against on your unit. The only
-measured accuracy number Calibrate Pro reports is the ~3.7 dE from the i1Display3 path.
+Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
 ### Native USB Colorimeter
 
@@ -117,6 +115,7 @@ Native USB HID driver for the i1Display3 family reads per-unit calibration matri
 - **QD-OLED (17)**: ASUS PG27UCDM, Samsung G6/G7/G8/G9, Dell AW3423DW/DWF/AW2725DF/AW3225QF, MSI 321URX
 - **WOLED (10)**: LG C2/C3/C4/G4, ASUS PG27AQDP/PG34WCDM, LG 34GS95QE
 - **IPS (20)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
+- **Nano-IPS (2)**: LG UltraGear 27GP950-B, LG UltraGear 27GP850-B
 - **Mini-LED (4)**: ASUS PG32UCDM, Apple Pro Display XDR
 - **VA (3)**: Samsung Odyssey G7, Sony INZONE M9
 - **RGB OLED (2)**: ASUS ProArt PA32DC
@@ -149,7 +148,7 @@ calibrate_pro/
   lut_system/     DWM 3D LUT, VCGT gamma ramp, AMD/NVIDIA API
   verification/   12 patch sets (287 patches), grayscale tracking, PDF export
   services/       CalibrationGuard, GamutClamp, AppSwitcher, DriftMonitor
-  gui/            PyQt6 dark theme, 8 pages, system tray
+  gui/            PySide6 desktop workflow and read-only system tray
   platform/       Windows (full) + macOS (planned)
 ```
 
@@ -169,22 +168,20 @@ calibrate_pro/
 pip install -e ".[all]"
 calibrate-pro gui
 
-# Standalone exe
-pip install pyinstaller
-pyinstaller calibrate-pro.spec
-# Output: dist/calibrate-pro.exe
+# Reproducible Windows release (locked dependencies and release gates)
+powershell -File scripts/build_windows.ps1
 ```
 
 ## Dependencies
 
 **Required:** Python 3.10+, numpy, scipy, build-color
-**GUI:** PyQt6 (`pip install ".[gui]"`)
+**GUI:** PySide6 + QtPy + Build UI 2 (`pip install ".[gui]"`)
 **Sensor:** hidapi (`pip install ".[sensor]"`)
-**System LUT:** [dwm_lut](https://github.com/ledoge/dwm_lut) (bundled)
+**Windows distribution:** includes the audited runtime dependencies and notices required by the release manifest, including the approved `dwm_lut` runtime files.
 
 ## License
 
-FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See [LICENSE](LICENSE).
+FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE).
 
 ## For developers
 

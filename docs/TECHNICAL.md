@@ -4,13 +4,15 @@
 
 ### Overview
 
-Calibrate Pro applies display corrections through a multi-stage pipeline:
+Calibrate Pro prepares and, only after explicit operator confirmation, applies supported
+display corrections through a multi-stage pipeline:
 
 ```
-Detection → Panel Matching → DDC-CI Hardware → 3D LUT Generation → LUT Application → Verification
+Detection → Panel Matching → Method/Target → Immutable Preview → Explicit Confirmation → Supported Actuation → Evidence-Labeled Verification
 ```
 
-Each stage uses specific algorithms chosen for their fitness to the problem, not because they're trendy.
+The detection, planning, and reporting stages do not write display state. Every supported
+actuation requires a fresh plan and explicit confirmation through the interactive workflow.
 
 ### Stage 1: Panel Identification
 
@@ -20,16 +22,23 @@ Monitors are identified through three methods in priority order:
 2. **Fingerprint matching** -- resolution + refresh rate + manufacturer code mapped to known panels
 3. **EDID chromaticity extraction** -- raw 10-bit CIE xy coordinates from EDID bytes 25-34, used to construct a dynamic panel characterization for unknown displays
 
-The panel database stores measured primaries, per-channel gamma, and capabilities -- not fabricated correction matrices. All color correction matrices are computed at runtime from the actual primaries using `primaries_to_xyz_matrix()`.
+The panel database stores nominal characterization primaries, per-channel gamma, capabilities,
+and source notes -- not observations of the connected unit. EDID chromaticities and database
+values are inputs to an estimate, not a measurement of the attached unit. Color correction
+matrices are computed at runtime from the selected characterization using
+`primaries_to_xyz_matrix()`.
 
-### Stage 2: DDC-CI Hardware Pre-Calibration
+### Stage 2: DDC-CI Hardware Plan
 
-Before any software correction, DDC-CI adjusts the monitor's hardware:
+When the attached display reports support, a plan may propose these bounded DDC-CI controls:
 - RGB gain (VCP codes 0x16, 0x18, 0x1A) for white point correction
 - Brightness (VCP 0x10) for target luminance
 - Contrast (VCP 0x12) for black level optimization
 
-Hardware correction preserves the full bit depth of the signal path. Software LUT correction (Stage 3) is minimized by doing as much as possible in hardware first.
+No control is adjusted during detection or planning. The GUI shows the exact plan and requires
+explicit confirmation before the confirmation-bound adapter can attempt a supported write.
+When confirmed and supported, hardware correction can reduce the correction left to a software
+LUT while preserving more of the signal path's available precision.
 
 ### Stage 3: 3D LUT Generation
 
@@ -40,6 +49,10 @@ Three LUT generation modes:
 **sRGB Target:** Compresses the panel's gamut to sRGB using Oklab perceptual gamut mapping (Ottosson, 2020). Binary search in Oklab space finds the maximum achievable chroma at each hue angle, preserving hue while reducing saturation smoothly. This avoids the blue→purple hue shift that Lab-space compression produces.
 
 **HDR (PQ):** Operates in PQ signal space (SMPTE ST.2084). Uses BT.2390 EETF (hermite spline) for luminance mapping from source peak to display peak. Gamut mapping in JzAzBz space (Safdar et al., 2017) which is perceptually uniform across the full HDR luminance range -- unlike Oklab which was designed for SDR.
+
+Generation produces an asset; it does not imply that the asset was installed or applied. Any
+supported application is capability-checked, included in the immutable preview, and separately
+confirmed. Unsupported or unrecoverable actuation fails closed.
 
 ### Stage 4: OLED-Specific Compensation
 
@@ -53,7 +66,7 @@ For OLED panels, the LUT accounts for:
 
 Verification uses two perceptual color difference metrics:
 
-**CIEDE2000** (CIE, 2001): The standard metric. Accounts for lightness, chroma, and hue weighting. All verification numbers are labeled "predicted (sensorless)" unless measured with a colorimeter.
+**CIEDE2000** (CIE, 2001): The standard metric. Accounts for lightness, chroma, and hue weighting. A model-derived score is labelled estimated and is not an accuracy claim for the attached unit. Instrument-derived values retain their measurement provenance; unavailable observations are reported as Not measured.
 
 **CAM16-UCS** (Li et al., 2017): Euclidean distance in the CAM16 Uniform Color Space. More accurate than CIEDE2000 for wide-gamut displays because it accounts for viewing conditions (adapting luminance, surround, chromatic adaptation degree). The stricter of the two metrics determines the grade.
 
@@ -106,11 +119,16 @@ Sensorless calibration uses panel database characteristics to predict correction
 
 3. **Temperature and age.** OLED panels shift in color and brightness as they warm up (first 30 minutes) and as they age (over months/years).
 
-**What sensorless calibration CAN do:** Get you within predicted dE < 1.0 for a panel in the database. This is meaningful -- most uncalibrated displays have dE 5-15.
+**What sensorless calibration CAN do:** Produce an estimated correction plan from nominal panel
+characterization or EDID-derived inputs. It can make the assumptions and proposed transforms
+inspectable, but its model score does not establish the accuracy of the attached unit.
 
 **What sensorless calibration CANNOT do:** Guarantee measured accuracy. Only a colorimeter measurement on YOUR specific panel tells you the actual result.
 
-**Recommendation:** Use sensorless for instant improvement. Verify with a colorimeter for confidence. Use the hybrid refinement workflow (`calibrate-pro refine`) to iteratively close the gap between prediction and reality.
+**Recommendation:** Use the GUI to review the assumptions and exact plan. For measured results,
+use a supported colorimeter and retain its evidence provenance. Generate and explicitly confirm
+a fresh plan for every display change; legacy direct-action CLI names are proposal-only and exit
+without changing display state.
 
 ---
 

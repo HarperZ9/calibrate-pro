@@ -13,13 +13,130 @@ Reports include:
 """
 
 import math
-from datetime import datetime
+from collections.abc import Mapping
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 # Type imports for documentation; runtime access via duck typing
 # from calibrate_pro.sensorless.auto_calibration import AutoCalibrationResult
 # from calibrate_pro.panels.database import PanelCharacterization
+
+
+_PERFORMANCE_METRIC_UNITS = {
+    "delta_e": "dE2000",
+    "delta_e_avg": "dE2000",
+    "delta_e_max": "dE2000",
+    "cam16_delta_e_avg": "dE CAM16-UCS",
+    "peak_luminance": "nits",
+    "gamut_coverage_srgb": "percent",
+    "gamut_coverage_p3": "percent",
+    "gamut_coverage_bt2020": "percent",
+}
+_PERFORMANCE_METRIC_KEYS = frozenset(_PERFORMANCE_METRIC_UNITS)
+
+
+def _not_measured_metric(key: str, *, unit: str | None = None) -> MetricValue:
+    return MetricValue(None, unit or _PERFORMANCE_METRIC_UNITS.get(key, ""), EvidenceKind.NOT_MEASURED)
+
+
+def _serialized_metric(value: object, *, key: str) -> dict[str, object]:
+    """Return a validated serialized metric without inventing evidence."""
+    if isinstance(value, MetricValue):
+        return value.to_dict()
+    if isinstance(value, Mapping):
+        required = {"value", "unit", "evidence", "source"}
+        if set(value) >= required:
+            raw_value = value["value"]
+            if raw_value is not None and (isinstance(raw_value, bool) or not isinstance(raw_value, (int, float))):
+                raise TypeError(f"performance metric {key!r} value must be a finite number or None")
+            unit = value["unit"]
+            if not isinstance(unit, str) or not unit.strip():
+                raise TypeError(f"performance metric {key!r} unit must be a non-empty string")
+            raw_evidence = value["evidence"]
+            try:
+                evidence = EvidenceKind(raw_evidence)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"performance metric {key!r} has invalid evidence") from exc
+            source = value["source"]
+            if source is not None and not isinstance(source, str):
+                raise TypeError(f"performance metric {key!r} source must be a string or None")
+            metric = MetricValue(
+                None if raw_value is None else float(raw_value),
+                unit,
+                evidence,
+                source,
+            )
+            return metric.to_dict()
+    raise ValueError(f"performance metric {key!r} must be a MetricValue")
+
+
+def _metric_from_serialized(value: object, *, key: str) -> MetricValue:
+    serialized = _serialized_metric(value, key=key)
+    return MetricValue(
+        serialized["value"],  # type: ignore[arg-type]
+        str(serialized["unit"]),
+        EvidenceKind(str(serialized["evidence"])),
+        serialized["source"],  # type: ignore[arg-type]
+    )
+
+
+def _metric_html(metric: MetricValue, *, decimals: int = 4) -> str:
+    text = _html_escape(metric.display_text(decimals))
+    if metric.source:
+        text += f'<div class="metric-source">Source: {_html_escape(metric.source)}</div>'
+    return text
+
+
+def build_report_payload(result: object) -> dict[str, object]:
+    """Build the evidence-bearing schema consumed by report serializers.
+
+    Bare performance numbers are rejected at this boundary.  Callers must
+    explicitly identify whether each observation was measured, estimated,
+    simulated, replayed, or not measured.
+    """
+    if isinstance(result, Mapping):
+        raw = dict(result)
+    else:
+        serializer = getattr(result, "to_dict", None)
+        if not callable(serializer):
+            raise TypeError("report result must be a mapping or expose to_dict()")
+        raw = dict(serializer())
+
+    nested_metrics = raw.get("metrics")
+    candidates: dict[str, object] = {}
+    if isinstance(nested_metrics, Mapping):
+        candidates.update(nested_metrics)
+    for key in _PERFORMANCE_METRIC_KEYS:
+        if key in raw:
+            candidates[key] = raw[key]
+    if "delta_e_predicted" in raw and "delta_e" not in candidates:
+        candidates["delta_e"] = raw["delta_e_predicted"]
+
+    metrics = {key: _not_measured_metric(key).to_dict() for key in sorted(_PERFORMANCE_METRIC_KEYS)}
+    metrics.update({key: _serialized_metric(value, key=key) for key, value in sorted(candidates.items())})
+    receipts = sorted(
+        {
+            str(metric["source"])
+            for metric in metrics.values()
+            if metric.get("source") is not None and str(metric["source"]).strip()
+        }
+    )
+    mode = raw.get("mode", "unknown")
+    if hasattr(mode, "value"):
+        mode = mode.value
+    generated_at = raw.get("generated_at") or raw.get("timestamp") or datetime.now(timezone.utc).isoformat()
+    if hasattr(generated_at, "isoformat"):
+        generated_at = generated_at.isoformat()
+    return {
+        "schema_version": 1,
+        "mode": str(mode),
+        "metrics": metrics,
+        "source_receipts": receipts,
+        "generated_at": str(generated_at),
+    }
 
 
 # =============================================================================
@@ -299,6 +416,13 @@ body {
     color: #ffffff;
     font-size: 18px;
     font-weight: 500;
+}
+.metric-source {
+    color: #7f8ca8;
+    font-size: 10px;
+    font-weight: 400;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
 }
 .summary-card .value.grade-ref { color: #00e676; }
 .summary-card .value.grade-pro { color: #00d2ff; }
@@ -790,14 +914,14 @@ def _build_summary_section(
     panel_name: str,
     panel_type: str,
     manufacturer: str,
-    delta_e_avg: float,
-    delta_e_max: float,
+    delta_e_avg: MetricValue,
+    delta_e_max: MetricValue,
     grade: str,
     lut_method: str,
     ddc_changes: dict[str, Any],
-    gamut_coverage: dict[str, float] | None = None,
-    cam16_delta_e_avg: float = 0.0,
-    color_volume: dict | None = None,
+    gamut_coverage: dict[str, MetricValue] | None = None,
+    cam16_delta_e_avg: MetricValue | None = None,
+    color_volume: dict[str, MetricValue] | None = None,
 ) -> str:
     """Build the calibration results summary section."""
     grade_class = _grade_css_class(grade)
@@ -853,11 +977,11 @@ def _build_summary_section(
         </div>
         <div class="summary-card">
             <div class="label">Average Delta E (CIEDE2000)</div>
-            <div class="value">{delta_e_avg:.4f}</div>
+            <div class="value">{_metric_html(delta_e_avg)}</div>
         </div>
         <div class="summary-card">
             <div class="label">Maximum Delta E</div>
-            <div class="value">{delta_e_max:.4f}</div>
+            <div class="value">{_metric_html(delta_e_max)}</div>
         </div>
         <div class="summary-card">
             <div class="label">Quality Grade</div>
@@ -865,7 +989,7 @@ def _build_summary_section(
         </div>
         <div class="summary-card">
             <div class="label">CAM16-UCS Delta E</div>
-            <div class="value">{cam16_delta_e_avg:.4f}</div>
+            <div class="value">{_metric_html(cam16_delta_e_avg or _not_measured_metric("cam16_delta_e_avg"))}</div>
         </div>
         <div class="summary-card">
             <div class="label">LUT Application Method</div>
@@ -878,17 +1002,22 @@ def _build_summary_section(
 """
 
 
-def _build_gamut_coverage_html(coverage: dict[str, float] | None, color_volume: dict | None = None) -> str:
+def _build_gamut_coverage_html(
+    coverage: dict[str, MetricValue] | None,
+    color_volume: dict[str, MetricValue] | None = None,
+) -> str:
     """Build gamut coverage and color volume section HTML."""
     if not coverage:
         return ""
 
-    srgb = coverage.get("srgb_pct", 0)
-    p3 = coverage.get("dci_p3_pct", 0)
-    bt2020 = coverage.get("bt2020_pct", 0)
-    rel = coverage.get("relative_to_srgb_pct", 0)
+    srgb = coverage.get("srgb_pct", _not_measured_metric("gamut_coverage_srgb"))
+    p3 = coverage.get("dci_p3_pct", _not_measured_metric("gamut_coverage_p3"))
+    bt2020 = coverage.get("bt2020_pct", _not_measured_metric("gamut_coverage_bt2020"))
 
-    def bar(pct, color):
+    def bar(metric: MetricValue, color: str) -> str:
+        if metric.value is None:
+            return '<div style="background:#0d1b2a;border-radius:4px;height:20px;width:100%;margin:4px 0;"></div>'
+        pct = metric.value
         w = max(0, min(100, pct))
         return (
             f'<div style="background:#0d1b2a;border-radius:4px;height:20px;width:100%;margin:4px 0;">'
@@ -901,28 +1030,26 @@ def _build_gamut_coverage_html(coverage: dict[str, float] | None, color_volume: 
     <div style="display:grid;grid-template-columns:100px 1fr 60px;gap:6px;align-items:center;max-width:500px;">
         <span style="color:#a0a0b8;">sRGB</span>
         {bar(srgb, "#4cc9f0")}
-        <span style="color:#e0e0e8;font-weight:bold;">{srgb:.1f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(srgb, decimals=1)}</span>
 
         <span style="color:#a0a0b8;">DCI-P3</span>
         {bar(p3, "#f72585")}
-        <span style="color:#e0e0e8;font-weight:bold;">{p3:.1f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(p3, decimals=1)}</span>
 
         <span style="color:#a0a0b8;">BT.2020</span>
         {bar(bt2020, "#7209b7")}
-        <span style="color:#e0e0e8;font-weight:bold;">{bt2020:.1f}%</span>
-
-        <span style="color:#a0a0b8;">vs sRGB</span>
-        {bar(min(rel, 200) / 2, "#4361ee")}
-        <span style="color:#e0e0e8;font-weight:bold;">{rel:.0f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(bt2020, decimals=1)}</span>
     </div>
 """
 
     # 3D Color Volume section
     if color_volume:
-        v_srgb = color_volume.get("srgb_pct", 0)
-        v_p3 = color_volume.get("p3_pct", 0)
-        v_bt2020 = color_volume.get("bt2020_pct", 0)
-        v_rel = color_volume.get("relative_to_srgb_pct", 0)
+        v_srgb = color_volume.get("srgb_pct", _not_measured_metric("color_volume_srgb", unit="percent"))
+        v_p3 = color_volume.get("p3_pct", _not_measured_metric("color_volume_p3", unit="percent"))
+        v_bt2020 = color_volume.get(
+            "bt2020_pct",
+            _not_measured_metric("color_volume_bt2020", unit="percent"),
+        )
 
         html += f"""
     <h3 style="margin-top:16px;">Color Volume (3D)</h3>
@@ -932,53 +1059,19 @@ def _build_gamut_coverage_html(coverage: dict[str, float] | None, color_volume: 
     <div style="display:grid;grid-template-columns:100px 1fr 60px;gap:6px;align-items:center;max-width:500px;">
         <span style="color:#a0a0b8;">sRGB</span>
         {bar(v_srgb, "#4cc9f0")}
-        <span style="color:#e0e0e8;font-weight:bold;">{v_srgb:.1f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(v_srgb, decimals=1)}</span>
 
         <span style="color:#a0a0b8;">DCI-P3</span>
         {bar(v_p3, "#f72585")}
-        <span style="color:#e0e0e8;font-weight:bold;">{v_p3:.1f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(v_p3, decimals=1)}</span>
 
         <span style="color:#a0a0b8;">BT.2020</span>
         {bar(v_bt2020, "#7209b7")}
-        <span style="color:#e0e0e8;font-weight:bold;">{v_bt2020:.1f}%</span>
-
-        <span style="color:#a0a0b8;">vs sRGB</span>
-        {bar(min(v_rel, 200) / 2, "#4361ee")}
-        <span style="color:#e0e0e8;font-weight:bold;">{v_rel:.0f}%</span>
+        <span style="color:#e0e0e8;font-weight:bold;">{_metric_html(v_bt2020, decimals=1)}</span>
     </div>
 """
 
         # Per-lightness gamut area chart (inline SVG)
-        levels = color_volume.get("lightness_levels", [])
-        areas = color_volume.get("gamut_area_per_level", [])
-        if levels and areas and max(areas) > 0:
-            max_area = max(areas)
-            svg_w, svg_h = 400, 120
-            bar_w = svg_w / max(len(levels), 1)
-
-            bars_svg = ""
-            for i, (_L, area) in enumerate(zip(levels, areas)):
-                h = (area / max_area) * (svg_h - 20)
-                x = i * bar_w
-                y = svg_h - 10 - h
-                bars_svg += (
-                    f'<rect x="{x + 1}" y="{y}" width="{bar_w - 2}" height="{h}" fill="#4cc9f0" opacity="0.7" rx="2"/>'
-                )
-
-            html += f"""
-    <div style="margin-top:12px;">
-        <p style="color:#a0a0b8;font-size:12px;">Gamut area by lightness (L*):</p>
-        <svg viewBox="0 0 {svg_w} {svg_h}" width="{svg_w}" height="{svg_h}"
-             style="background:#0d1b2a;border-radius:6px;">
-            {bars_svg}
-            <text x="5" y="{svg_h - 2}" fill="#6b7280" font-size="9"
-                  font-family="sans-serif">Dark</text>
-            <text x="{svg_w - 30}" y="{svg_h - 2}" fill="#6b7280" font-size="9"
-                  font-family="sans-serif">Bright</text>
-        </svg>
-    </div>
-"""
-
     return html
 
 
@@ -996,9 +1089,10 @@ def _build_patch_table_section(
     """Build the ColorChecker patch results table."""
     rows: list[str] = []
 
-    for patch in patches:
+    for index, patch in enumerate(patches):
         name = patch["name"]
-        delta_e = patch["delta_e"]
+        raw_delta_e = patch.get("delta_e", _not_measured_metric(f"patch_{index}_delta_e", unit="dE2000"))
+        delta_e = _metric_from_serialized(raw_delta_e, key=f"patches[{index}].delta_e")
 
         # Get reference sRGB
         ref_srgb = COLORCHECKER_SRGB.get(name, (0.5, 0.5, 0.5))
@@ -1016,10 +1110,13 @@ def _build_patch_table_section(
         )
 
         # Status
-        if delta_e < 1.0:
+        if delta_e.value is None:
+            status_class = ""
+            status_text = "NOT MEASURED"
+        elif delta_e.value < 1.0:
             status_class = "status-pass"
             status_text = "PASS"
-        elif delta_e < 2.0:
+        elif delta_e.value < 2.0:
             status_class = "status-warn"
             status_text = "WARN"
         else:
@@ -1037,7 +1134,7 @@ def _build_patch_table_section(
                 <span class="color-swatch" style="background-color:{pred_hex};"></span>
                 {pred_str}
             </td>
-            <td>{delta_e:.4f}</td>
+            <td>{_metric_html(delta_e)}</td>
             <td class="{status_class}">{status_text}</td>
         </tr>""")
 
@@ -1128,6 +1225,23 @@ def _html_escape(text: str) -> str:
     )
 
 
+def _build_source_receipts_section(receipts: list[str]) -> str:
+    if not receipts:
+        return """
+<div class="section">
+    <h2>Evidence Sources</h2>
+    <p>Not measured</p>
+</div>
+"""
+    items = "".join(f"<li>{_html_escape(receipt)}</li>" for receipt in receipts)
+    return f"""
+<div class="section">
+    <h2>Evidence Sources</h2>
+    <ul>{items}</ul>
+</div>
+"""
+
+
 # =============================================================================
 # Main Report Generator
 # =============================================================================
@@ -1161,10 +1275,10 @@ def generate_calibration_report(
                 - panel_type (str)
                 - native_primaries.red/green/blue/white (.x, .y)
                 - gamma_red/green/blue (.gamma)
-        verification: dict from verify_calibration() with keys:
-                - patches (list of dicts with name, ref_lab, displayed_lab, delta_e)
-                - delta_e_avg (float)
-                - delta_e_max (float)
+        verification: Evidence-bearing verification mapping with keys:
+                - patches (list of dicts whose delta_e is a MetricValue)
+                - delta_e_avg (MetricValue)
+                - delta_e_max (MetricValue)
                 - grade (str)
         output_path: Path to save the HTML file.
 
@@ -1195,11 +1309,28 @@ def generate_calibration_report(
     manufacturer = panel.manufacturer
     model_name = panel_matched or (manufacturer + " " + panel.model_pattern.split("|")[0])
 
+    result_payload = build_report_payload(result)
+    result_metrics = cast(Mapping[str, object], result_payload["metrics"])
+
+    def result_metric(key: str, *fallback_keys: str) -> MetricValue:
+        for candidate_key in (key, *fallback_keys):
+            candidate = _metric_from_serialized(result_metrics[candidate_key], key=candidate_key)
+            if candidate.value is not None:
+                return candidate
+        return _metric_from_serialized(result_metrics[key], key=key)
+
+    def verification_metric(key: str, fallback: MetricValue) -> MetricValue:
+        if key not in verification:
+            return fallback
+        return _metric_from_serialized(verification[key], key=key)
+
     # Verification data
     patches = verification.get("patches", [])
-    delta_e_avg = verification.get("delta_e_avg", 0.0)
-    delta_e_max = verification.get("delta_e_max", 0.0)
-    grade = verification.get("grade", "Unknown")
+    if not isinstance(patches, list):
+        raise TypeError("verification patches must be a list")
+    delta_e_avg = verification_metric("delta_e_avg", result_metric("delta_e_avg", "delta_e"))
+    delta_e_max = verification_metric("delta_e_max", result_metric("delta_e_max"))
+    grade = verification.get("grade", "Not measured")
 
     # Report date
     report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1209,9 +1340,37 @@ def generate_calibration_report(
     # Build HTML sections
     header = _build_header(display_name, panel_info, report_date)
     cie_section = _build_cie_diagram_section(panel_red, panel_green, panel_blue, panel_white)
-    gamut_coverage = verification.get("gamut_coverage")
-    color_volume = verification.get("color_volume")
-    cam16_de_avg = verification.get("cam16_delta_e_avg", 0.0)
+    raw_coverage = verification.get("gamut_coverage")
+    if raw_coverage is not None and not isinstance(raw_coverage, Mapping):
+        raise TypeError("gamut_coverage must be an evidence-bearing mapping")
+    coverage_aliases = {
+        "srgb_pct": "gamut_coverage_srgb",
+        "dci_p3_pct": "gamut_coverage_p3",
+        "bt2020_pct": "gamut_coverage_bt2020",
+    }
+    gamut_coverage: dict[str, MetricValue] = {}
+    for nested_key, metric_key in coverage_aliases.items():
+        fallback = result_metric(metric_key)
+        if isinstance(raw_coverage, Mapping) and nested_key in raw_coverage:
+            fallback = _metric_from_serialized(raw_coverage[nested_key], key=f"gamut_coverage.{nested_key}")
+        gamut_coverage[nested_key] = fallback
+
+    raw_color_volume = verification.get("color_volume")
+    if raw_color_volume is not None and not isinstance(raw_color_volume, Mapping):
+        raise TypeError("color_volume must be an evidence-bearing mapping")
+    color_volume: dict[str, MetricValue] | None = None
+    if isinstance(raw_color_volume, Mapping):
+        color_volume = {}
+        for nested_key in ("srgb_pct", "p3_pct", "bt2020_pct"):
+            value = raw_color_volume.get(
+                nested_key,
+                _not_measured_metric(f"color_volume_{nested_key}", unit="percent"),
+            )
+            color_volume[nested_key] = _metric_from_serialized(value, key=f"color_volume.{nested_key}")
+    cam16_de_avg = verification_metric(
+        "cam16_delta_e_avg",
+        result_metric("cam16_delta_e_avg"),
+    )
 
     summary_section = _build_summary_section(
         model_name,
@@ -1229,6 +1388,21 @@ def generate_calibration_report(
     patch_section = _build_patch_table_section(patches)
     gamma_section = _build_gamma_section(gamma_r, gamma_g, gamma_b)
     wp_section = _build_whitepoint_section(panel_white, D65_WHITE)
+    receipts = {
+        metric.source for metric in [delta_e_avg, delta_e_max, cam16_de_avg, *gamut_coverage.values()] if metric.source
+    }
+    if color_volume:
+        receipts.update(metric.source for metric in color_volume.values() if metric.source)
+    for index, patch in enumerate(patches):
+        if not isinstance(patch, Mapping):
+            raise TypeError("verification patch entries must be mappings")
+        patch_metric = _metric_from_serialized(
+            patch.get("delta_e", _not_measured_metric(f"patch_{index}_delta_e", unit="dE2000")),
+            key=f"patches[{index}].delta_e",
+        )
+        if patch_metric.source:
+            receipts.add(patch_metric.source)
+    receipt_section = _build_source_receipts_section(sorted(receipts))
 
     # Assemble full HTML
     html = f"""<!DOCTYPE html>
@@ -1249,6 +1423,7 @@ def generate_calibration_report(
         {patch_section}
         {gamma_section}
         {wp_section}
+        {receipt_section}
         <div class="footer">
             Generated by Calibrate Pro &mdash; Build Universe &mdash; {_html_escape(report_date)}
         </div>

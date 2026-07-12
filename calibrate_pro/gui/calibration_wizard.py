@@ -419,9 +419,9 @@ class TargetSettingsStep(WizardStep):
         gamut_layout.addWidget(self.gamut_combo)
 
         gamut_info = QLabel(
-            "sRGB: Standard for web, 35% of visible spectrum\n"
-            "DCI-P3: Wide gamut for HDR content, 45% coverage\n"
-            "BT.2020: Ultra-wide for HDR video, 76% coverage"
+            "sRGB: Standard target for web and general use\n"
+            "DCI-P3: Wide-gamut target used by cinema and HDR workflows\n"
+            "BT.2020: Ultra-wide container used by HDR video"
         )
         gamut_info.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 11px;")
         gamut_layout.addWidget(gamut_info)
@@ -558,14 +558,14 @@ class CalibrationModeStep(WizardStep):
 
         # Sensorless card
         sensorless_card = self._create_mode_card(
-            "Sensorless Calibration",
-            "Use AI-powered calibration without a colorimeter. "
-            "Achieves Delta E < 1.0 using panel characterization data.",
+            "Panel Characterization Preview",
+            "Build a preview from panel characterization data. Any resulting metrics "
+            "must be labelled estimated and carry a characterization receipt.",
             [
                 "No hardware required",
-                "Fast calibration (< 5 minutes)",
-                "Delta E < 1.0 accuracy",
-                "Supports all display types",
+                "No instrument measurements are implied",
+                "Characterization evidence remains visible",
+                "Display changes require a separate confirmed apply",
             ],
             CalibrationMode.SENSORLESS,
             True,  # Default selection
@@ -574,13 +574,13 @@ class CalibrationModeStep(WizardStep):
 
         # Hardware card
         hardware_card = self._create_mode_card(
-            "Hardware Calibration",
-            "Use a colorimeter for maximum accuracy. Supports all major devices via ArgyllCMS.",
+            "Instrument Workflow Plan",
+            "Configure a future colorimeter run. This wizard does not collect instrument readings.",
             [
-                "Delta E < 0.5 accuracy",
-                "Direct measurement feedback",
-                "Spectrophotometer support",
-                "Custom correction matrices",
+                "Measured metrics require an instrument receipt",
+                "No readings are shown before acquisition",
+                "Correction files remain user-selected inputs",
+                "Apply remains a separate confirmed step",
             ],
             CalibrationMode.HARDWARE,
             False,
@@ -698,7 +698,7 @@ class CalibrationModeStep(WizardStep):
 
 
 class MeasurementStep(WizardStep):
-    """Step 4: Perform calibration measurements."""
+    """Step 4: preview target patches without fabricating observations."""
 
     measurement_started = Signal()
     measurement_completed = Signal(dict)  # Results
@@ -710,11 +710,11 @@ class MeasurementStep(WizardStep):
 
     @property
     def title(self) -> str:
-        return "Calibration"
+        return "Target Preview"
 
     @property
     def description(self) -> str:
-        return "Measuring and calibrating your display"
+        return "Preview requested patches; no measurements or display changes occur"
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -732,12 +732,12 @@ class MeasurementStep(WizardStep):
         """)
         status_layout = QVBoxLayout(status_frame)
 
-        self.status_label = QLabel("Ready to start calibration")
+        self.status_label = QLabel("Ready to preview targets")
         self.status_label.setStyleSheet("font-size: 18px; font-weight: 600;")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         status_layout.addWidget(self.status_label)
 
-        self.substatus_label = QLabel("Click 'Start Calibration' to begin")
+        self.substatus_label = QLabel("No instrument observations will be generated")
         self.substatus_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
         self.substatus_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         status_layout.addWidget(self.substatus_label)
@@ -790,11 +790,11 @@ class MeasurementStep(WizardStep):
         measurement_layout.addWidget(self.target_rgb, 0, 2)
 
         measurement_layout.addWidget(QLabel("Measured XYZ:"), 1, 1)
-        self.measured_xyz = QLabel("--")
+        self.measured_xyz = QLabel("Not measured")
         measurement_layout.addWidget(self.measured_xyz, 1, 2)
 
         measurement_layout.addWidget(QLabel("Delta E:"), 0, 3)
-        self.delta_e = QLabel("--")
+        self.delta_e = QLabel("Not measured")
         self.delta_e.setStyleSheet("font-size: 24px; font-weight: 600;")
         measurement_layout.addWidget(self.delta_e, 0, 4, 2, 1)
 
@@ -805,7 +805,7 @@ class MeasurementStep(WizardStep):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        self.start_button = QPushButton("Start Calibration")
+        self.start_button = QPushButton("Preview Target Sequence")
         self.start_button.setProperty("primary", True)
         self.start_button.clicked.connect(self._start_calibration)
         button_layout.addWidget(self.start_button)
@@ -839,37 +839,37 @@ class MeasurementStep(WizardStep):
         layout.addWidget(log_group)
 
     def _start_calibration(self):
-        """Start the calibration process."""
+        """Start a target-only preview sequence."""
         self._measuring = True
         self.start_button.setVisible(False)
         self.cancel_button.setVisible(True)
         self.measurement_frame.setVisible(True)
 
-        self.status_label.setText("Calibrating...")
-        self._log("Starting calibration process")
+        self.status_label.setText("Previewing targets...")
+        self._log("Starting target preview; no measurement or apply operation is running")
         self._log(f"Mode: {self.config.mode.name}")
         self._log(f"Target: {self.config.whitepoint.value}, {self.config.gamma.value}")
 
-        # Simulate calibration progress (in real implementation, connect to calibration engine)
-        self._simulate_calibration()
+        # Preview targets only. No observed values are invented here.
+        self._run_preview_sequence()
 
     def _cancel_calibration(self):
         """Cancel the calibration process."""
         self._measuring = False
         self.start_button.setVisible(True)
         self.cancel_button.setVisible(False)
-        self.status_label.setText("Calibration cancelled")
-        self._log("Calibration cancelled by user")
+        self.status_label.setText("Preview cancelled")
+        self._log("Target preview cancelled by user")
 
-    def _simulate_calibration(self):
-        """Simulate calibration progress for demo."""
+    def _run_preview_sequence(self):
+        """Preview requested grayscale targets without claiming observations."""
         self._current_step = 0
         self._total_steps = 21  # Grayscale steps
 
         def update_step():
             if not self._measuring or self._current_step >= self._total_steps:
                 if self._measuring:
-                    self._complete_calibration()
+                    self._complete_preview()
                 return
 
             progress = int((self._current_step / self._total_steps) * 100)
@@ -883,31 +883,29 @@ class MeasurementStep(WizardStep):
                 border-radius: 8px;
             """)
             self.target_rgb.setText(f"({gray}, {gray}, {gray})")
-            self.measured_xyz.setText(f"({gray / 2.55:.1f}, {gray / 2.55:.1f}, {gray / 2.55:.1f})")
+            self.measured_xyz.setText("Not measured")
+            self.delta_e.setText("Not measured")
 
-            delta = abs(0.5 - self._current_step / self._total_steps) * 0.8
-            self.delta_e.setText(f"{delta:.2f}")
-
-            self.substatus_label.setText(f"Measuring grayscale step {self._current_step + 1} of {self._total_steps}")
-            self._log(f"Step {self._current_step + 1}: Gray {gray} - Delta E: {delta:.2f}")
+            self.substatus_label.setText(f"Previewing target {self._current_step + 1} of {self._total_steps}")
+            self._log(f"Target {self._current_step + 1}: Gray {gray}; observation: Not measured")
 
             self._current_step += 1
             QTimer.singleShot(200, update_step)
 
         update_step()
 
-    def _complete_calibration(self):
-        """Complete the calibration process."""
+    def _complete_preview(self):
+        """Complete target preview without claiming calibration evidence."""
         self._measuring = False
         self.progress.setValue(100)
-        self.status_label.setText("Calibration Complete!")
-        self.substatus_label.setText("Average Delta E: 0.42")
-        self.start_button.setText("Recalibrate")
+        self.status_label.setText("Preview Ready")
+        self.substatus_label.setText("Delta E: Not measured")
+        self.start_button.setText("Build Preview Again")
         self.start_button.setVisible(True)
         self.cancel_button.setVisible(False)
         self._is_valid = True
         self.step_complete.emit(True)
-        self._log("Calibration complete - Average Delta E: 0.42")
+        self._log("Preview complete; no measurements were performed")
 
     def _log(self, message: str):
         """Add message to log."""
@@ -920,7 +918,7 @@ class MeasurementStep(WizardStep):
 
 
 class ProfileGenerationStep(WizardStep):
-    """Step 5: Generate and save calibration profile."""
+    """Step 5: review requested outputs without writing artifacts."""
 
     def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
@@ -929,34 +927,34 @@ class ProfileGenerationStep(WizardStep):
 
     @property
     def title(self) -> str:
-        return "Generate Profile"
+        return "Output Plan"
 
     @property
     def description(self) -> str:
-        return "Create and install your calibration profile"
+        return "Review requested artifacts; this preview does not write or install them"
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
 
         # Profile options
-        options_group = QGroupBox("Profile Options")
+        options_group = QGroupBox("Requested Outputs (preview only)")
         options_layout = QVBoxLayout(options_group)
 
-        self.create_icc = QCheckBox("Create ICC Profile (v4.4)")
+        self.create_icc = QCheckBox("Request ICC Profile (v4.4)")
         self.create_icc.setChecked(True)
         options_layout.addWidget(self.create_icc)
 
-        self.create_3dlut = QCheckBox("Generate 3D LUT (.cube)")
+        self.create_3dlut = QCheckBox("Request 3D LUT (.cube)")
         self.create_3dlut.setChecked(True)
         options_layout.addWidget(self.create_3dlut)
 
-        self.apply_vcgt = QCheckBox("Apply Video Card Gamma Table (VCGT)")
-        self.apply_vcgt.setChecked(True)
+        self.apply_vcgt = QCheckBox("Include VCGT in proposed apply plan")
+        self.apply_vcgt.setChecked(False)
         options_layout.addWidget(self.apply_vcgt)
 
-        self.install_profile = QCheckBox("Install as system default profile")
-        self.install_profile.setChecked(True)
+        self.install_profile = QCheckBox("Include system-default install in proposed apply plan")
+        self.install_profile.setChecked(False)
         options_layout.addWidget(self.install_profile)
 
         layout.addWidget(options_group)
@@ -989,37 +987,28 @@ class ProfileGenerationStep(WizardStep):
         layout.addWidget(self.gen_status)
 
         # Generate button
-        self.generate_btn = QPushButton("Generate Profile")
+        self.generate_btn = QPushButton("Review Output Plan")
         self.generate_btn.setProperty("primary", True)
-        self.generate_btn.clicked.connect(self._generate_profile)
+        self.generate_btn.clicked.connect(self._review_output_plan)
         layout.addWidget(self.generate_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()
 
-    def _generate_profile(self):
-        """Generate the calibration profile."""
-        self.generate_btn.setEnabled(False)
-        self.gen_progress.setVisible(True)
-        self.gen_progress.setValue(0)
+    def _review_output_plan(self):
+        """Summarize selections without claiming files were generated or installed."""
+        requested = []
+        if self.create_icc.isChecked():
+            requested.append("ICC profile")
+        if self.create_3dlut.isChecked():
+            requested.append("3D LUT")
+        if self.apply_vcgt.isChecked():
+            requested.append("VCGT apply proposal")
+        if self.install_profile.isChecked():
+            requested.append("system-default install proposal")
 
-        def update_progress():
-            value = self.gen_progress.value() + 10
-            if value <= 100:
-                self.gen_progress.setValue(value)
-                if value == 30:
-                    self.gen_status.setText("Creating ICC profile...")
-                elif value == 60:
-                    self.gen_status.setText("Generating 3D LUT...")
-                elif value == 90:
-                    self.gen_status.setText("Installing profile...")
-                QTimer.singleShot(200, update_progress)
-            else:
-                self.gen_status.setText("Profile installed successfully!")
-                self.gen_status.setStyleSheet(f"color: {COLORS['success']}; font-weight: 600;")
-                self.generate_btn.setText("Regenerate")
-                self.generate_btn.setEnabled(True)
-
-        update_progress()
+        selection = ", ".join(requested) if requested else "No outputs selected"
+        self.gen_status.setText(f"Requested: {selection}. No files were generated or installed by this preview.")
+        self.gen_status.setStyleSheet(f"color: {COLORS['text_secondary']}; font-weight: 600;")
 
 
 # =============================================================================
@@ -1028,7 +1017,7 @@ class ProfileGenerationStep(WizardStep):
 
 
 class VerificationStep(WizardStep):
-    """Step 6: Verify calibration accuracy."""
+    """Step 6: collect verification evidence."""
 
     def __init__(self, config: CalibrationConfig, parent: QWidget | None = None):
         super().__init__(config, parent)
@@ -1041,7 +1030,7 @@ class VerificationStep(WizardStep):
 
     @property
     def description(self) -> str:
-        return "Verify your calibration accuracy"
+        return "Collect instrument evidence for calibration metrics"
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -1059,27 +1048,27 @@ class VerificationStep(WizardStep):
         """)
         results_layout = QVBoxLayout(results_frame)
 
-        title = QLabel("Calibration Results")
+        title = QLabel("Evidence Status")
         title.setStyleSheet("font-size: 18px; font-weight: 600;")
         results_layout.addWidget(title)
 
         # Delta E summary
         delta_layout = QHBoxLayout()
 
-        avg_delta = QLabel("0.42")
-        avg_delta.setStyleSheet(f"font-size: 48px; font-weight: 600; color: {COLORS['success']};")
+        avg_delta = QLabel("Not measured")
+        avg_delta.setStyleSheet(f"font-size: 28px; font-weight: 600; color: {COLORS['text_secondary']};")
         delta_layout.addWidget(avg_delta)
 
         delta_info = QVBoxLayout()
         delta_info.addWidget(QLabel("Average Delta E"))
-        delta_info.addWidget(QLabel("Excellent accuracy"))
+        delta_info.addWidget(QLabel("Evidence: not measured"))
         delta_layout.addLayout(delta_info)
 
         delta_layout.addStretch()
 
         max_delta = QVBoxLayout()
-        max_delta.addWidget(QLabel("Max Delta E: 0.89"))
-        max_delta.addWidget(QLabel("95th percentile: 0.71"))
+        max_delta.addWidget(QLabel("Max Delta E: Not measured"))
+        max_delta.addWidget(QLabel("95th percentile: Not measured"))
         delta_layout.addLayout(max_delta)
 
         results_layout.addLayout(delta_layout)
@@ -1111,9 +1100,13 @@ class VerificationStep(WizardStep):
         report_layout = QHBoxLayout(report_group)
 
         pdf_btn = QPushButton("Export PDF Report")
+        pdf_btn.setEnabled(False)
+        pdf_btn.setToolTip("Available after evidence has been collected")
         report_layout.addWidget(pdf_btn)
 
         html_btn = QPushButton("Export HTML Report")
+        html_btn.setEnabled(False)
+        html_btn.setToolTip("Available after evidence has been collected")
         report_layout.addWidget(html_btn)
 
         layout.addWidget(report_group)
@@ -1165,7 +1158,7 @@ class CalibrationWizard(QWidget):
         header_layout = QHBoxLayout(header)
 
         self.step_indicators = []
-        step_names = ["Display", "Targets", "Mode", "Calibrate", "Profile", "Verify"]
+        step_names = ["Display", "Targets", "Mode", "Preview", "Outputs", "Evidence"]
 
         for i, name in enumerate(step_names):
             indicator = QLabel(f"{i + 1}. {name}")

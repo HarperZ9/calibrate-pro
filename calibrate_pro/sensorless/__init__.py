@@ -1,7 +1,7 @@
 """
 Calibrate Pro - Sensorless Calibration Module
 
-Sensorless Calibration Engine for achieving Delta E < 1.0 calibration
+Sensorless calibration engine for evidence-labelled panel-characterization estimates
 without hardware colorimeters.
 
 This module provides:

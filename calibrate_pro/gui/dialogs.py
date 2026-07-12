@@ -1,11 +1,9 @@
 """
 Dialogs - Calibrate Pro
 
-Consent dialog for hardware modification warnings and the simulated
-measurement window used for colorimeter-free calibration sequences.
+Consent dialog for hardware modification warnings and a target-patch window.
+The patch window presents requested colors; it never fabricates measurements.
 """
-
-import random
 
 from PySide6.QtCore import QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPixmap, QScreen
@@ -29,7 +27,7 @@ from calibrate_pro.gui.theme import COLORS
 
 
 class ConsentDialog(QDialog):
-    """Dialog for obtaining user consent before hardware modifications."""
+    """Dialog for acknowledging a proposed, preview-only calibration plan."""
 
     def __init__(self, parent=None, display_name: str = "Display", changes: list = None, risk_level: str = "MEDIUM"):
         super().__init__(parent)
@@ -75,7 +73,7 @@ class ConsentDialog(QDialog):
         layout.addWidget(risk_label)
 
         # Changes list
-        changes_group = QGroupBox("What will be modified:")
+        changes_group = QGroupBox("Proposed changes (not applied by this preview):")
         changes_layout = QVBoxLayout(changes_group)
         for change in changes:
             change_label = QLabel(f"  {change}")
@@ -86,15 +84,12 @@ class ConsentDialog(QDialog):
         # Safety info
         safety_text = QPlainTextEdit()
         safety_text.setPlainText(
-            "SAFETY INFORMATION:\n\n"
-            "• ICC Profile: Easily reversible, no risk to hardware\n"
-            "• 3D LUT: Can be removed at any time via dwm_lut\n"
-            "• DDC/CI Settings: Modifies monitor RGB gains, can be reset via monitor OSD\n"
-            "• All changes can be reversed at any time\n\n"
-            "BENEFITS:\n"
-            "• Professional color accuracy (Delta E < 1.0)\n"
-            "• Consistent colors across all applications\n"
-            "• Proper grayscale tracking and gamma"
+            "PREVIEW BOUNDARY:\n\n"
+            "• This step builds a proposal and does not apply display changes.\n"
+            "• ICC, LUT, VCGT, and DDC/CI actions require a separate confirmed apply.\n"
+            "• Estimated metrics require a characterization receipt.\n"
+            "• Measured metrics require an instrument receipt.\n"
+            "• No accuracy or display-performance claim is made by this preview."
         )
         safety_text.setReadOnly(True)
         safety_text.setMaximumHeight(150)
@@ -107,11 +102,11 @@ class ConsentDialog(QDialog):
         layout.addWidget(safety_text)
 
         # Consent checkboxes
-        self.acknowledge_check = QCheckBox("I understand that calibration will modify my display settings")
+        self.acknowledge_check = QCheckBox("I understand that this step only builds a preview")
         self.acknowledge_check.setStyleSheet(f"color: {COLORS['text_primary']};")
         layout.addWidget(self.acknowledge_check)
 
-        self.hardware_check = QCheckBox("I approve hardware modifications via DDC/CI (if available)")
+        self.hardware_check = QCheckBox("Include DDC/CI steps in the proposal (separate apply confirmation required)")
         self.hardware_check.setStyleSheet(f"color: {COLORS['text_primary']};")
         layout.addWidget(self.hardware_check)
 
@@ -123,7 +118,7 @@ class ConsentDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
 
-        self.proceed_btn = QPushButton("Proceed with Calibration")
+        self.proceed_btn = QPushButton("Build Preview")
         self.proceed_btn.setProperty("primary", True)
         self.proceed_btn.setEnabled(False)
         self.proceed_btn.clicked.connect(self._on_proceed)
@@ -143,21 +138,24 @@ class ConsentDialog(QDialog):
         self.accept()
 
 
-# Simulated Measurement Window - Hardware colorimeter simulation
+# Legacy-named target patch window
 
 
 class SimulatedMeasurementWindow(QWidget):
     """
-    Fullscreen window that simulates hardware colorimeter measurements.
+    Fullscreen target-patch presenter retained under its legacy class name.
 
     Features:
-    - Centered color patch display (like colorimeter positioning)
-    - Audio beeps for each measurement
-    - Progress display with patch info
-    - Random color sequences for visual feedback
+    - Centered target patch display for colorimeter positioning
+    - Audio cues for each requested patch
+    - Progress display with patch information
+
+    No observed values or performance metrics are generated here.
     """
 
-    measurement_complete = Signal(int, tuple)  # patch_index, (r, g, b)
+    # Compatibility signal: this carries the requested target RGB, never a sensor reading.
+    measurement_complete = Signal(int, tuple)
+    patch_presented = Signal(int, tuple)
     sequence_complete = Signal()
     closed = Signal()
 
@@ -204,19 +202,19 @@ class SimulatedMeasurementWindow(QWidget):
         self.patches = list(self.DEFAULT_PATCHES)
         self.current_index = 0
         self.running = False
-        self.measurement_delay = 800  # ms between measurements
-        self.settle_time = 200  # ms for display to settle before "reading"
+        self.measurement_delay = 800  # legacy name: milliseconds between target patches
+        self.settle_time = 200  # milliseconds allowed for the target patch to settle
 
         # Timers
         self.measurement_timer = QTimer()
-        self.measurement_timer.timeout.connect(self._on_measurement_tick)
+        self.measurement_timer.timeout.connect(self._on_patch_tick)
 
         self._setup_ui()
         self._setup_audio()
 
     def _setup_ui(self):
-        """Setup the fullscreen measurement UI."""
-        self.setWindowTitle("Calibrate Pro - Measuring")
+        """Set up the fullscreen target-patch UI."""
+        self.setWindowTitle("Calibrate Pro - Target Patches")
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
@@ -275,7 +273,7 @@ class SimulatedMeasurementWindow(QWidget):
         # Title row
         title_row = QHBoxLayout()
 
-        self.title_label = QLabel("CALIBRATE PRO - MEASUREMENT MODE")
+        self.title_label = QLabel("CALIBRATE PRO - TARGET PATCH MODE")
         self.title_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #4a9eff;")
         title_row.addWidget(self.title_label)
 
@@ -323,7 +321,7 @@ class SimulatedMeasurementWindow(QWidget):
         # Keyboard shortcut to cancel
         from PySide6.QtGui import QKeySequence, QShortcut
 
-        QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self._cancel_measurement)
+        QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self._cancel_sequence)
 
     def _draw_crosshair(self):
         """Draw a crosshair overlay on the patch."""
@@ -401,14 +399,6 @@ class SimulatedMeasurementWindow(QWidget):
         self.patches = list(patches)
         self.current_index = 0
 
-    def add_random_patches(self, count: int = 10):
-        """Add random color patches to the sequence."""
-        for _ in range(count):
-            r = random.randint(0, 255)
-            g = random.randint(0, 255)
-            b = random.randint(0, 255)
-            self.patches.append((r, g, b))
-
     def show_fullscreen(self, screen: QScreen = None):
         """Show measurement window fullscreen on target screen."""
         target = screen or self.target_screen or QGuiApplication.primaryScreen()
@@ -419,7 +409,11 @@ class SimulatedMeasurementWindow(QWidget):
         self.showFullScreen()
 
     def start_measurements(self):
-        """Start the measurement sequence."""
+        """Compatibility entrypoint for starting a target-patch sequence."""
+        self.start_patch_sequence()
+
+    def start_patch_sequence(self):
+        """Start presenting target patches without claiming sensor acquisition."""
         if not self.patches:
             return
 
@@ -453,11 +447,11 @@ class SimulatedMeasurementWindow(QWidget):
         # Update labels
         self.patch_counter.setText(f"Patch {self.current_index + 1} / {len(self.patches)}")
         self.rgb_label.setText(f"RGB: {r:3d}, {g:3d}, {b:3d}")
-        self.status_label.setText("Measuring...")
+        self.status_label.setText("Presenting target...")
         self.status_label.setStyleSheet("font-size: 12px; color: #4a9eff;")
 
-    def _on_measurement_tick(self):
-        """Handle measurement timer tick."""
+    def _on_patch_tick(self):
+        """Advance the target-patch timer without inventing an observation."""
         if not self.running:
             self.measurement_timer.stop()
             return
@@ -465,12 +459,14 @@ class SimulatedMeasurementWindow(QWidget):
         # Play beep
         self._play_measurement_beep()
 
-        # Update status to show "reading"
-        self.status_label.setText("Reading sensor...")
+        # Report presentation state only; no sensor is read by this window.
+        self.status_label.setText("Target settled; no sensor reading collected")
         self.status_label.setStyleSheet("font-size: 12px; color: #4caf50;")
 
-        # Emit measurement signal
+        # Emit the requested target. The legacy signal is retained for API
+        # compatibility but carries no observed value.
         rgb = self.patches[self.current_index]
+        self.patch_presented.emit(self.current_index, rgb)
         self.measurement_complete.emit(self.current_index, rgb)
 
         # Update progress
@@ -493,7 +489,7 @@ class SimulatedMeasurementWindow(QWidget):
 
         self._play_complete_beep()
 
-        self.status_label.setText("Measurement sequence complete!")
+        self.status_label.setText("Target sequence complete; no measurements collected")
         self.status_label.setStyleSheet("font-size: 12px; color: #4caf50;")
         self.patch_counter.setText(f"Complete: {len(self.patches)} patches")
 
@@ -512,8 +508,8 @@ class SimulatedMeasurementWindow(QWidget):
         # Close after delay
         QTimer.singleShot(1500, self.close)
 
-    def _cancel_measurement(self):
-        """Cancel the measurement sequence."""
+    def _cancel_sequence(self):
+        """Cancel the target-patch sequence."""
         self.running = False
         self.measurement_timer.stop()
         self.close()

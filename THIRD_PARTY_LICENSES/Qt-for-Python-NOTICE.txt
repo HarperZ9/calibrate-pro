@@ -1,0 +1,21 @@
+Qt for Python redistribution notice
+===================================
+
+Calibrate Pro 1.1.0 redistributes unmodified dynamically linked components from:
+
+* PySide6 6.11.1
+* shiboken6 6.11.1
+* approved Qt 6.11.1 libraries and plugins
+
+For the components included in this distribution, the distributor selects the LGPL-3.0-only licensing option offered by the upstream projects. The verbatim GNU Lesser General Public License version 3 is provided in `LGPL-3.0-only.txt`.
+
+Upstream projects and documentation:
+
+* Qt for Python / PySide and Shiboken: https://doc.qt.io/qtforpython-6/
+* Qt for Python source: https://code.qt.io/cgit/pyside/pyside-setup.git/
+* Qt source: https://code.qt.io/cgit/qt/qtbase.git/
+* Qt licensing: https://www.qt.io/licensing/open-source-lgpl-obligations
+
+The exact corresponding-source archives and SHA-256 digests are recorded in `QT_SOURCE_OFFER.txt` and `../packaging/source-provenance.lock.json`. Replacement and relinking instructions are provided in `LGPL_RELINKING.md`.
+
+Qt and the Qt logo are trademarks of The Qt Company Ltd. Other marks belong to their respective owners.

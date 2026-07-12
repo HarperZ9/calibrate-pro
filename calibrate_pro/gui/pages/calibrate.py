@@ -5,7 +5,6 @@ Display selector, mode cards, target settings, progress tracking.
 Runs AutoCalibrationEngine in a QThread with live progress updates.
 """
 
-import sys
 import traceback
 from pathlib import Path
 
@@ -28,17 +27,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading
+from calibrate_pro.gui.app import C, Card, Heading, qt_display_snapshots
 
 # Worker Thread
 
 
 class CalibrationWorker(QThread):
-    """Runs AutoCalibrationEngine.run_calibration() off the main thread.
-
-    Always performs DDC/CI hardware setup first (if available),
-    then runs the selected calibration mode.
-    """
+    """Builds a sensorless preview without opening a display writer."""
 
     progress = Signal(str, float, str)  # message, 0-1, step name
     finished = Signal(bool, str)  # success, result message
@@ -61,126 +56,27 @@ class CalibrationWorker(QThread):
         self.hdr_mode = hdr_mode
 
     def _run_ddc_setup(self):
-        """Run DDC/CI hardware setup before calibration."""
-        self.progress.emit("Configuring display hardware...", 0.0, "DDC Setup")
-        self.log_line.emit("Phase 0: DDC/CI hardware setup")
-
-        try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController
-            from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.panels.detection import enumerate_displays, identify_display
-
-            ddc = DDCCIController()
-            monitors = ddc.enumerate_monitors()
-
-            if self.display_index >= len(monitors):
-                self.log_line.emit(f"  DDC: Display {self.display_index} not found ({len(monitors)} available)")
-                return
-
-            monitor = monitors[self.display_index]
-
-            # Find DDC recommendations for this monitor
-            ddc_rec = None
-            try:
-                displays = enumerate_displays()
-                if self.display_index < len(displays):
-                    db = PanelDatabase()
-                    panel_key = identify_display(displays[self.display_index])
-                    panel = db.get_panel(panel_key) if panel_key else None
-                    if panel and hasattr(panel, "ddc") and panel.ddc:
-                        ddc_rec = panel.ddc
-                        self.log_line.emit(f"  Panel: {panel.name}")
-            except Exception:
-                pass
-
-            # Apply auto-setup
-            changes = ddc.auto_setup_for_calibration(
-                monitor,
-                ddc_recommendations=ddc_rec,
-                log_fn=lambda msg: self.log_line.emit(f"  DDC: {msg}"),
-            )
-
-            if changes:
-                self.log_line.emit(f"  DDC: {len(changes)} settings applied")
-            else:
-                self.log_line.emit("  DDC: No settings applied (monitor may not support DDC/CI)")
-
-            import time
-
-            time.sleep(1.0)  # Let monitor settle after DDC changes
-
-        except Exception as e:
-            self.log_line.emit(f"  DDC setup skipped: {e}")
-
-        self.progress.emit("Hardware setup complete", 0.05, "DDC Setup")
+        """Record that hardware changes belong in the confirmed apply stage."""
+        self.progress.emit("Preparing calibration preview...", 0.05, "Preview")
+        self.log_line.emit("DDC/CI changes were not applied; confirmation is required.")
 
     def run(self):
         try:
-            # Phase 0: Hardware DDC setup (runs before any calibration mode)
             self._run_ddc_setup()
+            from calibrate_pro.workflow import ApplyPlan, CalibrationMethod
 
-            from calibrate_pro.sensorless.auto_calibration import (
-                AutoCalibrationEngine,
-                CalibrationStep,
-                CalibrationTarget,
+            self.plan = ApplyPlan(
+                display_id=str(self.display_index),
+                method=CalibrationMethod.SENSORLESS,
+                target_whitepoint=self.whitepoint,
+                target_gamma=self.gamma,
+                target_gamut=self.target_gamut,
             )
-
-            engine = AutoCalibrationEngine()
-
-            # Map step enum to human-readable name
-            step_names = {
-                CalibrationStep.DETECT_DISPLAY: "Detecting",
-                CalibrationStep.MATCH_PANEL: "Matching",
-                CalibrationStep.READ_DDC_SETTINGS: "DDC read",
-                CalibrationStep.CALCULATE_CORRECTIONS: "Matching",
-                CalibrationStep.APPLY_DDC_CORRECTIONS: "DDC adjust",
-                CalibrationStep.GENERATE_ICC_PROFILE: "LUT generation",
-                CalibrationStep.GENERATE_3D_LUT: "LUT generation",
-                CalibrationStep.INSTALL_PROFILE: "Applying",
-                CalibrationStep.APPLY_LUT: "Applying",
-                CalibrationStep.VERIFY_CALIBRATION: "Verifying",
-                CalibrationStep.COMPLETE: "Complete",
-            }
-
-            def on_progress(message, progress_val, step):
-                readable = step_names.get(step, step.name)
-                self.progress.emit(message, progress_val, readable)
-                self.log_line.emit(message)
-
-            engine.set_progress_callback(on_progress)
-
-            # Build target
-            target = CalibrationTarget()
-            target.gamut = self.target_gamut
-
-            # Whitepoint
-            wp_map = {
-                "D65": ("D65", (0.3127, 0.3290)),
-                "D50": ("D50", (0.3457, 0.3585)),
-            }
-            if self.whitepoint in wp_map:
-                target.whitepoint, target.whitepoint_xy = wp_map[self.whitepoint]
-            else:
-                target.whitepoint = self.whitepoint
-                target.whitepoint_xy = (0.3127, 0.3290)
-
-            # Gamma
-            gamma_map = {
-                "2.2": (2.2, "power"),
-                "2.4": (2.4, "power"),
-                "sRGB": (2.2, "srgb"),
-                "BT.1886": (2.4, "bt1886"),
-            }
-            if self.gamma in gamma_map:
-                target.gamma, target.gamma_type = gamma_map[self.gamma]
-
-            result = engine.run_calibration(
-                target=target,
-                display_index=self.display_index,
-                hdr_mode=self.hdr_mode,
+            self.progress.emit("Preview ready", 1.0, "Preview")
+            self.finished.emit(
+                True,
+                "Preview ready — no display settings were changed. Review and confirm the apply plan.",
             )
-
-            self.finished.emit(result.success, result.message)
 
         except Exception as exc:
             tb = traceback.format_exc()
@@ -346,19 +242,8 @@ class NativeCalibrationWorker(QThread):
             lut.save(lut_path)
             self.log_line.emit(f"Saved: {lut_path}")
 
-            # Step 5: Apply via DWM
-            self.progress.emit("Applying LUT...", 0.90, "Applying")
-            try:
-                from calibrate_pro.lut_system.dwm_lut import DwmLutController
-
-                dwm = DwmLutController()
-                if dwm.is_available:
-                    dwm.load_lut_file(0, lut_path)
-                    self.log_line.emit("LUT applied via DWM.")
-                else:
-                    self.log_line.emit("dwm_lut not available. LUT saved for manual application.")
-            except Exception as e:
-                self.log_line.emit(f"DWM LUT: {e}")
+            self.progress.emit("Preparing preview...", 0.90, "Preview")
+            self.log_line.emit("LUT saved. Applying it requires review and explicit confirmation.")
 
             device.close()
 
@@ -366,7 +251,7 @@ class NativeCalibrationWorker(QThread):
             self.show_patch.emit(-1.0, -1.0, -1.0)  # Signal to close patch window
 
             self.progress.emit("Complete!", 1.0, "Complete")
-            self.finished.emit(True, f"Native calibration complete.\nLUT saved to {lut_path}")
+            self.finished.emit(True, f"Preview ready — no display state changed.\nLUT saved to {lut_path}")
 
         except Exception as exc:
             self.show_patch.emit(-1.0, -1.0, -1.0)  # Close patch window on error
@@ -485,26 +370,33 @@ class HardwareFirstWorker(QThread):
                         return SENSOR @ freq
                 return None
 
-            from calibrate_pro.calibration.hardware_first import run_hardware_first_calibration
+            from calibrate_pro.calibration.native_loop import build_correction_lut, profile_display
 
             def progress_cb(msg, frac):
                 phase = "Hardware" if frac < 0.6 else "Profiling" if frac < 0.85 else "Applying"
                 self.progress.emit(msg, frac, phase)
                 self.log_line.emit(msg)
 
-            result = run_hardware_first_calibration(
-                display_index=self.display_index,
-                target_luminance=120.0,
-                target_whitepoint=(0.3127, 0.3290),
+            profile = profile_display(
                 measure_fn=measure,
                 display_fn=self._display_and_wait,
+                n_steps=17,
                 progress_fn=progress_cb,
             )
+            lut = build_correction_lut(profile, size=33)
+            output_dir = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            lut_path = output_dir / "measured_calibration_preview.cube"
+            lut.title = "Calibrate Pro - Measured Preview"
+            lut.save(str(lut_path))
 
             device.close()
             self.show_patch.emit(-1.0, -1.0, -1.0)
 
-            self.finished.emit(result.success, result.message)
+            self.finished.emit(
+                True,
+                f"Preview ready — no display state changed.\nLUT saved to {lut_path}",
+            )
 
         except Exception as exc:
             self.show_patch.emit(-1.0, -1.0, -1.0)
@@ -951,12 +843,9 @@ class CalibratePage(QWidget):
         """Populate display list and detect sensor presence."""
         self._display_combo.clear()
         try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
-
-            self._displays = enumerate_displays()
+            self._displays = qt_display_snapshots()
             for i, d in enumerate(self._displays):
-                name = get_display_name(d)
+                name = d.name
                 res = f"{d.width}x{d.height}"
                 label = f"{i + 1}. {name}  ({res})"
                 self._display_combo.addItem(label)
@@ -1138,10 +1027,12 @@ class CalibratePage(QWidget):
         self._btn_calibrate.setEnabled(True)
         if success:
             self._btn_calibrate.setText("Calibrate Display")
-            self._step_label.setText("Complete")
+            preview_only = message.startswith("Preview ready")
+            self._step_label.setText("Preview Ready" if preview_only else "Complete")
             self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
             self._progress_bar.setValue(1000)
-            self.calibration_completed.emit()
+            if not preview_only:
+                self.calibration_completed.emit()
         else:
             self._btn_calibrate.setText("Calibrate Display")
             self._step_label.setText("Failed")

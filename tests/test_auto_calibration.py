@@ -204,7 +204,10 @@ def test_run_calibration_produces_verification():
     assert result.verification is not None
     assert "delta_e_avg" in result.verification
     assert "grade" in result.verification
-    assert result.delta_e_predicted >= 0.0
+    assert result.delta_e_predicted.value is not None
+    assert result.delta_e_predicted.value >= 0.0
+    assert result.delta_e_predicted.evidence.value == "estimated"
+    assert str(result.delta_e_predicted.source).startswith("panel-characterization:")
 
 
 # -------------------------------------------------------------------------
@@ -301,5 +304,7 @@ def test_result_defaults():
     assert result.lut_path is None
     assert result.lut_applied is False
     assert result.ddc_available is False
+    assert result.delta_e_predicted.value is None
+    assert result.delta_e_predicted.evidence.value == "not_measured"
     assert len(result.warnings) == 0
     assert len(result.steps_completed) == 0

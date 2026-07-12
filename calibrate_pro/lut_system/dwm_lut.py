@@ -44,6 +44,7 @@ from calibrate_pro.core.pq import ST2084_M2 as _ST2084_M2
 from calibrate_pro.core.pq import ST2084_PEAK_NITS as _ST2084_PEAK_NITS
 from calibrate_pro.core.pq import pq_eotf as _canonical_pq_eotf
 from calibrate_pro.core.pq import pq_oetf as _canonical_pq_oetf
+from calibrate_pro.runtime import resource_path
 
 # Windows API constants
 DISPLAY_DEVICE_ACTIVE = 0x00000001
@@ -634,8 +635,8 @@ class DwmLutController:
         if self._dwm_lut_path and (self._dwm_lut_path / "DwmLutGUI.exe").exists():
             return
 
-        # Search common locations
-        search_paths = []
+        # Search bundled resources before legacy installation locations.
+        search_paths = [resource_path("dwm_lut")]
 
         # Frozen build: look next to the executable
         if getattr(sys, "frozen", False):

@@ -1,10 +1,9 @@
 """
-Per-Application LUT / Profile Switching Service
+Per-Application LUT / Profile Recommendation Service
 
-Monitors the foreground Windows application and automatically switches the
-active calibration LUT/profile based on the detected app.  This enables
-seamless transitions between color spaces -- e.g. sRGB for web browsers,
-Display P3 for Photoshop, native gamut for games.
+Monitors the foreground Windows application and recommends a calibration
+LUT/profile based on the detected app. Applying that recommendation requires
+an interactive preview and a freshly confirmed actuation plan.
 
 Usage:
     switcher = AppProfileSwitcher(config_path="app_profiles.json",
@@ -136,12 +135,12 @@ _DEFAULT_CONFIG: dict = {
 
 class AppProfileSwitcher:
     """
-    Monitors the foreground Windows application and switches the active
-    calibration LUT/profile based on a configurable rule set.
+    Monitors the foreground Windows application and stages profile proposals
+    based on a configurable rule set.
 
     The monitor loop polls every ``poll_interval`` seconds (default 0.5).
     When the foreground executable changes, the matching profile's .cube LUT
-    is loaded and applied via dwm_lut or VCGT.
+    is parsed and reported. This service never writes display state.
     """
 
     def __init__(
@@ -160,9 +159,9 @@ class AppProfileSwitcher:
                 ``sRGB.cube``, ``p3.cube``).  Falls back to the config
                 file's parent directory, then ``~/Documents/Calibrate Pro/Calibrations``.
             poll_interval: Seconds between foreground-app polls (default 0.5).
-            display_index: Which display to apply LUTs to (0 = primary).
+            display_index: Which display the proposal targets (0 = primary).
             on_switch: Optional callback ``(app_name, old_profile, new_profile)``
-                invoked whenever the active profile changes.
+                invoked whenever a different profile proposal is staged.
         """
         self._poll_interval = poll_interval
         self._display_index = display_index
@@ -283,7 +282,7 @@ class AppProfileSwitcher:
         return self.default_profile
 
     # ------------------------------------------------------------------
-    # LUT application
+    # LUT proposal staging
     # ------------------------------------------------------------------
 
     def _get_lut(self, profile_name: str):
@@ -316,69 +315,35 @@ class AppProfileSwitcher:
 
     def _apply_profile(self, profile_name: str) -> bool:
         """
-        Apply the named profile's LUT to the display.
+        Validate and stage the named profile without writing display state.
 
-        Attempts dwm_lut first, then VCGT gamma ramp as fallback.
-        If the profile is ``"native"`` and no LUT file exists, the
-        system LUT is cleared (identity / reset).
+        The compatibility method name is retained for existing integrations.
+        A ``True`` result means the proposal is ready for interactive preview;
+        it never means the display has been changed.
 
         Returns:
-            True if the profile was applied successfully.
+            True if a proposal was staged successfully.
         """
         lut_path = self._lut_dir / f"{profile_name}.cube"
-
-        # --- Method 1: DWM 3D LUT (highest quality) ---
-        try:
-            from calibrate_pro.lut_system.dwm_lut import DwmLutController
-
-            dwm = DwmLutController()
-            if dwm.is_available:
-                if lut_path.exists():
-                    if dwm.load_lut_file(self._display_index, lut_path):
-                        logger.info("Applied profile '%s' via DWM LUT", profile_name)
-                        return True
-                else:
-                    # No LUT file -- clear to identity (native)
-                    if dwm.clear_lut(self._display_index):  # type: ignore[attr-defined]  # numpy/dynamic
-                        logger.info("Cleared DWM LUT for profile '%s'", profile_name)
-                        return True
-        except Exception as exc:
-            logger.debug("DWM LUT method failed: %s", exc)
-
-        # --- Method 2: VCGT gamma ramp (1D fallback) ---
-        try:
-            from calibrate_pro.core.vcgt import apply_vcgt_windows, lut3d_to_vcgt
-
-            if lut_path.exists():
-                lut = self._get_lut(profile_name)
-                if lut is not None:
-                    vcgt = lut3d_to_vcgt(lut.data, method="neutral_axis", output_size=256)
-                    if apply_vcgt_windows(vcgt, display_index=self._display_index):
-                        logger.info("Applied profile '%s' via VCGT", profile_name)
-                        return True
-            else:
-                # Reset to identity gamma ramp
-                import numpy as np
-
-                from calibrate_pro.core.vcgt import VCGTTable, apply_vcgt_windows
-
-                identity = np.linspace(0.0, 1.0, 256)
-                vcgt = VCGTTable(red=identity, green=identity, blue=identity, size=256, bit_depth=16)
-                if apply_vcgt_windows(vcgt, display_index=self._display_index):
-                    logger.info("Reset VCGT to identity for profile '%s'", profile_name)
-                    return True
-        except Exception as exc:
-            logger.debug("VCGT method failed: %s", exc)
-
-        logger.warning("Failed to apply profile '%s'", profile_name)
-        return False
+        if profile_name.casefold() == "native" and not lut_path.exists():
+            logger.info("Staged identity proposal for display %d", self._display_index)
+            return True
+        if self._get_lut(profile_name) is None:
+            logger.warning("Could not stage profile '%s': LUT is unavailable or invalid", profile_name)
+            return False
+        logger.info(
+            "Staged profile '%s' for display %d; interactive confirmation is required",
+            profile_name,
+            self._display_index,
+        )
+        return True
 
     # ------------------------------------------------------------------
     # Monitor loop
     # ------------------------------------------------------------------
 
     def _monitor_loop(self):
-        """Background thread: poll foreground app and switch profile."""
+        """Background thread: poll foreground app and stage proposals."""
         logger.info("App profile switcher started (poll=%.1fs)", self._poll_interval)
 
         while self._running:
@@ -397,7 +362,10 @@ class AppProfileSwitcher:
                             old_profile,
                             new_profile,
                         )
-                        self._apply_profile(new_profile)
+                        if not self._apply_profile(new_profile):
+                            self._current_app = app_name
+                            time.sleep(self._poll_interval)
+                            continue
                         self._current_profile = new_profile
 
                         if self._on_switch is not None:
@@ -453,5 +421,5 @@ class AppProfileSwitcher:
 
     @property
     def current_profile(self) -> str:
-        """The currently active profile name."""
+        """The most recently staged profile name; it may not be active."""
         return self._current_profile

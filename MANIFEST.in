@@ -1,0 +1,31 @@
+include LICENSE
+include README.md
+include ARCHITECTURE.md
+include AUTHORS.md
+include CHANGELOG.md
+include CONTRIBUTING.md
+include RELEASE_NOTES.md
+include SECURITY.md
+include USAGE.md
+include pyproject.toml
+include calibrate-pro.spec
+
+recursive-include calibrate_pro *.py *.ico *.png
+recursive-include tests *.py *.json
+recursive-include packaging *.json *.lock *.in *.py
+recursive-include scripts *.py *.ps1
+recursive-include installer *.iss
+recursive-include THIRD_PARTY_LICENSES *
+recursive-include dwm_lut *
+recursive-include docs *
+recursive-include examples *.py
+recursive-include .github *.yml *.yaml
+
+global-exclude *.pyc
+global-exclude __pycache__
+prune build
+prune dist
+prune release
+prune .mypy_cache
+prune .pytest_cache
+prune .ruff_cache

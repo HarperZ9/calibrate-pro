@@ -490,7 +490,9 @@ class AdvancedLUTGenerator:
         }
         return primaries.get(colorspace, primaries["srgb"])
 
-    def single_pass_multi_target(self, panel_profile: dict, targets: list[str] | None = None) -> dict[str, AdvancedLUT3D]:
+    def single_pass_multi_target(
+        self, panel_profile: dict, targets: list[str] | None = None
+    ) -> dict[str, AdvancedLUT3D]:
         """
         Generate multiple target calibrations from single profile.
 

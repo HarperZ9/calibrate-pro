@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "python": "3.12.10",
+  "architecture": "x86_64-pc-windows-msvc",
+  "uv": "0.11.28",
+  "pyinstaller": "6.21.0",
+  "build": "1.5.1",
+  "setuptools": "83.0.0",
+  "wheel": "0.47.0",
+  "twine": "6.2.0",
+  "source_date_epoch": 315532800,
+  "inno_setup": "6.7.3",
+  "inno_setup_installer_sha256": "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732",
+  "inno_setup_iscc_sha256": "0a8757031b33777e4c9cbffee40f11a5062b36d25cbe144c1db73b6102b80ad7"
+}

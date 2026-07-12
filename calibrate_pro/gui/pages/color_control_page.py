@@ -1,11 +1,11 @@
-"""
-Software Color Control Page - GPU-Level Gamma Adjustments.
+"""Software color-curve preview page.
 
-These controls modify the GPU's gamma ramps to adjust colors.
-Changes are visible immediately and work on ALL displays (no DDC/CI needed).
+The page computes a proposed gamma ramp in memory. Display state changes are
+performed only by the separately confirmed actuation workflow.
 """
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -24,26 +24,21 @@ from calibrate_pro.gui.theme import COLORS
 
 
 class SoftwareColorControlPage(QWidget):
-    """
-    Software-based color control using GPU gamma ramps.
-
-    This ACTUALLY changes what you see on screen by modifying the
-    video signal at the GPU level. Works on ALL displays regardless
-    of DDC/CI support.
+    """Compute GPU gamma-ramp previews without applying them.
 
     Features:
     - Brightness boost (for dark displays)
     - Contrast adjustment
     - RGB balance (white point correction)
-    - Real-time preview
+    - In-memory preview
     - Save/load settings
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.color_loader = None
         self.current_display = 0
         self.displays = []
+        self._pending_ramp = None
 
         # Current adjustment values
         self._brightness = 1.0  # 0.5 to 2.0 (1.0 = normal)
@@ -78,8 +73,8 @@ class SoftwareColorControlPage(QWidget):
 
         # Info banner
         info_label = QLabel(
-            "These controls modify your GPU's gamma ramps to adjust colors.\n"
-            "Changes are VISIBLE IMMEDIATELY and work on ALL displays (no DDC/CI needed)."
+            "These controls build an in-memory gamma-ramp preview.\n"
+            "Nothing is applied until an exact plan is reviewed and explicitly confirmed."
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet(
@@ -215,9 +210,9 @@ class SoftwareColorControlPage(QWidget):
         # Action buttons
         actions_layout = QHBoxLayout()
 
-        apply_btn = QPushButton("Apply Now")
+        apply_btn = QPushButton("Build Preview")
         apply_btn.setProperty("primary", True)
-        apply_btn.setToolTip("Apply current settings to display")
+        apply_btn.setToolTip("Compute the proposed ramp without changing the display")
         apply_btn.clicked.connect(self._apply_settings)
         actions_layout.addWidget(apply_btn)
 
@@ -275,29 +270,19 @@ class SoftwareColorControlPage(QWidget):
         return {"layout": layout, "slider": slider, "value_label": value_lbl}
 
     def _initialize(self):
-        """Initialize color loader."""
-        try:
-            from calibrate_pro.lut_system.color_loader import ColorLoader
-
-            self.color_loader = ColorLoader()
-            self._refresh_displays()
-            self.status_label.setText("\u2713 Ready - Adjust sliders and click Apply")
-            self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-        except Exception as e:
-            self.status_label.setText(f"\u274c Error: {e}")
-            self.status_label.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
+        """Populate the read-only Qt display list."""
+        self._refresh_displays()
+        self.status_label.setText("Ready — adjust sliders to build a preview")
+        self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
 
     def _refresh_displays(self):
         """Refresh display list."""
-        if not self.color_loader:
-            return
-
         self.display_combo.clear()
-        self.displays = self.color_loader.enumerate_displays()
+        self.displays = QGuiApplication.screens()
 
-        for _i, d in enumerate(self.displays):
-            primary = " (Primary)" if d.get("primary") else ""
-            self.display_combo.addItem(f"{d.get('monitor', 'Display')} - {d.get('adapter', 'GPU')}{primary}")
+        for index, display in enumerate(self.displays):
+            primary = " (Primary)" if display is QGuiApplication.primaryScreen() else ""
+            self.display_combo.addItem(f"{display.name() or f'Display {index + 1}'}{primary}")
 
         if self.displays:
             self._on_display_changed(0)
@@ -318,10 +303,7 @@ class SoftwareColorControlPage(QWidget):
         self._apply_settings()
 
     def _apply_settings(self):
-        """Apply current settings to display."""
-        if not self.color_loader:
-            return
-
+        """Compute and retain the proposed ramp without applying it."""
         try:
             import numpy as np
 
@@ -355,18 +337,12 @@ class SoftwareColorControlPage(QWidget):
                     v = max(0.0, min(1.0, v))
                     ramp[i, c] = int(v * 65535)
 
-            # Apply to display
-            success = self.color_loader.set_gamma_ramp(self.current_display, ramp[:, 0], ramp[:, 1], ramp[:, 2])
-
-            if success:
-                self.status_label.setText(
-                    f"\u2713 Applied: Brightness={self._brightness:.2f}, "
-                    f"Contrast={self._contrast:.2f}, Gamma={self._gamma:.2f}"
-                )
-                self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-            else:
-                self.status_label.setText("\u26a0\ufe0f Failed to apply gamma ramp")
-                self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
+            self._pending_ramp = ramp
+            self.status_label.setText(
+                f"Preview ready: Brightness={self._brightness:.2f}, "
+                f"Contrast={self._contrast:.2f}, Gamma={self._gamma:.2f} — confirmation required"
+            )
+            self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
         except Exception as e:
             self.status_label.setText(f"\u274c Error: {e}")
@@ -394,11 +370,9 @@ class SoftwareColorControlPage(QWidget):
 
         self._updating = False
 
-        # Reset display to linear
-        if self.color_loader:
-            self.color_loader.reset_display(self.current_display)
-            self.status_label.setText("\u2713 Reset to default (linear gamma)")
-            self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
+        self._apply_settings()
+        self.status_label.setText("Default ramp preview ready — confirmation required")
+        self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _preset_default(self):
         """Apply sRGB default preset."""

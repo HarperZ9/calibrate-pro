@@ -7,6 +7,7 @@ Every widget has proper layout constraints. Every panel resizes correctly.
 
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from calibrate_pro import __version__ as APP_VERSION
@@ -49,8 +50,69 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+
 APP_NAME = "Calibrate Pro"
 APP_ORG = "Build Universe"
+
+
+def not_measured_metric(unit: str) -> MetricValue:
+    """Return the canonical GUI representation for missing evidence."""
+    return MetricValue(None, unit, EvidenceKind.NOT_MEASURED)
+
+
+def metric_or_not_measured(value: object, unit: str) -> MetricValue:
+    """Reject bare numerics at GUI boundaries instead of guessing provenance."""
+    return value if isinstance(value, MetricValue) else not_measured_metric(unit)
+
+
+@dataclass(frozen=True)
+class QtDisplaySnapshot:
+    """Read-only display facts exposed by Qt, with no display writer handle."""
+
+    index: int
+    name: str
+    device_name: str
+    device_id: str
+    monitor_name: str
+    manufacturer: str
+    model: str
+    serial: str
+    width: int
+    height: int
+    refresh_rate: int
+    bit_depth: int
+    is_primary: bool
+
+
+def qt_display_snapshots() -> list[QtDisplaySnapshot]:
+    """Return basic display observations through Qt's read-only screen API."""
+    primary = QApplication.primaryScreen()
+    snapshots: list[QtDisplaySnapshot] = []
+    for index, screen in enumerate(QApplication.screens()):
+        geometry = screen.geometry()
+        name = screen.name() or f"Display {index + 1}"
+        manufacturer = screen.manufacturer() or "Unknown"
+        model = screen.model() or name
+        serial = screen.serialNumber() or ""
+        snapshots.append(
+            QtDisplaySnapshot(
+                index=index,
+                name=name,
+                device_name=name,
+                device_id=name,
+                monitor_name=name,
+                manufacturer=manufacturer,
+                model=model,
+                serial=serial,
+                width=geometry.width(),
+                height=geometry.height(),
+                refresh_rate=round(screen.refreshRate()),
+                bit_depth=screen.depth(),
+                is_primary=screen is primary,
+            )
+        )
+    return snapshots
 
 
 def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
@@ -256,7 +318,7 @@ CAL_PAGES = [
 class GamutMiniWidget(QWidget):
     """Tiny CIE xy gamut triangle visualization."""
 
-    def __init__(self, red_xy=(0.64, 0.33), green_xy=(0.30, 0.60), blue_xy=(0.15, 0.06), size: int = 64, parent=None):
+    def __init__(self, red_xy=None, green_xy=None, blue_xy=None, size: int = 64, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
         self._r = red_xy
@@ -288,14 +350,15 @@ class GamutMiniWidget(QWidget):
         srgb = QPolygonF([xy_to_px(0.64, 0.33), xy_to_px(0.30, 0.60), xy_to_px(0.15, 0.06)])
         p.drawPolygon(srgb)
 
-        # Panel gamut triangle (bright)
-        panel_pen = QPen(QColor(C.ACCENT_TX), 1.5)
-        p.setPen(panel_pen)
-        panel_fill = QColor(C.ACCENT)
-        panel_fill.setAlpha(40)
-        p.setBrush(panel_fill)
-        panel = QPolygonF([xy_to_px(*self._r), xy_to_px(*self._g), xy_to_px(*self._b)])
-        p.drawPolygon(panel)
+        # Draw an observed/characterized panel gamut only when supplied.
+        if self._r is not None and self._g is not None and self._b is not None:
+            panel_pen = QPen(QColor(C.ACCENT_TX), 1.5)
+            p.setPen(panel_pen)
+            panel_fill = QColor(C.ACCENT)
+            panel_fill.setAlpha(40)
+            p.setBrush(panel_fill)
+            panel = QPolygonF([xy_to_px(*self._r), xy_to_px(*self._g), xy_to_px(*self._b)])
+            p.drawPolygon(panel)
 
         # D65 white point dot
         d65 = xy_to_px(0.3127, 0.3290)
@@ -309,13 +372,25 @@ class GamutMiniWidget(QWidget):
 class GamutBar(QWidget):
     """Compact horizontal gamut coverage bar."""
 
-    def __init__(self, srgb: float = 0, p3: float = 0, bt2020: float = 0, parent=None):
+    def __init__(
+        self,
+        srgb: MetricValue | None = None,
+        p3: MetricValue | None = None,
+        bt2020: MetricValue | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._srgb = srgb
-        self._p3 = p3
-        self._bt2020 = bt2020
+        self._srgb = metric_or_not_measured(srgb, "%")
+        self._p3 = metric_or_not_measured(p3, "%")
+        self._bt2020 = metric_or_not_measured(bt2020, "%")
+        self.setToolTip(
+            "\n".join(
+                f"{name}: {metric.display_text(1)}; source: {metric.source or 'Not measured'}"
+                for name, metric in (("sRGB", self._srgb), ("P3", self._p3), ("BT.2020", self._bt2020))
+            )
+        )
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -335,9 +410,9 @@ class GamutBar(QWidget):
 
         label_w = 32
         bar_x = label_w + 4
-        bar_w = w - bar_x - 30
+        bar_w = max(20, w - bar_x - 86)
 
-        for i, (pct, label, color) in enumerate(bars):
+        for i, (metric, label, color) in enumerate(bars):
             y = y_start + i * (bar_h + gap)
 
             # Label
@@ -352,20 +427,21 @@ class GamutBar(QWidget):
             p.setBrush(QColor(C.SURFACE2))
             p.drawRoundedRect(int(bar_x), int(y), int(bar_w), bar_h, 3, 3)
 
-            # Fill
-            fill_w = max(2, bar_w * min(pct, 100) / 100)
-            p.setBrush(QColor(color))
-            p.drawRoundedRect(int(bar_x), int(y), int(fill_w), bar_h, 3, 3)
+            # Fill only when evidence carries a value.
+            if metric.value is not None:
+                fill_w = max(2, bar_w * min(metric.value, 100) / 100)
+                p.setBrush(QColor(color))
+                p.drawRoundedRect(int(bar_x), int(y), int(fill_w), bar_h, 3, 3)
 
             # Percentage
             p.setPen(QColor(C.TEXT2))
             p.drawText(
                 int(bar_x + bar_w + 4),
                 int(y),
-                28,
+                82,
                 bar_h + 2,
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                f"{pct:.0f}%",
+                f"{metric.value:.0f}% ({metric.evidence.value})" if metric.value is not None else "Not measured",
             )
 
         p.end()
@@ -381,17 +457,17 @@ class DisplayCard(Card):
         name: str,
         resolution: str,
         panel_type: str,
-        gamut_srgb: float = 0,
-        gamut_p3: float = 0,
-        gamut_bt2020: float = 0,
+        gamut_srgb: MetricValue | None = None,
+        gamut_p3: MetricValue | None = None,
+        gamut_bt2020: MetricValue | None = None,
         calibrated: bool = False,
         hdr: bool = False,
         cal_age: str = "",
-        delta_e: float = 0,
-        red_xy=(0.64, 0.33),
-        green_xy=(0.30, 0.60),
-        blue_xy=(0.15, 0.06),
-        peak_nits: float = 0,
+        delta_e: MetricValue | None = None,
+        red_xy=None,
+        green_xy=None,
+        blue_xy=None,
+        peak_nits: MetricValue | None = None,
         display_index: int = 0,
         parent=None,
     ):
@@ -434,8 +510,8 @@ class DisplayCard(Card):
 
         # Detail line
         detail_parts = [resolution, panel_type]
-        if peak_nits > 0:
-            detail_parts.append(f"{peak_nits:.0f} nits")
+        peak_luminance = metric_or_not_measured(peak_nits, "nits")
+        detail_parts.append(f"Peak luminance: {peak_luminance.display_text(0)}")
         detail = QLabel("  ·  ".join(detail_parts))
         detail.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
         center.addWidget(detail)
@@ -452,9 +528,10 @@ class DisplayCard(Card):
         right.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
         # Delta E badge
-        if calibrated and delta_e > 0:
-            de_color = C.GREEN_HI if delta_e < 2 else C.YELLOW if delta_e < 4 else C.RED
-            de_badge = QLabel(f"dE {delta_e:.1f}")
+        if calibrated:
+            delta_metric = metric_or_not_measured(delta_e, "dE2000")
+            de_color = C.ACCENT_TX if delta_metric.value is not None else C.TEXT3
+            de_badge = QLabel(f"dE {delta_metric.display_text(1)}")
             de_badge.setStyleSheet(
                 f"background: {C.SURFACE2}; border: 1px solid {de_color}; "
                 f"border-radius: 10px; padding: 4px 12px; font-size: 11px; "
@@ -462,6 +539,7 @@ class DisplayCard(Card):
             )
             de_badge.setFixedHeight(26)
             de_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            de_badge.setToolTip(f"Evidence source: {delta_metric.source or 'Not measured'}")
             right.addWidget(de_badge, alignment=Qt.AlignmentFlag.AlignRight)
 
         # Calibration age
@@ -832,38 +910,21 @@ class AddDisplayDialog(QDialog):
     def _scan_displays(self):
         """Scan for connected displays not already in the panel database."""
         try:
-            from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.panels.detection import (
-                enumerate_displays,
-                get_display_name,
-                get_edid_from_registry,
-                identify_display,
-                parse_edid,
-            )
-
-            db = PanelDatabase()
-            displays = enumerate_displays()
+            displays = qt_display_snapshots()
 
             self._edid_combo.clear()
             self._scanned_displays = []
             self._scanned_edid_data = []
 
             for i, display in enumerate(displays):
-                name = get_display_name(display)
-                panel_key = identify_display(display)
-                panel = db.get_panel(panel_key) if panel_key else None
+                name = display.name
+                panel = None
 
-                # Extract EDID chromaticity
-                edid_bytes = get_edid_from_registry(display.device_id) if display.device_id else None
+                # Qt deliberately exposes no EDID bytes. Keep inferred color
+                # characteristics empty instead of importing a writer-capable
+                # legacy module merely to read them.
                 edid_chromaticity = None
                 edid_gamma = 2.2
-                if edid_bytes:
-                    edid_info = parse_edid(edid_bytes)
-                    edid_gamma = edid_info.get("gamma", 2.2) or 2.2
-                    # Extract chromaticity using the auto-cal engine method
-                    from calibrate_pro.sensorless.auto_calibration import AutoCalibrationEngine
-
-                    edid_chromaticity = AutoCalibrationEngine._extract_edid_chromaticity(edid_bytes)
 
                 in_db = "  [in database]" if panel else "  [unknown]"
                 res = f"{display.width}x{display.height}"
@@ -1209,25 +1270,21 @@ class DashboardPage(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        # Real display detection
+        # Read-only display detection
         try:
-            sys.path.insert(0, str(Path(__file__).parent.parent.parent))
             from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name, identify_display
 
             db = PanelDatabase()
-            displays = enumerate_displays()
+            displays = qt_display_snapshots()
 
             for i, display in enumerate(displays):
-                name = get_display_name(display)
+                name = display.name
                 res = f"{display.width}x{display.height} @ {display.refresh_rate}Hz"
 
-                panel_key = identify_display(display)
-                panel = db.get_panel(panel_key) if panel_key else None
+                panel = None
 
                 panel_type = panel.panel_type if panel else "Unknown"
                 hdr = panel.capabilities.hdr_capable if panel else False
-                gamut_p3 = 97 if panel and panel.capabilities.wide_gamut else 0
 
                 # Check calibration status
                 calibrated = False
@@ -1242,26 +1299,18 @@ class DashboardPage(QWidget):
                     logger.debug("Could not read calibration status for display %d: %s", i, e)
 
                 # Get primaries for gamut viz
-                r_xy = (panel.native_primaries.red.x, panel.native_primaries.red.y) if panel else (0.64, 0.33)
-                g_xy = (panel.native_primaries.green.x, panel.native_primaries.green.y) if panel else (0.30, 0.60)
-                b_xy = (panel.native_primaries.blue.x, panel.native_primaries.blue.y) if panel else (0.15, 0.06)
+                r_xy = (panel.native_primaries.red.x, panel.native_primaries.red.y) if panel else None
+                g_xy = (panel.native_primaries.green.x, panel.native_primaries.green.y) if panel else None
+                b_xy = (panel.native_primaries.blue.x, panel.native_primaries.blue.y) if panel else None
 
-                # Get gamut coverage
-                srgb_pct = 100 if panel and panel.capabilities.wide_gamut else 99
-                bt2020_pct = (
-                    79
-                    if panel and panel.panel_type == "QD-OLED"
-                    else 61
-                    if panel and panel.capabilities.wide_gamut
-                    else 45
-                )
-
-                # Peak luminance
-                peak = panel.capabilities.max_luminance_hdr if panel else 0
+                srgb_pct = not_measured_metric("%")
+                gamut_p3 = not_measured_metric("%")
+                bt2020_pct = not_measured_metric("%")
+                peak = not_measured_metric("nits")
 
                 # Calibration age
                 cal_age = ""
-                delta_e = 0.0
+                delta_e = not_measured_metric("dE2000")
                 try:
                     cal_state = mgr.get_display_calibration(i)
                     if cal_state and cal_state.last_calibrated:
@@ -1275,7 +1324,6 @@ class DashboardPage(QWidget):
                             cal_age = "Calibrated yesterday"
                         else:
                             cal_age = f"Calibrated {age.days} days ago"
-                        delta_e = cal_state.delta_e_avg or 0.65
                 except (AttributeError, ValueError, TypeError) as e:
                     logger.debug("Could not read calibration age for display %d: %s", i, e)
 
@@ -1301,18 +1349,8 @@ class DashboardPage(QWidget):
 
             self._stat_panels.set_value(str(len(db.list_panels())))
 
-            # Check DWM LUT status
-            try:
-                from calibrate_pro.lut_system.dwm_lut import get_dwm_lut_directory
-
-                lut_dir = get_dwm_lut_directory()
-                lut_files = list(lut_dir.glob("*.cube")) if lut_dir.exists() else []
-                if lut_files:
-                    self._stat_lut.set_value(f"{len(lut_files)} active", C.GREEN_HI)
-                else:
-                    self._stat_lut.set_value("None", C.TEXT3)
-            except (ImportError, OSError):
-                self._stat_lut.set_value("N/A", C.TEXT3)
+            # Applying a DWM LUT now requires a separately confirmed plan.
+            self._stat_lut.set_value("Confirmation required", C.TEXT3)
 
             # Guard status
             try:
@@ -1433,21 +1471,15 @@ class CalibrateProWindow(QMainWindow):
 
             guard = CalibrationGuard(check_interval=15.0, on_restore=on_restore)
 
-            # Guard all displays that have saved calibration state
-            try:
-                from calibrate_pro.panels.detection import enumerate_displays
-
-                displays = enumerate_displays()
-                for i, d in enumerate(displays):
-                    device_name = getattr(d, "device_name", f"\\\\.\\DISPLAY{i + 1}")
-                    display_name = getattr(d, "name", f"Display {i + 1}")
-                    gd = GuardedDisplay(
-                        device_name=device_name,
-                        display_name=display_name,
+            # Guard is monitor-only. Qt supplies identity without opening any
+            # writer-capable monitor or gamma-ramp handle.
+            for display in qt_display_snapshots():
+                guard.guard_display(
+                    GuardedDisplay(
+                        device_name=display.device_name,
+                        display_name=display.name,
                     )
-                    guard.guard_display(gd)
-            except (ImportError, OSError, AttributeError) as e:
-                logger.debug("Could not enumerate displays for guard: %s", e)
+                )
 
             guard.start()
             self._guard = guard
@@ -1521,12 +1553,10 @@ class CalibrateProWindow(QMainWindow):
         layout.addWidget(displays_heading)
 
         try:
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
-
-            displays = enumerate_displays()
+            displays = qt_display_snapshots()
             if displays:
                 for d in displays:
-                    name = get_display_name(d)
+                    name = d.name
                     res = f"{d.width}x{d.height} @ {d.refresh_rate}Hz"
                     row = QHBoxLayout()
                     dot = StatusDot(C.GREEN, 8)
@@ -1797,11 +1827,10 @@ class CalibrateProWindow(QMainWindow):
         try:
             from datetime import datetime
 
-            from calibrate_pro.panels.detection import enumerate_displays, get_display_name
             from calibrate_pro.utils.startup_manager import StartupManager
 
             mgr = StartupManager()
-            displays = enumerate_displays()
+            displays = qt_display_snapshots()
 
             calibrated_count = 0
             stale_count = 0
@@ -1809,7 +1838,7 @@ class CalibrateProWindow(QMainWindow):
             per_display_status = []
 
             for i, d in enumerate(displays):
-                name = get_display_name(d)
+                name = d.name
                 cal = mgr.get_display_calibration(i)
                 if cal and cal.lut_path and Path(cal.lut_path).exists():
                     # Check age
@@ -1899,25 +1928,12 @@ class CalibrateProWindow(QMainWindow):
             self._profile_submenu.addAction(act)
 
     def _apply_tray_profile(self, cube_path: str):
-        """Apply a calibration profile LUT from the tray submenu."""
-        try:
-            from calibrate_pro.lut_system.dwm_lut import load_lut
-
-            load_lut(cube_path, display_index=0)
-
-            # Also install matching ICC if present
-            icc_path = Path(cube_path).with_suffix(".icc")
-            if icc_path.exists():
-                from calibrate_pro.panels.detection import install_profile
-
-                install_profile(str(icc_path))
-
-            profile_name = Path(cube_path).stem.replace("_", " ")
-            self.show_toast(f"Switched to: {profile_name}", level="success")
-            self._update_tray_state()
-            self._rebuild_profile_submenu()
-        except (ImportError, OSError, RuntimeError) as e:
-            self.show_toast(f"Profile switch failed: {e}", level="warning")
+        """Stage a calibration profile selection without changing display state."""
+        profile_name = Path(cube_path).stem.replace("_", " ")
+        self.show_toast(
+            f"Preview selected: {profile_name}. Open Calibrate to review and confirm.",
+            level="info",
+        )
 
     def _quit(self):
         self._stop_services()
@@ -1981,31 +1997,22 @@ class CalibrateProWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                from calibrate_pro.lut_system.dwm_lut import remove_lut
-                from calibrate_pro.panels.detection import enumerate_displays, reset_gamma_ramp
-
-                for i, d in enumerate(enumerate_displays()):
-                    reset_gamma_ramp(d.device_name)
-                    try:
-                        remove_lut(i)
-                    except OSError:
-                        pass
-                self._status.setText("Defaults restored")
-                self.dashboard._populate()
-            except (ImportError, OSError) as e:
-                QMessageBox.warning(self, "Error", str(e))
+            self._status.setText("Reset proposal ready — review and confirmation required")
+            QMessageBox.information(
+                self,
+                "Confirmation Required",
+                "No display settings were changed. Open Calibrate to review a reset plan before applying it.",
+            )
 
     def _install_profile(self):
         path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
         if path:
-            try:
-                from calibrate_pro.panels.detection import install_profile
-
-                install_profile(path)
-                self._status.setText(f"Installed: {Path(path).name}")
-            except (ImportError, OSError) as e:
-                QMessageBox.warning(self, "Error", str(e))
+            self._status.setText(f"Selected {Path(path).name} — confirmation required")
+            QMessageBox.information(
+                self,
+                "Profile Preview",
+                "The profile was selected but not installed. Review and confirm the exact apply plan in Calibrate.",
+            )
 
     def _export(self, fmt: str):
         ext_map = {

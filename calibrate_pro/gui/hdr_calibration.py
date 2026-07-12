@@ -1,59 +1,11 @@
 """
 HDR Calibration GUI
 
-Provides a user interface for HDR display calibration using dwm_lut.
-Generates HDR 3D LUTs with PQ EOTF for system-wide color correction.
-
-Requires administrator privileges for DWM LUT injection.
+Provides an unelevated user interface for staging HDR and SDR calibration
+proposals. Display mutation is reserved for the confirmed actuation workflow.
 """
 
-import ctypes
-import os
 import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
-def is_admin() -> bool:
-    """Check if running with administrator privileges."""
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
-
-
-def run_as_admin():
-    """Re-launch the script with administrator privileges."""
-    if is_admin():
-        return True
-
-    try:
-        # Get the Python executable and script path
-        script = os.path.abspath(sys.argv[0])
-        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
-
-        # Use ShellExecuteW to request elevation
-        # verb="runas" triggers UAC prompt
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None,  # hwnd
-            "runas",  # lpOperation (run as admin)
-            sys.executable,  # lpFile (python.exe)
-            f'"{script}" {params}',  # lpParameters
-            None,  # lpDirectory
-            1,  # nShowCmd (SW_SHOWNORMAL)
-        )
-
-        # ShellExecuteW returns > 32 on success
-        if result > 32:
-            sys.exit(0)  # Exit the non-elevated instance
-        else:
-            return False
-    except Exception as e:
-        print(f"Failed to elevate: {e}")
-        return False
-
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPalette
@@ -75,15 +27,6 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-)
-
-from calibrate_pro.lut_system.dwm_lut import (
-    DwmLutController,
-    LUTType,
-    MonitorInfo,
-    generate_hdr_calibration_lut,
-    generate_sdr_calibration_lut,
-    list_monitors,
 )
 
 
@@ -184,12 +127,14 @@ class OffsetSlider(QWidget):
 
 
 class HDRCalibrationWindow(QMainWindow):
-    """Main HDR Calibration Window."""
+    """HDR controls that produce proposals but never actuate a display."""
+
+    proposalStaged = Signal(dict)
 
     def __init__(self):
         super().__init__()
-        self.controller = DwmLutController()
-        self.current_monitor: MonitorInfo | None = None
+        self.current_monitor: dict[str, object] | None = None
+        self.pending_proposal: dict[str, object] | None = None
         self.live_update = False
 
         self.setWindowTitle("HDR Calibration - Calibrate Pro")
@@ -201,11 +146,8 @@ class HDRCalibrationWindow(QMainWindow):
 
         # Timer for live updates
         self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self._apply_lut)
-
-        # Auto-start DwmLutGUI if we have admin rights
-        if is_admin() and self.controller.is_available:
-            QTimer.singleShot(500, self._auto_start_dwm_lut)
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self._stage_lut_proposal)
 
     def _setup_ui(self):
         """Set up the user interface."""
@@ -232,14 +174,14 @@ class HDRCalibrationWindow(QMainWindow):
         status_group = QGroupBox("Status")
         status_layout = QFormLayout(status_group)
 
-        self.status_admin = QLabel("Yes ✓" if is_admin() else "No")
-        self.status_admin.setStyleSheet("color: green;" if is_admin() else "color: red;")
-        self.status_dwm_lut = QLabel("Not running")
+        self.status_admin = QLabel("Standard user")
+        self.status_admin.setStyleSheet("color: green;")
+        self.status_dwm_lut = QLabel("Confirmed workflow")
         self.status_hdr = QLabel("Unknown")
         self.status_lut = QLabel("None")
 
-        status_layout.addRow("Administrator:", self.status_admin)
-        status_layout.addRow("DwmLutGUI:", self.status_dwm_lut)
+        status_layout.addRow("Process:", self.status_admin)
+        status_layout.addRow("Actuation:", self.status_dwm_lut)
         status_layout.addRow("HDR Mode:", self.status_hdr)
         status_layout.addRow("Active LUT:", self.status_lut)
 
@@ -317,7 +259,7 @@ class HDRCalibrationWindow(QMainWindow):
         self.lut_size.setCurrentText("33")
         lut_layout.addRow("LUT Size:", self.lut_size)
 
-        self.live_checkbox = QCheckBox("Live Update")
+        self.live_checkbox = QCheckBox("Live Proposal Preview")
         self.live_checkbox.toggled.connect(self._on_live_toggle)
         lut_layout.addRow(self.live_checkbox)
 
@@ -387,22 +329,22 @@ class HDRCalibrationWindow(QMainWindow):
         # Buttons
         button_layout = QHBoxLayout()
 
-        self.apply_btn = QPushButton("Apply LUT")
-        self.apply_btn.clicked.connect(self._apply_lut)
+        self.apply_btn = QPushButton("Stage LUT Proposal")
+        self.apply_btn.clicked.connect(self._stage_lut_proposal)
         button_layout.addWidget(self.apply_btn)
 
-        self.reset_btn = QPushButton("Reset to Identity")
-        self.reset_btn.clicked.connect(self._reset_lut)
+        self.reset_btn = QPushButton("Reset Controls")
+        self.reset_btn.clicked.connect(self._reset_controls)
         button_layout.addWidget(self.reset_btn)
 
-        self.remove_btn = QPushButton("Remove LUT")
-        self.remove_btn.clicked.connect(self._remove_lut)
+        self.remove_btn = QPushButton("Stage Remove Proposal")
+        self.remove_btn.clicked.connect(self._stage_remove_proposal)
         button_layout.addWidget(self.remove_btn)
 
         button_layout.addStretch()
 
-        self.start_dwm_btn = QPushButton("Start DwmLutGUI")
-        self.start_dwm_btn.clicked.connect(self._start_dwm_lut)
+        self.start_dwm_btn = QPushButton("Actuation Help")
+        self.start_dwm_btn.clicked.connect(self._show_actuation_help)
         button_layout.addWidget(self.start_dwm_btn)
 
         layout.addLayout(button_layout)
@@ -419,50 +361,46 @@ class HDRCalibrationWindow(QMainWindow):
         self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
 
     def _refresh_monitors(self):
-        """Refresh monitor list."""
+        """Refresh a read-only Qt screen inventory."""
         self.monitor_combo.clear()
-        monitors = list_monitors()
-
-        for m in monitors:
-            hdr_str = " [HDR]" if m["is_hdr"] else ""
-            primary_str = " (Primary)" if m["is_primary"] else ""
-            self.monitor_combo.addItem(f"{m['friendly_name']}{primary_str}{hdr_str} - {m['size'][0]}x{m['size'][1]}", m)
-
-        self._log(f"Found {len(monitors)} monitors")
+        primary = QApplication.primaryScreen()
+        screens = QApplication.screens()
+        for index, screen in enumerate(screens):
+            size = screen.size()
+            data: dict[str, object] = {
+                "display_id": f"qt-screen:{index}:{screen.name()}",
+                "friendly_name": screen.name() or f"Display {index + 1}",
+                "is_primary": screen is primary,
+                "is_hdr": False,
+                "size": (size.width(), size.height()),
+            }
+            primary_str = " (Primary)" if data["is_primary"] else ""
+            self.monitor_combo.addItem(
+                f"{data['friendly_name']}{primary_str} - {size.width()}x{size.height()}",
+                data,
+            )
+        self._log(f"Found {len(screens)} monitor(s) using read-only Qt inventory")
 
     def _on_monitor_changed(self, index: int):
         """Handle monitor selection change."""
         if index >= 0:
             data = self.monitor_combo.itemData(index)
-            self.controller.get_monitors()
-            if data and "index" in data:
-                self.current_monitor = self.controller.get_monitor_by_index(data["index"])
+            if isinstance(data, dict):
+                self.current_monitor = data
                 self._log(f"Selected: {data['friendly_name']}")
 
     def _update_status(self):
         """Update status panel."""
-        # DwmLutGUI status
-        if self.controller._is_dwm_lut_running():
-            self.status_dwm_lut.setText("Running ✓")
-            self.status_dwm_lut.setStyleSheet("color: green;")
-        else:
-            self.status_dwm_lut.setText("Not running")
-            self.status_dwm_lut.setStyleSheet("color: red;")
-
-        # HDR status
         if self.current_monitor:
-            if self.current_monitor.is_hdr:
+            if bool(self.current_monitor.get("is_hdr", False)):
                 self.status_hdr.setText("Enabled ✓")
                 self.status_hdr.setStyleSheet("color: green;")
             else:
-                self.status_hdr.setText("Disabled")
-                self.status_hdr.setStyleSheet("color: orange;")
+                self.status_hdr.setText("Not reported by Qt")
+                self.status_hdr.setStyleSheet("color: gray;")
 
-        # Active LUT status
-        active = self.controller.get_active_luts()
-        if active:
-            lut_info = list(active.values())[0]
-            self.status_lut.setText(f"{lut_info.lut_type.value.upper()} - {lut_info.lut_size}³")
+        if self.pending_proposal:
+            self.status_lut.setText(f"Pending {str(self.pending_proposal['kind']).upper()} proposal")
         else:
             self.status_lut.setText("None")
 
@@ -470,13 +408,13 @@ class HDRCalibrationWindow(QMainWindow):
         """Handle parameter change."""
         if self.live_update:
             self.update_timer.stop()
-            self.update_timer.start(200)  # Debounce: apply after 200ms
+            self.update_timer.start(200)
 
     def _on_live_toggle(self, checked: bool):
-        """Handle live update toggle."""
+        """Toggle debounced proposal refresh; never apply live state."""
         self.live_update = checked
         if checked:
-            self._apply_lut()
+            self._stage_lut_proposal()
 
     def _get_hdr_params(self) -> dict:
         """Get current HDR calibration parameters."""
@@ -498,59 +436,26 @@ class HDRCalibrationWindow(QMainWindow):
             "lut_size": int(self.lut_size.currentText()),
         }
 
-    def _apply_lut(self):
-        """Apply calibration LUT to selected monitor."""
+    def _stage_lut_proposal(self):
+        """Stage selected calibration parameters for later confirmation."""
         if not self.current_monitor:
             self._log("Error: No monitor selected")
             return
 
-        try:
-            # Determine if HDR or SDR based on tab
-            is_hdr = self.tabs.currentIndex() == 0
+        kind = "hdr" if self.tabs.currentIndex() == 0 else "sdr"
+        params = self._get_hdr_params() if kind == "hdr" else self._get_sdr_params()
+        self.pending_proposal = {
+            "action": "generate_lut",
+            "display_id": self.current_monitor["display_id"],
+            "kind": kind,
+            "parameters": params,
+        }
+        self.proposalStaged.emit(dict(self.pending_proposal))
+        self._log(f"Staged {kind.upper()} LUT proposal ({params['lut_size']}³); no display changes made")
+        self._update_status()
 
-            if is_hdr:
-                params = self._get_hdr_params()
-                lut = generate_hdr_calibration_lut(
-                    size=params["lut_size"],
-                    rgb_gains=params["rgb_gains"],
-                    rgb_offsets=params["rgb_offsets"],
-                    target_whitepoint=params["whitepoint"],
-                    peak_luminance=params["peak_luminance"],
-                )
-                lut_type = LUTType.HDR
-                title = f"HDR Calibration - Peak {params['peak_luminance']} nits"
-            else:
-                params = self._get_sdr_params()
-                lut = generate_sdr_calibration_lut(
-                    size=params["lut_size"],
-                    target_gamma=params["target_gamma"],
-                    rgb_gains=params["rgb_gains"],
-                    rgb_offsets=params["rgb_offsets"],
-                    target_whitepoint=params["whitepoint"],
-                )
-                lut_type = LUTType.SDR
-                title = f"SDR Calibration - Gamma {params['target_gamma']}"
-
-            # Apply LUT
-            success = self.controller.load_lut(self.current_monitor, lut, lut_type, title)
-
-            if success:
-                self._log(f"Applied {lut_type.value.upper()} LUT: {params['lut_size']}³")
-            else:
-                self._log("Failed to apply LUT")
-
-            self._update_status()
-
-        except Exception as e:
-            self._log(f"Error: {e}")
-
-    def _reset_lut(self):
-        """Reset to identity LUT."""
-        if not self.current_monitor:
-            self._log("Error: No monitor selected")
-            return
-
-        # Reset sliders
+    def _reset_controls(self):
+        """Reset controls to identity values without changing the display."""
         self.hdr_gain_r.setValue(1.0)
         self.hdr_gain_g.setValue(1.0)
         self.hdr_gain_b.setValue(1.0)
@@ -565,84 +470,35 @@ class HDRCalibrationWindow(QMainWindow):
         self.sdr_offset_g.setValue(0.0)
         self.sdr_offset_b.setValue(0.0)
 
-        self._apply_lut()
-        self._log("Reset to identity LUT")
+        self._log("Controls reset to identity; no display changes made")
 
-    def _remove_lut(self):
-        """Remove LUT from monitor."""
+    def _stage_remove_proposal(self):
+        """Stage a LUT-removal request for the confirmed workflow."""
         if not self.current_monitor:
             self._log("Error: No monitor selected")
             return
+        kind = "hdr" if self.tabs.currentIndex() == 0 else "sdr"
+        self.pending_proposal = {
+            "action": "clear_lut",
+            "display_id": self.current_monitor["display_id"],
+            "kind": kind,
+        }
+        self.proposalStaged.emit(dict(self.pending_proposal))
+        self._log(f"Staged {kind.upper()} LUT-removal proposal; no display changes made")
+        self._update_status()
 
-        try:
-            is_hdr = self.tabs.currentIndex() == 0
-            lut_type = LUTType.HDR if is_hdr else LUTType.SDR
-
-            success = self.controller.unload_lut(self.current_monitor, lut_type)
-
-            if success:
-                self._log(f"Removed {lut_type.value.upper()} LUT")
-            else:
-                self._log("Failed to remove LUT")
-
-            self._update_status()
-
-        except Exception as e:
-            self._log(f"Error: {e}")
-
-    def _auto_start_dwm_lut(self):
-        """Auto-start DwmLutGUI on launch."""
-        if not self.controller._is_dwm_lut_running():
-            try:
-                self.controller.start_dwm_lut_gui()
-                self._log("Auto-started DwmLutGUI")
-                self._update_status()
-            except Exception as e:
-                self._log(f"Failed to auto-start DwmLutGUI: {e}")
-
-    def _start_dwm_lut(self):
-        """Start DwmLutGUI."""
-        if not self.controller.is_available:
-            QMessageBox.warning(
-                self,
-                "DwmLutGUI Not Found",
-                "DwmLutGUI.exe was not found.\n\n"
-                "Please download dwm_lut from:\n"
-                "https://github.com/ledoge/dwm_lut/releases\n\n"
-                "And extract it to the calibrate/dwm_lut folder.",
-            )
-            return
-
-        if self.controller._is_dwm_lut_running():
-            self._log("DwmLutGUI is already running")
-            return
-
-        try:
-            # Try to start
-            self.controller.start_dwm_lut_gui()
-            self._log("Started DwmLutGUI")
-        except Exception:
-            # Needs admin - show instructions
-            QMessageBox.information(
-                self,
-                "Administrator Required",
-                "DwmLutGUI requires administrator privileges.\n\n"
-                f"Please manually run as Administrator:\n"
-                f"{self.controller.dwm_lut_exe}\n\n"
-                "After starting DwmLutGUI, click 'Apply LUT' to apply your calibration.",
-            )
-
-        # Update status after delay
-        QTimer.singleShot(2000, self._update_status)
+    def _show_actuation_help(self):
+        """Explain the explicit confirmed-actuation boundary."""
+        QMessageBox.information(
+            self,
+            "Confirmed Actuation",
+            "This window stages calibration proposals only. Review and confirm the proposal in the main "
+            "Calibrate Pro workflow before any display change is attempted.",
+        )
 
 
 def main():
-    """Main entry point."""
-    # Request administrator privileges if not already elevated
-    if not is_admin():
-        run_as_admin()
-        return  # Exit if elevation was requested
-
+    """Launch the proposal UI as the current standard user."""
     app = QApplication(sys.argv)
 
     # Set dark palette

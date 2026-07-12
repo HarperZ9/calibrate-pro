@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "commands": [
+    "doctor",
+    "gui",
+    "hdr"
+  ],
+  "developer_only_commands": [
+    "auto",
+    "calibrate",
+    "ddc-calibrate",
+    "ddc-info",
+    "detect",
+    "disable-startup",
+    "enable-startup",
+    "export-panel",
+    "hdr-status",
+    "import-panel",
+    "info",
+    "list-panels",
+    "list-targets",
+    "match",
+    "native-calibrate",
+    "patterns",
+    "plugins",
+    "profiles-generate",
+    "refine",
+    "restore",
+    "status",
+    "tray",
+    "uniformity",
+    "verify"
+  ]
+}

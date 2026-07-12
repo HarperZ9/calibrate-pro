@@ -61,3 +61,31 @@ def test_metadata_tests_retain_python_3_10_toml_support() -> None:
     requirement = "tomli>=2; python_version<'3.11'"
     assert requirement in optional_dependencies["test"]
     assert requirement in optional_dependencies["dev"]
+
+
+def test_wheel_includes_the_committed_application_icons() -> None:
+    with (ROOT / "pyproject.toml").open("rb") as stream:
+        package_data = tomllib.load(stream)["tool"]["setuptools"]["package-data"]
+
+    assert {"resources/*.ico", "resources/*.png"} <= set(package_data["calibrate_pro"])
+
+
+def test_sdist_manifest_allowlists_the_complete_release_source() -> None:
+    text = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+    required = (
+        "include calibrate-pro.spec",
+        "recursive-include tests *.py *.json",
+        "recursive-include packaging *.json *.lock *.in *.py",
+        "recursive-include scripts *.py *.ps1",
+        "recursive-include installer *.iss",
+        "recursive-include THIRD_PARTY_LICENSES *",
+        "recursive-include dwm_lut *",
+        "recursive-include docs *",
+        "recursive-include examples *.py",
+    )
+    for directive in required:
+        assert directive in text
+
+    assert "global-exclude *.pyc" in text
+    assert "prune build" in text
+    assert "prune dist" in text
