@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+WINDOWS_BUILD = ROOT / "scripts" / "build_windows.ps1"
 
 
 def test_release_workflow_uses_oidc_and_an_explicit_publish_gate() -> None:
@@ -60,7 +62,9 @@ def test_release_asset_verification_has_no_oidc_permission() -> None:
 def test_candidate_runs_tests_builds_and_checks_distributions() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "python -m pytest" in text
+    candidate = text.split("\n  candidate:\n", 1)[1].split("\n  windows-candidate:\n", 1)[0]
+
+    assert 'python -m pytest -q -m "not windows"' in candidate
     assert "python -m build" in text
     assert "python -m twine check dist/*" in text
     assert "scripts/verify_source_provenance.py" in text
@@ -75,6 +79,8 @@ def test_manual_and_release_candidates_checkout_the_requested_tag() -> None:
 
 def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
+    windows = text.split("\n  windows-candidate:\n", 1)[1].split("\n  verify-publish-assets:\n", 1)[0]
+    build_script = WINDOWS_BUILD.read_text(encoding="utf-8")
 
     assert "windows-candidate:" in text
     assert "runs-on: windows-2022" in text
@@ -87,6 +93,25 @@ def test_windows_candidate_runs_the_canonical_build_smoke_and_reproducibility() 
     assert "-Wait -PassThru" in text
     assert "$innoInstall.ExitCode" in text
     assert "& $installer /VERYSILENT" not in text
+    assert "--require-hashes -r packaging/requirements-win64-py312.lock" in windows
+    assert "pytest==9.0.3" in windows
+    assert windows.index("--require-hashes") < windows.index("pytest==9.0.3")
+    assert windows.index("pytest==9.0.3") < windows.index("scripts/build_windows.ps1")
+    assert re.search(r"(?m)^\s*python -m pytest -q\s*$", build_script)
+
+
+def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows() -> None:
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    linux = text.split("      - name: Run portable tests with coverage\n", 1)[1].split(
+        "      - name: Run complete Windows tests with coverage\n", 1
+    )[0]
+    windows = text.split("      - name: Run complete Windows tests with coverage\n", 1)[1]
+
+    assert "if: runner.os == 'Linux'" in linux
+    assert '-m "not windows"' in linux
+    assert "if: runner.os == 'Windows'" in windows
+    assert '-m "not windows"' not in windows
 
 
 def test_automation_resolves_public_dependencies_without_git_installs() -> None:

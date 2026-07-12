@@ -16,7 +16,13 @@ SURFACES = (
     ("color_models", "calibrate_pro.core.color_models", "pq_oetf", "pq_eotf"),
     ("targets", "calibrate_pro.targets.gamma", "pq_oetf", "pq_eotf"),
     ("hdr", "calibrate_pro.hdr.pq_st2084", "pq_oetf", "pq_eotf"),
-    ("dwm", "calibrate_pro.lut_system.dwm_lut", "pq_oetf", "pq_eotf"),
+    pytest.param(
+        "dwm",
+        "calibrate_pro.lut_system.dwm_lut",
+        "pq_oetf",
+        "pq_eotf",
+        marks=pytest.mark.windows,
+    ),
     ("scrgb", "calibrate_pro.display.scrgb_pipeline", "_pq_oetf", "_pq_eotf"),
 )
 

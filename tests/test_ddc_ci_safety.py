@@ -12,6 +12,8 @@ import pytest
 
 from calibrate_pro.hardware import ddc_ci
 
+pytestmark = pytest.mark.windows
+
 
 class CapabilityAbort(BaseException):
     """Simulate an in-process cancellation or other non-Exception abort."""
