@@ -311,10 +311,13 @@ The remaining owners and values are also exact:
 
 ```python
 # calibrate_pro/application/contracts.py
-class EvidenceKind(str, Enum):
-    NOT_MEASURED = "not_measured"
-    ESTIMATED = "estimated"
-    MEASURED = "measured"
+from calibrate_pro.verification.provenance import EvidenceKind
+
+PHASE_ONE_EVIDENCE_KINDS = frozenset({
+    EvidenceKind.NOT_MEASURED,
+    EvidenceKind.ESTIMATED,
+    EvidenceKind.MEASURED,
+})
 
 @dataclass(frozen=True)
 class DashboardModel:
@@ -594,6 +597,8 @@ git commit -m "test(functional-recovery): freeze action and parallel-safety base
 - Create: `calibrate_pro/application/__init__.py`
 - Create: `calibrate_pro/application/actions.py`
 - Create: `calibrate_pro/application/outcomes.py`
+- Create: `calibrate_pro/application/contracts.py` with the Phase 0 enum/type foundation only
+- Create: `calibrate_pro/application/journal.py` with the exact record and sink Protocol only
 - Create: `calibrate_pro/resources/action-capabilities.json`
 - Create: `tests/test_action_outcomes.py`
 - Modify: `tests/test_action_capabilities.py`
@@ -694,6 +699,18 @@ Load the manifest with `importlib.resources.files("calibrate_pro").joinpath("res
 
 `ActionBoundary` accepts injected `CorrelationIdFactory` and `JournalSink`. It never catches `KeyboardInterrupt` or `SystemExit`; all `Exception` subclasses become typed failures. The manifest resolver consumes every `ActionContext` field above, and tests mutate each predicate independently to prove a handler cannot broaden policy.
 
+This task must establish its type dependencies without temporary duplicates.
+`contracts.py` defines `CharacterizationKind` and re-exports the existing
+canonical `calibrate_pro.verification.provenance.EvidenceKind`; Phase 0/1
+validation admits only `PHASE_ONE_EVIDENCE_KINDS`, so the existing
+`SIMULATED`/`REPLAYED` members cannot enter this workflow. Task 4 expands the
+same module with immutable observations and targets. `journal.py` defines the
+exact `JournalRecord` dataclass and `JournalSink` Protocol from the frozen
+interfaces, but performs no filesystem, rotation, salt, or bundle work until
+Task 3. Use postponed/type-check-only imports to avoid an actions/outcomes/
+journal cycle; do not create substitute record or evidence types that Task 3
+or Task 4 would later replace.
+
 - [ ] **Step 4: Run GREEN and static checks**
 
 ```powershell
@@ -717,13 +734,13 @@ git commit -m "feat(functional-recovery): add action truth and typed outcomes"
 ## Task 3: Add Durable Redacted Diagnostics and User-Controlled Bundles
 
 **Files:**
-- Create: `calibrate_pro/application/journal.py`
+- Modify: `calibrate_pro/application/journal.py`
 - Create: `tests/test_diagnostic_journal.py`
 - Modify: `calibrate_pro/application/outcomes.py`
 
 - [ ] **Step 1: Write RED tests for the complete allowlisted schema**
 
-Freeze `JournalRecord` with these fields only:
+Verify the Task 2 `JournalRecord` foundation and freeze these fields only:
 
 ```python
 @dataclass(frozen=True)
@@ -783,7 +800,8 @@ define crash-safe transactional diagnostics before enabling it.
 python -m pytest -p no:cacheprovider tests/test_diagnostic_journal.py -q
 ```
 
-Expected: import failure for the absent journal.
+Expected: failures for the absent durable journal/storage/bundle behavior, not
+an import failure or a second record type.
 
 - [ ] **Step 3: Implement fail-closed local storage**
 
@@ -815,7 +833,7 @@ git commit -m "feat(functional-recovery): add durable redacted diagnostics"
 ## Task 4: Define Immutable Observations and Atomic Read-Only Detection
 
 **Files:**
-- Create: `calibrate_pro/application/contracts.py`
+- Modify: `calibrate_pro/application/contracts.py`
 - Create: `calibrate_pro/application/detection.py`
 - Create: `tests/recovery_fakes.py`
 - Create: `tests/test_recovery_detection.py`
