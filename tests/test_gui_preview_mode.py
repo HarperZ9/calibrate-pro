@@ -35,10 +35,7 @@ def test_preview_provider_is_generic_deterministic_and_evidence_labelled() -> No
     assert display.snapshot.serial == ""
     assert display.snapshot.device_id == ""
     assert display.snapshot.device_name == ""
-    assert all(
-        metric.evidence in {EvidenceKind.SIMULATED, EvidenceKind.NOT_MEASURED}
-        for metric in display.metrics
-    )
+    assert all(metric.evidence in {EvidenceKind.SIMULATED, EvidenceKind.NOT_MEASURED} for metric in display.metrics)
     assert all(
         metric.source == "bundled public preview fixture"
         for metric in display.metrics
