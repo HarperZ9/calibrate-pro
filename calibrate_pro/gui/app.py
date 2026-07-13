@@ -17,7 +17,7 @@ configure_qt_api()
 
 logger = logging.getLogger(__name__)
 
-from calibrate_pro.gui.theme import C, STYLE, install_build_ui_theme
+from calibrate_pro.gui.theme import STYLE, C, install_build_ui_theme
 
 install_build_ui_theme()
 
