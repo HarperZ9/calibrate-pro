@@ -17,7 +17,10 @@ configure_qt_api()
 
 logger = logging.getLogger(__name__)
 
-from build_ui.theme import STYLE, C
+from calibrate_pro.gui.theme import C, STYLE, install_build_ui_theme
+
+install_build_ui_theme()
+
 from build_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
 from PySide6.QtCore import (
     QPointF,
