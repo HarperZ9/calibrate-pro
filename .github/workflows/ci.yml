@@ -49,6 +49,9 @@ jobs:
       - name: Run portable tests with coverage
         if: runner.os == 'Linux'
         run: pytest tests/ -q -m "not windows" --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=15
+      - name: Run supported parallel test lane
+        if: runner.os == 'Windows' && matrix.python-version == '3.12'
+        run: python -m pytest -n 2 -p no:cacheprovider tests/test_professional_features.py tests/test_lut_engine.py tests/test_pdf_export.py -q
       - name: Run complete Windows tests with coverage
         if: runner.os == 'Windows'
         env:
