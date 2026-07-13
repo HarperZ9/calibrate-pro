@@ -129,21 +129,21 @@ Expected: all tests pass, compile succeeds, diff check is clean.
 - Consumes: `QtDisplaySnapshot`, `MetricValue`, `EvidenceKind.SIMULATED`, and the active window.
 - Produces: `PreviewSnapshotProvider`, `CalibrateProWindow(preview_mode: bool = False)`, a persistent “Simulated preview” banner, and a deterministic PNG renderer.
 
-- [ ] **Step 1: Write failing preview-isolation tests**
+- [x] **Step 1: Write failing preview-isolation tests**
 
 Create a test that monkeypatches USB discovery, startup-manager construction, display-service startup, tray construction, and display mutation entrypoints to raise `AssertionError`. Construct `CalibrateProWindow(preview_mode=True)` offscreen and assert construction succeeds, the banner text contains `Simulated preview` and `No hardware access`, every populated metric uses `EvidenceKind.SIMULATED` or `EvidenceKind.NOT_MEASURED`, and Apply/Calibrate mutation actions are disabled.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run: `python -m pytest tests/test_gui_preview_mode.py -q`
 
 Expected: fail because the window has no preview-mode injection boundary and dashboard population currently reaches real discovery adapters.
 
-- [ ] **Step 3: Implement the deterministic preview provider**
+- [x] **Step 3: Implement the deterministic preview provider**
 
 `calibrate_pro/gui/preview.py` must expose a frozen `PreviewDisplay` dataclass and `PreviewSnapshotProvider`. Use one generic display named `Reference Display`, resolution `3840 × 2160 @ 120 Hz`, panel type `QD-OLED`, and only explicitly simulated metrics with source `bundled public preview fixture`. Use `Not measured` for any metric the fixture does not intentionally demonstrate. Do not include a manufacturer, serial, PnP ID, ICC path, user path, or real hardware identifier.
 
-- [ ] **Step 4: Inject preview mode through the window and dashboard**
+- [x] **Step 4: Inject preview mode through the window and dashboard**
 
 Add `preview_mode: bool = False` to `CalibrateProWindow` and `DashboardPage`. In preview mode:
 
@@ -153,25 +153,25 @@ Add `preview_mode: bool = False` to `CalibrateProWindow` and `DashboardPage`. In
 - keep navigation available for visual review, but disable any button or action that can start calibration, verification, profile activation, DDC/CI, LUT application, startup registration, or export to a user path;
 - label simulated numbers in visible text, not color alone.
 
-- [ ] **Step 5: Add the deterministic preview renderer**
+- [x] **Step 5: Add the deterministic preview renderer**
 
 `scripts/render_gui_preview.py` must set `QT_QPA_PLATFORM=offscreen` before importing PySide6, construct `CalibrateProWindow(preview_mode=True)`, resize to `1440 × 900`, process events until the dashboard is populated, save a PNG to the required `--out` path, print the output path and byte size, close the window, and return nonzero if the PNG is missing or empty.
 
-- [ ] **Step 6: Render and inspect the new native surface**
+- [x] **Step 6: Render and inspect the new native surface**
 
 Run:
 
 ```powershell
-python scripts/render_gui_preview.py --out "$env:TEMP\calibrate-pro-native-preview.png"
+python scripts/render_gui_preview.py --out "C:\dev\scratch\calibrate-pro-native-preview.png"
 python -m pytest tests/test_gui_preview_mode.py tests/test_gui_theme_contract.py tests/test_qt_binding_contract.py -q
 git diff --check -- calibrate_pro/gui/app.py calibrate_pro/gui/preview.py scripts/render_gui_preview.py tests/test_gui_preview_mode.py
 ```
 
 Expected: renderer returns zero with a nonempty PNG; tests pass; diff check is clean. Inspect the PNG at original resolution before accepting the task.
 
-- [ ] **Step 7: Commit the scoped product contract and UI work**
+- [x] **Step 7: Commit the scoped product contract and UI work**
 
 ```powershell
-git add PRODUCT.md calibrate_pro/gui/theme.py calibrate_pro/gui/app.py calibrate_pro/gui/preview.py scripts/render_gui_preview.py tests/test_gui_theme_contract.py tests/test_gui_preview_mode.py docs/superpowers/plans/2026-07-12-native-dark-workbench.md
-git commit -m "feat: modernize Calibrate Pro native workbench"
+git add calibrate_pro/gui/app.py calibrate_pro/gui/preview.py scripts/render_gui_preview.py tests/test_gui_preview_mode.py docs/superpowers/plans/2026-07-12-native-dark-workbench.md
+git commit -m "feat: add Calibrate Pro simulated preview"
 ```
