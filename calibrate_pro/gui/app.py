@@ -17,7 +17,10 @@ configure_qt_api()
 
 logger = logging.getLogger(__name__)
 
-from build_ui.theme import STYLE, C
+from calibrate_pro.gui.theme import STYLE, C, install_build_ui_theme
+
+install_build_ui_theme()
+
 from build_ui.widgets import Card, Heading, Sidebar, Stat, StatusDot, ToastNotification
 from PySide6.QtCore import (
     QPointF,
@@ -380,6 +383,8 @@ class GamutBar(QWidget):
         parent=None,
     ):
         super().__init__(parent)
+        self.setObjectName("displayGamutBar")
+        self.setStyleSheet("background: transparent;")
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._srgb = metric_or_not_measured(srgb, "%")
@@ -469,6 +474,7 @@ class DisplayCard(Card):
         blue_xy=None,
         peak_nits: MetricValue | None = None,
         display_index: int = 0,
+        actions_enabled: bool = True,
         parent=None,
     ):
         super().__init__(parent)
@@ -492,7 +498,8 @@ class DisplayCard(Card):
         name_row = QHBoxLayout()
         name_row.setSpacing(8)
         name_label = QLabel(name)
-        name_label.setStyleSheet("font-size: 14px; font-weight: 500;")
+        name_label.setObjectName("displayNameLabel")
+        name_label.setStyleSheet("background: transparent; font-size: 14px; font-weight: 500;")
         name_row.addWidget(name_label)
 
         # Tags
@@ -513,7 +520,8 @@ class DisplayCard(Card):
         peak_luminance = metric_or_not_measured(peak_nits, "nits")
         detail_parts.append(f"Peak luminance: {peak_luminance.display_text(0)}")
         detail = QLabel("  ·  ".join(detail_parts))
-        detail.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
+        detail.setObjectName("displayDetailLabel")
+        detail.setStyleSheet(f"background: transparent; font-size: 11px; color: {C.TEXT2};")
         center.addWidget(detail)
 
         # Gamut coverage bars
@@ -545,7 +553,8 @@ class DisplayCard(Card):
         # Calibration age
         if cal_age:
             age_label = QLabel(cal_age)
-            age_label.setStyleSheet(f"font-size: 10px; color: {C.TEXT3};")
+            age_label.setObjectName("displayStatusLabel")
+            age_label.setStyleSheet(f"background: transparent; font-size: 10px; color: {C.TEXT3};")
             right.addWidget(age_label, alignment=Qt.AlignmentFlag.AlignRight)
         elif not calibrated:
             uncal = QLabel("Not calibrated")
@@ -555,13 +564,18 @@ class DisplayCard(Card):
         right.addStretch()
 
         # Action button
-        cal_btn = QPushButton("Calibrate" if not calibrated else "Recalibrate")
-        cal_btn.setProperty("primary", not calibrated)
-        cal_btn.setFixedWidth(110)
-        cal_btn.setFixedHeight(32)
-        cal_btn.setStyleSheet(cal_btn.styleSheet() + "font-size: 11px; border-radius: 10px;")
-        cal_btn.clicked.connect(lambda: self.calibrate_clicked.emit(self._display_index))
-        right.addWidget(cal_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        self.calibrate_button = QPushButton("Calibrate" if not calibrated else "Recalibrate")
+        self.calibrate_button.setProperty("primary", not calibrated and actions_enabled)
+        self.calibrate_button.setFixedWidth(110)
+        self.calibrate_button.setFixedHeight(32)
+        self.calibrate_button.setStyleSheet(
+            self.calibrate_button.styleSheet() + "font-size: 11px; border-radius: 10px;"
+        )
+        self.calibrate_button.setEnabled(actions_enabled)
+        if not actions_enabled:
+            self.calibrate_button.setToolTip("Disabled in simulated preview")
+        self.calibrate_button.clicked.connect(lambda: self.calibrate_clicked.emit(self._display_index))
+        right.addWidget(self.calibrate_button, alignment=Qt.AlignmentFlag.AlignRight)
 
         layout.addLayout(right)
 
@@ -1182,8 +1196,11 @@ class DashboardPage(QWidget):
     navigate_to_calibrate = Signal(int)  # emits display index
     calibrate_all_requested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, preview_mode: bool = False):
         super().__init__(parent)
+        self.preview_mode = preview_mode
+        self.preview_populated = False
+        self.preview_metrics: tuple[MetricValue, ...] = ()
         self._build()
 
     def _build(self):
@@ -1205,25 +1222,32 @@ class DashboardPage(QWidget):
         header_row.addWidget(Heading("Displays"))
         header_row.addStretch()
 
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.setFixedHeight(32)
-        refresh_btn.clicked.connect(self._populate)
-        header_row.addWidget(refresh_btn)
+        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn.setFixedHeight(32)
+        self.refresh_btn.clicked.connect(self._populate)
+        header_row.addWidget(self.refresh_btn)
 
-        add_display_btn = QPushButton("Add Display Profile")
-        add_display_btn.setFixedHeight(32)
-        add_display_btn.setStyleSheet(
+        self.add_display_btn = QPushButton("Add Display Profile")
+        self.add_display_btn.setFixedHeight(32)
+        self.add_display_btn.setStyleSheet(
             f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.ACCENT}; "
             f"border-radius: 10px; font-size: 12px; padding: 6px 16px; color: {C.ACCENT_TX}; }}"
             f"QPushButton:hover {{ background: {C.SURFACE2}; border-color: {C.ACCENT_HI}; }}"
+            f"QPushButton:disabled {{ background: {C.SURFACE}; border-color: {C.BORDER}; color: {C.TEXT3}; }}"
         )
-        add_display_btn.clicked.connect(self._show_add_display_dialog)
-        header_row.addWidget(add_display_btn)
+        self.add_display_btn.clicked.connect(self._show_add_display_dialog)
+        self.add_display_btn.setEnabled(not self.preview_mode)
+        if self.preview_mode:
+            self.add_display_btn.setToolTip("Disabled in simulated preview")
+        header_row.addWidget(self.add_display_btn)
 
         self.calibrate_all_btn = QPushButton("Calibrate All")
         self.calibrate_all_btn.setFixedHeight(32)
-        self.calibrate_all_btn.setProperty("primary", True)
+        self.calibrate_all_btn.setProperty("primary", not self.preview_mode)
         self.calibrate_all_btn.clicked.connect(self.calibrate_all_requested.emit)
+        self.calibrate_all_btn.setEnabled(not self.preview_mode)
+        if self.preview_mode:
+            self.calibrate_all_btn.setToolTip("Disabled in simulated preview")
         header_row.addWidget(self.calibrate_all_btn)
 
         layout.addLayout(header_row)
@@ -1256,8 +1280,7 @@ class DashboardPage(QWidget):
         layout.addStretch()
         scroll.setWidget(content)
 
-        # Populate with real data
-        QTimer.singleShot(200, self._populate)
+        QTimer.singleShot(0 if self.preview_mode else 200, self._populate)
 
     def _populate(self):
         # Clear existing cards
@@ -1269,6 +1292,10 @@ class DashboardPage(QWidget):
             item = self._sensor_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+
+        if self.preview_mode:
+            self._populate_preview()
+            return
 
         # Read-only display detection
         try:
@@ -1399,6 +1426,49 @@ class DashboardPage(QWidget):
             self._sensor_layout.addWidget(SensorCard(False))
             self._stat_sensor.set_value("N/A", C.TEXT3)
 
+    def _populate_preview(self) -> None:
+        """Populate only from the bundled fixture without consulting machine state."""
+        from calibrate_pro.gui.preview import PreviewSnapshotProvider
+
+        displays = PreviewSnapshotProvider().snapshots()
+        metrics: list[MetricValue] = []
+        for display in displays:
+            snapshot = display.snapshot
+            metrics.extend(display.metrics)
+            card = DisplayCard(
+                snapshot.name,
+                display.resolution,
+                display.panel_type,
+                gamut_srgb=display.gamut_srgb,
+                gamut_p3=display.gamut_p3,
+                gamut_bt2020=display.gamut_bt2020,
+                calibrated=False,
+                hdr=False,
+                cal_age="Calibration: Not measured",
+                delta_e=display.delta_e,
+                peak_nits=display.peak_luminance,
+                display_index=snapshot.index,
+                actions_enabled=False,
+            )
+            self._cards_layout.addWidget(card)
+
+        evidence_card, evidence_layout = Card.with_layout(spacing=4)
+        evidence_label = QLabel(
+            "Preview evidence · simulated values use the bundled public fixture · colorimeter: Not measured"
+        )
+        evidence_label.setObjectName("previewEvidenceLabel")
+        evidence_label.setStyleSheet(f"background: transparent; color: {C.TEXT2}; font-size: 11px;")
+        evidence_layout.addWidget(evidence_label)
+        self._sensor_layout.addWidget(evidence_card)
+
+        self.preview_metrics = tuple(metrics)
+        self._stat_panels.set_value(f"{len(displays)} simulated", C.ACCENT_TX)
+        self._stat_sensor.set_value("Not measured", C.TEXT3)
+        self._stat_lut.set_value("Not measured", C.TEXT3)
+        self._stat_guard.set_value("Disabled in preview", C.TEXT3)
+        self._stat_startup.set_value("Not measured", C.TEXT3)
+        self.preview_populated = True
+
     def _show_add_display_dialog(self):
         """Show the Add Display Profile dialog."""
         dialog = AddDisplayDialog(self)
@@ -1419,14 +1489,34 @@ class PlaceholderPage(QWidget):
         layout.addStretch()
 
 
+class PreviewModePage(QWidget):
+    """Safe page surface used when action-heavy workflows are unavailable."""
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(32, 28, 32, 28)
+        layout.setSpacing(16)
+        layout.addWidget(Heading(title))
+        message = QLabel(
+            "Simulated preview keeps this workflow visible but inactive.\n"
+            "No hardware access, profile writes, startup changes, exports, or display changes are available."
+        )
+        message.setWordWrap(True)
+        message.setStyleSheet(f"color: {C.TEXT2}; font-size: 12px;")
+        layout.addWidget(message)
+        layout.addStretch()
+
+
 # Main Window
 
 
 class CalibrateProWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self):
+    def __init__(self, preview_mode: bool = False):
         super().__init__()
+        self.preview_mode = preview_mode
         self.settings = QSettings(APP_ORG, APP_NAME)
         self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
         self.setMinimumSize(900, 600)
@@ -1438,18 +1528,23 @@ class CalibrateProWindow(QMainWindow):
         self._build_menubar()
         self._build_central()
         self._build_statusbar()
-        self._build_tray()
         self._setup_shortcuts()
-        self._restore_geometry()
-        self._start_services()
-        self._update_tray_state()
+        self._guard = None
 
-        # Periodic tray state refresh (every 60 seconds)
-        self._tray_timer = QTimer(self)
-        self._tray_timer.timeout.connect(self._update_tray_state)
-        self._tray_timer.start(60_000)
+        if self.preview_mode:
+            self._status.setText("Simulated preview · hardware and display changes disabled")
+        else:
+            self._build_tray()
+            self._restore_geometry()
+            self._start_services()
+            self._update_tray_state()
 
-        QTimer.singleShot(500, self._check_first_run)
+            # Periodic tray state refresh (every 60 seconds)
+            self._tray_timer = QTimer(self)
+            self._tray_timer.timeout.connect(self._update_tray_state)
+            self._tray_timer.start(60_000)
+
+            QTimer.singleShot(500, self._check_first_run)
 
     # --- Background Services ---
 
@@ -1640,10 +1735,22 @@ class CalibrateProWindow(QMainWindow):
 
     def _build_menubar(self):
         mb = self.menuBar()
+        self._preview_mutation_actions: list[QAction] = []
+
+        def add_mutation_action(menu, action: QAction) -> QAction:
+            if self.preview_mode:
+                action.setEnabled(False)
+                action.setToolTip("Disabled in simulated preview")
+                self._preview_mutation_actions.append(action)
+            menu.addAction(action)
+            return action
 
         # File
         file_menu = mb.addMenu("&File")
-        file_menu.addAction(QAction("&Calibrate All", self, shortcut="Ctrl+Shift+C", triggered=self._calibrate_all))
+        add_mutation_action(
+            file_menu,
+            QAction("&Calibrate All", self, shortcut="Ctrl+Shift+C", triggered=self._calibrate_all),
+        )
         file_menu.addSeparator()
 
         export = file_menu.addMenu("&Export")
@@ -1657,7 +1764,7 @@ class CalibrateProWindow(QMainWindow):
         ]:
             act = QAction(label, self)
             act.triggered.connect(lambda checked, f=fmt: self._export(f))
-            export.addAction(act)
+            add_mutation_action(export, act)
 
         file_menu.addSeparator()
         file_menu.addAction(QAction("E&xit", self, shortcut="Alt+F4", triggered=self.close))
@@ -1677,14 +1784,14 @@ class CalibrateProWindow(QMainWindow):
         # Display
         disp = mb.addMenu("&Display")
         disp.addAction(QAction("&Detect Displays", self, triggered=self._refresh_dashboard))
-        disp.addAction(QAction("&Restore Defaults", self, triggered=self._restore_defaults))
+        add_mutation_action(disp, QAction("&Restore Defaults", self, triggered=self._restore_defaults))
         disp.addSeparator()
-        disp.addAction(QAction("&Install ICC Profile...", self, triggered=self._install_profile))
+        add_mutation_action(disp, QAction("&Install ICC Profile...", self, triggered=self._install_profile))
 
         # Tools
         tools = mb.addMenu("&Tools")
-        tools.addAction(QAction("&Test Patterns", self, triggered=self._test_patterns))
-        tools.addAction(QAction("&HDR Status", self, triggered=self._hdr_status))
+        add_mutation_action(tools, QAction("&Test Patterns", self, triggered=self._test_patterns))
+        add_mutation_action(tools, QAction("&HDR Status", self, triggered=self._hdr_status))
 
         # Help
         help_menu = mb.addMenu("&Help")
@@ -1694,9 +1801,27 @@ class CalibrateProWindow(QMainWindow):
 
     def _build_central(self):
         central = QWidget()
-        main_layout = QHBoxLayout(central)
+        outer_layout = QVBoxLayout(central)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        if self.preview_mode:
+            self.preview_banner = QLabel(
+                "Simulated preview · bundled public fixture · no hardware access · no display changes"
+            )
+            self.preview_banner.setObjectName("previewBanner")
+            self.preview_banner.setFixedHeight(38)
+            self.preview_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.preview_banner.setStyleSheet(
+                f"background: {C.SURFACE2}; color: {C.ACCENT_TX}; "
+                f"border-bottom: 1px solid {C.ACCENT}; font-weight: 600; padding: 8px 16px;"
+            )
+            outer_layout.addWidget(self.preview_banner)
+
+        main_layout = QHBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
+        outer_layout.addLayout(main_layout, stretch=1)
 
         # Sidebar
         self.sidebar = Sidebar(CAL_PAGES, app_name=APP_NAME, app_version=APP_VERSION)
@@ -1707,56 +1832,60 @@ class CalibrateProWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.setStyleSheet(f"background: {C.BG};")
 
-        self.dashboard = DashboardPage()
+        self.dashboard = DashboardPage(preview_mode=self.preview_mode)
         self.dashboard.navigate_to_calibrate.connect(self._navigate_to_calibrate)
         self.dashboard.calibrate_all_requested.connect(self._calibrate_all)
         self.stack.addWidget(self.dashboard)  # 0
 
-        # Calibrate page
-        try:
-            from calibrate_pro.gui.pages.calibrate import CalibratePage
+        if self.preview_mode:
+            for title in CAL_PAGES[1:]:
+                self.stack.addWidget(PreviewModePage(title))
+        else:
+            # Calibrate page
+            try:
+                from calibrate_pro.gui.pages.calibrate import CalibratePage
 
-            cal_page = CalibratePage()
-            cal_page.calibration_completed.connect(self._update_tray_state)
-            self.stack.addWidget(cal_page)  # 1
-        except (ImportError, AttributeError) as e:
-            logger.warning("Failed to load CalibratePage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Calibrate"))  # 1
+                cal_page = CalibratePage()
+                cal_page.calibration_completed.connect(self._update_tray_state)
+                self.stack.addWidget(cal_page)  # 1
+            except (ImportError, AttributeError) as e:
+                logger.warning("Failed to load CalibratePage: %s", e)
+                self.stack.addWidget(PlaceholderPage("Calibrate"))  # 1
 
-        # Verify page
-        try:
-            from calibrate_pro.gui.pages.verify import VerifyPage
+            # Verify page
+            try:
+                from calibrate_pro.gui.pages.verify import VerifyPage
 
-            self.stack.addWidget(VerifyPage())  # 2
-        except (ImportError, TypeError) as e:
-            logger.warning("Failed to load VerifyPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Verify"))  # 2
-        # Profiles page
-        try:
-            from calibrate_pro.gui.pages.profiles import ProfilesPage
+                self.stack.addWidget(VerifyPage())  # 2
+            except (ImportError, TypeError) as e:
+                logger.warning("Failed to load VerifyPage: %s", e)
+                self.stack.addWidget(PlaceholderPage("Verify"))  # 2
+            # Profiles page
+            try:
+                from calibrate_pro.gui.pages.profiles import ProfilesPage
 
-            self.stack.addWidget(ProfilesPage())  # 3
-        except ImportError as e:
-            logger.warning("Failed to load ProfilesPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Profiles"))  # 3
+                self.stack.addWidget(ProfilesPage())  # 3
+            except ImportError as e:
+                logger.warning("Failed to load ProfilesPage: %s", e)
+                self.stack.addWidget(PlaceholderPage("Profiles"))  # 3
 
-        # DDC Control page
-        try:
-            from calibrate_pro.gui.pages.ddc_control import DDCControlPage
+            # DDC Control page
+            try:
+                from calibrate_pro.gui.pages.ddc_control import DDCControlPage
 
-            self.stack.addWidget(DDCControlPage())  # 4
-        except (ImportError, RuntimeError) as e:
-            logger.warning("Failed to load DDCControlPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("DDC Control"))  # 4
+                self.stack.addWidget(DDCControlPage())  # 4
+            except (ImportError, RuntimeError) as e:
+                logger.warning("Failed to load DDCControlPage: %s", e)
+                self.stack.addWidget(PlaceholderPage("DDC Control"))  # 4
 
-        # Settings page
-        try:
-            from calibrate_pro.gui.pages.settings import SettingsPage
+            # Settings page
+            try:
+                from calibrate_pro.gui.pages.settings import SettingsPage
 
-            self.stack.addWidget(SettingsPage())  # 5
-        except (ImportError, OSError) as e:
-            logger.warning("Failed to load SettingsPage: %s", e)
-            self.stack.addWidget(PlaceholderPage("Settings"))  # 5
+                self.stack.addWidget(SettingsPage())  # 5
+            except (ImportError, OSError) as e:
+                logger.warning("Failed to load SettingsPage: %s", e)
+                self.stack.addWidget(PlaceholderPage("Settings"))  # 5
 
         main_layout.addWidget(self.stack, stretch=1)
         self.setCentralWidget(central)
@@ -2068,7 +2197,8 @@ class CalibrateProWindow(QMainWindow):
             self.restoreGeometry(geo)
 
     def closeEvent(self, event):
-        self.settings.setValue("window/geometry", self.saveGeometry())
+        if not self.preview_mode:
+            self.settings.setValue("window/geometry", self.saveGeometry())
         # Minimize to tray instead of closing
         if hasattr(self, "_tray") and self._tray.isVisible():
             event.ignore()
