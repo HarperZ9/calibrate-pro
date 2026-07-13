@@ -123,13 +123,14 @@ QComboBox QAbstractItemView {{
     background-color: {C.SURFACE}; color: {C.TEXT}; border: 1px solid {C.BORDER_LT};
     selection-background-color: {C.ACCENT}; selection-color: {C.BG};
 }}
-QSlider::groove:horizontal {{ background-color: {C.BORDER}; height: 4px; border-radius: 2px; }}
-QSlider::sub-page:horizontal {{ background-color: {C.ACCENT}; border-radius: 2px; }}
+QSlider::groove:horizontal {{ background-color: {C.BORDER}; height: 4px; border-radius: 4px; }}
+QSlider::sub-page:horizontal {{ background-color: {C.ACCENT}; border-radius: 4px; }}
 QSlider::handle:horizontal {{
     background-color: {C.ACCENT}; border: 1px solid {C.ACCENT_HI};
     width: 14px; margin: -5px 0; border-radius: 7px;
 }}
 QSlider::handle:horizontal:hover, QSlider::handle:horizontal:pressed {{ background-color: {C.ACCENT_HI}; }}
+QSlider:focus {{ border: 1px solid {C.ACCENT_HI}; border-radius: 4px; }}
 QSlider::handle:horizontal:disabled {{ background-color: {C.TEXT3}; border-color: {C.BORDER_LT}; }}
 QCheckBox, QRadioButton {{ color: {C.TEXT}; spacing: 7px; }}
 QCheckBox:disabled, QRadioButton:disabled {{ color: {C.TEXT3}; }}
@@ -140,6 +141,8 @@ QCheckBox::indicator, QRadioButton::indicator {{
 QCheckBox::indicator {{ border-radius: 4px; }}
 QRadioButton::indicator {{ border-radius: 8px; }}
 QCheckBox::indicator:hover, QRadioButton::indicator:hover {{ border-color: {C.ACCENT}; }}
+QCheckBox::indicator:pressed {{ background-color: {C.ACCENT_HI}; border-color: {C.ACCENT_HI}; }}
+QRadioButton::indicator:pressed {{ background-color: {C.ACCENT_HI}; border-color: {C.ACCENT_HI}; }}
 QCheckBox::indicator:checked, QRadioButton::indicator:checked {{
     background-color: {C.ACCENT}; border-color: {C.ACCENT_HI};
 }}
@@ -158,6 +161,8 @@ QTabBar::tab {{
     padding: 7px 12px; margin-right: 2px;
 }}
 QTabBar::tab:hover {{ color: {C.TEXT}; border-color: {C.ACCENT}; }}
+QTabBar::tab:focus {{ color: {C.ACCENT_TX}; border-color: {C.ACCENT_HI}; }}
+QTabBar::tab:pressed {{ background-color: {C.ACCENT}; color: {C.BG}; border-color: {C.ACCENT_HI}; }}
 QTabBar::tab:selected {{ background-color: {C.SURFACE}; color: {C.ACCENT_TX}; border-color: {C.ACCENT}; }}
 QTabBar::tab:disabled {{ color: {C.TEXT3}; border-color: {C.BORDER}; }}
 QTableWidget, QListWidget {{
