@@ -11,7 +11,6 @@ import pytest
 
 from calibrate_pro.verification.provenance import EvidenceKind
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,14 +50,15 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
     qapp: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QLabel, QPushButton
+
     from calibrate_pro.gui import app as gui_app
     from calibrate_pro.gui.app import CalibrateProWindow
     from calibrate_pro.hardware.ddc_ci import DDCCIController
     from calibrate_pro.hardware.i1d3_native import I1D3Driver
     from calibrate_pro.services.calibration_guard import CalibrationGuard
     from calibrate_pro.utils.startup_manager import StartupManager
-    from PySide6.QtGui import QAction
-    from PySide6.QtWidgets import QLabel, QPushButton
 
     monkeypatch.setattr(gui_app, "qt_display_snapshots", _unexpected_hardware_or_mutation_call)
     monkeypatch.setattr(I1D3Driver, "find_devices", _unexpected_hardware_or_mutation_call)
@@ -167,7 +167,8 @@ def test_preview_renderer_writes_a_nonempty_1440_by_900_png(tmp_path: Path) -> N
     assert output.stat().st_size > 0
     assert str(output) in result.stdout
     assert str(output.stat().st_size) in result.stdout
-    assert "font=Segoe UI" in result.stdout
+    assert "font=" in result.stdout
+    assert "font=none" not in result.stdout.lower()
     assert "layout=settled" in result.stdout
 
     from PySide6.QtGui import QImage

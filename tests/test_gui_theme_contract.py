@@ -17,9 +17,10 @@ def _contrast_ratio(first: str, second: str) -> float:
 
 
 def test_active_app_owns_dark_room_theme() -> None:
-    import calibrate_pro.gui.app as app
-    from calibrate_pro.gui.theme import C, STYLE
     from build_ui import theme as build_theme
+
+    import calibrate_pro.gui.app as app
+    from calibrate_pro.gui.theme import STYLE, C
 
     assert app.C is C
     assert app.STYLE is STYLE

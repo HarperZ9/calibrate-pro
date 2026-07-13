@@ -14,14 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication
 
 from calibrate_pro.gui.app import CalibrateProWindow
 
 
 def install_preview_font() -> str:
-    """Load a Windows UI font explicitly for reliable offscreen text rendering."""
+    """Select an explicit local UI font for reliable offscreen text rendering."""
     fonts_dir = Path(os.environ.get("WINDIR", "")) / "Fonts"
     for filename in ("segoeui.ttf", "arial.ttf"):
         font_id = QFontDatabase.addApplicationFont(str(fonts_dir / filename))
@@ -29,7 +29,13 @@ def install_preview_font() -> str:
             families = QFontDatabase.applicationFontFamilies(font_id)
             if families:
                 return families[0]
-    return ""
+
+    installed = set(QFontDatabase.families())
+    for family in ("DejaVu Sans", "Liberation Sans", "Noto Sans", "Arial"):
+        if family in installed:
+            return family
+
+    return QApplication.font().family()
 
 
 def render_preview(output_path: Path) -> int:
@@ -38,6 +44,7 @@ def render_preview(output_path: Path) -> int:
     font_family = install_preview_font()
     if not font_family:
         return 1
+    app.setFont(QFont(font_family))
 
     window = CalibrateProWindow(preview_mode=True)
     window.resize(1440, 900)
