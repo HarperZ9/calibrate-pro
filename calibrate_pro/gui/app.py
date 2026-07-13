@@ -1454,8 +1454,7 @@ class DashboardPage(QWidget):
 
         evidence_card, evidence_layout = Card.with_layout(spacing=4)
         evidence_label = QLabel(
-            "Preview evidence · simulated values use the bundled public fixture · "
-            "colorimeter: Not measured"
+            "Preview evidence · simulated values use the bundled public fixture · colorimeter: Not measured"
         )
         evidence_label.setObjectName("previewEvidenceLabel")
         evidence_label.setStyleSheet(f"background: transparent; color: {C.TEXT2}; font-size: 11px;")
