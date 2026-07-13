@@ -1,6 +1,6 @@
 # Calibrate Pro Functional Recovery Design
 
-- **Status:** Architecture approved; awaiting written-spec review
+- **Status:** Written specification approved for implementation planning on 2026-07-13
 - **Date:** 2026-07-13
 - **Canonical repository:** `C:/dev/public/calibrate-pro`
 - **Design worktree baseline:** `origin/main` at `8ed017577b34c7a6d2bfe04a17a254f377ad7b7c`
@@ -621,12 +621,10 @@ This approach is rejected for functional recovery.
 - [ ] Release notes describe functional recovery and known limitations without
   claiming a regression or rewriting `v1.1.0` lineage.
 
-## Written-Spec Review Gate
+## Written-Spec Approval Record
 
-The architecture has been approved conversationally. This written specification
-is awaiting user review. Committing this design document records the proposal
-only; it does not authorize an implementation plan, product-source change,
-build, hardware action, product-code commit, push, or publication. After
-written-spec approval, the next step is a Superpowers implementation plan that
-decomposes Phase 0 and Phase 1 into test-first, reviewable tasks in an isolated
-worktree.
+The user approved this exact written specification on 2026-07-13. The
+Superpowers implementation-planning gate is open. The first plan decomposes
+Phase 0 and Phase 1 into test-first, reviewable tasks in this isolated worktree;
+it does not authorize automated physical display, profile, LUT, DDC, startup,
+or sensor operations.
