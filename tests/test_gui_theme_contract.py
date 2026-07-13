@@ -1,5 +1,9 @@
 """Contracts for the active Calibrate Pro dark-room theme."""
 
+import re
+
+import pytest
+
 
 def _relative_luminance(hex_color: str) -> float:
     channels = [int(hex_color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
@@ -67,3 +71,31 @@ def test_style_covers_widgets_used_by_the_active_app() -> None:
     )
 
     assert all(widget in STYLE for widget in required_widgets)
+
+
+@pytest.mark.parametrize(
+    "selector",
+    (
+        "QSlider:focus",
+        "QTabBar::tab:focus",
+        "QTabBar::tab:pressed",
+        "QCheckBox::indicator:pressed",
+        "QRadioButton::indicator:pressed",
+    ),
+)
+def test_interactive_controls_define_required_states(selector: str) -> None:
+    from calibrate_pro.gui.theme import STYLE
+
+    assert selector in STYLE
+
+
+@pytest.mark.parametrize("subcontrol", ("groove", "sub-page"))
+def test_slider_track_radius_stays_within_dark_workbench_range(subcontrol: str) -> None:
+    from calibrate_pro.gui.theme import STYLE
+
+    match = re.search(
+        rf"QSlider::{subcontrol}:horizontal\s*\{{[^}}]*border-radius:\s*(\d+)px",
+        STYLE,
+    )
+    assert match is not None
+    assert 4 <= int(match.group(1)) <= 10
