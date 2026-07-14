@@ -1290,7 +1290,6 @@ def test_defined_redaction_markers_are_protected_from_sensitive_value_collisions
         environment={
             "COLLIDE_REDACTED": "REDACTED",
             "COLLIDE_PATH": "REDACTED_PATH",
-            "COLLIDE_BASENAME": "safe.log",
             "COLLIDE_DEVICE": "REDACTED_DEVICE",
             "COLLIDE_UTF8": "REDACTED_INVALID_UTF8",
         },
@@ -1300,6 +1299,182 @@ def test_defined_redaction_markers_are_protected_from_sensitive_value_collisions
 
     assert once == markers
     assert redactor.redact(once) == markers
+
+
+@pytest.mark.parametrize(
+    ("source", "forbidden"),
+    [
+        (
+            'ordinary retained; json={"password":"Correct Horse Battery Staple"}',
+            ("Correct", "Horse", "Battery", "Staple"),
+        ),
+        (
+            "ordinary retained; password=Correct Horse Battery Staple",
+            ("Correct", "Horse", "Battery", "Staple"),
+        ),
+        (
+            r"ordinary retained; pnp_path=PCI\VEN_1234&DEV_5678\SERIAL-SECRET",
+            (r"PCI\VEN_1234&DEV_5678\SERIAL-SECRET", "SERIAL-SECRET"),
+        ),
+        (
+            "ordinary retained; password=[REDACTED_PATH:plain-secret-value]",
+            ("plain-secret-value",),
+        ),
+        (
+            r"ordinary retained; path=[REDACTED_PATH:folder\marker-secret.txt]",
+            (r"folder\marker-secret.txt", "marker-secret.txt"),
+        ),
+    ],
+)
+def test_final_review_redaction_bypasses_are_removed(
+    source: str,
+    forbidden: tuple[str, ...],
+) -> None:
+    redactor = journal_module.DiagnosticRedactor(
+        username="Final.Review",
+        home=r"C:\Users\Final.Review",
+        environment={},
+    )
+
+    redacted = redactor.redact(source)
+
+    assert "ordinary retained" in redacted
+    assert all(fragment.casefold() not in redacted.casefold() for fragment in forbidden)
+
+
+def test_final_review_fragments_never_reach_journals_or_second_pass_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sensitive = (
+        'ordinary retained; json={"password":"Correct Horse Battery Staple"}; '
+        "password=Correct Horse Battery Staple; "
+        r"pnp_path=PCI\VEN_1234&DEV_5678\SERIAL-SECRET; "
+        "password=[REDACTED_PATH:plain-secret-value]; "
+        r"path=[REDACTED_PATH:folder\marker-secret.txt]"
+    )
+    forbidden = (
+        "Correct",
+        "Horse",
+        "Battery",
+        "Staple",
+        r"PCI\VEN_1234&DEV_5678\SERIAL-SECRET",
+        "SERIAL-SECRET",
+        "plain-secret-value",
+        r"folder\marker-secret.txt",
+        "marker-secret.txt",
+    )
+    redactor = journal_module.DiagnosticRedactor(
+        username="Final.Review",
+        home=r"C:\Users\Final.Review",
+        environment={},
+    )
+    journal = DiagnosticJournal(tmp_path, redactor=redactor)
+    record = replace(_record("final-review-correlation"), redacted_message=sensitive)
+
+    assert isinstance(journal.append_and_sync(record), ActionSuccess)
+    monkeypatch.setattr(
+        journal_module,
+        "DIAGNOSTIC_JOURNAL_MAX_BYTES",
+        journal.path.stat().st_size + 1,
+    )
+    for _ in range(5):
+        assert isinstance(journal.append_and_sync(record), ActionSuccess)
+
+    persisted_paths = (journal.path, *journal.archive_paths)
+    assert all(path.exists() for path in persisted_paths)
+    for path in persisted_paths:
+        payload = path.read_bytes()
+        payload.decode("utf-8", errors="strict")
+        assert b"ordinary retained" in payload
+        assert all(fragment.encode().lower() not in payload.lower() for fragment in forbidden)
+
+    second_pass = redactor.redact_bytes(sensitive.encode())
+    second_pass.decode("utf-8", errors="strict")
+    assert b"ordinary retained" in second_pass
+    assert all(fragment.encode().lower() not in second_pass.lower() for fragment in forbidden)
+
+
+@pytest.mark.parametrize(
+    ("source", "forbidden"),
+    [
+        ("[REDACTED_PATH:sk-abcdefghijklmnop]", ("sk-abcdefghijklmnop",)),
+        ("[REDACTED_PATH:plain-secret-value]", ("plain-secret-value",)),
+        (
+            r'ordinary retained; json={"password":"foo\"bar SECRETTAIL"}',
+            ("foo", "bar", "SECRETTAIL"),
+        ),
+        (
+            r"ordinary retained; password='foo\'bar SECRETTAIL'",
+            ("foo", "bar", "SECRETTAIL"),
+        ),
+    ],
+)
+def test_sensitive_path_markers_and_escaped_credential_values_are_fully_redacted(
+    source: str,
+    forbidden: tuple[str, ...],
+) -> None:
+    redactor = journal_module.DiagnosticRedactor(
+        username="Escaped.Review",
+        home=r"C:\Users\Escaped.Review",
+        environment={"COLLIDING_MARKER_VALUE": "plain-secret-value"},
+    )
+
+    redacted = redactor.redact(source)
+
+    assert all(fragment.casefold() not in redacted.casefold() for fragment in forbidden)
+    assert redactor.redact(redacted) == redacted
+
+
+def test_marker_and_escaped_quote_fragments_never_reach_archives_or_byte_pass(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    sensitive = (
+        "ordinary retained; [REDACTED_PATH:sk-abcdefghijklmnop]; "
+        "[REDACTED_PATH:plain-secret-value]; "
+        r'json={"password":"foo\"bar SECRETTAIL"}; '
+        r"password='single\'quote SINGLETail'"
+    )
+    forbidden = (
+        "sk-abcdefghijklmnop",
+        "plain-secret-value",
+        "foo",
+        "bar",
+        "SECRETTAIL",
+        "single",
+        "quote",
+        "SINGLETail",
+    )
+    redactor = journal_module.DiagnosticRedactor(
+        username="Escaped.Review",
+        home=r"C:\Users\Escaped.Review",
+        environment={"COLLIDING_MARKER_VALUE": "plain-secret-value"},
+    )
+    journal = DiagnosticJournal(tmp_path, redactor=redactor)
+    record = replace(_record("escaped-review-correlation"), redacted_message=sensitive)
+
+    assert isinstance(journal.append_and_sync(record), ActionSuccess)
+    monkeypatch.setattr(
+        journal_module,
+        "DIAGNOSTIC_JOURNAL_MAX_BYTES",
+        journal.path.stat().st_size + 1,
+    )
+    for _ in range(5):
+        assert isinstance(journal.append_and_sync(record), ActionSuccess)
+
+    persisted_paths = (journal.path, *journal.archive_paths)
+    assert all(path.exists() for path in persisted_paths)
+    for path in persisted_paths:
+        payload = path.read_bytes()
+        payload.decode("utf-8", errors="strict")
+        assert b"ordinary retained" in payload
+        assert all(fragment.encode().lower() not in payload.lower() for fragment in forbidden)
+
+    second_pass = redactor.redact_bytes(sensitive.encode())
+    second_pass.decode("utf-8", errors="strict")
+    assert b"ordinary retained" in second_pass
+    assert all(fragment.encode().lower() not in second_pass.lower() for fragment in forbidden)
 
 
 class _VerifiedSaltStore:

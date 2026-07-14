@@ -58,8 +58,13 @@ REDACTED_DEVICE_MARKER = "[REDACTED_DEVICE]"
 INVALID_UTF8_REDACTION_MARKER = "[REDACTED_INVALID_UTF8]"
 
 _CANONICAL_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+_SAFE_MARKER_BASENAME_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}"
 _RECOGNIZED_REDACTION_MARKER_RE = re.compile(
-    r"\[REDACTED(?:_PATH(?::[^\]\r\n]*)?|_DEVICE|_INVALID_UTF8)?\]"
+    rf"\[REDACTED(?:_PATH(?::{_SAFE_MARKER_BASENAME_PATTERN})?"
+    r"|_DEVICE|_INVALID_UTF8)?\]"
+)
+_DYNAMIC_PATH_MARKER_RE = re.compile(
+    r"\[REDACTED_PATH:(?P<basename>[^\]\r\n]*)\]"
 )
 
 _PRIVATE_KEY_RE = re.compile(
@@ -73,10 +78,16 @@ _SYNTHETIC_TOKEN_RE = re.compile(
     r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})(?!\w)",
     re.IGNORECASE,
 )
+_CREDENTIAL_KEY_PATTERN = (
+    r"password|passwd|api[ _-]?key|access[ _-]?token|"
+    r"confirmation[ _-]?token|token|secret"
+)
 _CREDENTIAL_RE = re.compile(
-    r"\b(?P<key>password|passwd|api[ _-]?key|access[ _-]?token|"
-    r"confirmation[ _-]?token|token|secret)\s*[:=]\s*"
-    r"(?P<value>\"[^\"]*\"|'[^']*'|[^\s;,]+)",
+    rf"(?P<prefix>(?:(?P<key_quote>[\"'])(?:{_CREDENTIAL_KEY_PATTERN})"
+    rf"(?P=key_quote)|(?:{_CREDENTIAL_KEY_PATTERN}))\s*[:=]\s*)"
+    r"(?:(?P<double_quote>\")(?P<double_value>(?:\\[^\r\n]|[^\"\\\r\n])*)\""
+    r"|(?P<single_quote>')(?P<single_value>(?:\\[^\r\n]|[^'\\\r\n])*)'"
+    r"|(?P<unquoted_value>[^;,\r\n]+))",
     re.IGNORECASE,
 )
 _EDID_RE = re.compile(
@@ -92,7 +103,8 @@ _DEVICE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 _LABELED_DEVICE_INSTANCE_RE = re.compile(
-    r"\b(?P<label>pnp|device(?:[ _-]?(?:instance|path|id))?)"
+    r"\b(?P<label>pnp(?:[ _-]?(?:instance|path|id))?"
+    r"|device(?:[ _-]?(?:instance|path|id))?)"
     r"(?P<separator>\s*[:=]\s*)[^;,\r\n]+",
     re.IGNORECASE,
 )
@@ -313,13 +325,25 @@ class DiagnosticRedactor:
         """Return a redacted copy of one exact string scalar."""
         if type(value) is not str:
             raise TypeError("value must be an exact str")
+        prepared = _DYNAMIC_PATH_MARKER_RE.sub(self._sanitize_path_marker, value)
+        prepared = _CREDENTIAL_RE.sub(self._redact_credential, prepared)
+        prepared = _LABELED_DEVICE_INSTANCE_RE.sub(
+            self._redact_labeled_device,
+            prepared,
+        )
+        prepared = _LABELED_ABSOLUTE_PATH_RE.sub(
+            self._redact_labeled_path,
+            prepared,
+        )
         redacted_parts: list[str] = []
         position = 0
-        for marker in _RECOGNIZED_REDACTION_MARKER_RE.finditer(value):
-            redacted_parts.append(self._redact_unprotected(value[position : marker.start()]))
+        for marker in _RECOGNIZED_REDACTION_MARKER_RE.finditer(prepared):
+            redacted_parts.append(
+                self._redact_unprotected(prepared[position : marker.start()])
+            )
             redacted_parts.append(marker.group(0))
             position = marker.end()
-        redacted_parts.append(self._redact_unprotected(value[position:]))
+        redacted_parts.append(self._redact_unprotected(prepared[position:]))
         return "".join(redacted_parts)
 
     def _redact_unprotected(self, value: str) -> str:
@@ -336,27 +360,12 @@ class DiagnosticRedactor:
         redacted = _PRIVATE_KEY_RE.sub(REDACTION_MARKER, redacted)
         redacted = _BEARER_RE.sub(f"Bearer {REDACTION_MARKER}", redacted)
         redacted = _SYNTHETIC_TOKEN_RE.sub(REDACTION_MARKER, redacted)
-        redacted = _CREDENTIAL_RE.sub(
-            lambda match: f"{match.group('key')}={REDACTION_MARKER}",
-            redacted,
-        )
         redacted = _EDID_RE.sub(
             lambda match: f"{match.group('key')}={REDACTION_MARKER}",
             redacted,
         )
         redacted = _SERIAL_RE.sub(
             lambda match: f"{match.group('key')}={REDACTION_MARKER}",
-            redacted,
-        )
-        redacted = _LABELED_DEVICE_INSTANCE_RE.sub(
-            lambda match: (
-                f"{match.group('label')}{match.group('separator')}"
-                f"{REDACTED_DEVICE_MARKER}"
-            ),
-            redacted,
-        )
-        redacted = _LABELED_ABSOLUTE_PATH_RE.sub(
-            self._redact_labeled_path,
             redacted,
         )
         redacted = _DEVICE_PATH_RE.sub(REDACTED_DEVICE_MARKER, redacted)
@@ -378,6 +387,27 @@ class DiagnosticRedactor:
     def _redact_quoted_path(self, match: re.Match[str]) -> str:
         return self._path_marker(match.group("path"))
 
+    @staticmethod
+    def _redact_credential(match: re.Match[str]) -> str:
+        quote = '"' if match.group("double_quote") else "'" if match.group("single_quote") else ""
+        return f"{match.group('prefix')}{quote}{REDACTION_MARKER}{quote}"
+
+    @staticmethod
+    def _redact_labeled_device(match: re.Match[str]) -> str:
+        return (
+            f"{match.group('label')}{match.group('separator')}"
+            f"{REDACTED_DEVICE_MARKER}"
+        )
+
+    def _sanitize_path_marker(self, match: re.Match[str]) -> str:
+        basename = match.group("basename")
+        if (
+            re.fullmatch(_SAFE_MARKER_BASENAME_PATTERN, basename) is None
+            or self._redact_unprotected(basename) != basename
+        ):
+            return REDACTED_PATH_MARKER
+        return match.group(0)
+
     def _redact_labeled_path(self, match: re.Match[str]) -> str:
         return (
             f"{match.group('label')}{match.group('separator')}"
@@ -394,9 +424,14 @@ class DiagnosticRedactor:
             if re.match(r"^(?:[A-Za-z]:[\\/]|\\\\)", value)
             else posixpath.basename(value.rstrip("/"))
         )
-        if not basename or basename in {".", ".."} or any(
-            sensitive.casefold() in basename.casefold()
-            for sensitive in self._sensitive_values
+        if (
+            not basename
+            or basename in {".", ".."}
+            or re.fullmatch(_SAFE_MARKER_BASENAME_PATTERN, basename) is None
+            or any(
+                sensitive.casefold() in basename.casefold()
+                for sensitive in self._sensitive_values
+            )
         ):
             return REDACTED_PATH_MARKER
         return f"[REDACTED_PATH:{basename}]"
