@@ -305,6 +305,11 @@ def _parse_action_spec(raw_action: object, index: int) -> ActionSpec:
     action_id = _exact_nonempty_string(action["action_id"], f"action {index} action_id")
     _validate_dotted_identifier(action_id, "action_id")
     surfaces = _string_tuple(action["surfaces"], "surfaces", dotted=True)
+    if action_id == "fake_acceptance.apply":
+        if surfaces:
+            raise ValueError("fake_acceptance.apply must be the sole zero-surface action")
+    elif not surfaces:
+        raise ValueError("only fake_acceptance.apply may have zero surfaces")
     classification = _enum_value(ActionClassification, action["classification"], "classification")
     stage_values = _string_tuple(action["required_stages"], "required_stages")
     try:

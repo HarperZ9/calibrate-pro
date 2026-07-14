@@ -51,6 +51,50 @@ EXPECTED_ACTION_IDS = {
     "settings.panel_profiles_path", "tray.switch_profile", "measurement.live.toggle",
 }
 
+EXPECTED_ENABLED_POLICY_IDS = {
+    "application.exit",
+    "window.hide_or_minimize", "window.show", "window.toggle_visibility",
+    "navigation.dashboard", "navigation.calibrate", "navigation.verify", "navigation.profiles",
+    "navigation.ddc", "navigation.settings",
+    "help.about", "onboarding.complete", "display.detect",
+    "panel_profile.dialog.open", "panel_profile.edid.select_display", "panel_profile.import.choose",
+    "display.hdr_status", "profile.list.refresh", "profile.inspect",
+    "diagnostics.folder.open", "diagnostics.bundle.preview",
+}
+
+EXPECTED_CONDITIONAL_POLICY_IDS = {
+    "calibration.open_for_display", "display.characterization.use_generic", "workflow.select_display",
+    "calibration.method.sensorless",
+    "calibration.target.gamut", "calibration.target.whitepoint", "calibration.target.custom_cct",
+    "calibration.target.gamma",
+    "calibration.preset.srgb_web", "calibration.preset.rec709", "calibration.preset.dci_p3",
+    "calibration.preset.photography",
+    "calibration.generate", "calibration.preview", "calibration.confirm_plan",
+    "calibration.decline_plan", "fake_acceptance.apply", "verification.sensorless", "report.save",
+    "export.active.cube", "export.active.3dlut", "export.active.png", "export.active.icc",
+    "export.active.mpv", "export.active.obs", "profile.export", "settings.default_target",
+    "settings.lut_size", "settings.output_directory", "diagnostics.bundle.create",
+}
+
+EXPECTED_DISABLED_POLICY_IDS = {
+    "calibration.method.measured", "calibration.method.hybrid", "calibration.target.hdr",
+    "calibration.preset.hdr10", "verification.measured", "settings.hdr",
+    "panel_profile.edid.create", "panel_profile.import", "display.restore_defaults",
+    "profile.install", "profile.rename", "profile.generate_all", "profile.activate", "profile.delete",
+    "patterns.open",
+    "ddc.stage.brightness", "ddc.stage.contrast", "ddc.stage.red_gain", "ddc.stage.green_gain",
+    "ddc.stage.blue_gain", "ddc.stage.red_black_level", "ddc.stage.green_black_level",
+    "ddc.stage.blue_black_level", "ddc.unsupported.image_mode", "ddc.unsupported.color_preset",
+    "ddc.unsupported.gamma", "ddc.unsupported.factory_color_reset", "ddc.read_current",
+    "ddc.restore_defaults", "ddc.raw_read", "ddc.raw_write", "ddc.apply", "tray.switch_profile",
+}
+
+EXPECTED_HIDDEN_POLICY_IDS = {
+    "calibration.all", "measurement.live.toggle", "settings.startup", "settings.minimize_to_tray",
+    "settings.oled_automation", "settings.per_app.enabled", "settings.per_app.rules",
+    "settings.argyll_path", "settings.panel_profiles_path",
+}
+
 EXPECTED_SURFACES_BY_ACTION = {
     "application.exit": {"menu.file.exit", "tray.exit"},
     "window.hide_or_minimize": {"shortcut.escape"},
@@ -163,6 +207,41 @@ def test_default_registry_matches_complete_initial_action_census():
     }
 
 
+def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
+    registry = ActionRegistry.load_default()
+    expected_by_policy = {
+        "enabled": EXPECTED_ENABLED_POLICY_IDS,
+        "conditional": EXPECTED_CONDITIONAL_POLICY_IDS,
+        "disabled": EXPECTED_DISABLED_POLICY_IDS,
+        "hidden": EXPECTED_HIDDEN_POLICY_IDS,
+    }
+
+    assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
+        "enabled": 21,
+        "conditional": 30,
+        "disabled": 33,
+        "hidden": 9,
+    }
+    assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
+    assert sum(len(action_ids) for action_ids in expected_by_policy.values()) == len(EXPECTED_ACTION_IDS)
+
+    source_by_policy = {
+        policy: {action_id for action_id, spec in registry._specs_by_id.items() if spec.source_policy == policy}
+        for policy in ("enabled", "conditional", "disabled", "hidden")
+    }
+    frozen_by_policy = {
+        policy: {action_id for action_id, spec in registry._specs_by_id.items() if spec.frozen_policy == policy}
+        for policy in ("enabled", "conditional", "disabled", "hidden")
+    }
+
+    assert source_by_policy == expected_by_policy
+    assert frozen_by_policy == expected_by_policy
+    assert "fake_acceptance.apply" in EXPECTED_CONDITIONAL_POLICY_IDS
+    assert {action_id for action_id, surfaces in registry.surfaces_by_action.items() if not surfaces} == {
+        "fake_acceptance.apply"
+    }
+
+
 def _manifest_record(action_id: str = "test.action", surface: str = "test.surface") -> dict[str, object]:
     return {
         "action_id": action_id,
@@ -246,6 +325,34 @@ def test_manifest_root_and_action_schema_are_exact_and_sequences_are_frozen():
     assert spec.required_modules == ("calibrate_pro.application.actions",)
     assert spec.required_resources == ("resources/action-capabilities.json",)
     assert spec.classification is ActionClassification.READ_ONLY
+
+
+def test_manifest_rejects_zero_surfaces_for_every_action_except_fake_apply():
+    record = _manifest_record()
+    record["surfaces"] = []
+
+    with pytest.raises(ValueError, match="fake_acceptance.apply"):
+        ActionRegistry.from_json_bytes(_manifest_bytes(record))
+
+
+def test_manifest_rejects_any_surface_for_fake_apply():
+    record = _manifest_record(action_id="fake_acceptance.apply")
+    record["source_policy"] = "conditional"
+    record["frozen_policy"] = "conditional"
+
+    with pytest.raises(ValueError, match="fake_acceptance.apply"):
+        ActionRegistry.from_json_bytes(_manifest_bytes(record))
+
+
+def test_manifest_accepts_fake_apply_as_the_sole_zero_surface_action():
+    record = _manifest_record(action_id="fake_acceptance.apply")
+    record["surfaces"] = []
+    record["source_policy"] = "conditional"
+    record["frozen_policy"] = "conditional"
+
+    registry = ActionRegistry.from_json_bytes(_manifest_bytes(record))
+
+    assert registry.surfaces_by_action["fake_acceptance.apply"] == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -416,6 +523,154 @@ def test_preset_targets_are_exact_literals_and_hdr10_stays_disabled():
     for action_id in expected:
         assert registry.resolve(action_id, context).disposition is ActionDisposition.ENABLED
     assert registry.resolve("calibration.preset.hdr10", context).disposition is ActionDisposition.DISABLED
+
+
+@pytest.mark.parametrize(
+    ("action_id", "baseline_changes", "field_name", "invalid_value"),
+    [
+        pytest.param("calibration.open_for_display", {}, "selected_display_id", None, id="open-display"),
+        pytest.param(
+            "display.characterization.use_generic",
+            {"characterization_kind": CharacterizationKind.UNKNOWN},
+            "selected_display_id",
+            None,
+            id="generic-display",
+        ),
+        pytest.param(
+            "display.characterization.use_generic",
+            {"characterization_kind": CharacterizationKind.UNKNOWN},
+            "characterization_kind",
+            CharacterizationKind.MATCHED,
+            id="generic-characterization",
+        ),
+        pytest.param("workflow.select_display", {}, "selected_display_id", None, id="workflow-display"),
+        pytest.param(
+            "calibration.method.sensorless",
+            {"stage": WorkflowStage.METHOD},
+            "selected_display_id",
+            None,
+            id="method-display",
+        ),
+        pytest.param(
+            "calibration.method.sensorless",
+            {"stage": WorkflowStage.METHOD},
+            "characterization_kind",
+            CharacterizationKind.UNKNOWN,
+            id="method-characterization",
+        ),
+        pytest.param("settings.default_target", {}, "target_valid", False, id="default-target-valid"),
+        pytest.param("settings.default_target", {}, "target_hdr", True, id="default-target-hdr"),
+        pytest.param("settings.default_target", {}, "journal_ready", False, id="default-target-journal"),
+        pytest.param("settings.lut_size", {}, "journal_ready", False, id="lut-size-journal"),
+        pytest.param("settings.output_directory", {}, "journal_ready", False, id="output-directory-journal"),
+    ],
+)
+def test_remaining_individual_conditional_predicates_are_default_deny(
+    action_id: str,
+    baseline_changes: dict[str, object],
+    field_name: str,
+    invalid_value: object,
+):
+    registry = ActionRegistry.load_default()
+    baseline = _context(**baseline_changes)
+
+    assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+    denied = replace(baseline, **{field_name: invalid_value})
+    assert registry.resolve(action_id, denied).disposition is ActionDisposition.DISABLED
+
+
+@pytest.mark.parametrize(
+    "action_id",
+    (
+        "calibration.target.gamut",
+        "calibration.target.whitepoint",
+        "calibration.target.custom_cct",
+        "calibration.target.gamma",
+        "calibration.preset.srgb_web",
+        "calibration.preset.rec709",
+        "calibration.preset.dci_p3",
+        "calibration.preset.photography",
+    ),
+)
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    (
+        ("selected_display_id", None),
+        ("characterization_kind", CharacterizationKind.UNKNOWN),
+        ("selected_method", CalibrationMethod.MEASURED),
+        ("target_hdr", True),
+    ),
+)
+def test_target_and_preset_sensorless_predicates_are_independently_default_deny(
+    action_id: str,
+    field_name: str,
+    invalid_value: object,
+):
+    registry = ActionRegistry.load_default()
+    baseline = _context()
+
+    assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+    denied = replace(baseline, **{field_name: invalid_value})
+    assert registry.resolve(action_id, denied).disposition is ActionDisposition.DISABLED
+
+
+@pytest.mark.parametrize(
+    "action_id",
+    (
+        "calibration.target.gamut",
+        "calibration.target.whitepoint",
+        "calibration.target.custom_cct",
+        "calibration.target.gamma",
+        "calibration.preset.srgb_web",
+        "calibration.preset.rec709",
+        "calibration.preset.dci_p3",
+        "calibration.preset.photography",
+    ),
+)
+@pytest.mark.parametrize(
+    "characterization_kind",
+    (CharacterizationKind.MATCHED, CharacterizationKind.EXPLICIT_GENERIC),
+)
+def test_sensorless_conditional_actions_accept_each_qualified_characterization(
+    action_id: str,
+    characterization_kind: CharacterizationKind,
+):
+    registry = ActionRegistry.load_default()
+
+    resolved = registry.resolve(action_id, _context(characterization_kind=characterization_kind))
+
+    assert resolved.disposition is ActionDisposition.ENABLED
+
+
+@pytest.mark.parametrize(
+    "characterization_kind",
+    (CharacterizationKind.MATCHED, CharacterizationKind.EXPLICIT_GENERIC),
+)
+def test_sensorless_method_accepts_each_qualified_characterization(
+    characterization_kind: CharacterizationKind,
+):
+    registry = ActionRegistry.load_default()
+
+    resolved = registry.resolve(
+        "calibration.method.sensorless",
+        _context(stage=WorkflowStage.METHOD, characterization_kind=characterization_kind),
+    )
+
+    assert resolved.disposition is ActionDisposition.ENABLED
+
+
+@pytest.mark.parametrize("characterization_kind", (None, CharacterizationKind.UNKNOWN))
+def test_generic_characterization_action_accepts_only_uncharacterized_displays(
+    characterization_kind: CharacterizationKind | None,
+):
+    registry = ActionRegistry.load_default()
+
+    resolved = registry.resolve(
+        "display.characterization.use_generic",
+        _context(characterization_kind=characterization_kind),
+    )
+
+    assert resolved.disposition is ActionDisposition.ENABLED
 
 
 @pytest.mark.parametrize(
