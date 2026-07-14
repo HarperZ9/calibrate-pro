@@ -173,6 +173,7 @@ class ActionContext:
     generated_asset_kinds: frozenset[Literal["ICC", "CUBE"]]
     sealed_plan_sha256: str | None
     confirmation_state: Literal["none", "live", "confirmed", "consumed", "expired"]
+    fake_apply_receipt_succeeded: bool
     capability_generation: int
     sealed_capability_generation: int | None
     verification_evidence: EvidenceKind | None
@@ -222,6 +223,18 @@ class ActionRegistry:
     def surfaces_by_action(self) -> Mapping[str, frozenset[str]]: ...
     def resolve(self, action_id: str, context: ActionContext) -> ResolvedAction: ...
 ```
+
+`export_source_ready` is a service-owned proof flag, not a UI assertion. It is
+`True` only after both current generated descriptors resolve to service-owned
+private bytes, those bytes reparse successfully, and their recomputed digests
+match the descriptors and sealed plan. The registry remains pure and does not
+read files; Tasks 5 and 7 establish the only production/fake-composition
+producers of this flag.
+
+`fake_apply_receipt_succeeded` is `True` only after the current sealed plan's
+fake-only Apply returns a validated `ApplyReceipt` with `success=True`. Token
+consumption or `confirmation_state="consumed"` alone never establishes a
+successful fake Apply.
 
 Unknown action IDs resolve to `DISABLED` with exactly:
 
@@ -678,8 +691,10 @@ Freeze resolver predicates in tests instead of letting handlers reinterpret
   current plan, matching capability generations, and a ready journal;
   production always resolves it disabled.
 - `verification.sensorless` requires a generated plan and either a production
-  confirmation (describes `generated_plan`) or a successful fake Apply receipt
-  (describes `fake_applied_plan`). It never accepts measured evidence.
+  confirmation (describes `generated_plan`) or
+  `fake_apply_receipt_succeeded=True` for the current sealed plan (describes
+  `fake_applied_plan`). A consumed confirmation token alone is insufficient. It
+  never accepts measured evidence.
 - Each `export.active.<format>` requires that exact format in
   `available_export_formats`, verified matching source assets, and a current
   verification snapshot. `report.save` requires the same snapshot and
