@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import errno
 import getpass
 import hashlib
 import hmac
@@ -17,13 +18,28 @@ import stat
 import threading
 import time
 import zipfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from ctypes import wintypes
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from dataclasses import fields as dataclass_fields
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NoReturn, Protocol
+
+if TYPE_CHECKING:
+    import fcntl as _fcntl
+    import msvcrt as _msvcrt
+else:
+    try:  # Windows product path; imported conservatively elsewhere.
+        import msvcrt as _msvcrt
+    except ImportError:  # pragma: no cover - exercised by non-Windows CI.
+        _msvcrt = None
+
+    try:  # Optional parity for development and CI hosts.
+        import fcntl as _fcntl
+    except ImportError:  # pragma: no cover - exercised on Windows.
+        _fcntl = None
 
 if TYPE_CHECKING:
     from calibrate_pro.application.outcomes import ActionError as ActionErrorOutcome
@@ -33,6 +49,7 @@ if TYPE_CHECKING:
 
 
 DIAGNOSTIC_JOURNAL_MAX_BYTES = 1_048_576
+DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES = 65_536
 DIAGNOSTIC_ARCHIVE_BASENAMES = tuple(
     f"diagnostics.{generation}.jsonl" for generation in range(1, 6)
 )
@@ -42,6 +59,15 @@ _DIAGNOSTIC_BUNDLE_BASENAMES = tuple(
 
 _JOURNAL_LOCK = threading.RLock()
 _PRIVATE_SALT_LOCK = threading.RLock()
+_ROOT_COORDINATORS_LOCK = threading.RLock()
+_ROOT_LOCK_BASENAME = ".diagnostics.lock"
+_ROOT_LOCK_TIMEOUT_SECONDS = 1.0
+_RESERVATION_STAGE_BYTES = DIAGNOSTIC_JOURNAL_MAX_BYTES
+_MAX_LIVE_RESERVATIONS = 8
+_MAX_RESERVATION_IDENTITY_BYTES = 512
+_MAX_TERMINAL_RESERVATION_KEYS = 1_024
+_RESERVATION_RE = re.compile(r"\.diagnostics\.reserve\.[0-9a-f]{32}\.tmp\Z")
+_ZERO_CHUNK = bytes(65_536)
 _APPEND_TEMP_BASENAME = ".diagnostics.append.tmp"
 _ROTATION_TEMP_BASENAMES = tuple(
     f".diagnostics.rotate.{generation}.tmp" for generation in range(6)
@@ -441,6 +467,12 @@ class JournalSink(Protocol):
     def preflight(self, action_id: str, correlation_id: str) -> ActionOutcome[None]: ...
 
     def append_and_sync(self, record: JournalRecord) -> ActionOutcome[None]: ...
+
+
+class CancellableJournalSink(Protocol):
+    """Optional reservation cleanup capability for receipt-required actions."""
+
+    def cancel_preflight(self, action_id: str, correlation_id: str) -> None: ...
 
 
 class PrivateSaltStore(Protocol):
@@ -948,6 +980,113 @@ def resolve_private_salt_path() -> Path:
     return resolve_diagnostic_root().parent / "Private" / "display-pseudonym.salt"
 
 
+@dataclass(slots=True)
+class _JournalReservation:
+    action_id: str
+    correlation_id: str
+    path: Path
+    file_descriptor: int
+
+
+class _RootCoordinator:
+    def __init__(self) -> None:
+        self.lock = threading.RLock()
+        self.reservations: dict[tuple[str, str], _JournalReservation] = {}
+        self.terminal_keys: dict[tuple[str, str], None] = {}
+
+    def mark_terminal(self, key: tuple[str, str]) -> None:
+        self.terminal_keys[key] = None
+        while len(self.terminal_keys) > _MAX_TERMINAL_RESERVATION_KEYS:
+            del self.terminal_keys[next(iter(self.terminal_keys))]
+
+
+_ROOT_COORDINATORS: dict[str, _RootCoordinator] = {}
+
+
+def _canonical_root_key(root: Path) -> str:
+    return os.path.normcase(os.path.abspath(os.fspath(root)))
+
+
+def _coordinator_for(root: Path) -> _RootCoordinator:
+    key = _canonical_root_key(root)
+    with _ROOT_COORDINATORS_LOCK:
+        coordinator = _ROOT_COORDINATORS.get(key)
+        if coordinator is None:
+            coordinator = _RootCoordinator()
+            _ROOT_COORDINATORS[key] = coordinator
+        return coordinator
+
+
+def _lock_file_descriptor_once(file_descriptor: int) -> Literal["acquired", "busy", "ambiguous"]:
+    try:
+        os.lseek(file_descriptor, 0, os.SEEK_SET)
+        if _msvcrt is not None:
+            _msvcrt.locking(file_descriptor, _msvcrt.LK_NBLCK, 1)
+        elif _fcntl is not None:
+            _fcntl.flock(file_descriptor, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+        else:
+            return "ambiguous"
+    except OSError as error:
+        if error.errno in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+            return "busy"
+        return "ambiguous"
+    return "acquired"
+
+
+def _lock_file_descriptor(file_descriptor: int) -> None:
+    deadline = time.monotonic() + _ROOT_LOCK_TIMEOUT_SECONDS
+    while True:
+        status = _lock_file_descriptor_once(file_descriptor)
+        if status == "acquired":
+            return
+        if status == "ambiguous":
+            raise OSError("diagnostic lock state is unavailable")
+        if time.monotonic() >= deadline:
+            raise TimeoutError("diagnostic lock acquisition timed out")
+        time.sleep(0.01)
+
+
+def _unlock_file_descriptor(file_descriptor: int) -> None:
+    os.lseek(file_descriptor, 0, os.SEEK_SET)
+    if _msvcrt is not None:
+        _msvcrt.locking(file_descriptor, _msvcrt.LK_UNLCK, 1)
+    elif _fcntl is not None:
+        _fcntl.flock(file_descriptor, _fcntl.LOCK_UN)
+
+
+@contextmanager
+def _cross_process_root_lock(root: Path):  # type: ignore[no-untyped-def]
+    lock_path = root / _ROOT_LOCK_BASENAME
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0)
+    file_descriptor = os.open(os.fspath(lock_path), flags, 0o600)
+    acquired = False
+    try:
+        if os.fstat(file_descriptor).st_size == 0:
+            os.ftruncate(file_descriptor, 1)
+        _lock_file_descriptor(file_descriptor)
+        acquired = True
+        yield
+    finally:
+        if acquired:
+            try:
+                _unlock_file_descriptor(file_descriptor)
+            except OSError:
+                pass
+        os.close(file_descriptor)
+
+
+def _validate_reservation_identity(action_id: str, correlation_id: str) -> None:
+    for field_name, value in (("action_id", action_id), ("correlation_id", correlation_id)):
+        if type(value) is not str or not value:
+            raise TypeError(f"{field_name} must be a non-empty exact str")
+        try:
+            encoded = value.encode("utf-8", errors="strict")
+        except UnicodeEncodeError as error:
+            raise TypeError(f"{field_name} must contain valid UTF-8 text") from error
+        if len(encoded) > _MAX_RESERVATION_IDENTITY_BYTES:
+            raise ValueError(f"{field_name} exceeds the reservation identity bound")
+
+
 class DiagnosticJournal:
     """Append-only UTF-8 JSON Lines implementation of :class:`JournalSink`."""
 
@@ -962,6 +1101,7 @@ class DiagnosticJournal:
             raise ValueError("diagnostic journal root must be absolute")
         self._redactor = DiagnosticRedactor() if redactor is None else redactor
         self._root = resolved_root
+        self._coordinator = _coordinator_for(resolved_root)
         self.path = resolved_root / "diagnostics.jsonl"
         self.archive_paths = tuple(resolved_root / name for name in DIAGNOSTIC_ARCHIVE_BASENAMES)
         self._append_temp_path = resolved_root / _APPEND_TEMP_BASENAME
@@ -972,12 +1112,26 @@ class DiagnosticJournal:
     def preflight(self, action_id: str, correlation_id: str) -> ActionOutcome[None]:
         stage = _fallback_stage()
         try:
-            with _JOURNAL_LOCK:
-                self._root.mkdir(parents=True, exist_ok=True)
+            _validate_reservation_identity(action_id, correlation_id)
+            with self._exclusive_root():
                 self._recover_stale_state()
-                if self.path.exists() and self.path.stat().st_size >= DIAGNOSTIC_JOURNAL_MAX_BYTES:
+                key = (action_id, correlation_id)
+                if key in self._coordinator.reservations:
+                    raise FileExistsError("diagnostic reservation identity already exists")
+                live_count = self._reap_abandoned_reservations()
+                if live_count >= _MAX_LIVE_RESERVATIONS:
+                    raise OSError("diagnostic reservation capacity is exhausted")
+                current_size = self.path.stat().st_size if self.path.exists() else 0
+                reserved_after = (live_count + 1) * DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES
+                if current_size + reserved_after > DIAGNOSTIC_JOURNAL_MAX_BYTES:
                     self._rotate()
+                    current_size = self.path.stat().st_size if self.path.exists() else 0
+                if current_size + reserved_after > DIAGNOSTIC_JOURNAL_MAX_BYTES:
+                    raise OSError("diagnostic reservation does not fit the active journal")
                 self._sync_active()
+                reservation = self._create_reservation(action_id, correlation_id)
+                self._coordinator.reservations[key] = reservation
+                self._coordinator.terminal_keys.pop(key, None)
         except Exception:
             return _diagnostic_error(
                 action_id=action_id,
@@ -994,10 +1148,39 @@ class DiagnosticJournal:
         )
 
     def append_and_sync(self, record: JournalRecord) -> ActionOutcome[None]:
+        if type(record) is not JournalRecord:
+            _validate_record(record)
+        reservation: _JournalReservation | None = None
+        if type(record.action_id) is str and type(record.correlation_id) is str:
+            candidate_key = (record.action_id, record.correlation_id)
+            with self._coordinator.lock:
+                reservation = self._coordinator.reservations.get(candidate_key)
+        if reservation is not None:
+            return self._append_reserved_and_sync(record, reservation)
+
         _validate_record(record)
         stage = _stage_from_value(record.workflow_stage)
         line = _encode_record(record, self._redactor)
-        encoded_size = len(line.encode("utf-8"))
+        encoded_line = line.encode("utf-8")
+        encoded_size = len(encoded_line)
+        key = (record.action_id, record.correlation_id)
+        with self._coordinator.lock:
+            reservation = self._coordinator.reservations.get(key)
+            partial_match = any(
+                reserved_action == record.action_id or reserved_correlation == record.correlation_id
+                for reserved_action, reserved_correlation in self._coordinator.reservations
+            )
+            terminal = key in self._coordinator.terminal_keys
+        if partial_match or terminal:
+            return _diagnostic_error(
+                action_id=record.action_id,
+                correlation_id=record.correlation_id,
+                stage=stage,
+                code="DIAGNOSTIC_RESERVATION_MISMATCH",
+                summary="The diagnostic reservation identity does not match.",
+                retryable=False,
+                next_action="Start the action again with a new correlation identifier.",
+            )
         if encoded_size > DIAGNOSTIC_JOURNAL_MAX_BYTES:
             return _diagnostic_error(
                 action_id=record.action_id,
@@ -1009,13 +1192,40 @@ class DiagnosticJournal:
                 next_action="Reduce the diagnostic record size and retry.",
             )
         try:
-            with _JOURNAL_LOCK:
-                self._root.mkdir(parents=True, exist_ok=True)
+            with self._exclusive_root():
+                current_reservation = self._coordinator.reservations.get(key)
+                current_partial_match = any(
+                    reserved_action == record.action_id
+                    or reserved_correlation == record.correlation_id
+                    for reserved_action, reserved_correlation in self._coordinator.reservations
+                )
+                current_terminal = key in self._coordinator.terminal_keys
+                if (
+                    current_reservation is not None
+                    or current_partial_match
+                    or current_terminal
+                ):
+                    return _diagnostic_error(
+                        action_id=record.action_id,
+                        correlation_id=record.correlation_id,
+                        stage=stage,
+                        code="DIAGNOSTIC_RESERVATION_MISMATCH",
+                        summary="The diagnostic reservation identity does not match.",
+                        retryable=False,
+                        next_action=(
+                            "Start the action again with a new correlation identifier."
+                        ),
+                    )
                 self._recover_stale_state()
+                live_count = self._reap_abandoned_reservations()
                 current_size = self.path.stat().st_size if self.path.exists() else 0
-                if current_size + encoded_size > DIAGNOSTIC_JOURNAL_MAX_BYTES:
+                liability = live_count * DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES
+                if current_size + encoded_size + liability > DIAGNOSTIC_JOURNAL_MAX_BYTES:
                     self._rotate()
-                self._append_atomically(line.encode("utf-8"))
+                    current_size = self.path.stat().st_size if self.path.exists() else 0
+                if current_size + encoded_size + liability > DIAGNOSTIC_JOURNAL_MAX_BYTES:
+                    raise OSError("normal append would consume reserved journal capacity")
+                self._append_atomically(encoded_line)
         except Exception:
             return _diagnostic_error(
                 action_id=record.action_id,
@@ -1030,6 +1240,220 @@ class DiagnosticJournal:
             stage=stage,
             value=None,
         )
+
+    @contextmanager
+    def _exclusive_root(self) -> Iterator[None]:
+        with _JOURNAL_LOCK, self._coordinator.lock:
+            self._root.mkdir(parents=True, exist_ok=True)
+            with _cross_process_root_lock(self._root):
+                yield
+
+    def _create_reservation(
+        self,
+        action_id: str,
+        correlation_id: str,
+    ) -> _JournalReservation:
+        file_descriptor: int | None = None
+        path: Path | None = None
+        locked = False
+        try:
+            flags = (
+                os.O_RDWR
+                | os.O_CREAT
+                | os.O_EXCL
+                | getattr(os, "O_BINARY", 0)
+            )
+            for _attempt in range(16):
+                candidate = self._root / f".diagnostics.reserve.{secrets.token_hex(16)}.tmp"
+                try:
+                    file_descriptor = os.open(os.fspath(candidate), flags, 0o600)
+                except FileExistsError:
+                    continue
+                path = candidate
+                break
+            if file_descriptor is None or path is None:
+                raise FileExistsError("could not allocate a unique diagnostic reservation")
+            _write_all(file_descriptor, b"\0")
+            _lock_file_descriptor(file_descriptor)
+            locked = True
+            os.lseek(file_descriptor, 1, os.SEEK_SET)
+            remaining = _RESERVATION_STAGE_BYTES - 1
+            while remaining:
+                chunk = _ZERO_CHUNK if remaining >= len(_ZERO_CHUNK) else bytes(remaining)
+                _write_all(file_descriptor, chunk)
+                remaining -= len(chunk)
+            os.fsync(file_descriptor)
+            return _JournalReservation(
+                action_id=action_id,
+                correlation_id=correlation_id,
+                path=path,
+                file_descriptor=file_descriptor,
+            )
+        except BaseException:
+            if file_descriptor is not None:
+                if locked:
+                    try:
+                        _unlock_file_descriptor(file_descriptor)
+                    except OSError:
+                        pass
+                try:
+                    os.close(file_descriptor)
+                except OSError:
+                    pass
+            if path is not None:
+                _best_effort_unlink(path)
+            raise
+
+    def _reap_abandoned_reservations(self) -> int:
+        own_paths: set[str] = set()
+        for reservation in self._coordinator.reservations.values():
+            if reservation.path.stat().st_size != _RESERVATION_STAGE_BYTES:
+                raise OSError("live diagnostic reservation has an invalid size")
+            own_paths.add(_canonical_root_key(reservation.path))
+        live_count = len(own_paths)
+        for candidate in sorted(self._root.glob(".diagnostics.reserve.*.tmp")):
+            if _RESERVATION_RE.fullmatch(candidate.name) is None:
+                continue
+            if _canonical_root_key(candidate) in own_paths:
+                continue
+            file_descriptor: int | None = None
+            try:
+                flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+                file_descriptor = os.open(os.fspath(candidate), flags)
+                stage_size = os.fstat(file_descriptor).st_size
+                if stage_size == 0:
+                    os.ftruncate(file_descriptor, 1)
+                lock_status = _lock_file_descriptor_once(file_descriptor)
+                if lock_status == "acquired":
+                    _unlock_file_descriptor(file_descriptor)
+                    os.close(file_descriptor)
+                    file_descriptor = None
+                    os.unlink(candidate)
+                elif lock_status == "busy":
+                    if stage_size != _RESERVATION_STAGE_BYTES:
+                        raise OSError("live diagnostic reservation has an invalid size")
+                    live_count += 1
+                else:
+                    raise OSError("diagnostic reservation lock state is ambiguous")
+            except FileNotFoundError:
+                pass
+            finally:
+                if file_descriptor is not None:
+                    try:
+                        os.close(file_descriptor)
+                    except OSError:
+                        pass
+        return live_count
+
+    def cancel_preflight(self, action_id: str, correlation_id: str) -> None:
+        key = (action_id, correlation_id)
+        try:
+            with self._exclusive_root():
+                reservation = self._coordinator.reservations.get(key)
+                if reservation is not None:
+                    self._release_reservation(reservation, delete_stage=True)
+        except Exception:
+            with self._coordinator.lock:
+                reservation = self._coordinator.reservations.get(key)
+                if reservation is not None:
+                    self._release_reservation(reservation, delete_stage=True)
+
+    def _append_reserved_and_sync(
+        self,
+        record: JournalRecord,
+        reservation: _JournalReservation,
+    ) -> ActionOutcome[None]:
+        stage = _fallback_stage()
+        record_validated = False
+        bound_failure: ActionOutcome[None] | None = None
+        try:
+            _validate_record(record)
+            record_validated = True
+            stage = _stage_from_value(record.workflow_stage)
+            encoded_line = _encode_record(record, self._redactor).encode("utf-8")
+            if len(encoded_line) > DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES:
+                encoded_line = _encode_record(
+                    _bounded_reservation_failure_record(record),
+                    self._redactor,
+                ).encode("utf-8")
+                if len(encoded_line) > DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES:
+                    raise AssertionError(
+                        "bounded diagnostic fallback exceeds its reservation"
+                    )
+                bound_failure = _diagnostic_error(
+                    action_id=record.action_id,
+                    correlation_id=record.correlation_id,
+                    stage=stage,
+                    code="DIAGNOSTIC_RECORD_BOUND_EXCEEDED",
+                    summary="The reserved diagnostic record exceeds its byte bound.",
+                    retryable=False,
+                    next_action="Start the action again after reviewing diagnostics.",
+                )
+            with self._exclusive_root():
+                key = (record.action_id, record.correlation_id)
+                if self._coordinator.reservations.get(key) is not reservation:
+                    raise OSError("diagnostic reservation is no longer live")
+                prior = self.path.read_bytes() if self.path.exists() else b""
+                if len(prior) + len(encoded_line) > DIAGNOSTIC_JOURNAL_MAX_BYTES:
+                    raise OSError("reserved diagnostic record no longer fits")
+                os.lseek(reservation.file_descriptor, 0, os.SEEK_SET)
+                _write_all(reservation.file_descriptor, prior)
+                _write_all(reservation.file_descriptor, encoded_line)
+                os.fsync(reservation.file_descriptor)
+                os.ftruncate(reservation.file_descriptor, len(prior) + len(encoded_line))
+                os.fsync(reservation.file_descriptor)
+                _unlock_file_descriptor(reservation.file_descriptor)
+                os.close(reservation.file_descriptor)
+                reservation.file_descriptor = -1
+                os.replace(reservation.path, self.path)
+                self._release_reservation(reservation, delete_stage=False)
+        except Exception:
+            with self._coordinator.lock:
+                self._release_reservation(reservation, delete_stage=True)
+            if not record_validated:
+                raise
+            return _diagnostic_error(
+                action_id=record.action_id,
+                correlation_id=record.correlation_id,
+                stage=stage,
+                code="DIAGNOSTIC_JOURNAL_WRITE_FAILED",
+                summary="The diagnostic record could not be synchronized.",
+            )
+        except BaseException:
+            with self._coordinator.lock:
+                self._release_reservation(reservation, delete_stage=True)
+            raise
+        if bound_failure is not None:
+            return bound_failure
+        return ActionSuccess(
+            action_id=record.action_id,
+            correlation_id=record.correlation_id,
+            stage=stage,
+            value=None,
+        )
+
+    def _release_reservation(
+        self,
+        reservation: _JournalReservation,
+        *,
+        delete_stage: bool,
+    ) -> None:
+        key = (reservation.action_id, reservation.correlation_id)
+        if reservation.file_descriptor >= 0:
+            try:
+                _unlock_file_descriptor(reservation.file_descriptor)
+            except OSError:
+                pass
+            try:
+                os.close(reservation.file_descriptor)
+            except OSError:
+                pass
+            reservation.file_descriptor = -1
+        if delete_stage:
+            _best_effort_unlink(reservation.path)
+        if self._coordinator.reservations.get(key) is reservation:
+            del self._coordinator.reservations[key]
+        self._coordinator.mark_terminal(key)
 
     def _rotate(self) -> None:
         self._recover_stale_state()
@@ -1727,6 +2151,74 @@ def _best_effort_unlink(path: Path) -> None:
         pass
 
 
+def _bounded_or_omitted(value: str, maximum_bytes: int, fallback: str) -> str:
+    try:
+        if len(value.encode("utf-8", errors="strict")) <= maximum_bytes:
+            return value
+    except UnicodeEncodeError:
+        pass
+    return fallback
+
+
+def _bounded_reservation_failure_record(record: JournalRecord) -> JournalRecord:
+    export_basename = record.export_basename
+    export_sha256 = record.export_sha256
+    if (
+        export_basename is None
+        or export_sha256 is None
+        or len(export_basename.encode("utf-8")) > 255
+        or export_basename in {"", ".", ".."}
+        or re.search(r"[\\/]", export_basename) is not None
+    ):
+        export_basename = None
+        export_sha256 = None
+    phase_flags = record.apply_phase_flags
+    if len(phase_flags) > 32 or any(
+        len(key.encode("utf-8")) > 128 for key, _value in phase_flags
+    ):
+        phase_flags = ()
+    bounded = replace(
+        record,
+        timestamp_utc=_bounded_or_omitted(
+            record.timestamp_utc,
+            128,
+            "timestamp-omitted",
+        ),
+        product_version=_bounded_or_omitted(
+            record.product_version,
+            128,
+            "version-omitted",
+        ),
+        platform_version=_bounded_or_omitted(
+            record.platform_version,
+            512,
+            "platform-version-omitted",
+        ),
+        workflow_stage=_stage_from_value(record.workflow_stage).value,
+        capability_flags=(),
+        outcome="failure",
+        exception_type="DiagnosticRecordBoundExceeded",
+        error_code="DIAGNOSTIC_RECORD_BOUND_EXCEEDED",
+        technical_category="diagnostics",
+        redacted_message="The final diagnostic record exceeded its reserved byte bound.",
+        display_pseudonym=None,
+        plan_sha256=None,
+        asset_sha256=(),
+        apply_phase_flags=phase_flags,
+        recovery_guarantee=(
+            record.recovery_guarantee
+            if record.recovery_guarantee is not None
+            and _bounded_or_omitted(record.recovery_guarantee, 512, "")
+            == record.recovery_guarantee
+            else None
+        ),
+        export_basename=export_basename,
+        export_sha256=export_sha256,
+    )
+    _validate_record(bounded)
+    return bounded
+
+
 def _validate_record(record: JournalRecord) -> None:
     if type(record) is not JournalRecord:
         raise TypeError("record must be an exact JournalRecord instance")
@@ -1886,8 +2378,10 @@ def _diagnostic_error(
 __all__ = [
     "BundleMemberPreview",
     "BundlePreview",
+    "CancellableJournalSink",
     "DIAGNOSTIC_ARCHIVE_BASENAMES",
     "DIAGNOSTIC_JOURNAL_MAX_BYTES",
+    "DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES",
     "DiagnosticBundleManager",
     "DiagnosticBundleReceipt",
     "DiagnosticJournal",

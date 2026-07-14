@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+import re
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -17,6 +18,24 @@ from calibrate_pro.workflow import WorkflowStage
 
 T = TypeVar("T")
 EffectState = Literal["none", "local_write_published", "fake_apply_attempted"]
+
+# JSON can expand each one-byte control character to six ASCII bytes. Even when
+# every bounded field takes that worst case, these combined limits plus schema
+# overhead remain below the 64 KiB reserved-record ceiling.
+_BOUNDARY_IDENTITY_MAX_BYTES = 512
+_BOUNDARY_VERSION_MAX_BYTES = 128
+_BOUNDARY_PLATFORM_MAX_BYTES = 512
+_BOUNDARY_MESSAGE_MAX_BYTES = 4_096
+_BOUNDARY_SCALAR_MAX_BYTES = 128
+_BOUNDARY_RECOVERY_MAX_BYTES = 256
+_BOUNDARY_EXPORT_BASENAME_MAX_BYTES = 255
+_BOUNDARY_PHASE_FLAG_MAX_COUNT = 32
+_BOUNDARY_PHASE_KEY_MAX_BYTES = 64
+_OMITTED_MESSAGE = "Oversized diagnostic value omitted."
+_OMITTED_EXCEPTION_TYPE = "OversizedExceptionType"
+_OMITTED_ERROR_CODE = "DIAGNOSTIC_VALUE_OMITTED"
+_OMITTED_CATEGORY = "diagnostics"
+_CANONICAL_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 
 
 @dataclass(frozen=True)
@@ -101,14 +120,27 @@ class ActionBoundary:
             correlation_id = self._correlation_id_factory()
         except Exception as exc:
             return self._correlation_failure(action_id, stage, type(exc).__name__)
-        if type(correlation_id) is not str or not correlation_id:
+        if not _is_bounded_utf8_text(correlation_id, _BOUNDARY_IDENTITY_MAX_BYTES):
             return self._correlation_failure(action_id, stage, "InvalidCorrelationId")
 
-        if self._requires_preflight(action_id):
+        requires_preflight = self._requires_preflight(action_id)
+        if requires_preflight:
             preflight_failure = self._preflight(action_id, stage, correlation_id)
             if preflight_failure is not None:
                 return preflight_failure
+        try:
+            return self._invoke_after_preflight(action_id, stage, correlation_id, operation)
+        finally:
+            if requires_preflight:
+                self._cancel_preflight(action_id, correlation_id)
 
+    def _invoke_after_preflight(
+        self,
+        action_id: str,
+        stage: WorkflowStage,
+        correlation_id: str,
+        operation: Callable[[], ActionOutcome[T]],
+    ) -> ActionOutcome[T]:
         exception_type: str | None = None
         try:
             outcome = operation()
@@ -254,7 +286,7 @@ class ActionBoundary:
             correlation_id = self._correlation_id_factory()
         except Exception as exc:
             return self._correlation_failure(action_id, stage, type(exc).__name__)
-        if type(correlation_id) is not str or not correlation_id:
+        if not _is_bounded_utf8_text(correlation_id, _BOUNDARY_IDENTITY_MAX_BYTES):
             return self._correlation_failure(action_id, stage, "InvalidCorrelationId")
 
         provisional = ActionSuccess(
@@ -435,6 +467,15 @@ class ActionBoundary:
             recovery_guarantee=None,
         )
 
+    def _cancel_preflight(self, action_id: str, correlation_id: str) -> None:
+        cancel = getattr(self._journal_sink, "cancel_preflight", None)
+        if not callable(cancel):
+            return
+        try:
+            cancel(action_id, correlation_id)
+        except Exception:
+            pass
+
     def _effect_evidence(
         self,
         action_id: str,
@@ -443,9 +484,12 @@ class ActionBoundary:
         if isinstance(outcome, ActionError):
             return (
                 outcome.effect_state,
-                outcome.published_artifact,
-                outcome.apply_phase_flags,
-                outcome.recovery_guarantee,
+                _bounded_published_artifact(outcome.published_artifact),
+                _bounded_phase_flags(outcome.apply_phase_flags),
+                _bounded_optional_text(
+                    outcome.recovery_guarantee,
+                    _BOUNDARY_RECOVERY_MAX_BYTES,
+                ),
             )
         value = outcome.value
         if action_id == "fake_acceptance.apply":
@@ -468,9 +512,12 @@ class ActionBoundary:
         if isinstance(outcome, ActionError):
             return (
                 outcome.effect_state,
-                outcome.published_artifact,
-                outcome.apply_phase_flags,
-                outcome.recovery_guarantee,
+                _bounded_published_artifact(outcome.published_artifact),
+                _bounded_phase_flags(outcome.apply_phase_flags),
+                _bounded_optional_text(
+                    outcome.recovery_guarantee,
+                    _BOUNDARY_RECOVERY_MAX_BYTES,
+                ),
             )
         if action_id == "fake_acceptance.apply":
             try:
@@ -508,6 +555,12 @@ class ActionBoundary:
         recovery_guarantee: str | None,
     ) -> JournalRecord:
         error = outcome if isinstance(outcome, ActionError) else None
+        bounded_artifact = _bounded_published_artifact(published_artifact)
+        bounded_phase_flags = _bounded_phase_flags(phase_flags)
+        bounded_recovery = _bounded_optional_text(
+            recovery_guarantee,
+            _BOUNDARY_RECOVERY_MAX_BYTES,
+        )
         runtime_mode: Literal["source", "frozen", "fake_acceptance"]
         if action_id == "fake_acceptance.apply":
             runtime_mode = "fake_acceptance"
@@ -517,25 +570,69 @@ class ActionBoundary:
             runtime_mode = "source"
         return JournalRecord(
             timestamp_utc=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            correlation_id=correlation_id,
-            product_version=__version__,
+            correlation_id=_bounded_required_text(
+                correlation_id,
+                _BOUNDARY_IDENTITY_MAX_BYTES,
+                "correlation-id-omitted",
+            ),
+            product_version=_bounded_required_text(
+                __version__,
+                _BOUNDARY_VERSION_MAX_BYTES,
+                "version-omitted",
+            ),
             runtime_mode=runtime_mode,
-            platform_version=platform.platform(),
-            action_id=action_id,
+            platform_version=_bounded_required_text(
+                platform.platform(),
+                _BOUNDARY_PLATFORM_MAX_BYTES,
+                "platform-version-omitted",
+            ),
+            action_id=_bounded_required_text(
+                action_id,
+                _BOUNDARY_IDENTITY_MAX_BYTES,
+                "action-id-omitted",
+            ),
             workflow_stage=stage.value,
             capability_flags=(),
             outcome="failure" if error is not None else "success",
-            exception_type=exception_type,
-            error_code=error.code if error is not None else None,
-            technical_category=error.category if error is not None else None,
-            redacted_message=error.summary if error is not None else None,
+            exception_type=_bounded_optional_text(
+                exception_type,
+                _BOUNDARY_SCALAR_MAX_BYTES,
+                fallback=_OMITTED_EXCEPTION_TYPE,
+            ),
+            error_code=(
+                _bounded_required_text(
+                    error.code,
+                    _BOUNDARY_SCALAR_MAX_BYTES,
+                    _OMITTED_ERROR_CODE,
+                )
+                if error is not None
+                else None
+            ),
+            technical_category=(
+                _bounded_required_text(
+                    error.category,
+                    _BOUNDARY_SCALAR_MAX_BYTES,
+                    _OMITTED_CATEGORY,
+                )
+                if error is not None
+                else None
+            ),
+            redacted_message=(
+                _bounded_required_text(
+                    error.summary,
+                    _BOUNDARY_MESSAGE_MAX_BYTES,
+                    _OMITTED_MESSAGE,
+                )
+                if error is not None
+                else None
+            ),
             display_pseudonym=None,
             plan_sha256=None,
             asset_sha256=(),
-            apply_phase_flags=phase_flags,
-            recovery_guarantee=recovery_guarantee,
-            export_basename=published_artifact[0] if published_artifact is not None else None,
-            export_sha256=published_artifact[1] if published_artifact is not None else None,
+            apply_phase_flags=bounded_phase_flags,
+            recovery_guarantee=bounded_recovery,
+            export_basename=bounded_artifact[0] if bounded_artifact is not None else None,
+            export_sha256=bounded_artifact[1] if bounded_artifact is not None else None,
         )
 
     @staticmethod
@@ -567,19 +664,19 @@ class ActionBoundary:
 def _read_published_artifact(value: object) -> tuple[str, str] | None:
     explicit = getattr(value, "published_artifact", None)
     if _is_string_pair(explicit):
-        return cast(tuple[str, str], explicit)
+        return _bounded_published_artifact(cast(tuple[str, str], explicit))
     published_path = getattr(value, "published_path", None)
     bundle_sha256 = getattr(value, "bundle_sha256", None)
     basename = getattr(published_path, "name", None)
     if type(basename) is str and basename and type(bundle_sha256) is str and bundle_sha256:
-        return basename, bundle_sha256
+        return _bounded_published_artifact((basename, bundle_sha256))
     return None
 
 
 def _read_apply_phase_flags(value: object) -> tuple[tuple[str, bool], ...]:
     explicit = getattr(value, "apply_phase_flags", None)
     if _is_phase_flags(explicit):
-        return cast(tuple[tuple[str, bool], ...], explicit)
+        return _bounded_phase_flags(cast(tuple[tuple[str, bool], ...], explicit))
     names = ("captured", "applied", "verified", "restore_attempted", "restored")
     if all(type(getattr(value, name, None)) is bool for name in names):
         return tuple((name, cast(bool, getattr(value, name))) for name in names)
@@ -589,11 +686,68 @@ def _read_apply_phase_flags(value: object) -> tuple[tuple[str, bool], ...]:
 def _read_recovery_guarantee(value: object) -> str | None:
     guarantee = getattr(value, "recovery_guarantee", None)
     if type(guarantee) is str and guarantee:
-        return guarantee
+        return _bounded_optional_text(guarantee, _BOUNDARY_RECOVERY_MAX_BYTES)
     enum_value = getattr(guarantee, "value", None)
     if type(enum_value) is str and enum_value:
-        return enum_value
+        return _bounded_optional_text(enum_value, _BOUNDARY_RECOVERY_MAX_BYTES)
     return None
+
+
+def _is_bounded_utf8_text(value: object, maximum_bytes: int) -> bool:
+    if type(value) is not str or not value:
+        return False
+    if len(value) > maximum_bytes:
+        return False
+    try:
+        return len(value.encode("utf-8", errors="strict")) <= maximum_bytes
+    except UnicodeEncodeError:
+        return False
+
+
+def _bounded_required_text(value: str, maximum_bytes: int, fallback: str) -> str:
+    return value if _is_bounded_utf8_text(value, maximum_bytes) else fallback
+
+
+def _bounded_optional_text(
+    value: str | None,
+    maximum_bytes: int,
+    *,
+    fallback: str | None = None,
+) -> str | None:
+    if value is None:
+        return None
+    return value if _is_bounded_utf8_text(value, maximum_bytes) else fallback
+
+
+def _bounded_phase_flags(
+    value: tuple[tuple[str, bool], ...],
+) -> tuple[tuple[str, bool], ...]:
+    if not _is_phase_flags(value) or len(value) > _BOUNDARY_PHASE_FLAG_MAX_COUNT:
+        return ()
+    if any(
+        not _is_bounded_utf8_text(name, _BOUNDARY_PHASE_KEY_MAX_BYTES)
+        or type(flag) is not bool
+        for name, flag in value
+    ):
+        return ()
+    return value
+
+
+def _bounded_published_artifact(
+    value: tuple[str, str] | None,
+) -> tuple[str, str] | None:
+    if value is None or not _is_string_pair(value):
+        return None
+    basename, digest = value
+    if (
+        not _is_bounded_utf8_text(basename, _BOUNDARY_EXPORT_BASENAME_MAX_BYTES)
+        or basename in {".", ".."}
+        or any(character in basename for character in ("/", "\\", ":"))
+        or any(ord(character) < 32 for character in basename)
+        or _CANONICAL_SHA256_RE.fullmatch(digest) is None
+    ):
+        return None
+    return basename, digest
 
 
 def _is_string_pair(value: object) -> bool:

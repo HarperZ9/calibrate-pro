@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 import os
+import subprocess
+import sys
+import textwrap
 import threading
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import FrozenInstanceError, fields, replace
+from contextlib import contextmanager
+from dataclasses import FrozenInstanceError, dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -15,6 +20,7 @@ from typing import Any, cast
 import pytest
 
 import calibrate_pro.application.journal as journal_module
+import calibrate_pro.application.outcomes as outcomes_module
 from calibrate_pro.application.journal import (
     DiagnosticJournal,
     JournalRecord,
@@ -109,7 +115,8 @@ def test_resolve_diagnostic_root_rejects_missing_value(monkeypatch: pytest.Monke
 
 
 def test_preflight_returns_matching_typed_outcomes(tmp_path: Path) -> None:
-    success = DiagnosticJournal(tmp_path / "ok").preflight("diagnostics.test", "correlation-ok")
+    journal = DiagnosticJournal(tmp_path / "ok")
+    success = journal.preflight("diagnostics.test", "correlation-ok")
 
     assert isinstance(success, ActionSuccess)
     assert (success.action_id, success.correlation_id, success.value) == (
@@ -117,6 +124,7 @@ def test_preflight_returns_matching_typed_outcomes(tmp_path: Path) -> None:
         "correlation-ok",
         None,
     )
+    journal.cancel_preflight("diagnostics.test", "correlation-ok")
 
     blocker = tmp_path / "blocker"
     blocker.write_text("not a directory", encoding="utf-8")
@@ -131,6 +139,1360 @@ def test_preflight_returns_matching_typed_outcomes(tmp_path: Path) -> None:
         "correlation-failed",
         "diagnostics",
     )
+
+
+def test_preflight_creates_one_physically_allocated_identity_free_reservation(
+    tmp_path: Path,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+
+    outcome = journal.preflight("report.save", "correlation-reserved")
+
+    assert isinstance(outcome, ActionSuccess)
+    stages = list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    assert len(stages) == 1
+    assert stages[0].stat().st_size == 1_048_576
+    assert "report.save" not in stages[0].name
+    assert "correlation-reserved" not in stages[0].name
+    if os.name == "nt":
+        with pytest.raises(PermissionError):
+            stages[0].read_bytes()
+    journal.cancel_preflight("report.save", "correlation-reserved")
+
+
+def test_preflight_rotates_for_reserved_capacity_before_the_effect(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    journal.path.write_bytes(b"x" * (1_048_576 - 32_768))
+
+    outcome = journal.preflight("report.save", "near-threshold-correlation")
+
+    assert isinstance(outcome, ActionSuccess)
+    assert journal.path.read_bytes() == b""
+    assert journal.archive_paths[0].stat().st_size == 1_048_576 - 32_768
+    assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+    journal.cancel_preflight("report.save", "near-threshold-correlation")
+
+
+def test_reservation_requires_exact_identity_and_is_consumed_once(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    assert isinstance(journal.preflight("report.save", "exact-correlation"), ActionSuccess)
+
+    mismatch = journal.append_and_sync(
+        replace(
+            _record(),
+            action_id="report.save",
+            correlation_id="wrong-correlation",
+        )
+    )
+
+    assert isinstance(mismatch, ActionError)
+    assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+
+    exact = journal.append_and_sync(
+        replace(
+            _record(),
+            action_id="report.save",
+            correlation_id="exact-correlation",
+        )
+    )
+    repeated = journal.append_and_sync(
+        replace(
+            _record(),
+            action_id="report.save",
+            correlation_id="exact-correlation",
+        )
+    )
+
+    assert isinstance(exact, ActionSuccess)
+    assert isinstance(repeated, ActionError)
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_boundary_cancels_successful_preflight_before_propagating_base_exception() -> None:
+    events: list[tuple[str, str, str]] = []
+
+    class CancellableJournal:
+        def preflight(self, action_id: str, correlation_id: str) -> ActionSuccess[None]:
+            events.append(("preflight", action_id, correlation_id))
+            return ActionSuccess(action_id, correlation_id, WorkflowStage.PREVIEW, None)
+
+        def append_and_sync(self, record: JournalRecord) -> ActionSuccess[None]:
+            events.append(("append", record.action_id, record.correlation_id))
+            return ActionSuccess(
+                record.action_id,
+                record.correlation_id,
+                WorkflowStage(record.workflow_stage),
+                None,
+            )
+
+        def cancel_preflight(self, action_id: str, correlation_id: str) -> None:
+            events.append(("cancel", action_id, correlation_id))
+
+    boundary = ActionBoundary(lambda: "cancel-correlation", CancellableJournal())
+
+    with pytest.raises(KeyboardInterrupt):
+        boundary.invoke(
+            "report.save",
+            WorkflowStage.PREVIEW,
+            lambda: (_ for _ in ()).throw(KeyboardInterrupt()),
+        )
+
+    assert events == [
+        ("preflight", "report.save", "cancel-correlation"),
+        ("cancel", "report.save", "cancel-correlation"),
+    ]
+
+
+def test_duplicate_and_ninth_reservations_fail_with_staged_bytes_bounded(
+    tmp_path: Path,
+) -> None:
+    journals = [DiagnosticJournal(tmp_path) for _ in range(9)]
+    outcomes = [
+        journal.preflight("report.save", f"bounded-correlation-{index}")
+        for index, journal in enumerate(journals[:8])
+    ]
+    duplicate = DiagnosticJournal(tmp_path).preflight(
+        "report.save",
+        "bounded-correlation-0",
+    )
+    ninth = journals[8].preflight("report.save", "bounded-correlation-8")
+
+    assert all(isinstance(outcome, ActionSuccess) for outcome in outcomes)
+    assert isinstance(duplicate, ActionError)
+    assert isinstance(ninth, ActionError)
+    stages = list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    assert len(stages) == 8
+    assert sum(stage.stat().st_size for stage in stages) == 8 * 1_048_576
+
+    for index, journal in enumerate(journals[:8]):
+        journal.cancel_preflight("report.save", f"bounded-correlation-{index}")
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def _record_with_encoded_size(byte_length: int, correlation_id: str) -> JournalRecord:
+    base = replace(
+        _record(correlation_id),
+        action_id="report.save",
+        redacted_message="",
+    )
+    base_size = len(journal_module._encode_record(base).encode("utf-8"))
+    assert base_size <= byte_length
+    record = replace(base, redacted_message="x" * (byte_length - base_size))
+    assert len(journal_module._encode_record(record).encode("utf-8")) == byte_length
+    return record
+
+
+def test_reserved_record_exact_bound_commits_and_plus_one_writes_compact_failure(
+    tmp_path: Path,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    exact = _record_with_encoded_size(65_536, "exact-bound-correlation")
+    assert isinstance(
+        journal.preflight("report.save", "exact-bound-correlation"),
+        ActionSuccess,
+    )
+
+    exact_outcome = journal.append_and_sync(exact)
+
+    assert isinstance(exact_outcome, ActionSuccess)
+    assert journal.path.stat().st_size == 65_536
+
+    oversized = _record_with_encoded_size(65_537, "oversized-bound-correlation")
+    assert isinstance(
+        journal.preflight("report.save", "oversized-bound-correlation"),
+        ActionSuccess,
+    )
+
+    oversized_outcome = journal.append_and_sync(oversized)
+
+    assert isinstance(oversized_outcome, ActionError)
+    assert oversized_outcome.code == "DIAGNOSTIC_RECORD_BOUND_EXCEEDED"
+    records = _json_lines(journal.path)
+    assert records[-1]["correlation_id"] == "oversized-bound-correlation"
+    assert records[-1]["outcome"] == "failure"
+    assert records[-1]["error_code"] == "DIAGNOSTIC_RECORD_BOUND_EXCEEDED"
+    assert records[-1]["redacted_message"] != oversized.redacted_message
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_oversized_unknown_workflow_stage_still_has_a_bounded_failure_receipt(
+    tmp_path: Path,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    correlation_id = "oversized-workflow-correlation"
+    unterminated_private_key = (
+        "-----BEGIN PRIVATE KEY-----\n" + "DIRECTSECRETMATERIAL" * 5_000
+    )
+    record = replace(
+        _record(correlation_id),
+        action_id="report.save",
+        workflow_stage="x" * 70_000,
+        platform_version=unterminated_private_key,
+        recovery_guarantee=unterminated_private_key,
+    )
+    assert isinstance(journal.preflight("report.save", correlation_id), ActionSuccess)
+
+    try:
+        outcome = journal.append_and_sync(record)
+
+        assert isinstance(outcome, ActionError)
+        assert outcome.code == "DIAGNOSTIC_RECORD_BOUND_EXCEEDED"
+        persisted = _json_lines(journal.path)[-1]
+        assert persisted["workflow_stage"] == WorkflowStage.DETECT.value
+        assert persisted["platform_version"] == "platform-version-omitted"
+        assert persisted["recovery_guarantee"] is None
+        assert len(journal.path.read_bytes()) <= 65_536
+        assert b"BEGIN PRIVATE KEY" not in journal.path.read_bytes()
+        assert b"DIRECTSECRETMATERIAL" not in journal.path.read_bytes()
+    finally:
+        journal.cancel_preflight("report.save", correlation_id)
+
+
+def test_oversized_reserved_boundary_receipt_preserves_exact_published_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    boundary = ActionBoundary(lambda: "published-bound-correlation", journal)
+    published = ("report.json", "b" * 64)
+
+    @dataclass(frozen=True)
+    class Evidence:
+        published_artifact: tuple[str, str]
+
+    real_record = boundary._record
+
+    def oversized_record(**kwargs: Any) -> JournalRecord:
+        return replace(real_record(**kwargs), redacted_message="x" * 70_000)
+
+    monkeypatch.setattr(boundary, "_record", oversized_record)
+
+    outcome = boundary.invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "report.save",
+            "published-bound-correlation",
+            WorkflowStage.PREVIEW,
+            Evidence(published),
+        ),
+    )
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "ACTION_COMPLETED_DIAGNOSTICS_FAILED"
+    assert outcome.effect_state == "local_write_published"
+    assert outcome.published_artifact == published
+    record = _json_lines(journal.path)[-1]
+    assert (record["export_basename"], record["export_sha256"]) == published
+    assert record["error_code"] == "DIAGNOSTIC_RECORD_BOUND_EXCEEDED"
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_boundary_bounds_ordinary_action_failure_before_record_construction_without_secret_fragments(
+    tmp_path: Path,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    boundary = ActionBoundary(lambda: "bounded-failure-correlation", journal)
+    private_key = (
+        "-----BEGIN PRIVATE KEY-----\n"
+        + "SENSITIVEKEYMATERIAL" * 5_000
+        + "\n-----END PRIVATE KEY-----"
+    )
+    oversized_code = "錯" * 400
+    oversized_category = "類" * 400
+    oversized_flags = tuple(
+        ((f"phase-{index}-" + "秘密" * 80), index % 2 == 0)
+        for index in range(40)
+    )
+    published = ("bounded-report.json", "a" * 64)
+
+    def fail() -> Any:
+        raise ActionFailure(
+            code=oversized_code,
+            summary=private_key,
+            retryable=False,
+            next_action=None,
+            category=oversized_category,
+            effect_state="local_write_published",
+            published_artifact=published,
+            apply_phase_flags=oversized_flags,
+            recovery_guarantee=private_key,
+        )
+
+    outcome = boundary.invoke("report.save", WorkflowStage.PREVIEW, fail)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == oversized_code
+    assert outcome.summary == private_key
+    assert outcome.category == oversized_category
+    assert outcome.published_artifact == published
+    assert outcome.apply_phase_flags == oversized_flags
+    assert outcome.recovery_guarantee == private_key
+    raw = journal.path.read_bytes()
+    record = _json_lines(journal.path)[-1]
+    assert len(raw) < 65_536
+    assert len(record["redacted_message"].encode("utf-8")) <= 8_192
+    assert len(record["error_code"].encode("utf-8")) <= 256
+    assert len(record["technical_category"].encode("utf-8")) <= 256
+    assert len(record["exception_type"].encode("utf-8")) <= 256
+    assert record["apply_phase_flags"] == []
+    assert record["recovery_guarantee"] is None
+    assert (record["export_basename"], record["export_sha256"]) == published
+    assert b"BEGIN PRIVATE KEY" not in raw
+    assert b"SENSITIVEKEYMATERIAL" not in raw
+    assert "秘密".encode() not in raw
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_boundary_bounds_dynamic_exception_type_and_rejects_oversized_correlation(
+    tmp_path: Path,
+) -> None:
+    exception_journal = DiagnosticJournal(tmp_path / "exception")
+    exception_boundary = ActionBoundary(lambda: "bounded-exception-correlation", exception_journal)
+    oversized_exception = type("Oversized" + "X" * 2_000, (Exception,), {})
+
+    def fail() -> Any:
+        raise oversized_exception("private exception detail")
+
+    exception_outcome = exception_boundary.invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        fail,
+    )
+
+    assert isinstance(exception_outcome, ActionError)
+    exception_record = _json_lines(exception_journal.path)[-1]
+    assert len(exception_record["exception_type"].encode("utf-8")) <= 256
+    assert len(exception_journal.path.read_bytes()) < 65_536
+
+    correlation_journal = DiagnosticJournal(tmp_path / "correlation")
+    operation_invoked = False
+    oversized_correlation = "關" * 300
+
+    def operation() -> ActionSuccess[None]:
+        nonlocal operation_invoked
+        operation_invoked = True
+        return ActionSuccess(
+            "display.detect",
+            oversized_correlation,
+            WorkflowStage.PREVIEW,
+            None,
+        )
+
+    correlation_outcome = ActionBoundary(
+        lambda: oversized_correlation,
+        correlation_journal,
+    ).invoke("display.detect", WorkflowStage.PREVIEW, operation)
+
+    assert isinstance(correlation_outcome, ActionError)
+    assert correlation_outcome.code == "CORRELATION_ID_UNAVAILABLE"
+    assert not operation_invoked
+    correlation_record = _json_lines(correlation_journal.path)[-1]
+    assert len(correlation_record["correlation_id"].encode("utf-8")) <= 512
+
+
+def test_boundary_preserves_valid_fake_apply_evidence_and_drops_overbound_evidence(
+    tmp_path: Path,
+) -> None:
+    @dataclass(frozen=True)
+    class FakeEvidence:
+        apply_phase_flags: tuple[tuple[str, bool], ...]
+        recovery_guarantee: str
+
+    valid_flags = (
+        ("captured", True),
+        ("applied", True),
+        ("verified", True),
+        ("restore_attempted", False),
+        ("restored", False),
+    )
+    valid_journal = DiagnosticJournal(tmp_path / "valid")
+    valid_boundary = ActionBoundary(lambda: "valid-fake-correlation", valid_journal)
+    valid_outcome = valid_boundary.invoke(
+        "fake_acceptance.apply",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "fake_acceptance.apply",
+            "valid-fake-correlation",
+            WorkflowStage.PREVIEW,
+            FakeEvidence(valid_flags, "in_process_best_effort"),
+        ),
+    )
+
+    assert isinstance(valid_outcome, ActionSuccess)
+    valid_record = _json_lines(valid_journal.path)[-1]
+    assert valid_record["apply_phase_flags"] == [list(pair) for pair in valid_flags]
+    assert valid_record["recovery_guarantee"] == "in_process_best_effort"
+    assert len(valid_journal.path.read_bytes()) < 65_536
+
+    invalid_flags = tuple((("oversized-secret-key-" + "K" * 200), True) for _ in range(40))
+    invalid_recovery = "-----BEGIN PRIVATE KEY-----" + "R" * 70_000
+    invalid_journal = DiagnosticJournal(tmp_path / "invalid")
+    invalid_boundary = ActionBoundary(lambda: "invalid-fake-correlation", invalid_journal)
+    invalid_outcome = invalid_boundary.invoke(
+        "fake_acceptance.apply",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "fake_acceptance.apply",
+            "invalid-fake-correlation",
+            WorkflowStage.PREVIEW,
+            FakeEvidence(invalid_flags, invalid_recovery),
+        ),
+    )
+
+    assert isinstance(invalid_outcome, ActionSuccess)
+    invalid_raw = invalid_journal.path.read_bytes()
+    invalid_record = _json_lines(invalid_journal.path)[-1]
+    assert invalid_record["apply_phase_flags"] == []
+    assert invalid_record["recovery_guarantee"] is None
+    assert b"oversized-secret-key" not in invalid_raw
+    assert b"BEGIN PRIVATE KEY" not in invalid_raw
+    assert len(invalid_raw) < 65_536
+
+
+def test_boundary_preserves_valid_export_and_drops_invalid_export_evidence(
+    tmp_path: Path,
+) -> None:
+    @dataclass(frozen=True)
+    class ExportEvidence:
+        published_artifact: tuple[str, str]
+
+    valid = ("valid-report.json", "b" * 64)
+    valid_journal = DiagnosticJournal(tmp_path / "valid-export")
+    valid_outcome = ActionBoundary(lambda: "valid-export-correlation", valid_journal).invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "report.save",
+            "valid-export-correlation",
+            WorkflowStage.PREVIEW,
+            ExportEvidence(valid),
+        ),
+    )
+    assert isinstance(valid_outcome, ActionSuccess)
+    valid_record = _json_lines(valid_journal.path)[-1]
+    assert (valid_record["export_basename"], valid_record["export_sha256"]) == valid
+
+    invalid_journal = DiagnosticJournal(tmp_path / "invalid-export")
+    invalid_outcome = ActionBoundary(
+        lambda: "invalid-export-correlation",
+        invalid_journal,
+    ).invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "report.save",
+            "invalid-export-correlation",
+            WorkflowStage.PREVIEW,
+            ExportEvidence(("../private-report.json", "z" * 64)),
+        ),
+    )
+    assert isinstance(invalid_outcome, ActionSuccess)
+    invalid_record = _json_lines(invalid_journal.path)[-1]
+    assert invalid_record["export_basename"] is None
+    assert invalid_record["export_sha256"] is None
+
+
+def test_boundary_worst_case_json_escaping_stays_inside_reserved_record_budget(
+    tmp_path: Path,
+) -> None:
+    correlation_id = "\0" * outcomes_module._BOUNDARY_IDENTITY_MAX_BYTES
+    message = "\0" * outcomes_module._BOUNDARY_MESSAGE_MAX_BYTES
+    error_code = "\0" * outcomes_module._BOUNDARY_SCALAR_MAX_BYTES
+    category = "\0" * outcomes_module._BOUNDARY_SCALAR_MAX_BYTES
+    recovery = "\0" * outcomes_module._BOUNDARY_RECOVERY_MAX_BYTES
+    phase_flags = tuple(
+        ("\0" * outcomes_module._BOUNDARY_PHASE_KEY_MAX_BYTES, True)
+        for _ in range(outcomes_module._BOUNDARY_PHASE_FLAG_MAX_COUNT)
+    )
+    journal = DiagnosticJournal(tmp_path)
+    boundary = ActionBoundary(lambda: correlation_id, journal)
+
+    def fail() -> Any:
+        raise ActionFailure(
+            code=error_code,
+            summary=message,
+            retryable=False,
+            next_action=None,
+            category=category,
+            effect_state="fake_apply_attempted",
+            apply_phase_flags=phase_flags,
+            recovery_guarantee=recovery,
+        )
+
+    outcome = boundary.invoke("fake_acceptance.apply", WorkflowStage.PREVIEW, fail)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == error_code
+    record = _json_lines(journal.path)[-1]
+    assert record["error_code"] != "DIAGNOSTIC_RECORD_BOUND_EXCEEDED"
+    assert record["apply_phase_flags"] == [list(pair) for pair in phase_flags]
+    assert len(journal.path.read_bytes()) <= 65_536
+
+
+def test_preflight_physically_fills_and_syncs_the_entire_reserved_stage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    written_bytes = 0
+    fsync_calls = 0
+    real_write_all = journal_module._write_all
+    real_fsync = journal_module.os.fsync
+
+    def write_spy(file_descriptor: int, payload: bytes) -> None:
+        nonlocal written_bytes
+        written_bytes += len(payload)
+        real_write_all(file_descriptor, payload)
+
+    def fsync_spy(file_descriptor: int) -> None:
+        nonlocal fsync_calls
+        fsync_calls += 1
+        real_fsync(file_descriptor)
+
+    monkeypatch.setattr(journal_module, "_write_all", write_spy)
+    monkeypatch.setattr(journal_module.os, "fsync", fsync_spy)
+    journal = DiagnosticJournal(tmp_path)
+
+    outcome = journal.preflight("report.save", "fill-and-sync-correlation")
+
+    try:
+        assert isinstance(outcome, ActionSuccess)
+        assert written_bytes == 1_048_576
+        assert fsync_calls >= 2
+        assert next(tmp_path.glob(".diagnostics.reserve.*.tmp")).stat().st_size == 1_048_576
+    finally:
+        journal.cancel_preflight("report.save", "fill-and-sync-correlation")
+
+
+@pytest.mark.parametrize("fault", ["open", "write", "lock", "fsync", "rotation"])
+def test_every_predictable_preflight_fault_blocks_and_cleans_before_operation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    if fault == "rotation":
+        journal.path.write_bytes(b"x" * (1_048_576 - 32_768))
+
+    with monkeypatch.context() as injected:
+        if fault == "open":
+            real_open = journal_module.os.open
+
+            def fail_stage_open(path: str, flags: int, mode: int = 0o777) -> int:
+                if ".diagnostics.reserve." in os.fspath(path):
+                    raise OSError("injected reservation open failure")
+                return real_open(path, flags, mode)
+
+            injected.setattr(journal_module.os, "open", fail_stage_open)
+        elif fault == "write":
+            real_write_all = journal_module._write_all
+
+            def fail_stage_write(file_descriptor: int, payload: bytes) -> None:
+                if len(payload) == 65_536:
+                    raise OSError("injected reservation allocation failure")
+                real_write_all(file_descriptor, payload)
+
+            injected.setattr(journal_module, "_write_all", fail_stage_write)
+        elif fault == "lock":
+            real_lock = journal_module._lock_file_descriptor
+            lock_calls = 0
+
+            def fail_stage_lock(file_descriptor: int) -> None:
+                nonlocal lock_calls
+                lock_calls += 1
+                if lock_calls == 2:
+                    raise OSError("injected reservation lock failure")
+                real_lock(file_descriptor)
+
+            injected.setattr(journal_module, "_lock_file_descriptor", fail_stage_lock)
+        elif fault == "fsync":
+            real_fsync = journal_module.os.fsync
+            fsync_calls = 0
+
+            def fail_stage_fsync(file_descriptor: int) -> None:
+                nonlocal fsync_calls
+                fsync_calls += 1
+                if fsync_calls == 2:
+                    raise OSError("injected reservation fsync failure")
+                real_fsync(file_descriptor)
+
+            injected.setattr(journal_module.os, "fsync", fail_stage_fsync)
+        else:
+            injected.setattr(
+                journal,
+                "_rotate",
+                lambda: (_ for _ in ()).throw(OSError("injected preflight rotation failure")),
+            )
+
+        outcome = journal.preflight("report.save", f"preflight-fault-{fault}")
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "DIAGNOSTIC_JOURNAL_UNAVAILABLE"
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    retry = journal.preflight("report.save", f"preflight-retry-{fault}")
+    try:
+        assert isinstance(retry, ActionSuccess)
+    finally:
+        journal.cancel_preflight("report.save", f"preflight-retry-{fault}")
+
+
+def test_unlocked_partial_reservation_stage_is_reaped_before_new_reservation(
+    tmp_path: Path,
+) -> None:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    abandoned = tmp_path / (".diagnostics.reserve." + "a" * 32 + ".tmp")
+    abandoned.write_bytes(b"")
+    journal = DiagnosticJournal(tmp_path)
+
+    outcome = journal.preflight("report.save", "partial-stage-recovery")
+
+    try:
+        assert isinstance(outcome, ActionSuccess)
+        assert not abandoned.exists()
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+    finally:
+        journal.cancel_preflight("report.save", "partial-stage-recovery")
+
+
+@pytest.mark.parametrize("stage_kind", ["live-malformed-size", "ambiguous-lock"])
+def test_live_malformed_or_ambiguous_reservation_fails_closed_and_is_retained(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage_kind: str,
+) -> None:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    stage = tmp_path / (".diagnostics.reserve." + "a" * 32 + ".tmp")
+    stage.write_bytes(b"x" if stage_kind == "live-malformed-size" else bytes(1_048_576))
+    live_descriptor: int | None = None
+    if stage_kind == "live-malformed-size":
+        live_descriptor = os.open(os.fspath(stage), os.O_RDWR | getattr(os, "O_BINARY", 0))
+        journal_module._lock_file_descriptor(live_descriptor)
+    if stage_kind == "ambiguous-lock":
+        real_lock_once = journal_module._lock_file_descriptor_once
+
+        def ambiguous_for_stage(file_descriptor: int) -> str:
+            if os.fstat(file_descriptor).st_size == 1_048_576:
+                return "ambiguous"
+            return real_lock_once(file_descriptor)
+
+        monkeypatch.setattr(journal_module, "_lock_file_descriptor_once", ambiguous_for_stage)
+
+    try:
+        outcome = DiagnosticJournal(tmp_path).preflight(
+            "report.save",
+            f"{stage_kind}-correlation",
+        )
+
+        assert isinstance(outcome, ActionError)
+        assert outcome.code == "DIAGNOSTIC_JOURNAL_UNAVAILABLE"
+        assert stage.exists()
+    finally:
+        if live_descriptor is not None:
+            journal_module._unlock_file_descriptor(live_descriptor)
+            os.close(live_descriptor)
+        stage.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize(
+    ("fault", "call_number"),
+    [("write", 1), ("fsync", 1), ("fsync", 2), ("truncate", 1), ("replace", 1)],
+)
+def test_reserved_final_fault_preserves_prior_active_and_releases_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+    call_number: int,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    assert isinstance(journal.append_and_sync(_record("prior-final-fault")), ActionSuccess)
+    prior = journal.path.read_bytes()
+    correlation_id = f"reserved-final-{fault}-{call_number}"
+    assert isinstance(journal.preflight("report.save", correlation_id), ActionSuccess)
+    record = replace(_record(correlation_id), action_id="report.save")
+
+    with monkeypatch.context() as injected:
+        calls = 0
+        if fault == "write":
+            real = journal_module.os.write
+            attribute = "write"
+        elif fault == "fsync":
+            real = journal_module.os.fsync
+            attribute = "fsync"
+        elif fault == "truncate":
+            real = journal_module.os.ftruncate
+            attribute = "ftruncate"
+        else:
+            real = journal_module.os.replace
+            attribute = "replace"
+
+        def fail_selected(*args: Any) -> Any:
+            nonlocal calls
+            calls += 1
+            if calls == call_number:
+                raise OSError(f"injected reserved {fault} failure")
+            return real(*args)
+
+        injected.setattr(journal_module.os, attribute, fail_selected)
+        outcome = journal.append_and_sync(record)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "DIAGNOSTIC_JOURNAL_WRITE_FAILED"
+    assert journal.path.read_bytes() == prior
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    assert isinstance(journal.append_and_sync(record), ActionError)
+    retry = journal.preflight("report.save", f"retry-{correlation_id}")
+    try:
+        assert isinstance(retry, ActionSuccess)
+    finally:
+        journal.cancel_preflight("report.save", f"retry-{correlation_id}")
+
+
+@pytest.mark.parametrize("injected", [RuntimeError("encode fault"), KeyboardInterrupt()])
+def test_reserved_compact_second_encode_fault_always_releases_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    injected: BaseException,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    assert isinstance(journal.append_and_sync(_record("prior-compact-encode")), ActionSuccess)
+    prior = journal.path.read_bytes()
+    correlation_id = f"compact-encode-{type(injected).__name__}"
+    oversized = _record_with_encoded_size(65_537, correlation_id)
+    assert isinstance(journal.preflight("report.save", correlation_id), ActionSuccess)
+    real_encode = journal_module._encode_record
+    encode_calls = 0
+
+    def fail_second_encode(record: JournalRecord, redactor: Any = None) -> str:
+        nonlocal encode_calls
+        encode_calls += 1
+        if encode_calls == 2:
+            raise injected
+        return real_encode(record, redactor)
+
+    with monkeypatch.context() as fault:
+        fault.setattr(journal_module, "_encode_record", fail_second_encode)
+        if isinstance(injected, Exception):
+            try:
+                outcome: object = journal.append_and_sync(oversized)
+            except Exception as error:
+                outcome = error
+        else:
+            with pytest.raises(type(injected)):
+                journal.append_and_sync(oversized)
+            outcome = None
+
+    if isinstance(injected, Exception):
+        assert isinstance(outcome, ActionError)
+        assert outcome.code == "DIAGNOSTIC_JOURNAL_WRITE_FAILED"
+    assert encode_calls == 2
+    assert journal.path.read_bytes() == prior
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+    retry = journal.preflight("report.save", correlation_id)
+    try:
+        assert isinstance(retry, ActionSuccess)
+    finally:
+        journal.cancel_preflight("report.save", correlation_id)
+
+
+def test_failed_abandoned_stage_unlink_repeatedly_fails_closed_without_growth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    abandoned = tmp_path / (".diagnostics.reserve." + "d" * 32 + ".tmp")
+    abandoned.write_bytes(bytes(1_048_576))
+    journal = DiagnosticJournal(tmp_path)
+    real_unlink = journal_module.os.unlink
+
+    def fail_abandoned_unlink(path: str | os.PathLike[str]) -> None:
+        if Path(path) == abandoned:
+            raise OSError("injected abandoned-stage unlink failure")
+        real_unlink(path)
+
+    try:
+        with monkeypatch.context() as fault:
+            fault.setattr(journal_module.os, "unlink", fail_abandoned_unlink)
+            first = journal.preflight("report.save", "unlink-failure-first")
+            second = journal.preflight("report.save", "unlink-failure-second")
+
+            assert isinstance(first, ActionError)
+            assert isinstance(second, ActionError)
+            assert first.code == second.code == "DIAGNOSTIC_JOURNAL_UNAVAILABLE"
+            stages = list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+            assert stages == [abandoned]
+            assert sum(stage.stat().st_size for stage in stages) == 1_048_576
+
+        recovered = journal.preflight("report.save", "unlink-recovered")
+        try:
+            assert isinstance(recovered, ActionSuccess)
+            assert not abandoned.exists()
+            assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+        finally:
+            journal.cancel_preflight("report.save", "unlink-recovered")
+    finally:
+        journal.cancel_preflight("report.save", "unlink-failure-first")
+        journal.cancel_preflight("report.save", "unlink-failure-second")
+        abandoned.unlink(missing_ok=True)
+
+
+def test_overlong_text_is_rejected_before_encoding_adjacent_bytes_length(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    text = "abcde"
+    encoded = b"abcde"
+    events: list[str] = []
+    real_len = builtins.len
+
+    def len_spy(value: Any) -> int:
+        if value is text:
+            events.append("str")
+        elif value == encoded and type(value) is bytes:
+            events.append("bytes")
+        return real_len(value)
+
+    with monkeypatch.context() as instrumented:
+        instrumented.setattr(builtins, "len", len_spy)
+        accepted = outcomes_module._is_bounded_utf8_text(text, 4)
+
+    assert accepted is False
+    assert events == ["str"]
+
+
+def test_twenty_sequential_receipt_actions_do_not_rotate_per_action(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    next_id = 0
+    current_id = ""
+    rotations = 0
+    real_rotate = journal._rotate
+
+    def correlation_factory() -> str:
+        nonlocal next_id, current_id
+        current_id = f"sequential-correlation-{next_id}"
+        next_id += 1
+        return current_id
+
+    def rotate_spy() -> None:
+        nonlocal rotations
+        rotations += 1
+        real_rotate()
+
+    journal._rotate = rotate_spy  # type: ignore[method-assign]
+    boundary = ActionBoundary(correlation_factory, journal)
+
+    outcomes = [
+        boundary.invoke(
+            "report.save",
+            WorkflowStage.PREVIEW,
+            lambda: ActionSuccess(
+                "report.save",
+                current_id,
+                WorkflowStage.PREVIEW,
+                None,
+            ),
+        )
+        for _ in range(20)
+    ]
+
+    assert all(isinstance(outcome, ActionSuccess) for outcome in outcomes)
+    assert rotations < 20
+    assert len(_json_lines(journal.path)) == 20
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_boundary_rotates_and_creates_stage_only_before_the_local_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    journal.path.write_bytes(b"x" * (1_048_576 - 32_768))
+    events: list[tuple[str, bool]] = []
+    effect_started = False
+    real_rotate = journal._rotate
+    real_create = journal._create_reservation
+    real_open = journal_module.os.open
+
+    def rotate_spy() -> None:
+        events.append(("rotate", effect_started))
+        real_rotate()
+
+    def create_spy(action_id: str, correlation_id: str) -> Any:
+        events.append(("stage", effect_started))
+        return real_create(action_id, correlation_id)
+
+    def open_spy(path: str, flags: int, mode: int = 0o777) -> int:
+        if effect_started and os.fspath(path).endswith(".tmp"):
+            pytest.fail("reserved finalization created a sibling temp after the effect")
+        return real_open(path, flags, mode)
+
+    journal._rotate = rotate_spy  # type: ignore[method-assign]
+    journal._create_reservation = create_spy  # type: ignore[method-assign]
+    monkeypatch.setattr(journal_module.os, "open", open_spy)
+    monkeypatch.setattr(
+        journal,
+        "_append_atomically",
+        lambda _line: pytest.fail("reserved finalization used the normal append temp"),
+    )
+    boundary = ActionBoundary(lambda: "ordered-correlation", journal)
+
+    def operation() -> ActionSuccess[None]:
+        nonlocal effect_started
+        effect_started = True
+        events.append(("effect", True))
+        return ActionSuccess(
+            "report.save",
+            "ordered-correlation",
+            WorkflowStage.PREVIEW,
+            None,
+        )
+
+    outcome = boundary.invoke("report.save", WorkflowStage.PREVIEW, operation)
+
+    assert isinstance(outcome, ActionSuccess)
+    assert events == [("rotate", False), ("stage", False), ("effect", True)]
+    assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_full_reservation_identity_matrix_preserves_unrelated_read_only_append(
+    tmp_path: Path,
+) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    action_id = "report.save"
+    correlation_id = "identity-matrix-correlation"
+    assert isinstance(journal.preflight(action_id, correlation_id), ActionSuccess)
+
+    try:
+        wrong_action = journal.append_and_sync(
+            replace(_record(correlation_id), action_id="report.export")
+        )
+        wrong_correlation = journal.append_and_sync(
+            replace(_record("identity-matrix-wrong"), action_id=action_id)
+        )
+        duplicate = DiagnosticJournal(tmp_path).preflight(action_id, correlation_id)
+        unrelated = journal.append_and_sync(
+            replace(
+                _record("identity-matrix-unrelated"),
+                action_id="display.detect",
+            )
+        )
+
+        assert isinstance(wrong_action, ActionError)
+        assert isinstance(wrong_correlation, ActionError)
+        assert isinstance(duplicate, ActionError)
+        assert isinstance(unrelated, ActionSuccess)
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+
+        exact_record = replace(_record(correlation_id), action_id=action_id)
+        assert isinstance(journal.append_and_sync(exact_record), ActionSuccess)
+        assert isinstance(journal.append_and_sync(exact_record), ActionError)
+    finally:
+        journal.cancel_preflight(action_id, correlation_id)
+
+
+@pytest.mark.parametrize("identity_gap", ["exact", "partial"])
+def test_normal_append_rechecks_identity_after_matching_preflight_enters_gap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    identity_gap: str,
+) -> None:
+    normal_journal = DiagnosticJournal(tmp_path)
+    reserving_journal = DiagnosticJournal(tmp_path)
+    normal_key = ("report.save", "identity-gap-normal")
+    reserved_key = (
+        normal_key
+        if identity_gap == "exact"
+        else (normal_key[0], "identity-gap-partial")
+    )
+    classification_complete = threading.Event()
+    allow_root_entry = threading.Event()
+    real_exclusive_root = normal_journal._exclusive_root
+
+    @contextmanager
+    def paused_exclusive_root() -> Any:
+        classification_complete.set()
+        assert allow_root_entry.wait(timeout=10.0)
+        with real_exclusive_root():
+            yield
+
+    monkeypatch.setattr(normal_journal, "_exclusive_root", paused_exclusive_root)
+    normal_record = replace(
+        _record(normal_key[1]),
+        action_id=normal_key[0],
+    )
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            pending = executor.submit(normal_journal.append_and_sync, normal_record)
+            assert classification_complete.wait(timeout=10.0)
+            reserved = reserving_journal.preflight(*reserved_key)
+            assert isinstance(reserved, ActionSuccess)
+            allow_root_entry.set()
+            raced_outcome = pending.result(timeout=10.0)
+
+        assert isinstance(raced_outcome, ActionError)
+        assert raced_outcome.code == "DIAGNOSTIC_RESERVATION_MISMATCH"
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+
+        reserved_record = replace(
+            _record(reserved_key[1]),
+            action_id=reserved_key[0],
+        )
+        assert isinstance(reserving_journal.append_and_sync(reserved_record), ActionSuccess)
+        assert isinstance(reserving_journal.append_and_sync(reserved_record), ActionError)
+        records = _json_lines(reserving_journal.path)
+        assert [record["correlation_id"] for record in records] == [reserved_key[1]]
+    finally:
+        allow_root_entry.set()
+        reserving_journal.cancel_preflight(*reserved_key)
+
+
+def test_multiple_instances_and_threads_share_the_eight_reservation_cap(
+    tmp_path: Path,
+) -> None:
+    journals = [DiagnosticJournal(tmp_path) for _ in range(9)]
+    correlations = [f"thread-reservation-{index}" for index in range(9)]
+    try:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            reservations = list(
+                executor.map(
+                    lambda pair: pair[0].preflight("report.save", pair[1]),
+                    zip(journals[:8], correlations[:8], strict=True),
+                )
+            )
+        ninth = journals[8].preflight("report.save", correlations[8])
+
+        assert all(isinstance(outcome, ActionSuccess) for outcome in reservations)
+        assert isinstance(ninth, ActionError)
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 8
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            appends = list(
+                executor.map(
+                    lambda pair: pair[0].append_and_sync(
+                        replace(_record(pair[1]), action_id="report.save")
+                    ),
+                    zip(journals[:8], correlations[:8], strict=True),
+                )
+            )
+        assert all(isinstance(outcome, ActionSuccess) for outcome in appends)
+        assert len(_json_lines(journals[0].path)) == 8
+        assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    finally:
+        for journal, correlation_id in zip(journals, correlations, strict=True):
+            journal.cancel_preflight("report.save", correlation_id)
+
+
+def test_real_reservations_cancel_on_system_exit_record_build_and_effect_recovery_faults(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    system_journal = DiagnosticJournal(tmp_path / "system-exit")
+    with pytest.raises(SystemExit):
+        ActionBoundary(lambda: "system-exit-correlation", system_journal).invoke(
+            "report.save",
+            WorkflowStage.PREVIEW,
+            lambda: (_ for _ in ()).throw(SystemExit(2)),
+        )
+    assert not list((tmp_path / "system-exit").glob(".diagnostics.reserve.*.tmp"))
+
+    record_journal = DiagnosticJournal(tmp_path / "record-build")
+    record_boundary = ActionBoundary(lambda: "record-build-correlation", record_journal)
+    monkeypatch.setattr(
+        record_boundary,
+        "_record",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("record build fault")),
+    )
+    record_outcome = record_boundary.invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: ActionSuccess(
+            "report.save",
+            "record-build-correlation",
+            WorkflowStage.PREVIEW,
+            None,
+        ),
+    )
+    assert isinstance(record_outcome, ActionError)
+    assert not list((tmp_path / "record-build").glob(".diagnostics.reserve.*.tmp"))
+
+    effect_journal = DiagnosticJournal(tmp_path / "effect-recovery")
+    effect_boundary = ActionBoundary(lambda: "effect-recovery-correlation", effect_journal)
+    monkeypatch.setattr(
+        effect_boundary,
+        "_effect_evidence",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("effect fault")),
+    )
+    monkeypatch.setattr(
+        effect_boundary,
+        "_recover_effect_evidence",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("effect recovery fault")),
+    )
+    with pytest.raises(RuntimeError, match="effect recovery fault"):
+        effect_boundary.invoke(
+            "report.save",
+            WorkflowStage.PREVIEW,
+            lambda: ActionSuccess(
+                "report.save",
+                "effect-recovery-correlation",
+                WorkflowStage.PREVIEW,
+                None,
+            ),
+        )
+    assert not list((tmp_path / "effect-recovery").glob(".diagnostics.reserve.*.tmp"))
+
+
+def test_cancel_preflight_is_idempotent_and_allows_a_fresh_reservation(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    assert isinstance(journal.preflight("report.save", "cancel-idempotent"), ActionSuccess)
+
+    journal.cancel_preflight("report.save", "cancel-idempotent")
+    journal.cancel_preflight("report.save", "cancel-idempotent")
+    retry = journal.preflight("report.save", "cancel-idempotent")
+
+    try:
+        assert isinstance(retry, ActionSuccess)
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+    finally:
+        journal.cancel_preflight("report.save", "cancel-idempotent")
+
+
+def test_normal_append_rotates_without_consuming_live_reserved_capacity(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    seed = _record_with_encoded_size(900_000, "normal-interleave-seed")
+    assert isinstance(journal.append_and_sync(seed), ActionSuccess)
+    assert isinstance(
+        journal.preflight("report.save", "normal-interleave-reserved"),
+        ActionSuccess,
+    )
+    try:
+        normal = replace(
+            _record_with_encoded_size(100_000, "normal-interleave-read-only"),
+            action_id="display.detect",
+        )
+        normal_outcome = journal.append_and_sync(normal)
+        reserved_outcome = journal.append_and_sync(
+            replace(
+                _record("normal-interleave-reserved"),
+                action_id="report.save",
+            )
+        )
+
+        assert isinstance(normal_outcome, ActionSuccess)
+        assert isinstance(reserved_outcome, ActionSuccess)
+        active_correlations = [record["correlation_id"] for record in _json_lines(journal.path)]
+        assert active_correlations == [
+            "normal-interleave-read-only",
+            "normal-interleave-reserved",
+        ]
+        assert _json_lines(journal.archive_paths[0])[0]["correlation_id"] == "normal-interleave-seed"
+    finally:
+        journal.cancel_preflight("report.save", "normal-interleave-reserved")
+
+
+def test_bundle_preview_excludes_live_reservation_stages(tmp_path: Path) -> None:
+    journal = DiagnosticJournal(tmp_path)
+    assert isinstance(journal.append_and_sync(_record("bundle-stage-log")), ActionSuccess)
+    assert isinstance(journal.preflight("report.save", "bundle-stage-live"), ActionSuccess)
+    try:
+        preview = journal_module.DiagnosticBundleManager(
+            journal,
+            token_factory=lambda: "bundle-stage-token",
+        ).preview()
+
+        assert [member.basename for member in preview.members] == ["diagnostics.jsonl"]
+        assert all("reserve" not in member.basename for member in preview.members)
+    finally:
+        journal.cancel_preflight("report.save", "bundle-stage-live")
+
+
+def _read_child_line_with_timeout(process: subprocess.Popen[str]) -> str:
+    assert process.stdout is not None
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(process.stdout.readline)
+    try:
+        return future.result(timeout=10.0).strip()
+    except TimeoutError:
+        process.kill()
+        process.wait(timeout=10.0)
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+
+
+def _popen_test_child(script: str, *arguments: str) -> subprocess.Popen[str]:
+    return subprocess.Popen(
+        [sys.executable, "-c", script, *arguments],
+        cwd=Path(__file__).resolve().parents[1],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reservation lock contract")
+def test_windows_subprocess_live_stage_is_retained_then_reaped_after_owner_death(
+    tmp_path: Path,
+) -> None:
+    script = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+        from calibrate_pro.application.journal import DiagnosticJournal
+
+        journal = DiagnosticJournal(Path(sys.argv[1]))
+        outcome = journal.preflight("report.save", "child-live-correlation")
+        print(type(outcome).__name__, flush=True)
+        sys.stdin.readline()
+        """
+    )
+    child = _popen_test_child(script, str(tmp_path))
+    parent = DiagnosticJournal(tmp_path)
+    try:
+        assert _read_child_line_with_timeout(child) == "ActionSuccess"
+        child_stages = list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+        assert len(child_stages) == 1
+        child_stage = child_stages[0]
+
+        parent_outcome = parent.preflight("report.save", "parent-live-correlation")
+        try:
+            assert isinstance(parent_outcome, ActionSuccess)
+            assert child_stage.exists()
+            assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 2
+        finally:
+            parent.cancel_preflight("report.save", "parent-live-correlation")
+
+        child.terminate()
+        child.wait(timeout=10.0)
+        restarted = DiagnosticJournal(tmp_path)
+        restart_outcome = restarted.preflight("report.save", "after-child-crash")
+        try:
+            assert isinstance(restart_outcome, ActionSuccess)
+            assert not child_stage.exists()
+            assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+        finally:
+            restarted.cancel_preflight("report.save", "after-child-crash")
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=10.0)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reservation lock contract")
+def test_windows_restart_reaps_partial_stage_left_by_crash_during_preallocation(
+    tmp_path: Path,
+) -> None:
+    script = textwrap.dedent(
+        """
+        import os
+        import sys
+        from pathlib import Path
+        import calibrate_pro.application.journal as module
+
+        real_write_all = module._write_all
+        def crash_during_fill(file_descriptor, payload):
+            if len(payload) == 65_536:
+                os.write(file_descriptor, payload[:1024])
+                os._exit(23)
+            real_write_all(file_descriptor, payload)
+        module._write_all = crash_during_fill
+        module.DiagnosticJournal(Path(sys.argv[1])).preflight(
+            "report.save", "partial-crash-correlation"
+        )
+        """
+    )
+    child = _popen_test_child(script, str(tmp_path))
+    try:
+        assert child.wait(timeout=10.0) == 23
+        abandoned = list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+        assert len(abandoned) == 1
+        assert 0 < abandoned[0].stat().st_size < 1_048_576
+
+        journal = DiagnosticJournal(tmp_path)
+        outcome = journal.preflight("report.save", "partial-crash-restart")
+        try:
+            assert isinstance(outcome, ActionSuccess)
+            assert not abandoned[0].exists()
+            assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 1
+        finally:
+            journal.cancel_preflight("report.save", "partial-crash-restart")
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=10.0)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reservation lock contract")
+def test_windows_cross_process_reserved_appends_have_no_lost_updates(
+    tmp_path: Path,
+) -> None:
+    script = textwrap.dedent(
+        """
+        import sys
+        from pathlib import Path
+        from calibrate_pro.application.journal import DiagnosticJournal, JournalRecord
+
+        root = Path(sys.argv[1])
+        correlation_id = sys.argv[2]
+        journal = DiagnosticJournal(root)
+        preflight = journal.preflight("report.save", correlation_id)
+        print(type(preflight).__name__, flush=True)
+        sys.stdin.readline()
+        record = JournalRecord(
+            timestamp_utc="2026-07-14T00:00:00Z",
+            correlation_id=correlation_id,
+            product_version="test",
+            runtime_mode="source",
+            platform_version="Windows-test",
+            action_id="report.save",
+            workflow_stage="detect",
+            capability_flags=(),
+            outcome="success",
+            exception_type=None,
+            error_code=None,
+            technical_category=None,
+            redacted_message=None,
+            display_pseudonym=None,
+            plan_sha256=None,
+            asset_sha256=(),
+            apply_phase_flags=(),
+            recovery_guarantee=None,
+            export_basename=None,
+            export_sha256=None,
+        )
+        outcome = journal.append_and_sync(record)
+        print(type(outcome).__name__, flush=True)
+        """
+    )
+    correlations = [f"cross-process-{index}" for index in range(4)]
+    children = [_popen_test_child(script, str(tmp_path), value) for value in correlations]
+    try:
+        assert [_read_child_line_with_timeout(child) for child in children] == [
+            "ActionSuccess"
+        ] * 4
+        assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 4
+        for child in children:
+            assert child.stdin is not None
+            child.stdin.write("GO\n")
+            child.stdin.flush()
+        final_lines: list[str] = []
+        for child in children:
+            assert child.wait(timeout=20.0) == 0
+            assert child.stdout is not None
+            final_lines.append(child.stdout.read().strip())
+            assert child.stderr is not None
+            assert child.stderr.read() == ""
+
+        assert final_lines == ["ActionSuccess"] * 4
+        records = _json_lines(tmp_path / "diagnostics.jsonl")
+        assert {record["correlation_id"] for record in records} == set(correlations)
+        assert len(records) == 4
+        assert not list(tmp_path.glob(".diagnostics.reserve.*.tmp"))
+    finally:
+        for child in children:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=10.0)
 
 
 def test_append_writes_one_strict_utf8_json_line_with_only_allowlisted_fields(
@@ -332,7 +1694,8 @@ def test_exact_byte_limit_is_allowed_then_preflight_rotates_it(tmp_path: Path) -
     assert journal.path.stat().st_size == 1_048_576
     assert not any(path.exists() for path in journal.archive_paths)
 
-    preflight = DiagnosticJournal(tmp_path).preflight(
+    restarted = DiagnosticJournal(tmp_path)
+    preflight = restarted.preflight(
         "diagnostics.test",
         "correlation-exact-limit-restart",
     )
@@ -340,6 +1703,7 @@ def test_exact_byte_limit_is_allowed_then_preflight_rotates_it(tmp_path: Path) -
     assert isinstance(preflight, ActionSuccess)
     assert journal.path.read_bytes() == b""
     assert journal.archive_paths[0].stat().st_size == 1_048_576
+    restarted.cancel_preflight("diagnostics.test", "correlation-exact-limit-restart")
 
 
 def test_threshold_rotation_retains_active_plus_five_deterministic_archives(
@@ -449,32 +1813,23 @@ def test_every_rotation_replace_failure_recovers_with_exact_generation_policy(
     )
 
     assert isinstance(recovered, ActionSuccess)
+    restarted.cancel_preflight("diagnostics.test", f"recovery-{replace_failure_call}")
     assert not [path for path in tmp_path.iterdir() if path.name.endswith(".tmp")]
     paths = (restarted.path, *restarted.archive_paths)
     markers_by_path = {
         path.name: [record["marker"] for record in _json_lines(path)] for path in paths
     }
-    if replace_failure_call <= 6:
-        assert markers_by_path == {
-            "diagnostics.jsonl": ["active"],
-            "diagnostics.1.jsonl": ["archive-1"],
-            "diagnostics.2.jsonl": ["archive-2"],
-            "diagnostics.3.jsonl": ["archive-3"],
-            "diagnostics.4.jsonl": ["archive-4"],
-            "diagnostics.5.jsonl": ["archive-5"],
-        }
-    else:
-        assert markers_by_path == {
-            "diagnostics.jsonl": [],
-            "diagnostics.1.jsonl": ["active"],
-            "diagnostics.2.jsonl": ["archive-1"],
-            "diagnostics.3.jsonl": ["archive-2"],
-            "diagnostics.4.jsonl": ["archive-3"],
-            "diagnostics.5.jsonl": ["archive-4"],
-        }
+    assert markers_by_path == {
+        "diagnostics.jsonl": [],
+        "diagnostics.1.jsonl": ["active"],
+        "diagnostics.2.jsonl": ["archive-1"],
+        "diagnostics.3.jsonl": ["archive-2"],
+        "diagnostics.4.jsonl": ["archive-3"],
+        "diagnostics.5.jsonl": ["archive-4"],
+    }
     retained_markers = [marker for markers in markers_by_path.values() for marker in markers]
     assert all(retained_markers.count(marker) == 1 for marker in retained_markers)
-    assert "archive-5" in retained_markers if replace_failure_call <= 6 else True
+    assert "archive-5" not in retained_markers
 
     appended = restarted.append_and_sync(_record(f"post-recovery-{replace_failure_call}"))
 
@@ -516,11 +1871,14 @@ def test_mid_rotation_replace_fault_recovers_on_restart_without_losing_prior_rec
     combined_after_failure = _all_sibling_bytes(tmp_path)
     assert all(payload in combined_after_failure for payload in durable_payloads)
 
-    recovered = DiagnosticJournal(tmp_path).preflight("diagnostics.test", "correlation-restart")
+    restarted = DiagnosticJournal(tmp_path)
+    recovered = restarted.preflight("diagnostics.test", "correlation-restart")
 
     assert isinstance(recovered, ActionSuccess)
+    restarted.cancel_preflight("diagnostics.test", "correlation-restart")
     combined_after_restart = _all_sibling_bytes(tmp_path)
-    assert all(payload in combined_after_restart for payload in durable_payloads)
+    assert all(payload in combined_after_restart for payload in durable_payloads[:-1])
+    assert durable_payloads[-1] not in combined_after_restart
     assert not list(tmp_path.glob("*.tmp"))
 
 
@@ -646,6 +2004,7 @@ def test_restart_removes_stale_append_temp_after_partial_write_and_unlink_fault(
     assert isinstance(recovered, ActionSuccess)
     assert not append_temp.exists()
     assert restarted.path.read_bytes() == prior
+    restarted.cancel_preflight("diagnostics.test", "recover-stale-append-temp")
 
     appended = restarted.append_and_sync(_record("after-stale-temp-recovery"))
 
@@ -667,7 +2026,8 @@ def test_preflight_prunes_archive_generations_beyond_five_on_restart(tmp_path: P
             encoding="utf-8",
         )
 
-    outcome = DiagnosticJournal(tmp_path).preflight(
+    restarted = DiagnosticJournal(tmp_path)
+    outcome = restarted.preflight(
         "diagnostics.test",
         "correlation-prune-restart",
     )
@@ -680,6 +2040,7 @@ def test_preflight_prunes_archive_generations_beyond_five_on_restart(tmp_path: P
         "diagnostics.4.jsonl",
         "diagnostics.5.jsonl",
     )
+    restarted.cancel_preflight("diagnostics.test", "correlation-prune-restart")
     assert len(list(tmp_path.glob("diagnostics.*.jsonl"))) == 5
 
 
