@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from typing import NoReturn
 
 import pytest
@@ -176,6 +176,112 @@ def test_boundary_converts_unexpected_exception_and_never_reports_success():
     assert record.exception_type == "RuntimeError"
 
 
+@pytest.mark.parametrize("invalid_result", [None, "", 7])
+def test_boundary_converts_invalid_correlation_factory_results_without_starting_operation(
+    invalid_result: object,
+):
+    journal = RecordingJournal()
+    invoked = False
+
+    def invalid_factory() -> object:
+        return invalid_result
+
+    def operation() -> ActionSuccess[None]:
+        nonlocal invoked
+        invoked = True
+        return _success("display.detect", "unreachable", None)
+
+    boundary = ActionBoundary(correlation_id_factory=invalid_factory, journal_sink=journal)  # type: ignore[arg-type]
+    outcome = boundary.invoke("display.detect", WorkflowStage.PREVIEW, operation)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "CORRELATION_ID_UNAVAILABLE"
+    assert outcome.action_id == "display.detect"
+    assert outcome.stage is WorkflowStage.PREVIEW
+    assert outcome.correlation_id
+    assert not invoked
+    assert [event for event, _ in journal.events] == ["append"]
+    record = journal.events[0][1]
+    assert isinstance(record, JournalRecord)
+    assert record.correlation_id == outcome.correlation_id
+    assert record.action_id == outcome.action_id
+    assert record.workflow_stage == outcome.stage.value
+    assert record.outcome == "failure"
+    assert record.exception_type == "InvalidCorrelationId"
+
+
+def test_boundary_converts_correlation_factory_exception_without_starting_operation():
+    journal = RecordingJournal()
+    invoked = False
+
+    def fail_factory() -> NoReturn:
+        raise RuntimeError("private correlation provider detail")
+
+    def operation() -> ActionSuccess[None]:
+        nonlocal invoked
+        invoked = True
+        return _success("display.detect", "unreachable", None)
+
+    boundary = ActionBoundary(correlation_id_factory=fail_factory, journal_sink=journal)
+    outcome = boundary.invoke("display.detect", WorkflowStage.PREVIEW, operation)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "CORRELATION_ID_UNAVAILABLE"
+    assert outcome.correlation_id
+    assert not invoked
+    record = journal.events[0][1]
+    assert isinstance(record, JournalRecord)
+    assert record.correlation_id == outcome.correlation_id
+    assert record.exception_type == "RuntimeError"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "wrong_value"),
+    [
+        ("action_id", "another.action"),
+        ("stage", WorkflowStage.APPLY),
+        ("correlation_id", "corr-from-operation"),
+    ],
+)
+def test_boundary_rejects_mismatched_typed_outcome_identity_and_journals_invocation_identity(
+    field_name: str,
+    wrong_value: object,
+):
+    for returned in (
+        _success("display.detect", "corr-0001", {"displays": 1}),
+        _error("display.detect", "corr-0001"),
+    ):
+        journal = RecordingJournal()
+        boundary = ActionBoundary(correlation_id_factory=CorrelationIds(), journal_sink=journal)
+        mismatched = replace(returned, **{field_name: wrong_value})
+
+        outcome = boundary.invoke("display.detect", WorkflowStage.PREVIEW, lambda value=mismatched: value)
+
+        assert isinstance(outcome, ActionError)
+        assert outcome.code == "INVALID_ACTION_OUTCOME"
+        assert outcome.action_id == "display.detect"
+        assert outcome.stage is WorkflowStage.PREVIEW
+        assert outcome.correlation_id == "corr-0001"
+        record = journal.events[0][1]
+        assert isinstance(record, JournalRecord)
+        assert record.action_id == outcome.action_id
+        assert record.workflow_stage == outcome.stage.value
+        assert record.correlation_id == outcome.correlation_id
+        assert record.outcome == "failure"
+        assert record.exception_type == "InvalidActionOutcomeIdentity"
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt(), SystemExit(2)])
+def test_boundary_never_swallows_process_control_from_correlation_factory(interruption: BaseException):
+    def stop() -> NoReturn:
+        raise interruption
+
+    boundary = ActionBoundary(correlation_id_factory=stop, journal_sink=RecordingJournal())
+
+    with pytest.raises(type(interruption)):
+        boundary.invoke("display.detect", WorkflowStage.PREVIEW, lambda: _success("display.detect", "unused"))
+
+
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt(), SystemExit(2)])
 def test_boundary_never_swallows_process_control_exceptions(interruption: BaseException):
     boundary = ActionBoundary(correlation_id_factory=CorrelationIds(), journal_sink=RecordingJournal())
@@ -233,6 +339,89 @@ class PublishedEvidence:
 class FakeApplyEvidence:
     apply_phase_flags: tuple[tuple[str, bool], ...]
     recovery_guarantee: str
+
+
+def test_effect_evidence_extraction_failure_is_typed_journaled_and_preserves_available_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    journal = RecordingJournal()
+    boundary = ActionBoundary(correlation_id_factory=CorrelationIds(), journal_sink=journal)
+    evidence = PublishedEvidence(("report.json", "b" * 64))
+
+    def fail_effect_evidence(*_args: object, **_kwargs: object) -> NoReturn:
+        raise RuntimeError("private evidence extractor detail")
+
+    monkeypatch.setattr(boundary, "_effect_evidence", fail_effect_evidence)
+
+    outcome = boundary.invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: _success("report.save", "corr-0001", evidence),
+    )
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "ACTION_COMPLETED_DIAGNOSTICS_FAILED"
+    assert outcome.action_id == "report.save"
+    assert outcome.stage is WorkflowStage.PREVIEW
+    assert outcome.correlation_id == "corr-0001"
+    assert outcome.effect_state == "local_write_published"
+    assert outcome.published_artifact == evidence.published_artifact
+    assert [event for event, _ in journal.events] == ["preflight", "append"]
+    record = journal.events[-1][1]
+    assert isinstance(record, JournalRecord)
+    assert record.outcome == "failure"
+    assert record.exception_type == "RuntimeError"
+    assert (record.export_basename, record.export_sha256) == evidence.published_artifact
+
+
+def test_journal_record_construction_failure_is_typed_and_preserves_available_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    journal = RecordingJournal()
+    boundary = ActionBoundary(correlation_id_factory=CorrelationIds(), journal_sink=journal)
+    evidence = PublishedEvidence(("report.json", "b" * 64))
+
+    def fail_record(*_args: object, **_kwargs: object) -> NoReturn:
+        raise RuntimeError("private record construction detail")
+
+    monkeypatch.setattr(boundary, "_record", fail_record)
+
+    outcome = boundary.invoke(
+        "report.save",
+        WorkflowStage.PREVIEW,
+        lambda: _success("report.save", "corr-0001", evidence),
+    )
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.code == "ACTION_COMPLETED_DIAGNOSTICS_FAILED"
+    assert outcome.action_id == "report.save"
+    assert outcome.stage is WorkflowStage.PREVIEW
+    assert outcome.correlation_id == "corr-0001"
+    assert outcome.effect_state == "local_write_published"
+    assert outcome.published_artifact == evidence.published_artifact
+    assert [event for event, _ in journal.events] == ["preflight"]
+
+
+@pytest.mark.parametrize("method_name", ["_effect_evidence", "_record"])
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt(), SystemExit(2)])
+def test_boundary_never_swallows_process_control_from_internal_outcome_processing(
+    method_name: str,
+    interruption: BaseException,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    boundary = ActionBoundary(correlation_id_factory=CorrelationIds(), journal_sink=RecordingJournal())
+
+    def stop(*_args: object, **_kwargs: object) -> NoReturn:
+        raise interruption
+
+    monkeypatch.setattr(boundary, method_name, stop)
+
+    with pytest.raises(type(interruption)):
+        boundary.invoke(
+            "display.detect",
+            WorkflowStage.PREVIEW,
+            lambda: _success("display.detect", "corr-0001", None),
+        )
 
 
 def test_final_sync_failure_preserves_published_local_artifact_evidence():

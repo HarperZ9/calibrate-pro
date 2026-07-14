@@ -58,6 +58,7 @@ class ActionContext:
     generated_asset_kinds: frozenset[Literal["ICC", "CUBE"]]
     sealed_plan_sha256: str | None
     confirmation_state: Literal["none", "live", "confirmed", "consumed", "expired"]
+    fake_applied_plan_sha256: str | None
     capability_generation: int
     sealed_capability_generation: int | None
     verification_evidence: EvidenceKind | None
@@ -108,6 +109,7 @@ class ActionContext:
             "expired",
         }:
             raise ValueError("confirmation_state is invalid")
+        _validate_optional_sha256(self.fake_applied_plan_sha256, "fake_applied_plan_sha256")
         _validate_generation(self.capability_generation, "capability_generation")
         if self.sealed_capability_generation is not None:
             _validate_generation(self.sealed_capability_generation, "sealed_capability_generation")
@@ -428,7 +430,13 @@ def _validate_module_name(value: str) -> None:
 
 
 def _validate_resource_path(value: str) -> None:
-    if "*" in value or ".." in value or "\\" in value or value.startswith("/"):
+    if (
+        "*" in value
+        or ".." in value
+        or "\\" in value
+        or value.startswith("/")
+        or re.match(r"^[A-Za-z]:", value) is not None
+    ):
         raise ValueError("required_resources must be normalized relative paths without traversal or wildcards")
     parts = value.split("/")
     if any(not part or part == "." for part in parts):
@@ -539,7 +547,11 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         )
     if action_id == "verification.sensorless":
         production_confirmed = not context.fake_acceptance and context.confirmation_state == "confirmed"
-        fake_applied = context.fake_acceptance and context.confirmation_state == "consumed"
+        fake_applied = (
+            context.fake_acceptance
+            and context.confirmation_state == "consumed"
+            and context.fake_applied_plan_sha256 == context.sealed_plan_sha256
+        )
         return (
             _sensorless_ready(context)
             and context.sealed_plan_sha256 is not None

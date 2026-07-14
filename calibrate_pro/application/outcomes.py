@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Generic, Literal, Protocol, TypeAlias, TypeVar, cast
+from uuid import uuid4
 
 from calibrate_pro import __version__
 from calibrate_pro.application.actions import ActionClassification, ActionRegistry
@@ -96,9 +97,12 @@ class ActionBoundary:
         stage: WorkflowStage,
         operation: Callable[[], ActionOutcome[T]],
     ) -> ActionOutcome[T]:
-        correlation_id = self._correlation_id_factory()
+        try:
+            correlation_id = self._correlation_id_factory()
+        except Exception as exc:
+            return self._correlation_failure(action_id, stage, type(exc).__name__)
         if type(correlation_id) is not str or not correlation_id:
-            raise ValueError("CorrelationIdFactory must return a non-empty exact string")
+            return self._correlation_failure(action_id, stage, "InvalidCorrelationId")
 
         if self._requires_preflight(action_id):
             preflight_failure = self._preflight(action_id, stage, correlation_id)
@@ -157,21 +161,64 @@ class ActionBoundary:
                 apply_phase_flags=(),
                 recovery_guarantee=None,
             )
+        elif outcome.action_id != action_id or outcome.stage is not stage or outcome.correlation_id != correlation_id:
+            exception_type = "InvalidActionOutcomeIdentity"
+            outcome = ActionError(
+                action_id=action_id,
+                code="INVALID_ACTION_OUTCOME",
+                summary="The action returned an outcome with inconsistent invocation identity.",
+                retryable=False,
+                next_action="Review diagnostics before retrying.",
+                stage=stage,
+                category="contract",
+                correlation_id=correlation_id,
+                effect_state="none",
+                published_artifact=None,
+                apply_phase_flags=(),
+                recovery_guarantee=None,
+            )
 
-        effect_state, published_artifact, phase_flags, recovery_guarantee = self._effect_evidence(
-            action_id,
-            outcome,
-        )
-        record = self._record(
-            action_id=action_id,
-            stage=stage,
-            correlation_id=correlation_id,
-            outcome=outcome,
-            exception_type=exception_type,
-            published_artifact=published_artifact,
-            phase_flags=phase_flags,
-            recovery_guarantee=recovery_guarantee,
-        )
+        try:
+            effect_state, published_artifact, phase_flags, recovery_guarantee = self._effect_evidence(
+                action_id,
+                outcome,
+            )
+        except Exception as exc:
+            exception_type = type(exc).__name__
+            effect_state, published_artifact, phase_flags, recovery_guarantee = self._recover_effect_evidence(
+                action_id,
+                outcome,
+            )
+            outcome = self._sync_failure(
+                action_id,
+                stage,
+                correlation_id,
+                effect_state,
+                published_artifact,
+                phase_flags,
+                recovery_guarantee,
+            )
+        try:
+            record = self._record(
+                action_id=action_id,
+                stage=stage,
+                correlation_id=correlation_id,
+                outcome=outcome,
+                exception_type=exception_type,
+                published_artifact=published_artifact,
+                phase_flags=phase_flags,
+                recovery_guarantee=recovery_guarantee,
+            )
+        except Exception:
+            return self._sync_failure(
+                action_id,
+                stage,
+                correlation_id,
+                effect_state,
+                published_artifact,
+                phase_flags,
+                recovery_guarantee,
+            )
         try:
             sync_outcome = self._journal_sink.append_and_sync(record)
         except Exception:
@@ -195,6 +242,43 @@ class ActionBoundary:
                 recovery_guarantee,
             )
         return cast(ActionOutcome[T], outcome)
+
+    def _correlation_failure(
+        self,
+        action_id: str,
+        stage: WorkflowStage,
+        exception_type: str,
+    ) -> ActionError:
+        correlation_id = _emergency_correlation_id()
+        outcome = ActionError(
+            action_id=action_id,
+            code="CORRELATION_ID_UNAVAILABLE",
+            summary="The action could not start because its diagnostic correlation ID was unavailable.",
+            retryable=True,
+            next_action="Restore the diagnostic correlation provider and retry.",
+            stage=stage,
+            category="diagnostics",
+            correlation_id=correlation_id,
+            effect_state="none",
+            published_artifact=None,
+            apply_phase_flags=(),
+            recovery_guarantee=None,
+        )
+        try:
+            record = self._record(
+                action_id=action_id,
+                stage=stage,
+                correlation_id=correlation_id,
+                outcome=outcome,
+                exception_type=exception_type,
+                published_artifact=None,
+                phase_flags=(),
+                recovery_guarantee=None,
+            )
+            self._journal_sink.append_and_sync(record)
+        except Exception:
+            pass
+        return outcome
 
     def _requires_preflight(self, action_id: str) -> bool:
         spec = self._registry._spec_for(action_id)
@@ -244,6 +328,42 @@ class ActionBoundary:
         spec = self._registry._spec_for(action_id)
         if spec is not None and spec.classification is ActionClassification.LOCAL_FILE_WRITE:
             published_artifact = _read_published_artifact(value)
+            if published_artifact is not None:
+                return "local_write_published", published_artifact, (), None
+        return "none", None, (), None
+
+    def _recover_effect_evidence(
+        self,
+        action_id: str,
+        outcome: ActionOutcome[Any],
+    ) -> tuple[EffectState, tuple[str, str] | None, tuple[tuple[str, bool], ...], str | None]:
+        """Recover only evidence already present on a typed outcome after extractor failure."""
+        if isinstance(outcome, ActionError):
+            return (
+                outcome.effect_state,
+                outcome.published_artifact,
+                outcome.apply_phase_flags,
+                outcome.recovery_guarantee,
+            )
+        if action_id == "fake_acceptance.apply":
+            try:
+                phase_flags = _read_apply_phase_flags(outcome.value)
+            except Exception:
+                phase_flags = ()
+            try:
+                recovery_guarantee = _read_recovery_guarantee(outcome.value)
+            except Exception:
+                recovery_guarantee = None
+            return "fake_apply_attempted", None, phase_flags, recovery_guarantee
+        try:
+            spec = self._registry._spec_for(action_id)
+        except Exception:
+            return "none", None, (), None
+        if spec is not None and spec.classification is ActionClassification.LOCAL_FILE_WRITE:
+            try:
+                published_artifact = _read_published_artifact(outcome.value)
+            except Exception:
+                published_artifact = None
             if published_artifact is not None:
                 return "local_write_published", published_artifact, (), None
         return "none", None, (), None
@@ -367,6 +487,13 @@ def _is_phase_flags(value: object) -> bool:
         if type(name) is not str or not name or type(flag) is not bool:
             return False
     return True
+
+
+def _emergency_correlation_id() -> str:
+    try:
+        return f"correlation-unavailable-{uuid4().hex}"
+    except Exception:
+        return "correlation-id-unavailable"
 
 
 __all__ = [

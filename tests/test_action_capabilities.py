@@ -7,6 +7,7 @@ from dataclasses import fields, replace
 import pytest
 
 from calibrate_pro.application.actions import (
+    PRESET_TARGETS,
     ActionClassification,
     ActionContext,
     ActionDisposition,
@@ -202,6 +203,7 @@ def _context(**changes: object) -> ActionContext:
         generated_asset_kinds=frozenset({"ICC", "CUBE"}),
         sealed_plan_sha256="a" * 64,
         confirmation_state="live",
+        fake_applied_plan_sha256=None,
         capability_generation=7,
         sealed_capability_generation=7,
         verification_evidence=EvidenceKind.ESTIMATED,
@@ -309,14 +311,24 @@ def test_manifest_rejects_missing_and_extra_action_keys():
         ("required_modules", ["calibrate_pro.*"]),
         ("required_modules", ["calibrate_pro..actions"]),
         ("required_resources", ["../private.json"]),
+        ("required_resources", ["C:/private.json"]),
     ],
 )
-def test_manifest_rejects_wildcards_and_parent_traversal(field_name: str, invalid_value: object):
+def test_manifest_rejects_wildcards_traversal_and_drive_qualified_resources(field_name: str, invalid_value: object):
     record = _manifest_record()
     record[field_name] = invalid_value
 
     with pytest.raises(ValueError):
         ActionRegistry.from_json_bytes(_manifest_bytes(record))
+
+
+def test_manifest_accepts_normalized_relative_posix_resource_paths():
+    record = _manifest_record()
+    record["required_resources"] = ["resources/contracts/action.json"]
+
+    registry = ActionRegistry.from_json_bytes(_manifest_bytes(record))
+
+    assert registry._specs_by_id["test.action"].required_resources == ("resources/contracts/action.json",)
 
 
 def test_manifest_rejects_enabled_action_without_handler_and_receipt_without_contract():
@@ -353,6 +365,59 @@ def test_phase_one_context_rejects_simulated_and_replayed_evidence():
             _context(verification_evidence=evidence)
 
 
+def test_action_context_shape_includes_plan_bound_fake_apply_evidence():
+    assert tuple(field.name for field in fields(ActionContext)) == (
+        "stage",
+        "runtime_mode",
+        "fake_acceptance",
+        "selected_display_id",
+        "characterization_kind",
+        "selected_method",
+        "target_valid",
+        "selected_preset_id",
+        "target_hdr",
+        "generated_asset_kinds",
+        "sealed_plan_sha256",
+        "confirmation_state",
+        "fake_applied_plan_sha256",
+        "capability_generation",
+        "sealed_capability_generation",
+        "verification_evidence",
+        "export_source_ready",
+        "configured_export_directory_valid",
+        "available_export_formats",
+        "selected_profile_reparsed",
+        "validated_import_ready",
+        "supported_vcp_codes",
+        "diagnostic_bundle_preview_live",
+        "journal_ready",
+        "physical_apply_qualified",
+        "measured_qualified",
+    )
+
+
+@pytest.mark.parametrize("digest", ["not-a-digest", "A" * 64])
+def test_action_context_rejects_noncanonical_fake_applied_plan_digest(digest: str):
+    with pytest.raises(ValueError, match="fake_applied_plan_sha256"):
+        _context(fake_applied_plan_sha256=digest)
+
+
+def test_preset_targets_are_exact_literals_and_hdr10_stays_disabled():
+    expected = {
+        "calibration.preset.srgb_web": ("sRGB", "D65", "2.2", False),
+        "calibration.preset.rec709": ("Rec.709", "D65", "BT.1886", False),
+        "calibration.preset.dci_p3": ("DCI-P3", "D65", "2.4", False),
+        "calibration.preset.photography": ("sRGB", "D50", "2.2", False),
+    }
+    registry = ActionRegistry.load_default()
+    context = _context()
+
+    assert dict(PRESET_TARGETS) == expected
+    for action_id in expected:
+        assert registry.resolve(action_id, context).disposition is ActionDisposition.ENABLED
+    assert registry.resolve("calibration.preset.hdr10", context).disposition is ActionDisposition.DISABLED
+
+
 @pytest.mark.parametrize(
     ("field_name", "invalid_value"),
     [
@@ -380,94 +445,280 @@ def test_calibration_generate_predicates_are_independently_default_deny(field_na
     assert denied.disposition is ActionDisposition.DISABLED
 
 
-def test_plan_actions_require_matching_capability_generation_and_live_confirmation():
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("generated_asset_kinds", frozenset()),
+        ("generated_asset_kinds", frozenset({"ICC"})),
+        ("generated_asset_kinds", frozenset({"CUBE"})),
+        ("sealed_plan_sha256", None),
+        ("export_source_ready", False),
+        ("journal_ready", False),
+    ],
+)
+def test_preview_predicates_are_independently_default_deny(field_name: str, invalid_value: object):
     registry = ActionRegistry.load_default()
     baseline = _context()
 
     assert registry.resolve("calibration.preview", baseline).disposition is ActionDisposition.ENABLED
     assert (
-        registry.resolve("calibration.preview", replace(baseline, generated_asset_kinds=frozenset({"ICC"}))).disposition
+        registry.resolve("calibration.preview", replace(baseline, **{field_name: invalid_value})).disposition
         is ActionDisposition.DISABLED
     )
-    assert (
-        registry.resolve("calibration.preview", replace(baseline, export_source_ready=False)).disposition
-        is ActionDisposition.DISABLED
-    )
-    for action_id in ("calibration.preview", "calibration.confirm_plan", "calibration.decline_plan"):
-        assert (
-            registry.resolve(action_id, replace(baseline, sealed_capability_generation=6)).disposition
-            is ActionDisposition.DISABLED
-        )
-    for action_id in ("calibration.confirm_plan", "calibration.decline_plan"):
-        assert (
-            registry.resolve(action_id, replace(baseline, confirmation_state="expired")).disposition
-            is ActionDisposition.DISABLED
-        )
 
 
-def test_fake_apply_is_zero_surface_fake_only_and_production_default_denied():
+@pytest.mark.parametrize("action_id", ["calibration.confirm_plan", "calibration.decline_plan"])
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("sealed_plan_sha256", None),
+        ("confirmation_state", "none"),
+        ("confirmation_state", "confirmed"),
+        ("confirmation_state", "consumed"),
+        ("confirmation_state", "expired"),
+        ("journal_ready", False),
+    ],
+)
+def test_confirmation_predicates_are_independently_default_deny(action_id: str, field_name: str, invalid_value: object):
     registry = ActionRegistry.load_default()
-    production = _context(confirmation_state="confirmed")
-    fake = replace(production, fake_acceptance=True)
+    baseline = _context()
+
+    assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve(action_id, replace(baseline, **{field_name: invalid_value})).disposition
+        is ActionDisposition.DISABLED
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("fake_acceptance", False),
+        ("sealed_plan_sha256", None),
+        ("confirmation_state", "none"),
+        ("confirmation_state", "live"),
+        ("confirmation_state", "consumed"),
+        ("confirmation_state", "expired"),
+        ("journal_ready", False),
+    ],
+)
+def test_fake_apply_predicates_are_independently_default_deny(field_name: str, invalid_value: object):
+    registry = ActionRegistry.load_default()
+    baseline = _context(fake_acceptance=True, confirmation_state="confirmed")
 
     assert registry.surfaces_by_action["fake_acceptance.apply"] == frozenset()
-    assert registry.resolve("fake_acceptance.apply", production).disposition is ActionDisposition.DISABLED
-    assert registry.resolve("fake_acceptance.apply", fake).disposition is ActionDisposition.ENABLED
-    for field_name, invalid_value in (
+    assert registry.resolve("fake_acceptance.apply", baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve("fake_acceptance.apply", replace(baseline, **{field_name: invalid_value})).disposition
+        is ActionDisposition.DISABLED
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("selected_display_id", None),
+        ("characterization_kind", CharacterizationKind.UNKNOWN),
+        ("selected_method", CalibrationMethod.MEASURED),
+        ("target_hdr", True),
+        ("sealed_plan_sha256", None),
         ("confirmation_state", "live"),
-        ("sealed_capability_generation", 6),
-        ("journal_ready", False),
-    ):
-        assert (
-            registry.resolve("fake_acceptance.apply", replace(fake, **{field_name: invalid_value})).disposition
-            is ActionDisposition.DISABLED
-        )
-
-
-def test_exports_reports_profile_and_bundle_require_their_exact_capabilities():
+        ("verification_evidence", EvidenceKind.MEASURED),
+    ],
+)
+def test_production_sensorless_verification_predicates_are_independently_default_deny(
+    field_name: str, invalid_value: object
+):
     registry = ActionRegistry.load_default()
-    baseline = _context(confirmation_state="confirmed")
-    save_report = replace(baseline, stage=WorkflowStage.SAVE_REPORT)
+    baseline = _context(
+        stage=WorkflowStage.VERIFY,
+        confirmation_state="confirmed",
+        verification_evidence=None,
+    )
 
-    for export_format in save_report.available_export_formats:
-        action_id = f"export.active.{export_format}"
-        assert registry.resolve(action_id, save_report).disposition is ActionDisposition.ENABLED
-        assert (
-            registry.resolve(
-                action_id,
-                replace(
-                    save_report,
-                    available_export_formats=save_report.available_export_formats - {export_format},
-                ),
-            ).disposition
-            is ActionDisposition.DISABLED
-        )
-    assert registry.resolve("report.save", save_report).disposition is ActionDisposition.ENABLED
+    assert registry.resolve("verification.sensorless", baseline).disposition is ActionDisposition.ENABLED
     assert (
-        registry.resolve("report.save", replace(save_report, configured_export_directory_valid=False)).disposition
+        registry.resolve("verification.sensorless", replace(baseline, **{field_name: invalid_value})).disposition
         is ActionDisposition.DISABLED
     )
-    assert registry.resolve("profile.export", baseline).disposition is ActionDisposition.ENABLED
-    assert (
-        registry.resolve("profile.export", replace(baseline, selected_profile_reparsed=False)).disposition
-        is ActionDisposition.DISABLED
+
+
+def test_fake_sensorless_verification_requires_current_successful_apply_digest():
+    registry = ActionRegistry.load_default()
+    sealed_digest = "a" * 64
+    baseline = _context(
+        stage=WorkflowStage.VERIFY,
+        fake_acceptance=True,
+        confirmation_state="consumed",
+        sealed_plan_sha256=sealed_digest,
+        fake_applied_plan_sha256=None,
+        verification_evidence=None,
     )
-    assert registry.resolve("diagnostics.bundle.create", baseline).disposition is ActionDisposition.ENABLED
+
+    # No/failed receipt and token consumption alone carry no applied-plan digest.
+    assert registry.resolve("verification.sensorless", baseline).disposition is ActionDisposition.DISABLED
     assert (
         registry.resolve(
-            "diagnostics.bundle.create", replace(baseline, diagnostic_bundle_preview_live=False)
+            "verification.sensorless",
+            replace(baseline, fake_applied_plan_sha256="b" * 64),
+        ).disposition
+        is ActionDisposition.DISABLED
+    )
+    current = replace(baseline, fake_applied_plan_sha256=sealed_digest)
+    assert registry.resolve("verification.sensorless", current).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve(
+            "verification.sensorless",
+            replace(current, confirmation_state="confirmed"),
+        ).disposition
+        is ActionDisposition.DISABLED
+    )
+    assert (
+        registry.resolve(
+            "verification.sensorless",
+            replace(current, verification_evidence=EvidenceKind.MEASURED),
         ).disposition
         is ActionDisposition.DISABLED
     )
 
 
-def test_phase_two_import_ddc_measured_and_physical_actions_remain_disabled_when_qualified():
+def test_export_source_ready_is_an_independent_service_owned_proof(monkeypatch: pytest.MonkeyPatch):
+    registry = ActionRegistry.load_default()
+    baseline = _context(export_source_ready=True)
+
+    def deny_filesystem_access(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("pure resolver must not read private asset bytes")
+
+    monkeypatch.setattr("builtins.open", deny_filesystem_access)
+
+    assert registry.resolve("calibration.preview", baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve("calibration.preview", replace(baseline, export_source_ready=False)).disposition
+        is ActionDisposition.DISABLED
+    )
+
+
+def test_exports_and_report_require_each_independent_source_and_journal_predicate():
+    registry = ActionRegistry.load_default()
+    export_actions = (
+        ("export.active.cube", "cube"),
+        ("export.active.3dlut", "3dlut"),
+        ("export.active.png", "png"),
+        ("export.active.icc", "icc"),
+        ("export.active.mpv", "mpv"),
+        ("export.active.obs", "obs"),
+    )
+    baseline = _context(stage=WorkflowStage.SAVE_REPORT, confirmation_state="confirmed")
+
+    for action_id, export_format in export_actions:
+        assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+        for denied in (
+            replace(baseline, available_export_formats=baseline.available_export_formats - {export_format}),
+            replace(baseline, sealed_plan_sha256=None),
+            replace(baseline, verification_evidence=None),
+            replace(baseline, export_source_ready=False),
+            replace(baseline, journal_ready=False),
+        ):
+            assert registry.resolve(action_id, denied).disposition is ActionDisposition.DISABLED
+
+    assert registry.resolve("report.save", baseline).disposition is ActionDisposition.ENABLED
+    for denied in (
+        replace(baseline, sealed_plan_sha256=None),
+        replace(baseline, verification_evidence=None),
+        replace(baseline, export_source_ready=False),
+        replace(baseline, configured_export_directory_valid=False),
+        replace(baseline, journal_ready=False),
+    ):
+        assert registry.resolve("report.save", denied).disposition is ActionDisposition.DISABLED
+
+
+def test_profile_export_and_bundle_create_predicates_are_independently_default_deny():
+    registry = ActionRegistry.load_default()
+    baseline = _context()
+
+    assert registry.resolve("profile.export", baseline).disposition is ActionDisposition.ENABLED
+    for denied in (
+        replace(baseline, selected_profile_reparsed=False),
+        replace(baseline, journal_ready=False),
+    ):
+        assert registry.resolve("profile.export", denied).disposition is ActionDisposition.DISABLED
+
+    assert registry.resolve("diagnostics.bundle.create", baseline).disposition is ActionDisposition.ENABLED
+    for denied in (
+        replace(baseline, diagnostic_bundle_preview_live=False),
+        replace(baseline, journal_ready=False),
+    ):
+        assert registry.resolve("diagnostics.bundle.create", denied).disposition is ActionDisposition.DISABLED
+
+
+def test_generation_mismatch_disables_every_plan_dependent_action():
+    registry = ActionRegistry.load_default()
+    preview = _context()
+    fake_apply = _context(fake_acceptance=True, confirmation_state="confirmed")
+    verify = _context(
+        stage=WorkflowStage.VERIFY,
+        confirmation_state="confirmed",
+        verification_evidence=None,
+    )
+    save = _context(stage=WorkflowStage.SAVE_REPORT, confirmation_state="confirmed")
+    cases = (
+        ("calibration.preview", preview),
+        ("calibration.confirm_plan", preview),
+        ("calibration.decline_plan", preview),
+        ("fake_acceptance.apply", fake_apply),
+        ("verification.sensorless", verify),
+        ("report.save", save),
+        ("export.active.cube", save),
+        ("export.active.3dlut", save),
+        ("export.active.png", save),
+        ("export.active.icc", save),
+        ("export.active.mpv", save),
+        ("export.active.obs", save),
+    )
+
+    for action_id, baseline in cases:
+        assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+        mismatch = replace(baseline, sealed_capability_generation=baseline.capability_generation + 1)
+        assert registry.resolve(action_id, mismatch).disposition is ActionDisposition.DISABLED
+
+
+def test_all_seventeen_ddc_actions_remain_phase_two_disabled_when_qualified():
+    registry = ActionRegistry.load_default()
+    ddc_action_ids = (
+        "ddc.stage.brightness",
+        "ddc.stage.contrast",
+        "ddc.stage.red_gain",
+        "ddc.stage.green_gain",
+        "ddc.stage.blue_gain",
+        "ddc.stage.red_black_level",
+        "ddc.stage.green_black_level",
+        "ddc.stage.blue_black_level",
+        "ddc.unsupported.image_mode",
+        "ddc.unsupported.color_preset",
+        "ddc.unsupported.gamma",
+        "ddc.unsupported.factory_color_reset",
+        "ddc.read_current",
+        "ddc.restore_defaults",
+        "ddc.raw_read",
+        "ddc.raw_write",
+        "ddc.apply",
+    )
+    context = _context(
+        supported_vcp_codes=frozenset(range(256)),
+        physical_apply_qualified=True,
+    )
+
+    assert len(ddc_action_ids) == 17
+    for action_id in ddc_action_ids:
+        assert registry.resolve(action_id, context).disposition is ActionDisposition.DISABLED
+
+
+def test_phase_two_import_measured_and_physical_actions_remain_disabled_when_qualified():
     registry = ActionRegistry.load_default()
     context = _context(validated_import_ready=True, physical_apply_qualified=True, measured_qualified=True)
 
     for action_id in (
         "panel_profile.import",
-        "ddc.apply",
         "display.restore_defaults",
         "calibration.method.measured",
         "verification.measured",
