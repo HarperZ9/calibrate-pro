@@ -243,6 +243,133 @@ class ActionBoundary:
             )
         return cast(ActionOutcome[T], outcome)
 
+    def invoke_diagnostic_preview(
+        self,
+        stage: WorkflowStage,
+        finalizer: Callable[[], T],
+    ) -> ActionOutcome[T]:
+        """Issue a bundle preview only after its own success record is durable."""
+        action_id = "diagnostics.bundle.preview"
+        try:
+            correlation_id = self._correlation_id_factory()
+        except Exception as exc:
+            return self._correlation_failure(action_id, stage, type(exc).__name__)
+        if type(correlation_id) is not str or not correlation_id:
+            return self._correlation_failure(action_id, stage, "InvalidCorrelationId")
+
+        provisional = ActionSuccess(
+            action_id=action_id,
+            correlation_id=correlation_id,
+            stage=stage,
+            value=None,
+        )
+        try:
+            record = self._record(
+                action_id=action_id,
+                stage=stage,
+                correlation_id=correlation_id,
+                outcome=provisional,
+                exception_type=None,
+                published_artifact=None,
+                phase_flags=(),
+                recovery_guarantee=None,
+            )
+            sync_outcome = self._journal_sink.append_and_sync(record)
+        except Exception:
+            return self._journal_unavailable(action_id, stage, correlation_id)
+        if not isinstance(sync_outcome, ActionSuccess):
+            return self._journal_unavailable(action_id, stage, correlation_id)
+
+        exception_type: str | None = None
+        try:
+            value = finalizer()
+        except ActionFailure as exc:
+            exception_type = type(exc).__name__
+            failure = ActionError(
+                action_id=action_id,
+                code=exc.code,
+                summary=exc.summary,
+                retryable=exc.retryable,
+                next_action=exc.next_action,
+                stage=stage,
+                category=exc.category,
+                correlation_id=correlation_id,
+                effect_state=exc.effect_state,
+                published_artifact=exc.published_artifact,
+                apply_phase_flags=exc.apply_phase_flags,
+                recovery_guarantee=exc.recovery_guarantee,
+            )
+        except Exception as exc:
+            exception_type = type(exc).__name__
+            failure = ActionError(
+                action_id=action_id,
+                code="DIAGNOSTIC_BUNDLE_PREVIEW_FAILED",
+                summary="The diagnostic bundle preview could not be created.",
+                retryable=True,
+                next_action="Create a new diagnostic bundle preview and retry.",
+                stage=stage,
+                category="diagnostics",
+                correlation_id=correlation_id,
+                effect_state="none",
+                published_artifact=None,
+                apply_phase_flags=(),
+                recovery_guarantee=None,
+            )
+        else:
+            return ActionSuccess(
+                action_id=action_id,
+                correlation_id=correlation_id,
+                stage=stage,
+                value=value,
+            )
+
+        try:
+            failure_record = self._record(
+                action_id=action_id,
+                stage=stage,
+                correlation_id=correlation_id,
+                outcome=failure,
+                exception_type=exception_type,
+                published_artifact=failure.published_artifact,
+                phase_flags=failure.apply_phase_flags,
+                recovery_guarantee=failure.recovery_guarantee,
+            )
+            failure_sync = self._journal_sink.append_and_sync(failure_record)
+        except Exception:
+            failure_sync = None
+        if not isinstance(failure_sync, ActionSuccess):
+            return self._sync_failure(
+                action_id,
+                stage,
+                correlation_id,
+                failure.effect_state,
+                failure.published_artifact,
+                failure.apply_phase_flags,
+                failure.recovery_guarantee,
+            )
+        return failure
+
+    @staticmethod
+    def _journal_unavailable(
+        action_id: str,
+        stage: WorkflowStage,
+        correlation_id: str,
+    ) -> ActionError:
+        return ActionError(
+            action_id=action_id,
+            code="DIAGNOSTIC_JOURNAL_UNAVAILABLE",
+            summary="The diagnostic journal is unavailable, so the action was not started.",
+            retryable=True,
+            next_action="Restore diagnostic journal access and retry.",
+            stage=stage,
+            category="diagnostics",
+            correlation_id=correlation_id,
+            effect_state="none",
+            published_artifact=None,
+            apply_phase_flags=(),
+            recovery_guarantee=None,
+        )
+
     def _correlation_failure(
         self,
         action_id: str,
