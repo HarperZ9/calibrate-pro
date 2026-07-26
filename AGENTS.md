@@ -52,7 +52,7 @@ git diff --check
 For a dependency-light package smoke check from this workspace:
 
 ```powershell
-$env:PYTHONPATH = "C:\dev\public\pubscan\build-color;."
+$env:PYTHONPATH = "../build-color;."   # sibling checkout
 python -m pytest tests/test_color_math.py -q
 ```
 
@@ -61,7 +61,7 @@ test slice first:
 
 ```powershell
 python -m pip install -e .
-$env:PYTHONPATH = "C:\dev\public\pubscan\build-color;."
+$env:PYTHONPATH = "../build-color;."   # sibling checkout
 python -m pytest tests/test_lut_engine.py -q
 python -m pytest tests/test_verification.py -q
 ```
