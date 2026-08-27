@@ -246,6 +246,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return run(args)
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """Serve the read-only catalog and doctor tools over MCP stdio."""
+    from calibrate_pro.mcp import serve
+
+    return serve()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Calibrate Pro - least-privilege display calibration",
@@ -268,6 +275,7 @@ def _build_parser() -> argparse.ArgumentParser:
     patterns.add_argument("--display", "-d", type=int)
     plugins = subparsers.add_parser("plugins", help="List discovered plugins")
     plugins.add_argument("--plugin-dir")
+    subparsers.add_parser("mcp", help="Serve read-only catalog + doctor over MCP stdio")
 
     for command in sorted(_CONFIRMATION_COMMANDS):
         command_parser = subparsers.add_parser(command, help="Requires GUI preview and confirmation")
@@ -294,6 +302,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "info": cmd_info,
         "list-panels": cmd_list_panels,
         "list-targets": cmd_list_targets,
+        "mcp": cmd_mcp,
         "patterns": cmd_patterns,
         "plugins": cmd_plugins,
         "tray": cmd_tray,
