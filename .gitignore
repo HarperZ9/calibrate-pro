@@ -21,3 +21,6 @@ CLAUDE.local.md
 
 # raw hardware dumps
 *.bin
+
+# machine-local dwm_lut monitor bindings
+/dwm_lut/config.xml
