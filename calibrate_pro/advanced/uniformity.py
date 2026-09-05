@@ -735,6 +735,7 @@ def create_test_measurements(
         # Luminance falls off towards edges
         lum = center_luminance * (1 - edge_falloff * dist * 2)
         lum += np.random.normal(0, center_luminance * 0.01)  # 1% noise
+        lum = max(0.0, lum)
 
         # Slight color shift towards edges
         x = center_x + np.random.normal(0, 0.002) + dist * 0.005
@@ -746,10 +747,12 @@ def create_test_measurements(
                 grid_y=row,
                 screen_x=x_norm,
                 screen_y=y_norm,
-                luminance=max(0, lum),
+                luminance=lum,
                 chromaticity_x=x,
                 chromaticity_y=y,
-                xyz=(0, lum, 0),  # Simplified
+                # X and Z follow from the chromaticity above. Leaving them at
+                # zero described a color that no chromaticity_x or _y matches.
+                xyz=(lum * x / y, lum, lum * (1 - x - y) / y),
             )
         )
 

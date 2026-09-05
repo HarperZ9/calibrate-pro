@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Renamed a chromaticity distance off the Delta E field. The DDC/CI white point loop computes the
+  distance between target and measured white in the CIE 1976 u'v' plane, multiplied it by 100,
+  and stored it as `delta_e`, where a reader compares it against Delta E tolerances that do not
+  share its scale. The loop never measures the target luminance, so no CIE Delta E is available
+  from it. The field is `delta_uv` and holds the raw distance, where roughly 0.002 is a just
+  noticeable white point shift.
+- Gave the two calibration result classes separate names on the package surface. The DDC/CI
+  white point loop and the calibration engine each define a `HardwareCalibrationResult`, and
+  they hold different fields. The lazy exporter in `calibrate_pro.hardware` had a branch for
+  each under that one name, so the second never ran, and `__all__` listed the name beside the
+  DDC/CI calibrator while the package handed out the engine's class. Importing the name to
+  read a white point result got an object without any of its fields. The DDC/CI result is now
+  exported as `DDCCalibrationResult`, and `__all__` lists each result with the module it comes
+  from.
+- Made the simulated uniformity measurements internally consistent. `create_test_measurements`
+  built tristimulus values of (0, luminance, 0) beside a chromaticity pair describing a different
+  color, so anything converting the XYZ got an answer the chromaticity contradicts. X and Z now
+  follow from the chromaticity, and the luminance clamp runs before both, so the Y a record
+  reports is the luminance it reports.
 - Made the colorimeter read the patch it is asked about. `_measure_patch` took a reading without
   putting anything on screen, on a comment saying a pattern window would be needed and that the
   patch could be assumed displayed for now, then filed the reading under the RGB it had been
