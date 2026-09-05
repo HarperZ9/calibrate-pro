@@ -323,9 +323,25 @@ def test_the_readme_sorts_the_developer_only_names_the_way_the_packaging_does() 
     listed = set(fenced_commands(text, DEVELOPER_ONLY_INTRO))
 
     assert listed, "the developer-wheel block names no commands"
-    assert listed <= withheld, f"the packaged build does answer: {sorted(listed & shipped)}"
+    assert not listed & shipped, f"the packaged build does answer: {sorted(listed & shipped)}"
+    assert listed == withheld, f"the page and the packaging disagree: {sorted(listed ^ withheld)}"
     assert "exit code 2" in text
     assert "available only in the developer wheel" in text
+
+
+def test_the_readme_does_not_offer_the_wheel_for_a_command_the_wheel_declines() -> None:
+    """The block recommending an install may name only commands that install works for.
+
+    It named every command absent from the packaged binary, two thirds of which
+    the wheel refuses. The page is checked against the declined list rather than
+    against the developer-only list, so a name that stops running in the wheel
+    has to leave this block instead of quietly becoming bad advice.
+    """
+    declined = set(frozen_features()["declined_commands"])
+
+    listed = set(fenced_commands(readme(), DEVELOPER_ONLY_INTRO))
+
+    assert not listed & declined, f"the wheel declines these too: {sorted(listed & declined)}"
 
 
 def test_the_readme_does_not_offer_a_measured_mode_the_manifest_declares_disabled() -> None:

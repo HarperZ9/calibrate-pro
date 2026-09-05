@@ -2,6 +2,16 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Stopped the packaged binary sending operators to a wheel that refuses the same
+  command. `CalibrateProCLI.exe` listed 21 names as living in the developer wheel,
+  and the wheel declines 14 of them. Typing `restore` on a packaged install read as
+  an instruction to install Python and a package, which ended at the same refusal.
+  The dispatcher now keeps two lists: seven names the wheel really does run, which
+  keep the install sentence, and the fourteen it declines, which are answered with
+  what no build performs and a pointer to the window. `packaging/frozen-features.json`
+  records the split, and a gate compares its declined half against the wheel's own
+  refusal table so a name cannot be advertised as available elsewhere while the
+  wheel refuses it.
 - Made every declined command answer in one shape. Half the names the parser offers
   are declined, and they arrived by two paths that read differently. One printed the
   capability model's classification beside the reason, so a reader was told a command

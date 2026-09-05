@@ -19,10 +19,24 @@ _COMMANDS = {
     "hdr": "calibrate_pro.commands.hdr",
 }
 
-#: Names the developer command line offers that this build does not ship. They
-#: are listed rather than inferred from what is missing, so a command added
-#: there is refused here until somebody says which of the two lists it is in.
+#: Names the developer wheel runs that this build does not ship. They are
+#: listed rather than inferred from what is missing, so a command added there
+#: is refused here until somebody says which of the two lists it belongs in.
 _DEVELOPER_ONLY_COMMANDS = {
+    "hdr-status",
+    "info",
+    "list-panels",
+    "list-targets",
+    "mcp",
+    "plugins",
+    "tray",
+}
+
+#: Names from earlier releases that this release performs in no build. The
+#: wheel declines every one of them, so answering them with the sentence above
+#: would cost an operator a Python install and end at the same refusal. The
+#: split is what keeps the packaged binary from sending anyone on that trip.
+_DECLINED_COMMANDS = {
     "auto",
     "calibrate",
     "ddc-calibrate",
@@ -30,23 +44,32 @@ _DEVELOPER_ONLY_COMMANDS = {
     "disable-startup",
     "enable-startup",
     "export-panel",
-    "hdr-status",
     "import-panel",
-    "info",
-    "list-panels",
-    "list-targets",
     "match",
-    "mcp",
     "native-calibrate",
     "patterns",
-    "plugins",
     "refine",
     "restore",
-    "tray",
     "uniformity",
 }
 
 _DEVELOPER_ONLY_MESSAGE = "This command is available only in the developer wheel"
+
+#: Written out rather than imported from calibrate_pro.main. Reading it there
+#: would load the action layer into the one dispatcher whose job is not to, so
+#: a release gate compares the two strings instead of sharing them.
+_UNTOUCHED = "Nothing was read and no display state was changed."
+
+
+def _declined_lines(command: str) -> tuple[str, ...]:
+    """Answer a name this release performs nowhere, and close the wheel as a route."""
+    return (
+        f"'{command}' is a name from an earlier release that this build does not perform.",
+        "The developer wheel declines it as well, so installing it would not add the command.",
+        "Run 'gui' to preview and confirm a change through the window.",
+        _UNTOUCHED,
+    )
+
 
 _USAGE_LINES = (
     "Calibrate Pro frozen commands:",
@@ -88,6 +111,10 @@ def main(argv: Sequence[str] | None = None, *, program: str | None = None) -> in
     if command in {"-v", "--version"}:
         print(f"Calibrate Pro {__version__}")
         return 0
+    if command in _DECLINED_COMMANDS:
+        for line in _declined_lines(command):
+            print(line, file=sys.stderr)
+        return 2
     if command in _DEVELOPER_ONLY_COMMANDS:
         print(_DEVELOPER_ONLY_MESSAGE, file=sys.stderr)
         return 2

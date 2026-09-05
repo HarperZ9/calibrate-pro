@@ -37,7 +37,7 @@ EXCLUDED_QT_IMPORTS = {
 }
 
 EXPECTED_FEATURES = {
-    "schema_version": 1,
+    "schema_version": 2,
     "commands": [
         "detect",
         "diagnostics",
@@ -50,6 +50,15 @@ EXPECTED_FEATURES = {
         "verify",
     ],
     "developer_only_commands": [
+        "hdr-status",
+        "info",
+        "list-panels",
+        "list-targets",
+        "mcp",
+        "plugins",
+        "tray",
+    ],
+    "declined_commands": [
         "auto",
         "calibrate",
         "ddc-calibrate",
@@ -57,19 +66,12 @@ EXPECTED_FEATURES = {
         "disable-startup",
         "enable-startup",
         "export-panel",
-        "hdr-status",
         "import-panel",
-        "info",
-        "list-panels",
-        "list-targets",
         "match",
-        "mcp",
         "native-calibrate",
         "patterns",
-        "plugins",
         "refine",
         "restore",
-        "tray",
         "uniformity",
     ],
 }
@@ -94,6 +96,7 @@ def test_the_shipped_command_policy_is_the_dispatcher_the_binary_runs() -> None:
 
     assert sorted({*frozen_main._COMMANDS, *frozen_main._SESSION_COMMANDS}) == features["commands"]
     assert sorted(frozen_main._DEVELOPER_ONLY_COMMANDS) == features["developer_only_commands"]
+    assert sorted(frozen_main._DECLINED_COMMANDS) == features["declined_commands"]
 
 
 def test_frozen_module_policy_is_literal_and_fail_closed() -> None:
@@ -292,9 +295,47 @@ def test_frozen_dispatcher_rejects_developer_commands_without_importing_them(mon
         lambda _name: (_ for _ in ()).throw(AssertionError("developer-only command imported a module")),
     )
     sys.modules.pop("calibrate_pro.gui.app", None)
-    assert frozen_main.main(["calibrate"], program="CalibrateProCLI.exe") == 2
+    assert frozen_main.main(["tray"], program="CalibrateProCLI.exe") == 2
     assert "This command is available only in the developer wheel" in capsys.readouterr().err
     assert "calibrate_pro.gui.app" not in sys.modules
+
+
+def test_the_binary_does_not_send_a_declined_name_to_the_wheel(monkeypatch, capsys) -> None:
+    """A name no build performs says so here rather than recommending an install.
+
+    Every name in this list is refused by the developer wheel as well, so the
+    developer-wheel sentence sent an operator to install Python for a command
+    that would refuse there too. The check reads both halves off the dispatcher:
+    a declined name must not carry that sentence, and it must say what the wheel
+    would do with it.
+    """
+    from calibrate_pro import frozen_main
+
+    monkeypatch.setattr(
+        frozen_main,
+        "import_module",
+        lambda _name: (_ for _ in ()).throw(AssertionError("a declined command imported a module")),
+    )
+
+    for command in sorted(frozen_main._DECLINED_COMMANDS):
+        assert frozen_main.main([command], program="CalibrateProCLI.exe") == 2
+        printed = capsys.readouterr().err
+        assert command in printed, f"{command} does not name itself"
+        assert frozen_main._DEVELOPER_ONLY_MESSAGE not in printed, f"{command} still points at the wheel"
+        assert "declines it as well" in printed, f"{command} does not say what the wheel does"
+        assert frozen_main._UNTOUCHED in printed, f"{command} does not say nothing was touched"
+
+
+def test_the_two_dispatchers_say_the_same_thing_about_touching_nothing() -> None:
+    """The sentence is written out twice, so it is compared rather than shared.
+
+    Importing it from calibrate_pro.main would pull the action layer into the
+    dispatcher that exists to avoid loading it, which the module allowlist above
+    is built to prevent.
+    """
+    from calibrate_pro import frozen_main, main
+
+    assert frozen_main._UNTOUCHED == main._UNTOUCHED
 
 
 def test_frozen_dispatcher_defaults_gui_and_cli_safely(monkeypatch, capsys) -> None:

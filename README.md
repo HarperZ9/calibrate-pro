@@ -115,7 +115,9 @@ calibrate-pro tray              # Open the read-only system tray
 calibrate-pro mcp               # Serve the MCP endpoint
 ```
 
-The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in neither half reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 2.0: they do not mutate the display and instead direct the operator to preview and confirm through the window.
+The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in none of its lists reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list.
+
+Old direct-action names such as `auto`, `calibrate`, and `restore` are declined in 2.0 by the packaged binary and by the wheel alike. Neither changes display state, and the packaged binary says what it will not do rather than recommending an install that would end at the same refusal. Both point to the window, where a change is previewed and confirmed.
 
 See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.0/examples).
 

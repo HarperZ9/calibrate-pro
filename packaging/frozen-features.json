@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     "detect",
     "diagnostics",
@@ -12,6 +12,15 @@
     "verify"
   ],
   "developer_only_commands": [
+    "hdr-status",
+    "info",
+    "list-panels",
+    "list-targets",
+    "mcp",
+    "plugins",
+    "tray"
+  ],
+  "declined_commands": [
     "auto",
     "calibrate",
     "ddc-calibrate",
@@ -19,19 +28,12 @@
     "disable-startup",
     "enable-startup",
     "export-panel",
-    "hdr-status",
     "import-panel",
-    "info",
-    "list-panels",
-    "list-targets",
     "match",
-    "mcp",
     "native-calibrate",
     "patterns",
-    "plugins",
     "refine",
     "restore",
-    "tray",
     "uniformity"
   ]
 }

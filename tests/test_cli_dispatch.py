@@ -189,19 +189,37 @@ def test_building_the_parser_loads_neither_the_action_layer_nor_a_driver() -> No
 
 
 def test_the_frozen_build_places_every_name_the_parser_offers_in_one_list() -> None:
-    """A name is either shipped in the binary or refused there as developer-only.
+    """A name is shipped in the binary, held back to the wheel, or declined everywhere.
 
-    Neither list is derived from the parser, which is what makes this a check
-    rather than a restatement of one table in another. A name in neither half
-    is answered by the frozen binary as an unknown command, which reads to an
+    No list is derived from the parser, which is what makes this a check rather
+    than a restatement of one table in another. A name in none of the three is
+    answered by the frozen binary as an unknown command, which reads to an
     operator as a typo rather than as a command that exists elsewhere.
     """
     features = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
     shipped = set(features["commands"])
     withheld = set(features["developer_only_commands"])
+    declined = set(features["declined_commands"])
 
     assert not shipped & withheld
-    assert shipped | withheld == parser_commands()
+    assert not shipped & declined
+    assert not withheld & declined
+    assert shipped | withheld | declined == parser_commands()
+
+
+def test_the_frozen_build_sends_nobody_to_a_wheel_that_declines_the_same_name() -> None:
+    """The packaged binary named 21 commands as living in the developer wheel.
+
+    Fourteen of them are refused by that wheel. An operator who typed one read
+    an instruction to install Python and a package, did it, and met the same
+    refusal at the end. The two halves are split here against the refusal table
+    itself, so a name can only be advertised as available elsewhere while the
+    wheel still runs it.
+    """
+    features = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
+
+    assert features["declined_commands"] == sorted(main._CONFIRMATION_COMMANDS)
+    assert not set(features["developer_only_commands"]) & main._CONFIRMATION_COMMANDS
 
 
 def test_every_declined_name_refuses_in_the_same_shape(

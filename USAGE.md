@@ -95,8 +95,9 @@ session gives, which is the answer `import-panel` gives at the command line.
 
 The Python package exposes the commands below. The frozen Windows CLI ships nine of
 them: `detect`, `diagnostics`, `doctor`, `generate-profiles`, `gui`, `hdr`, `profiles`,
-`status`, and `verify`. Naming any other command there prints that it lives in the developer wheel and
-exits 2, rather than reporting it as a name that does not exist.
+`status`, and `verify`. Naming any other command there exits 2 with a sentence about that name rather
+than an unknown-command error. Seven of them run in the developer wheel and say so. The rest are
+declined by the wheel as well, and the binary reports that instead of recommending an install.
 
 | Command | Purpose |
 |---|---|
@@ -217,6 +218,9 @@ Each returns exit code 2 without changing display state. A name with a declared 
 behind it is declined in the resolver's own words and names that action, so a terminal
 and a window give one answer about what this build does. The rest report that this build
 declares no capability behind them, without inventing an action to cite.
+
+`CalibrateProCLI.exe` ships none of these names and reaches the same conclusion for each,
+adding that installing the developer wheel would not add the command.
 
 Command-line flags from 1.0 are not accepted as an unattended actuation path. A supported
 display change still requires the window's preview and an explicit confirmation.
