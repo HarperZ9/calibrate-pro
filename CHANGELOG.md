@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- Gave a display the bundled panel database cannot name a way forward. Detection adopts
+  such a display rather than rejecting it, and adopts it uncharacterized, so every
+  calibration method and every target after that refused it. The one action that supplies
+  a characterization was declared, resolved, and drawn by no window, which left that
+  display on the Calibrate page with nothing on the page open to it. The dashboard now
+  carries a row saying how the session characterized the display it holds, with the
+  control that takes the generic path beside it. A matched session sees the control
+  disabled in place with the resolver's own sentence rather than finding it absent.
+- Made that row state the session rather than the observation behind it. Taking the
+  generic path is a decision the session records, and the detection pass is unchanged, so
+  the card still reports an uncharacterized panel while the resolver works from a
+  characterized one. The row reads the session, and rereads it when a pass finishes and
+  whenever the dashboard comes back into view, because the Calibrate page can move the
+  selection while the operator is looking somewhere else.
+- Added the gate that would have caught the missing control. The per-page tests read one
+  direction, control to declared action, and nothing read the other. A new gate builds the
+  window and both dialogs, unions every action they bound, and requires each declared
+  surface to be presented or written down under one of four reasons: hidden by the
+  manifest, performed from a shortcut or a signal Qt gives no control for, drawn as a
+  refusal reason, or an honest null. Each reason is checked against the manifest or the
+  source, so an entry cannot become a stale excuse for a control somebody removed.
+- Fixed two DDC controls that were painted as though they were live. Both are disabled in
+  this build, and the stylesheets they carried declared no disabled colours, so an
+  unavailable accent button and an unavailable destructive button drew at full strength.
+  Both now take the disabled colours the shared button style declares.
 - Widened the GUI truthfulness gates to the window they are about. Three source scans
   read a list of filenames written by hand, and nine of the fourteen modules the window
   reaches were not on it, so both dialogs, the DDC page, the settings page, and the

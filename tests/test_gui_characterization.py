@@ -206,6 +206,25 @@ def test_a_window_that_detected_nothing_says_so_rather_than_guessing() -> None:
     assert characterization_note(None) == "No display is selected. Run a detection pass to select one."
 
 
+def test_the_preview_window_describes_its_fixture_rather_than_a_selection(qapp: object) -> None:
+    """A preview draws cards from a bundled fixture and detects nothing.
+
+    The starting sentence a real window shows says no display is selected yet,
+    which reads as a claim about this machine on a surface whose cards came
+    from a file. The preview says where its cards came from instead, and the
+    control stays closed because the preview session holds no selection.
+    """
+    from calibrate_pro.gui.app import CalibrateProWindow
+
+    window = CalibrateProWindow(preview_mode=True)
+
+    assert window.dashboard._characterization_label.text() == (
+        "These cards come from a bundled fixture. No session selected a display."
+    )
+    assert not window.dashboard.use_generic_btn.isEnabled()
+    assert not window.dashboard.use_generic_btn.isHidden()
+
+
 def test_returning_to_the_dashboard_rereads_the_session(unmatched_window: object) -> None:
     """The Calibrate page can move the selection while nobody is watching it.
 
