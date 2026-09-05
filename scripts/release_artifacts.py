@@ -168,7 +168,18 @@ def _toc_entries(value: object) -> list[tuple[str, str, str]]:
 
 
 def audit_analysis_toc(analysis_toc: str | Path, module_policy: Policy) -> dict[str, Any]:
-    """Reject unapproved first-party modules and forbidden GUI/binding roots."""
+    """Reject unapproved first-party modules and forbidden GUI/binding roots.
+
+    The first-party checks read every entry in the analysis table of contents,
+    so they hold wherever the build ran. The distribution-roots check does not.
+    It can only name the distribution a dependency came from by reading the
+    path segment after ``site-packages``, so a build whose dependencies resolve
+    from anywhere else contributes no observed roots and the check passes on an
+    empty set. That covers an editable install, a ``pip install --target``
+    directory, and a layout that imports from a directory not named
+    ``site-packages``. Read a pass as bounding the dependency set only for a
+    build run inside the locked release virtual environment.
+    """
     toc_path = Path(analysis_toc).resolve()
     try:
         toc_value = ast.literal_eval(toc_path.read_text(encoding="utf-8"))

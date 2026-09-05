@@ -73,6 +73,14 @@ markers = [
 [tool.coverage.run]
 source = ["calibrate_pro"]
 omit = ["*/gui/*", "*/tray/*"]  # GUI/tray are exercised manually, not in headless CI
+# A coverage run on this machine dies with an access violation inside the display
+# DC path in panels/detection.py rather than reporting a failure, so a crashed
+# run is not a red suite and must not be read as one. Every native GDI call there
+# runs on a daemon thread, and the terminal cleanup path starts a second one, so
+# the tracer is attached to threads the interpreter can kill mid-call. That is the
+# suspected mechanism, not a diagnosed one: confirming it means driving real GDI
+# against the attached displays, which the contributor rules put outside routine
+# work. The plain suite is unaffected and is the gate.
 
 [tool.coverage.report]
 show_missing = true

@@ -26,12 +26,22 @@ calibrate_pro/
     windows_display_state.py
                     canonical DDC/CI, ICC, VCGT, and DWM write boundary
 
+  services/         long-running watchers and proposal builders; none of them
+                    write display state
   gui/              PySide6 presentation; emits proposals, never raw writes
   commands/         unelevated desktop/HDR launch, read-only doctor, and the
                     headless calibration session a terminal drives
   main.py           developer command dispatch and proposal-only legacy names
   frozen_main.py    the frozen entry point behind both packaged executables
 ```
+
+Two of the four service modules have a live caller. `calibration_guard` backs the
+guard the window starts, and `drift_monitor` backs the tray's calibration-age report.
+`gamut_clamp` and `app_switcher` are re-exported from `calibrate_pro.services` and
+nothing constructs them: the per-app switcher's two actions, `settings.per_app.enabled`
+and `settings.per_app.rules`, are declared hidden in the action manifest because their
+product workflow is not specified, and no surface offers a system-wide gamut clamp. Both
+modules ship as implementations without a workflow rather than as features of this build.
 
 Low-level Windows modules still contain native API wrappers. Application code cannot
 import or call their writer primitives directly; `DefaultWindowsDisplayAdapter` is the
