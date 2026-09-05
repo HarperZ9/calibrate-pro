@@ -1,9 +1,12 @@
-"""DDC/CI proposal editor.
+"""DDC/CI control surface.
 
-Allowlisted calibration controls are staged in memory. Raw VCP, preset, and
-factory-reset operations remain unavailable until they have a confirmed plan.
+Every control here stands for one action the manifest declares, and the session
+decides what each one is. The page writes nothing to a monitor and holds no
+private notion of what is permitted.
 """
 
+from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -12,7 +15,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -22,9 +24,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.results import DetectionSummary
+from calibrate_pro.gui.action_binding import ActionBinder
 from calibrate_pro.gui.app import C, Card, Heading, StatusDot
-from calibrate_pro.workflow import DDC_WRITE_CODES
 
 # Slider Stylesheet
 
@@ -127,6 +130,16 @@ def _make_slider_row(
 #: What the selector shows before any detection pass has been handed to it.
 NO_SESSION_ITEM = "No detection pass has run in this session"
 
+#: The transaction every control on this page depends on. Its resolved reason
+#: is what the status line reports, so one sentence from the manifest covers
+#: the page rather than a second one written here.
+DDC_TRANSACTION = "ddc.apply"
+
+#: What a control says before a session has answered for it. A page built
+#: without a binder disables its controls rather than offering one whose
+#: trigger goes nowhere.
+UNBOUND_REASON = "No session has answered for this control."
+
 
 class DDCControlPage(QWidget):
     """DDC/CI staging surface, listing the displays the session observed.
@@ -140,10 +153,13 @@ class DDCControlPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._controller = None
         self._monitors: list[dict[str, Any]] = []
         self._current_monitor: dict[str, Any] | None = None
-        self._pending_changes: dict[str, int] = {}
+        # Filled while the page is built and read when it is bound. A value
+        # control emits no trigger signal, so it is kept apart from the buttons,
+        # which are connected to the action they stand for.
+        self._staged_controls: dict[str, QWidget] = {}
+        self._command_controls: dict[str, QPushButton] = {}
         self._build()
 
     def _build(self):
@@ -197,7 +213,7 @@ class DDCControlPage(QWidget):
             SLIDER_STYLE,
             initial=50,
         )
-        self._brightness_slider.valueChanged.connect(self._set_brightness)
+        self._stage("ddc.stage.brightness", self._brightness_slider)
         bc_layout.addLayout(row)
 
         row, self._contrast_slider, _ = _make_slider_row(
@@ -205,7 +221,7 @@ class DDCControlPage(QWidget):
             SLIDER_STYLE,
             initial=50,
         )
-        self._contrast_slider.valueChanged.connect(self._set_contrast)
+        self._stage("ddc.stage.contrast", self._contrast_slider)
         bc_layout.addLayout(row)
 
         layout.addWidget(bc_card)
@@ -223,7 +239,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.RED,
         )
-        self._red_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("RED_GAIN", v))
+        self._stage("ddc.stage.red_gain", self._red_gain_slider)
         gain_layout.addLayout(row)
 
         row, self._green_gain_slider, _ = _make_slider_row(
@@ -232,7 +248,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.GREEN,
         )
-        self._green_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GREEN_GAIN", v))
+        self._stage("ddc.stage.green_gain", self._green_gain_slider)
         gain_layout.addLayout(row)
 
         row, self._blue_gain_slider, _ = _make_slider_row(
@@ -241,7 +257,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.CYAN,
         )
-        self._blue_gain_slider.valueChanged.connect(lambda v: self._set_vcp_safe("BLUE_GAIN", v))
+        self._stage("ddc.stage.blue_gain", self._blue_gain_slider)
         gain_layout.addLayout(row)
 
         layout.addWidget(gain_card)
@@ -259,7 +275,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.RED,
         )
-        self._red_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("RED_BLACK_LEVEL", v))
+        self._stage("ddc.stage.red_black_level", self._red_offset_slider)
         offset_layout.addLayout(row)
 
         row, self._green_offset_slider, _ = _make_slider_row(
@@ -268,7 +284,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.GREEN,
         )
-        self._green_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GREEN_BLACK_LEVEL", v))
+        self._stage("ddc.stage.green_black_level", self._green_offset_slider)
         offset_layout.addLayout(row)
 
         row, self._blue_offset_slider, _ = _make_slider_row(
@@ -277,7 +293,7 @@ class DDCControlPage(QWidget):
             initial=50,
             label_color=C.CYAN,
         )
-        self._blue_offset_slider.valueChanged.connect(lambda v: self._set_vcp_safe("BLUE_BLACK_LEVEL", v))
+        self._stage("ddc.stage.blue_black_level", self._blue_offset_slider)
         offset_layout.addLayout(row)
 
         layout.addWidget(offset_card)
@@ -324,7 +340,7 @@ class DDCControlPage(QWidget):
             ]
         )
         self._picture_mode_combo.setStyleSheet(combo_style)
-        self._picture_mode_combo.currentIndexChanged.connect(lambda idx: self._set_vcp_safe("IMAGE_MODE", idx))
+        self._stage("ddc.unsupported.image_mode", self._picture_mode_combo)
         pic_row.addWidget(self._picture_mode_combo, stretch=1)
         mode_layout.addLayout(pic_row)
 
@@ -354,7 +370,7 @@ class DDCControlPage(QWidget):
             ]
         )
         self._color_preset_combo.setStyleSheet(combo_style)
-        self._color_preset_combo.currentIndexChanged.connect(lambda idx: self._set_vcp_safe("COLOR_PRESET", idx))
+        self._stage("ddc.unsupported.color_preset", self._color_preset_combo)
         color_row.addWidget(self._color_preset_combo, stretch=1)
         mode_layout.addLayout(color_row)
 
@@ -367,8 +383,7 @@ class DDCControlPage(QWidget):
         )
         self._gamma_slider.setRange(10, 30)
         self._gamma_slider.setValue(22)
-        self._gamma_slider.setToolTip("Gamma value x10 (22 = gamma 2.2)")
-        self._gamma_slider.valueChanged.connect(lambda v: self._set_vcp_safe("GAMMA", v))
+        self._stage("ddc.unsupported.gamma", self._gamma_slider)
         mode_layout.addLayout(gamma_row)
 
         # Factory reset button (specific resets)
@@ -380,8 +395,7 @@ class DDCControlPage(QWidget):
             f"color: {C.TEXT2}; }}"
             f"QPushButton:hover {{ border-color: {C.ACCENT}; }}"
         )
-        reset_color_btn.setToolTip("VCP 0x0A: Restore factory color settings only")
-        reset_color_btn.clicked.connect(lambda: self._set_vcp_safe("RESTORE_FACTORY_COLOR", 1))
+        self._command("ddc.unsupported.factory_color_reset", reset_color_btn)
         mode_layout.addWidget(reset_color_btn)
 
         layout.addWidget(mode_card)
@@ -400,7 +414,7 @@ class DDCControlPage(QWidget):
             f"font-weight: 600; padding: 6px 22px; }}"
             f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
         )
-        read_btn.clicked.connect(self._read_current)
+        self._command("ddc.read_current", read_btn)
         btn_row.addWidget(read_btn)
 
         reset_btn = QPushButton("Reset to Default")
@@ -411,7 +425,7 @@ class DDCControlPage(QWidget):
             f"color: {C.RED}; }}"
             f"QPushButton:hover {{ border-color: {C.RED}; background: {C.SURFACE2}; }}"
         )
-        reset_btn.clicked.connect(self._reset_defaults)
+        self._command("ddc.restore_defaults", reset_btn)
         btn_row.addWidget(reset_btn)
 
         layout.addLayout(btn_row)
@@ -424,13 +438,13 @@ class DDCControlPage(QWidget):
         # --- Advanced: Raw VCP Read/Write ---
         adv_card, adv_layout = Card.with_layout(spacing=14)
 
-        adv_heading = QLabel("Advanced \u2014 Raw VCP Read/Write")
+        adv_heading = QLabel("Advanced: raw VCP read and write")
         adv_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
         adv_layout.addWidget(adv_heading)
 
         adv_desc = QLabel(
-            "Read or write arbitrary VCP codes directly. "
-            "Use with caution \u2014 invalid codes may be ignored or cause unexpected behavior."
+            "Read or write one VCP code. The session decides whether either is "
+            "available and refuses the request when it is not."
         )
         adv_desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT3};")
         adv_desc.setWordWrap(True)
@@ -458,6 +472,7 @@ class DDCControlPage(QWidget):
             f"font-family: 'Cascadia Code', 'Consolas', monospace; }}"
             f"QSpinBox::up-button, QSpinBox::down-button {{ width: 16px; }}"
         )
+        self._stage("ddc.raw_read", self._vcp_code_spin)
         code_row.addWidget(self._vcp_code_spin)
 
         self._vcp_read_btn = QPushButton("Read")
@@ -470,7 +485,7 @@ class DDCControlPage(QWidget):
             f"font-weight: 600; padding: 4px 14px; }}"
             f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
         )
-        self._vcp_read_btn.clicked.connect(self._raw_vcp_read)
+        self._command("ddc.raw_read", self._vcp_read_btn)
         code_row.addWidget(self._vcp_read_btn)
 
         code_row.addStretch()
@@ -496,6 +511,7 @@ class DDCControlPage(QWidget):
             f"font-family: 'Cascadia Code', 'Consolas', monospace; }}"
             f"QSpinBox::up-button, QSpinBox::down-button {{ width: 16px; }}"
         )
+        self._stage("ddc.raw_write", self._vcp_value_spin)
         write_row.addWidget(self._vcp_value_spin)
 
         self._vcp_write_btn = QPushButton("Write")
@@ -507,28 +523,59 @@ class DDCControlPage(QWidget):
             f"color: {C.RED}; font-weight: 600; }}"
             f"QPushButton:hover {{ border-color: {C.RED}; background: {C.SURFACE2}; }}"
         )
-        self._vcp_write_btn.clicked.connect(self._raw_vcp_write)
+        self._command("ddc.raw_write", self._vcp_write_btn)
         write_row.addWidget(self._vcp_write_btn)
 
         write_row.addStretch()
         adv_layout.addLayout(write_row)
 
-        # Result label
-        self._vcp_result_label = QLabel("")
-        self._vcp_result_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT2}; "
-            f"font-family: 'Cascadia Code', 'Consolas', monospace; "
-            f"background: {C.SURFACE2}; border-radius: 6px; padding: 8px 12px;"
-        )
-        self._vcp_result_label.setWordWrap(True)
-        self._vcp_result_label.setMinimumHeight(32)
-        self._vcp_result_label.hide()
-        adv_layout.addWidget(self._vcp_result_label)
-
         layout.addWidget(adv_card)
 
         layout.addStretch()
         scroll.setWidget(content)
+
+    # Action binding
+
+    def _stage(self, action_id: str, control: QWidget) -> None:
+        """Record one value control as standing for an action, and disable it.
+
+        A slider or a combo emits no trigger signal, so nothing is connected
+        here. Disabling it now means a page nobody bound offers no control that
+        would silently do nothing.
+        """
+        self._staged_controls[action_id] = control
+        control.setEnabled(False)
+        control.setToolTip(UNBOUND_REASON)
+
+    def _command(self, action_id: str, button: QPushButton) -> None:
+        """Record one button as standing for an action, and disable it."""
+        self._command_controls[action_id] = button
+        button.setEnabled(False)
+        button.setToolTip(UNBOUND_REASON)
+
+    def bind_actions(
+        self,
+        binder: ActionBinder,
+        unhandled: Callable[[str], ActionOutcome[object]],
+    ) -> None:
+        """Render every control here from the session's answer about its action.
+
+        The page used to write a refusal per control. A slider recorded its
+        value into a dictionary nothing read, under a line announcing a staged
+        change toward a plan that was never assembled, and the raw VCP buttons
+        printed a sentence naming a version number. None of it came from the
+        manifest, so this page could disagree with the session about what it
+        would do.
+
+        The manifest decides now. Value controls are rendered without a trigger
+        because they have none; a button is connected, and using one asks the
+        session, which answers with a refusal the window reports.
+        """
+        for action_id, control in self._staged_controls.items():
+            binder.bind(action_id, control, partial(unhandled, action_id), hides=False, connect=False)
+        for action_id, button in self._command_controls.items():
+            binder.bind(action_id, button, partial(unhandled, action_id), hides=False)
+        self._status_label.setText(binder.disposition_of(DDC_TRANSACTION).reason or "")
 
     # Monitor list
 
@@ -549,62 +596,12 @@ class DDCControlPage(QWidget):
         if not self._monitors:
             self._current_monitor = None
             self._display_combo.addItem("The last detection pass found no usable display")
-            self._status_label.setText("")
             return
         for monitor in self._monitors:
             self._display_combo.addItem(str(monitor["name"]))
         self._current_monitor = self._monitors[0]
-        self._status_label.setText("Preview only — confirmation required before DDC/CI writes")
 
     def _on_display_changed(self, index: int):
-        """Handle display selector change."""
+        """Follow the selector, which chooses among observations already made."""
         if 0 <= index < len(self._monitors):
             self._current_monitor = self._monitors[index]
-            self._read_current()
-
-    # Read / Write VCP
-
-    def _read_current(self):
-        """Explain why unconfirmed legacy DDC reads are not exposed here."""
-        self._status_label.setText("Current DDC values are captured only inside a confirmed transaction")
-
-    def _set_brightness(self, value: int):
-        """Set brightness via DDC/CI."""
-        self._set_vcp_safe("BRIGHTNESS", value)
-
-    def _set_contrast(self, value: int):
-        """Set contrast via DDC/CI."""
-        self._set_vcp_safe("CONTRAST", value)
-
-    def _set_vcp_safe(self, code_name: str, value: int):
-        """Stage an allowlisted calibration control; never write it directly."""
-        if code_name not in DDC_WRITE_CODES:
-            self._status_label.setText(f"{code_name} is disabled in 1.1; no approved ApplyPlan mapping")
-            self._status_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
-            return
-        self._pending_changes[code_name] = value
-        self._status_label.setText(
-            f"Preview staged: {code_name}={value} ({len(self._pending_changes)} change(s)); confirmation required"
-        )
-        self._status_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
-
-    def _raw_vcp_read(self):
-        """Keep raw VCP access disabled outside the confirmed actuator."""
-        code = self._vcp_code_spin.value()
-        self._vcp_result_label.setText(f"VCP 0x{code:02X} raw access is disabled in 1.1")
-        self._vcp_result_label.show()
-
-    def _raw_vcp_write(self):
-        """Reject raw VCP writes that cannot form an approved ApplyPlan."""
-        code = self._vcp_code_spin.value()
-        value = self._vcp_value_spin.value()
-        self._vcp_result_label.setText(f"VCP 0x{code:02X}={value} was not sent; raw writes are disabled in 1.1")
-        self._vcp_result_label.show()
-
-    def _reset_defaults(self):
-        """Reject factory reset until it has a safe confirmed plan."""
-        QMessageBox.information(
-            self,
-            "Factory Reset Disabled",
-            "No command was sent. Factory reset has no approved ApplyPlan mapping in version 1.1.",
-        )

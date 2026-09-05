@@ -6,10 +6,10 @@ the window is built and used, so these tests construct the real one against the
 fake-acceptance composition: it reads a bundled fixture, writes only inside the
 directory it is given, and reaches no display and no operator journal.
 
-Three properties are being held down. A control offers what the session would
-actually perform, the status line names files that exist, and every card
-describes the display the session observed rather than one the page looked up
-for itself.
+Four properties are being held down. A control offers what the session would
+actually perform, the status line names files that exist, every card describes
+the display the session observed rather than one the page looked up for itself,
+and no page keeps its own answer about what it is permitted to do.
 """
 
 from __future__ import annotations
@@ -19,7 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from calibrate_pro.application.outcomes import ActionSuccess
+from calibrate_pro.application.outcomes import ActionError, ActionSuccess
+from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
 from tests.fake_acceptance_support import MANIFEST_NAME, PRESET_ID, journal_records
 
@@ -335,3 +336,79 @@ def test_the_ddc_selector_lists_the_displays_the_session_observed(window: object
         "name": FIXTURE_LABEL,
         "display_id": window.dashboard.observed.dashboard.displays[0].platform_display_id,
     }
+
+
+def ddc_bindings(window: object) -> list[object]:
+    """Every binding the window holds for a DDC/CI action."""
+    return [binding for binding in window._binder.bindings if binding.action_id.startswith("ddc.")]
+
+
+def test_every_ddc_control_stands_for_a_declared_action(window: object) -> None:
+    """The page keeps no control the manifest has not declared.
+
+    A control the page held for itself would be one the session never answers
+    for, which is what the page used to be built from. Checking the bound set
+    against the manifest means a control cannot be added later without an
+    action to justify it, and the one action with no control of its own is the
+    transaction the rest depend on.
+    """
+    from calibrate_pro.application.actions import ActionRegistry
+
+    declared = {action_id for action_id in ActionRegistry.load_default().action_ids if action_id.startswith("ddc.")}
+    assert {binding.action_id for binding in ddc_bindings(window)} == declared - {DDC_TRANSACTION}
+
+
+def test_a_ddc_control_shows_the_manifest_reason_rather_than_its_own(window: object) -> None:
+    """Each control is disabled, and its tooltip is the resolver's sentence.
+
+    The page used to write its own refusals, one of which named a version
+    number, so it could disagree with what the session would actually do. Every
+    reason on screen now comes from the resolver that enforces it, including
+    the line under the cards, which reports the transaction they all need.
+    """
+    bindings = ddc_bindings(window)
+    assert bindings, "expected the window to have bound the DDC page"
+
+    for binding in bindings:
+        reason = window.service.resolve(binding.action_id).reason
+        assert reason, f"{binding.action_id} was refused without an explanation"
+        assert not binding.control.isEnabled(), f"{binding.action_id} is offered but the session refuses it"
+        assert binding.control.toolTip() == reason
+
+    assert window.ddc._status_label.text() == window.service.resolve(DDC_TRANSACTION).reason
+
+
+def test_using_a_ddc_control_asks_the_session_and_is_refused(window: object) -> None:
+    """Performing one goes through the session, which answers with a refusal.
+
+    Reaching past the disabled control is deliberate. A disabled button emits
+    nothing, so the only way to see what a click would do is to invoke the
+    binding the click is wired to. What comes back carries the resolver's own
+    reason, and nothing was written to a monitor to find that out.
+    """
+    binding = next(b for b in ddc_bindings(window) if b.action_id == "ddc.raw_write")
+    outcome = window._binder.invoke(binding)
+
+    assert isinstance(outcome, ActionError)
+    assert outcome.action_id == "ddc.raw_write"
+    assert outcome.effect_state == "none"
+    assert outcome.summary == window.service.resolve("ddc.raw_write").reason
+
+    message, level = window.toasts[-1]
+    assert level == "warning"
+    assert outcome.summary in message
+
+
+def test_the_ddc_page_stages_nothing_of_its_own(window: object) -> None:
+    """Moving a control records nothing, because there is nowhere to record it.
+
+    The page kept a dictionary of pending changes that no plan ever read, under
+    a status line counting how many were staged. Both are gone, so the page
+    cannot report progress toward an apply that was never being assembled.
+    """
+    page = window.ddc
+    assert not hasattr(page, "_pending_changes")
+
+    before = page._status_label.text()
+    page._brightness_slider.setValue(page._brightness_slider.value() + 1)
+    assert page._status_label.text() == before

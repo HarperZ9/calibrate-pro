@@ -2073,6 +2073,7 @@ class CalibrateProWindow(QMainWindow):
                 from calibrate_pro.gui.pages.ddc_control import DDCControlPage
 
                 self.ddc = DDCControlPage()
+                self.ddc.bind_actions(self._binder, self.service.unhandled)
                 self.stack.addWidget(self.ddc)  # 4
             except (ImportError, RuntimeError) as e:
                 logger.warning("Failed to load DDCControlPage: %s", e)
