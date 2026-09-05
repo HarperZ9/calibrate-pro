@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
+
+# Importing the injector reaches calibrate_pro.lut_system, whose package body
+# binds user32 through ctypes.windll. A windows marker would not help: pytest
+# imports a module to read its markers, so the deselection happens after the
+# import that fails. The skip has to run before the import below.
+if sys.platform != "win32":
+    pytest.skip("the DWM injector guard reads a Windows-only import chain", allow_module_level=True)
 
 from calibrate_pro.lut_system.dwm_lut import (
     DwmLutError,
