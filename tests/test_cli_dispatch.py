@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 
 from calibrate_pro import main
-from calibrate_pro.application.actions import ActionRegistry
+from calibrate_pro.application.actions import ActionDisposition, ActionRegistry
 from calibrate_pro.application.composition import build_production_service
 from calibrate_pro.commands import session
 from calibrate_pro.commands.catalog import REFERENCE_HEADING
@@ -88,7 +88,7 @@ def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_ow
     assert code == main.REFUSED
     assert "restore" in printed
     assert "display.restore_defaults" in printed
-    assert f"{resolved.disposition.value}: {resolved.reason}" in printed
+    assert resolved.reason in printed
     assert main._UNTOUCHED in printed
 
 
@@ -202,3 +202,57 @@ def test_the_frozen_build_places_every_name_the_parser_offers_in_one_list() -> N
 
     assert not shipped & withheld
     assert shipped | withheld == parser_commands()
+
+
+def test_every_declined_name_refuses_in_the_same_shape(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A tester who types a legacy name reads one answer, not two.
+
+    Half the names the parser offers are declined, and they arrive by two code
+    paths. One quotes the resolver on the action behind the name, the other says
+    no capability is declared. Both are answering the same question, so both owe
+    the reader the same shape: what will not run, and that nothing was touched.
+    """
+    for command in sorted(main._CONFIRMATION_COMMANDS):
+        code = main.main([command])
+        printed = capsys.readouterr().out
+
+        assert code == main.REFUSED, f"{command} did not refuse"
+        assert command in printed, f"{command} does not name itself"
+        assert main._UNTOUCHED in printed, f"{command} does not say nothing was touched"
+
+
+def test_no_declined_name_answers_with_an_internal_disposition_token(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``hidden`` is how the capability model classifies an action, not English.
+
+    Printing it beside a refusal told a reader the command was hidden while the
+    same reader had just seen it listed in ``--help``. The reason string carries
+    the meaning already, so the classification stays on the surface that reports
+    the model.
+    """
+    tokens = {member.value for member in ActionDisposition}
+
+    for command in sorted(main._CONFIRMATION_COMMANDS):
+        main.main([command])
+        printed = capsys.readouterr().out
+        leaked = {token for token in tokens if f"{token}:" in printed}
+        assert leaked == set(), f"{command} printed {sorted(leaked)}"
+
+
+def test_the_status_report_still_classifies_each_action() -> None:
+    """The control for the gate above, which a blanket ban would pass silently.
+
+    Removing the vocabulary everywhere would satisfy the previous test and lose
+    the report that makes a support conversation possible, so this holds the one
+    surface whose job is to name the disposition.
+    """
+    service = build_production_service()
+    lines = session._action_lines(service, closed_only=True)
+
+    assert lines, "no action is closed in a default session"
+    named = {line.split()[0] for line in lines if not line.startswith("           ")}
+    assert named <= {member.value for member in ActionDisposition}
+    assert named & {ActionDisposition.HIDDEN.value, ActionDisposition.DISABLED.value}

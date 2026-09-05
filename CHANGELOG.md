@@ -2,6 +2,13 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Made every declined command answer in one shape. Half the names the parser offers
+  are declined, and they arrived by two paths that read differently. One printed the
+  capability model's classification beside the reason, so a reader was told a command
+  was `hidden` on the same screen where `--help` had just listed it. The classification
+  now stays on `status`, whose job is to report it, and a refusal quotes the declared
+  reason as prose. A gate walks every declined name and fails if a refusal leaks a
+  disposition token, paired with a control that keeps `status` classifying.
 - Gave `doctor` a next action. A base install leaves four distributions absent, so the
   report printed four MISSING lines, `Result: NOT OK`, and nothing a reader could run.
   The dependency table now records which extra carries each name and the report ends

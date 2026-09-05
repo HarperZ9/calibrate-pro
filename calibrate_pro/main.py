@@ -70,7 +70,7 @@ def _declared_refusal(command: str, action_id: str) -> int:
     resolved = build_production_service().resolve(action_id)
     print(banner())
     print(f"\n'{command}' depends on {action_id}, which this build does not perform.")
-    print(f"  {resolved.disposition.value}: {resolved.reason}")
+    print(f"Declared reason: {resolved.reason}")
     print(f"\n{_UNTOUCHED}")
     return REFUSED
 
