@@ -56,7 +56,7 @@ from calibrate_pro.application.panel_profiles import NOT_STATED, PanelProfilePre
 from calibrate_pro.application.results import DetectionSummary
 from calibrate_pro.application.surface import SurfaceActions
 from calibrate_pro.gui.action_binding import ActionBinder, Restriction, refusal_message
-from calibrate_pro.gui.theme import C
+from calibrate_pro.gui.theme import C, primary_button_style, secondary_button_style
 
 #: What the observed tab says before a detection pass has answered.
 NOTHING_OBSERVED = "No detection pass has run in this session."
@@ -120,22 +120,7 @@ _CARD_STYLE = (
 )
 
 _BOXED_STYLE = (
-    f"font-size: 11px; padding: 8px; background: {C.SURFACE2}; "
-    f"border: 1px solid {C.BORDER}; border-radius: 8px;"
-)
-
-_PRIMARY_STYLE = (
-    f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-    f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 6px 22px; }}"
-    f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-    f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-)
-
-_SECONDARY_STYLE = (
-    f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-    f"border-radius: 10px; font-size: 12px; padding: 6px 18px; }}"
-    f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-    f"QPushButton:disabled {{ color: {C.TEXT3}; }}"
+    f"font-size: 11px; padding: 8px; background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
 )
 
 
@@ -287,7 +272,7 @@ class AddDisplayDialog(QDialog):
         row.addStretch()
         self._create_btn = QPushButton("Create Profile")
         self._create_btn.setFixedHeight(34)
-        self._create_btn.setStyleSheet(_PRIMARY_STYLE)
+        self._create_btn.setStyleSheet(primary_button_style(padding="6px 22px"))
         row.addWidget(self._create_btn)
         vbox.addLayout(row)
         vbox.addStretch()
@@ -334,12 +319,12 @@ class AddDisplayDialog(QDialog):
         row.setSpacing(10)
         self._browse_btn = QPushButton("Browse...")
         self._browse_btn.setFixedHeight(34)
-        self._browse_btn.setStyleSheet(_SECONDARY_STYLE)
+        self._browse_btn.setStyleSheet(secondary_button_style(padding="6px 18px"))
         row.addWidget(self._browse_btn)
         row.addStretch()
         self._import_btn = QPushButton("Import Profile")
         self._import_btn.setFixedHeight(34)
-        self._import_btn.setStyleSheet(_PRIMARY_STYLE)
+        self._import_btn.setStyleSheet(primary_button_style(padding="6px 22px"))
         row.addWidget(self._import_btn)
         vbox.addLayout(row)
         vbox.addStretch()

@@ -28,6 +28,7 @@ from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.results import DetectionSummary
 from calibrate_pro.gui.action_binding import ActionBinder
 from calibrate_pro.gui.app import C, Card, Heading, StatusDot
+from calibrate_pro.gui.theme import primary_button_style, secondary_button_style
 
 # Slider Stylesheet
 
@@ -408,23 +409,13 @@ class DDCControlPage(QWidget):
         read_btn = QPushButton("Read Current")
         read_btn.setFixedHeight(36)
         read_btn.setProperty("primary", True)
-        read_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; color: white; "
-            f"border: none; border-radius: 10px; font-size: 12px; "
-            f"font-weight: 600; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-        )
+        read_btn.setStyleSheet(primary_button_style(padding="6px 22px"))
         self._command("ddc.read_current", read_btn)
         btn_row.addWidget(read_btn)
 
         reset_btn = QPushButton("Reset to Default")
         reset_btn.setFixedHeight(36)
-        reset_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 12px; padding: 6px 22px; "
-            f"color: {C.RED}; }}"
-            f"QPushButton:hover {{ border-color: {C.RED}; background: {C.SURFACE2}; }}"
-        )
+        reset_btn.setStyleSheet(secondary_button_style(padding="6px 22px", text=C.RED, edge=C.RED))
         self._command("ddc.restore_defaults", reset_btn)
         btn_row.addWidget(reset_btn)
 
@@ -479,12 +470,7 @@ class DDCControlPage(QWidget):
         self._vcp_read_btn.setFixedHeight(32)
         self._vcp_read_btn.setFixedWidth(70)
         self._vcp_read_btn.setProperty("primary", True)
-        self._vcp_read_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; color: white; "
-            f"border: none; border-radius: 10px; font-size: 11px; "
-            f"font-weight: 600; padding: 4px 14px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-        )
+        self._vcp_read_btn.setStyleSheet(primary_button_style(padding="4px 14px", font_size=11))
         self._command("ddc.raw_read", self._vcp_read_btn)
         code_row.addWidget(self._vcp_read_btn)
 
@@ -518,10 +504,7 @@ class DDCControlPage(QWidget):
         self._vcp_write_btn.setFixedHeight(32)
         self._vcp_write_btn.setFixedWidth(70)
         self._vcp_write_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 11px; padding: 4px 14px; "
-            f"color: {C.RED}; font-weight: 600; }}"
-            f"QPushButton:hover {{ border-color: {C.RED}; background: {C.SURFACE2}; }}"
+            secondary_button_style(padding="4px 14px", font_size=11, text=C.RED, edge=C.RED, weight=600)
         )
         self._command("ddc.raw_write", self._vcp_write_btn)
         write_row.addWidget(self._vcp_write_btn)

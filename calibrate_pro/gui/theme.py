@@ -57,6 +57,44 @@ def install_build_ui_theme() -> None:
         setattr(build_theme.C, name, getattr(C, name))
 
 
+def primary_button_style(*, padding: str = "8px 24px", font_size: int = 12) -> str:
+    """Style the button that performs the action its surface exists for.
+
+    Padding is passed because a dialog footer and a control row sit at
+    different densities. The rest is one button, so it is written here rather
+    than restated wherever a surface happens to need it.
+    """
+    return (
+        f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
+        f"font-weight: 600; border-radius: 10px; font-size: {font_size}px; padding: {padding}; }}"
+        f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
+        f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
+    )
+
+
+def secondary_button_style(
+    *,
+    padding: str = "8px 20px",
+    font_size: int = 12,
+    text: str = C.TEXT,
+    edge: str = C.ACCENT,
+    weight: int = 400,
+) -> str:
+    """Style a button beside the primary one, including the ones that undo.
+
+    ``text`` and ``edge`` carry the one difference that matters between a
+    button that steps back and a button that discards something, which is the
+    colour a surface uses to say so.
+    """
+    return (
+        f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
+        f"border-radius: 10px; font-size: {font_size}px; padding: {padding}; "
+        f"color: {text}; font-weight: {weight}; }}"
+        f"QPushButton:hover {{ border-color: {edge}; background: {C.SURFACE2}; }}"
+        f"QPushButton:disabled {{ color: {C.TEXT3}; }}"
+    )
+
+
 STYLE = f"""
 QMainWindow {{
     background-color: {C.BG};

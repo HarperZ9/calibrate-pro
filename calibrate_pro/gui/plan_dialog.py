@@ -43,7 +43,7 @@ from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.results import PlanDecision, PlanPreview
 from calibrate_pro.application.surface import SurfaceActions
 from calibrate_pro.gui.action_binding import ActionBinder, Restriction, refusal_message
-from calibrate_pro.gui.theme import C
+from calibrate_pro.gui.theme import C, primary_button_style, secondary_button_style
 from calibrate_pro.workflow import ApplyPlan
 
 #: What accepting does in this build, beside the button that does it. The
@@ -79,20 +79,6 @@ _DIALOG_STYLE = (
 _DIGEST_STYLE = (
     f"font-family: Consolas, monospace; font-size: 11px; color: {C.TEXT2}; "
     f"padding: 8px; background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
-)
-
-_PRIMARY_STYLE = (
-    f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-    f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 8px 24px; }}"
-    f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-    f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-)
-
-_SECONDARY_STYLE = (
-    f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-    f"border-radius: 10px; font-size: 12px; padding: 8px 20px; }}"
-    f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-    f"QPushButton:disabled {{ color: {C.TEXT3}; }}"
 )
 
 
@@ -241,12 +227,12 @@ class PlanConfirmationDialog(QDialog):
         row.addStretch()
 
         self._decline_btn = QPushButton("Decline")
-        self._decline_btn.setStyleSheet(_SECONDARY_STYLE)
+        self._decline_btn.setStyleSheet(secondary_button_style())
         self._decline_btn.setFixedHeight(38)
         row.addWidget(self._decline_btn)
 
         self._accept_btn = QPushButton("Accept Plan")
-        self._accept_btn.setStyleSheet(_PRIMARY_STYLE)
+        self._accept_btn.setStyleSheet(primary_button_style())
         self._accept_btn.setFixedHeight(38)
         row.addWidget(self._accept_btn)
         return row
