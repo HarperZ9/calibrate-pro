@@ -64,9 +64,17 @@ class HybridCalibrationResult:
     # Measurement results per iteration
     iterations: list[RefinementResult] = field(default_factory=list)
 
-    # Final measured accuracy
-    final_measured_delta_e: float = 0.0
-    final_measured_delta_e_max: float = 0.0
+    # Final measured accuracy. None until an instrument reads the display,
+    # because 0.0 in a Delta E field reads as a perfect match rather than as
+    # an absent measurement.
+    final_measured_delta_e: float | None = None
+    final_measured_delta_e_max: float | None = None
+
+    # Where the numbers above came from: "none" when nothing measured,
+    # "argyll" or "manual" for an instrument, "simulated" for values a model
+    # produced, "unknown" for a caller-supplied function that does not say.
+    # A report that prints the measured fields has to print this beside them.
+    measurement_source: str = "none"
 
     # Output files
     lut_path: str | None = None
@@ -120,6 +128,10 @@ class HybridCalibrationEngine:
         progress_fn: Callable[[str, float], None] | None = None,
     ):
         self.measure_fn = measure_fn
+        # create_measure_fn stamps this on the function it returns. A caller
+        # passing its own colorimeter method stamps nothing, and a source the
+        # engine cannot name is not a source it may call an instrument.
+        self.measurement_source = "none" if measure_fn is None else getattr(measure_fn, "measurement_source", "unknown")
         self.max_iterations = max_iterations
         self.convergence_threshold = convergence_threshold
         self.progress_fn = progress_fn
@@ -148,6 +160,7 @@ class HybridCalibrationEngine:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         result = HybridCalibrationResult()
+        result.measurement_source = self.measurement_source
 
         engine = SensorlessEngine()
         engine.current_panel = panel
@@ -170,7 +183,9 @@ class HybridCalibrationEngine:
         # Step 2: If no colorimeter, stop here
         if self.measure_fn is None:
             result.success = True
-            result.final_measured_delta_e = result.sensorless_delta_e
+            # final_measured_delta_e stays None. It used to be set to the
+            # sensorless prediction, which handed a caller reading the measured
+            # field a modelled number with no instrument anywhere in the run.
             result.message = (
                 f"Sensorless calibration applied (predicted dE {result.sensorless_delta_e:.2f}). "
                 f"Connect a colorimeter and use --refine for measured accuracy."
@@ -267,10 +282,18 @@ class HybridCalibrationEngine:
         result.icc_path = str(icc_path)
 
         result.success = True
+        final_de = float(avg_de if result.final_measured_delta_e is None else result.final_measured_delta_e)
+        # "Measured" is the right word only for a reading an instrument took.
+        # A simulated or unnamed source is reported under its own name so the
+        # sentence does not turn a modelled number into an observation.
+        if result.measurement_source in ("argyll", "manual"):
+            reading = f"Measured: dE {final_de:.2f} "
+        else:
+            reading = f"Source {result.measurement_source} (not an instrument): dE {final_de:.2f} "
         result.message = (
             f"Hybrid calibration complete. "
             f"Sensorless: dE {result.sensorless_delta_e:.2f} (predicted). "
-            f"Measured: dE {result.final_measured_delta_e:.2f} "
+            f"{reading}"
             f"after {len(result.iterations)} refinement iterations."
         )
 

@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Stopped the hybrid engine filing a simulated reading under a measured name.
+  `HybridCalibrationEngine` takes a `measure_fn` and writes what it returns into
+  `final_measured_delta_e`, `final_measured_delta_e_max` and `measured_patches`.
+  `create_measure_fn` builds exactly that callable, and its `simulated` mode returns what an
+  ideal sRGB display would emit for the patch, so a run against the model converged on an
+  identity correction and reported the near-zero result as an instrument reading. That is a
+  property of the model and not a result about any panel. `create_measure_fn` now stamps its
+  mode on the function it hands back, the engine reads that stamp into a `measurement_source`
+  field on the result, and the completion message names the source instead of printing
+  "Measured" for every one. A caller supplying its own colorimeter method carries no stamp and
+  is reported as `unknown`, because a source the engine cannot name is not one it may call an
+  instrument.
+- Stopped a sensorless-only run answering with a measured accuracy. With no `measure_fn` the
+  hybrid engine copied its sensorless prediction into `final_measured_delta_e` and returned,
+  handing a caller that read the measured field a modelled number with no instrument anywhere
+  in the run. The field now stays empty. It is typed `float | None` and starts at `None`
+  rather than 0.0, because zero in a Delta E field reads as a perfect match.
+- Made the synthetic uniformity report say so in every block it prints. `cmd_uniformity
+  --simulated` announced the mode once at the top, then printed a statistics block, a luminance
+  map in cd/m2, a correction-factor grid and a letter grade. That is the shape of a colorimeter
+  report, and the announcement scrolls away above it. Each block now carries a `[synthetic]`
+  marker and the run closes by stating that no colorimeter read the display.
+
 - Stopped the HDR LUT dividing by a peak luminance nobody measured.
   `create_hdr_calibration_lut` divides absolute luminance by the panel peak at every grid point,
   which was safe while every panel came from the bundled database carrying a measured one. It

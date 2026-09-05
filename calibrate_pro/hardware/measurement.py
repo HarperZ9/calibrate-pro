@@ -99,7 +99,11 @@ class MeasurementCoordinator:
             r, g, b: sRGB values in [0, 1]
 
         Returns:
-            (X, Y, Z) measured tristimulus values
+            (X, Y, Z) tristimulus values. An instrument read them in argyll and
+            manual mode. In simulated mode a model produced them and no
+            instrument was involved, and the tuple carries nothing that says so,
+            which is why create_measure_fn stamps the source on the function it
+            hands a caller.
 
         Raises:
             RuntimeError if measurement fails
@@ -208,6 +212,12 @@ class MeasurementCoordinator:
 
         Returns the expected XYZ with small random noise to simulate
         real-world measurement variation.
+
+        The expected XYZ is what an ideal sRGB display would emit for this
+        patch, so a calibration engine fed by this mode is measuring a display
+        that is already correct by construction and will converge on an
+        identity correction with a near-zero Delta E. That is a property of the
+        model, not a result about any panel.
         """
         from calibrate_pro.core.color_math import SRGB_TO_XYZ, srgb_gamma_expand
 
@@ -248,6 +258,12 @@ def create_measure_fn(config: MeasurementConfig | None = None) -> Callable | Non
 
     Returns None if no measurement hardware is available and
     mode is not manual/simulated.
+
+    The returned function carries ``measurement_source``, holding the config
+    mode. HybridCalibrationEngine reads it and refuses to call a simulated
+    source a measurement. A caller passing its own colorimeter method instead
+    of this function stamps nothing, and the engine records "unknown" rather
+    than assuming an instrument was on the other end.
     """
     coordinator = MeasurementCoordinator(config)
     if not coordinator.initialize():
@@ -259,4 +275,7 @@ def create_measure_fn(config: MeasurementConfig | None = None) -> Callable | Non
 
     # Attach close method for cleanup
     measure.close = coordinator.close
+    # Travels with the function so a consumer several layers away can still
+    # tell a reading from a model without reaching back for the config.
+    measure.measurement_source = coordinator.config.mode
     return measure
