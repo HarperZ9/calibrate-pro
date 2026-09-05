@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- Made the hardware calibration sweep show each patch it reads. `_measure_with_display` took the
+  patch display callback as optional, and with none given it skipped straight to the colorimeter
+  and filed the reading under the RGB it had been asked for. A sweep run that way reads one
+  unchanged screen once per patch and reports it under as many different stimuli as the sweep has
+  entries, which is a full grayscale ramp and a full primaries set describing one static image.
+  The measurement now returns nothing and says why when it has no way to put the patch on screen,
+  and `calibrate_hardware` refuses up front rather than working through the whole sweep first.
+- Stopped a measured ICC profile carrying primaries nobody measured. `_create_icc_from_measurements`
+  substituted the Rec.709 red, green and blue and the D65 white point for any chromaticity the
+  sweep failed to produce, and the profile it wrote is saved under a name ending `_measured.icc`
+  with a description ending "(Measured)". Those numbers describe a standard rather than the panel
+  in front of the instrument, and every color managed application on the machine reads the profile
+  as this display characterized. A missing primary or white point now raises and names which one
+  was not measured.
+- Stopped the gamma fit answering with a number it did not fit. `_calculate_gamma_from_grayscale`
+  returned 2.2 when it had fewer than three points and again when fewer than three survived
+  normalization, read a missing white as 100 and a missing black as 0, divided by the ramp range
+  without checking that there was one, and clamped whatever came out of the least squares fit into
+  1.8 to 3.0. The result goes into the profile described as measured and into the correction LUT,
+  so an assumed tone response was published as this display and a flat ramp crashed on the
+  division. Each of those now raises: too few points, a point with no luminance, endpoints with no
+  measured range between them, and a fit outside the range a display produces, which means the
+  ramp is not a power law and no single gamma describes it.
+- Made the measured LUT read the measurements. `_create_lut_from_measurements` was handed the
+  sweep data and never opened it: the primaries and the three channel gammas came from the panel
+  database entry matched on the model string, so a run with an instrument attached discarded every
+  reading and wrote the database characterization to a file named for a measured run. Two displays
+  of the same model got identical corrections whatever the instrument read off each panel. The LUT
+  is now built from the measured chromaticities and the gamma fitted to the measured ramp, the
+  panel entry supplies the title and nothing else, and a missing measurement raises. The grayscale
+  sweep measures one neutral ramp, so the one fitted gamma covers all three channels; a per
+  channel figure taken from the database would be a modelled value inside a measured artifact.
+- Stopped verification publishing a perfect score for a display it did not read. `_verify_hardware`
+  averaged an empty list of Delta E values to 0.0, and the caller wrapped that as measured evidence
+  and set the run successful, so a verification that measured none of its patches reported the best
+  number the tool can produce with a passing grade. It now raises and says how many patches went
+  unmeasured.
 - Renamed a chromaticity distance off the Delta E field. The DDC/CI white point loop computes the
   distance between target and measured white in the CIE 1976 u'v' plane, multiplied it by 100,
   and stored it as `delta_e`, where a reader compares it against Delta E tolerances that do not
