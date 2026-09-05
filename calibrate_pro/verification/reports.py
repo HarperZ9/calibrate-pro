@@ -129,6 +129,23 @@ class VerificationSummary:
     recommendations: list[str] = field(default_factory=list)
 
 
+def _wp_num(value: float | None, spec: str) -> str:
+    """Format a white point number, or say it was never measured.
+
+    The gamut result carries None for all three white point fields when the
+    caller supplied no measured white. A dash in the report is what an absent
+    reading looks like; a formatted number there is a reading nobody took.
+    """
+    return "not measured" if value is None else spec.format(value)
+
+
+def _wp_xy(result: GamutAnalysisResult) -> str:
+    """Format the white point chromaticity pair, or say it was never measured."""
+    if result.white_point_xy is None:
+        return "not measured"
+    return f"({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})"
+
+
 def _summary_report_payload(summary: VerificationSummary) -> dict[str, object]:
     return build_report_payload({"mode": "verification", "metrics": summary.metrics})
 
@@ -514,11 +531,12 @@ class ReportGenerator:
         elements.append(table)
         elements.append(Spacer(1, 10))
 
-        # White point info
+        # White point info. None throughout when no white was measured, and
+        # a report that prints a number there claims a reading nobody took.
         wp_text = (
-            f"<b>White Point:</b> ({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})<br/>"
-            f"<b>CCT:</b> {result.white_point_cct:.0f}K<br/>"
-            f"<b>Duv:</b> {result.white_point_duv:.4f}"
+            f"<b>White Point:</b> {_wp_xy(result)}<br/>"
+            f"<b>CCT:</b> {_wp_num(result.white_point_cct, '{:.0f}K')}<br/>"
+            f"<b>Duv:</b> {_wp_num(result.white_point_duv, '{:.4f}')}"
         )
         elements.append(Paragraph(wp_text, body_style))
 
@@ -894,15 +912,15 @@ class ReportGenerator:
         <h3>White Point</h3>
         <div class="stat-grid">
             <div class="stat-item">
-                <div class="stat-value">({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})</div>
+                <div class="stat-value">{_wp_xy(result)}</div>
                 <div class="stat-label">xy Chromaticity</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{result.white_point_cct:.0f}K</div>
+                <div class="stat-value">{_wp_num(result.white_point_cct, "{:.0f}K")}</div>
                 <div class="stat-label">CCT</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{result.white_point_duv:.4f}</div>
+                <div class="stat-value">{_wp_num(result.white_point_duv, "{:.4f}")}</div>
                 <div class="stat-label">Duv</div>
             </div>
         </div>
@@ -1032,7 +1050,7 @@ class ReportGenerator:
         if summary.gamut:
             gm = summary.gamut
             data["gamut"] = {
-                "white_point_xy": list(gm.white_point_xy),
+                "white_point_xy": list(gm.white_point_xy) if gm.white_point_xy is not None else None,
                 "white_point_cct": gm.white_point_cct,
                 "white_point_duv": gm.white_point_duv,
                 "total_volume_lab": gm.total_volume_lab,
@@ -1114,7 +1132,7 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
                 f"sRGB coverage is {gm.srgb_coverage.coverage_percent:.1f}%. "
                 "Display may not accurately reproduce web/photo content."
             )
-        if abs(gm.white_point_duv) > 0.005:
+        if gm.white_point_duv is not None and abs(gm.white_point_duv) > 0.005:
             recommendations.append(
                 f"White point Duv ({gm.white_point_duv:.4f}) indicates tint. Aim for Duv < 0.005 for neutral whites."
             )

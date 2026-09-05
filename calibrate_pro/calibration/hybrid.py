@@ -140,6 +140,18 @@ class HybridCalibrationEngine:
         if self.progress_fn:
             self.progress_fn(message, pct)
 
+    def _reading_label(self) -> str:
+        """How to name a number that came out of measure_fn.
+
+        "Measured" is the right word only for a reading an instrument took. A
+        modelled or unnamed source is named in its place, because a progress
+        line and a completion message are where an operator decides whether a
+        number describes their panel. One helper so both say the same thing.
+        """
+        if self.measurement_source in ("argyll", "manual"):
+            return "Measured"
+        return f"Source {self.measurement_source} (not an instrument)"
+
     def calibrate(
         self, panel, output_dir: Path, target: str = "native", hdr_mode: bool = False
     ) -> HybridCalibrationResult:
@@ -193,7 +205,7 @@ class HybridCalibrationEngine:
             return result
 
         # Step 3: Measure the display with the sensorless LUT applied
-        self._progress("Measuring display with sensorless LUT...", 0.3)
+        self._progress(f"Measuring display with sensorless LUT (source: {self.measurement_source})...", 0.3)
         measured_data = self._measure_patches(QUICK_VERIFY_PATCHES)
 
         if not measured_data:
@@ -206,7 +218,7 @@ class HybridCalibrationEngine:
         avg_de = np.mean([d["delta_e"] for d in measured_de])
         max_de = np.max([d["delta_e"] for d in measured_de])
 
-        self._progress(f"Measured dE: avg {avg_de:.2f}, max {max_de:.2f}", 0.4)
+        self._progress(f"{self._reading_label()}: dE avg {avg_de:.2f}, max {max_de:.2f}", 0.4)
 
         result.measured_patches = measured_de
         result.final_measured_delta_e = float(avg_de)
@@ -283,13 +295,7 @@ class HybridCalibrationEngine:
 
         result.success = True
         final_de = float(avg_de if result.final_measured_delta_e is None else result.final_measured_delta_e)
-        # "Measured" is the right word only for a reading an instrument took.
-        # A simulated or unnamed source is reported under its own name so the
-        # sentence does not turn a modelled number into an observation.
-        if result.measurement_source in ("argyll", "manual"):
-            reading = f"Measured: dE {final_de:.2f} "
-        else:
-            reading = f"Source {result.measurement_source} (not an instrument): dE {final_de:.2f} "
+        reading = f"{self._reading_label()}: dE {final_de:.2f} "
         result.message = (
             f"Hybrid calibration complete. "
             f"Sensorless: dE {result.sensorless_delta_e:.2f} (predicted). "

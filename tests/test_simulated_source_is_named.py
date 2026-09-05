@@ -12,6 +12,7 @@ arithmetic and the coordinator only reaches tkinter inside measure().
 """
 
 import argparse
+import inspect
 
 import numpy as np
 import pytest
@@ -119,6 +120,35 @@ class TestUnmeasuredAccuracyStaysEmpty:
         assert result.sensorless_delta_e == pytest.approx(1.75)
         assert result.final_measured_delta_e is None
         assert result.measurement_source == "none"
+
+
+class TestProgressLinesNameTheSource:
+    """A progress line is where an operator watches the number arrive."""
+
+    def test_an_instrument_reading_is_called_measured(self):
+        measure = create_measure_fn(MeasurementConfig(mode="manual"))
+        assert HybridCalibrationEngine(measure_fn=measure)._reading_label() == "Measured"
+
+    def test_a_simulated_source_is_named_instead(self):
+        measure = create_measure_fn(MeasurementConfig(mode="simulated"))
+        label = HybridCalibrationEngine(measure_fn=measure)._reading_label()
+        assert "simulated" in label
+        assert not label.startswith("Measured")
+
+    def test_an_unnamed_source_is_not_called_measured(self):
+        engine = HybridCalibrationEngine(measure_fn=lambda r, g, b: (0.2, 0.2, 0.2))
+        assert not engine._reading_label().startswith("Measured")
+
+    def test_the_word_is_decided_in_one_place(self):
+        """calibrate() used to print "Measured dE" for every source.
+
+        Fails if a literal reappears in the method, which is how the first one
+        got there. "Measuring" and "Measurement failed" describe the attempt
+        rather than the result, so they are allowed.
+        """
+        source = inspect.getsource(HybridCalibrationEngine.calibrate)
+        for line in source.splitlines():
+            assert "Measured" not in line, f"hardcoded verdict in calibrate(): {line.strip()}"
 
 
 class TestSyntheticUniformityReportSaysSo:

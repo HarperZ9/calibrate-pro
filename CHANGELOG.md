@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Stopped gamut analysis scoring a primary against itself. `_analyze_coverage` read each
+  measured chromaticity as `measured_primaries.get(name, target_xy)`, so an absent red, green
+  or blue became the target primary of the space being scored. The delta then came out at
+  exactly 0.0, the panel reported a perfect primary, and `primary_accuracy_mean` averaged those
+  zeros. `analyze` now checks for the three channels up front and names the ones that are
+  missing, because every triangle below it indexes them and a `KeyError` from inside an area
+  computation does not tell an operator what to measure. The lookup is a direct index, so no
+  default can put the answer back.
+- Stopped an unmeasured white point reaching a report as D65. The same dict fell back to
+  `measured_primaries.get("W", (0.3127, 0.3290))`, so a panel whose white nobody read reported
+  6504K at a Duv of 0.0000, which passes on both counts. `white_point_xy`, `white_point_cct`
+  and `white_point_duv` now hold `None` until an instrument reads a white. The
+  console summary prints "not measured", the PDF and HTML reports print the same through one
+  pair of formatters, the JSON emits null rather than a stand-in number, and the tint
+  recommendation no longer fires on a white point that does not exist.
+- Made the hybrid engine's progress lines name their source. The completion message already
+  separates a reading from a model, but two lines above it still said "Measuring display with
+  sensorless LUT" and "Measured dE: avg ..." for every source, and an operator watches those
+  while the run is still going. Both now carry the source. One helper picks the wording and the
+  completion message calls the same one.
+
 - Stopped the hybrid engine filing a simulated reading under a measured name.
   `HybridCalibrationEngine` takes a `measure_fn` and writes what it returns into
   `final_measured_delta_e`, `final_measured_delta_e_max` and `measured_patches`.

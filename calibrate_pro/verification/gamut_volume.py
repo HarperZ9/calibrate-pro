@@ -204,9 +204,12 @@ class GamutAnalysisResult:
 
     # Overall metrics
     total_volume_lab: float
-    white_point_xy: tuple[float, float]
-    white_point_cct: float
-    white_point_duv: float
+    # None when measured_primaries carried no "W". These used to default to
+    # D65, which reported a panel whose white nobody read as a perfect 6504K
+    # at Duv 0.0000. An absent measurement is absent, not a passing one.
+    white_point_xy: tuple[float, float] | None
+    white_point_cct: float | None
+    white_point_duv: float | None
 
     # Metadata
     timestamp: str = ""
@@ -656,6 +659,16 @@ class GamutAnalyzer:
         """
         from datetime import datetime
 
+        # Every triangle below indexes R, G and B. Checking here names the one
+        # that is missing instead of raising a KeyError from inside an area
+        # computation several frames down.
+        missing = [k for k in ("R", "G", "B") if k not in measured_primaries]
+        if missing:
+            raise ValueError(
+                f"measured_primaries is missing {', '.join(missing)}. "
+                f"Gamut analysis needs a measured red, green and blue chromaticity."
+            )
+
         # Calculate coverage for each standard space
         all_coverage: dict[ColorSpace, GamutCoverage] = {}
 
@@ -678,9 +691,9 @@ class GamutAnalyzer:
         if measured_samples is not None:
             total_volume = calculate_gamut_volume_lab(measured_samples)
 
-        # White point analysis
-        white_xy = measured_primaries.get("W", (0.3127, 0.3290))
-        white_cct, white_duv = self._calculate_cct(white_xy)
+        # White point analysis. Reported only when a white was measured.
+        white_xy = measured_primaries.get("W")
+        white_cct, white_duv = self._calculate_cct(white_xy) if white_xy is not None else (None, None)
 
         return GamutAnalysisResult(
             measured_boundary=measured_boundary,
@@ -730,7 +743,10 @@ class GamutAnalyzer:
 
         for name in ["R", "G", "B"]:
             target_xy = target_primaries[name]
-            measured_xy = measured_primaries.get(name, target_xy)
+            # Indexed, not .get(name, target_xy). That default handed the
+            # scorer the answer it was checking, so an unmeasured primary
+            # reported a delta of exactly zero against its own target.
+            measured_xy = measured_primaries[name]
 
             delta_xy = np.sqrt((measured_xy[0] - target_xy[0]) ** 2 + (measured_xy[1] - target_xy[1]) ** 2)
 
@@ -926,7 +942,10 @@ def print_gamut_summary(result: GamutAnalysisResult) -> None:
     for name, xy in result.measured_primaries.items():
         print(f"  {name}: ({xy[0]:.4f}, {xy[1]:.4f})")
     print()
-    print(f"White Point: {result.white_point_cct:.0f}K, Duv = {result.white_point_duv:.4f}")
+    if result.white_point_cct is None or result.white_point_duv is None:
+        print("White Point: not measured")
+    else:
+        print(f"White Point: {result.white_point_cct:.0f}K, Duv = {result.white_point_duv:.4f}")
     print()
     print("Coverage Results:")
     print(f"  sRGB:      {result.srgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.srgb_coverage.grade)}")
