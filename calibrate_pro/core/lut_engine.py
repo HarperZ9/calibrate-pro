@@ -5,6 +5,7 @@ Creates 3D color lookup tables for system-wide color management.
 Supports multiple export formats: .cube, .3dl, .mga, .csp, .clf/.ctf
 """
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -207,7 +208,7 @@ class LUT3D:
                         val = self.data[r, g, b]
                         f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
-    def save_clf(self, filepath: str | Path):
+    def save_clf(self, filepath: str | Path, clf_id: str | None = None):
         """
         Save in CLF (Common LUT Format) per SMPTE ST 2136-1.
 
@@ -221,6 +222,9 @@ class LUT3D:
 
         Args:
             filepath: Output file path (typically .clf or .ctf extension)
+            clf_id: ProcessList identifier. When omitted, a UUID5 is derived
+                from the LUT title, grid size, and data so that identical
+                LUTs produce identical files.
         """
         import uuid
         from xml.etree.ElementTree import Element, ElementTree, SubElement
@@ -230,7 +234,13 @@ class LUT3D:
         # Root <ProcessList>
         root = Element("ProcessList")
         root.set("compCLFversion", "3.0")
-        root.set("id", str(uuid.uuid4()))
+        if clf_id is None:
+            fingerprint = hashlib.sha256()
+            fingerprint.update(self.title.encode("utf-8"))
+            fingerprint.update(str(self.size).encode("ascii"))
+            fingerprint.update(np.ascontiguousarray(self.data, dtype=np.float64).tobytes())
+            clf_id = str(uuid.uuid5(uuid.NAMESPACE_URL, fingerprint.hexdigest()))
+        root.set("id", clf_id)
 
         desc = SubElement(root, "Description")
         desc.text = f"Calibrate Pro - {self.title}"

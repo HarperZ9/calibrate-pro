@@ -291,6 +291,7 @@ class SensorlessEngine:
         lut_name: str | None = None,
         hdr_mode: bool = False,
         target: str = "native",
+        target_gamma: float = 2.2,
     ) -> LUT3D:
         """
         Create calibration 3D LUT for panel.
@@ -311,6 +312,8 @@ class SensorlessEngine:
             lut_name: Custom LUT name
             hdr_mode: Generate HDR PQ-encoded LUT
             target: "native", "sRGB", or "p3"
+            target_gamma: Power-law exponent the calibrated output should
+                follow. BT.1886 with a zero black level reduces to 2.4.
 
         Returns:
             Calibration 3D LUT
@@ -350,7 +353,7 @@ class SensorlessEngine:
                 gamma_green=panel.gamma_green.gamma,
                 gamma_blue=panel.gamma_blue.gamma,
                 title=lut_name,
-                target_gamma=2.2,
+                target_gamma=target_gamma,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
                 panel_key=panel.model_pattern.split("|")[0],
@@ -365,7 +368,7 @@ class SensorlessEngine:
                     gamma_green=panel.gamma_green.gamma,
                     gamma_blue=panel.gamma_blue.gamma,
                     title=lut_name,
-                    target_gamma=2.2,
+                    target_gamma=target_gamma,
                 )
             else:
                 lut = generator.create_calibration_lut(
@@ -376,7 +379,7 @@ class SensorlessEngine:
                     gamma_blue=panel.gamma_blue.gamma,
                     color_matrix=self.calculate_correction_matrix(panel),
                     title=lut_name,
-                    target_gamma=2.2,
+                    target_gamma=target_gamma,
                 )
         elif target == "p3":
             # Compress to DCI-P3 gamut
@@ -389,7 +392,7 @@ class SensorlessEngine:
                 gamma_blue=panel.gamma_blue.gamma,
                 target_primaries=p3_primaries,
                 title=lut_name,
-                target_gamma=2.2,
+                target_gamma=target_gamma,
             )
         else:
             # Unknown target, fall back to native
@@ -401,7 +404,7 @@ class SensorlessEngine:
                 gamma_green=panel.gamma_green.gamma,
                 gamma_blue=panel.gamma_blue.gamma,
                 title=lut_name,
-                target_gamma=2.2,
+                target_gamma=target_gamma,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
                 panel_key=panel.model_pattern.split("|")[0],
