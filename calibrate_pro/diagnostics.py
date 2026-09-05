@@ -32,6 +32,11 @@ _DWM_LUT_RESOURCES = (
     "dwm_lut/LICENSE",
     "dwm_lut/LICENSE-THIRD-PARTY",
 )
+#: Package data the frozen build reads at startup. The action manifest decides
+#: what every control on every surface is permitted to do, so a build missing it
+#: has no surface at all, and doctor is where that shows up as a named absence
+#: rather than as a traceback on launch.
+_PACKAGE_RESOURCES = ("calibrate_pro/resources/action-capabilities.json",)
 _COMPONENT_POLICY = "packaging/components-win64.json"
 _STATIC_NOTICE_RESOURCES = (
     "THIRD_PARTY_LICENSES/LGPL-3.0-only.txt",
@@ -161,7 +166,15 @@ def _component_notice_paths(root: Path) -> tuple[tuple[str, ...], str | None]:
 def _resource_report(root: Path) -> dict[str, object]:
     dynamic_notices, policy_error = _component_notice_paths(root)
     required_paths = tuple(
-        dict.fromkeys((*_DWM_LUT_RESOURCES, _COMPONENT_POLICY, *_STATIC_NOTICE_RESOURCES, *dynamic_notices))
+        dict.fromkeys(
+            (
+                *_PACKAGE_RESOURCES,
+                *_DWM_LUT_RESOURCES,
+                _COMPONENT_POLICY,
+                *_STATIC_NOTICE_RESOURCES,
+                *dynamic_notices,
+            )
+        )
     )
     required = [
         {

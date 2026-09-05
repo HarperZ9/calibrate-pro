@@ -80,6 +80,29 @@ def test_spec_uses_committed_policies_runtime_hook_and_literal_dwm_resources() -
     assert '"build_color.gui"' in text
 
 
+def test_spec_partitions_every_package_resource_into_shipped_and_withheld() -> None:
+    """Both halves are literal, and together they have to be the whole directory.
+
+    PyInstaller carries no package data on its own, so the action manifest reaches
+    the frozen build only by being named here, and it is read on every startup.
+    The withheld half is the same decision written down: the fake-acceptance
+    display is a synthetic panel, and a shipped binary carrying one can put
+    modeled figures where an operator reads a real display.
+    """
+    shipped = _literal_tuple_assignment("shipped_package_resources")
+    withheld = _literal_tuple_assignment("unshipped_package_resources")
+    present = sorted(path.name for path in (ROOT / "calibrate_pro" / "resources").iterdir() if path.is_file())
+
+    assert sorted(shipped) == sorted(set(shipped))
+    assert not set(shipped) & set(withheld)
+    assert sorted([*shipped, *withheld]) == present
+    assert "action-capabilities.json" in shipped
+    assert "fake-acceptance-display.json" in withheld
+    source = SPEC.read_text(encoding="utf-8")
+    assert '(str(PACKAGE_RESOURCE_ROOT / name), "calibrate_pro/resources")' in source
+    assert "if path.is_file()" in source
+
+
 def test_every_explicit_hidden_import_is_policy_authorized() -> None:
     policy = json.loads((ROOT / "packaging/frozen-modules.json").read_text(encoding="utf-8"))
     allowed = {*policy["first_party_exact"], *policy["optional_first_party_exact"]}

@@ -13,6 +13,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+#: Package data doctor requires, listed here rather than read from the module.
+#: A resource added there has to be added here too, and until it is, the
+#: complete-tree test fails and says which path is missing. Deriving the two
+#: from one list would make that test agree with any change automatically.
+PACKAGE_RESOURCE_FILES = ("calibrate_pro/resources/action-capabilities.json",)
 DWM_LUT_FILES = (
     "DwmLutGUI.exe",
     "dwm_lut.dll",
@@ -40,6 +45,10 @@ DEPENDENCY_VERSIONS = {
 
 def _complete_resource_root(root: Path) -> Path:
     (root / "LICENSE").write_text("Calibrate Pro license\n", encoding="utf-8")
+    for relative in PACKAGE_RESOURCE_FILES:
+        resource = root / relative
+        resource.parent.mkdir(parents=True, exist_ok=True)
+        resource.write_text(relative, encoding="utf-8")
     dwm_lut = root / "dwm_lut"
     dwm_lut.mkdir()
     for name in DWM_LUT_FILES:

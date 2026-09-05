@@ -10,7 +10,7 @@ include USAGE.md
 include pyproject.toml
 include calibrate-pro.spec
 
-recursive-include calibrate_pro *.py *.ico *.png
+recursive-include calibrate_pro *.py *.ico *.png *.json
 recursive-include tests *.py *.json
 recursive-include packaging *.json *.lock *.in *.py
 recursive-include scripts *.py *.ps1

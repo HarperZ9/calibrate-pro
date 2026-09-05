@@ -167,10 +167,38 @@ dwm_lut_files = (
     "LICENSE",
     "LICENSE-THIRD-PARTY",
 )
+# Package data the frozen build reads through importlib.resources. PyInstaller
+# carries no package data on its own, so a file absent from here is absent from
+# the build, and the action manifest is read on every startup. Naming what is
+# deliberately left out is the other half: the fake-acceptance display is a
+# synthetic panel for the test suite, and a shipped binary that carries one can
+# present modeled figures where an operator expects a real display.
+PACKAGE_RESOURCE_ROOT = PACKAGE_ROOT / "resources"
+shipped_package_resources = ("action-capabilities.json",)
+unshipped_package_resources = (
+    "calibrate_pro.ico",
+    "calibrate_pro.png",
+    "fake-acceptance-display.json",
+)
+present_package_resources = sorted(
+    path.name for path in PACKAGE_RESOURCE_ROOT.iterdir() if path.is_file()
+)
+if present_package_resources != sorted(shipped_package_resources + unshipped_package_resources):
+    raise SystemExit(
+        "package resources are not the partition this build approved: "
+        + ", ".join(present_package_resources)
+    )
+
 datas = [
     (str(PROJECT_ROOT / "dwm_lut" / name), "dwm_lut")
     for name in dwm_lut_files
 ]
+datas.extend(
+    [
+        (str(PACKAGE_RESOURCE_ROOT / name), "calibrate_pro/resources")
+        for name in shipped_package_resources
+    ]
+)
 datas.extend(
     [
         (str(FEATURE_POLICY_PATH), "packaging"),

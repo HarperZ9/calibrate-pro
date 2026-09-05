@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+from fnmatch import fnmatch
+from glob import glob
 from pathlib import Path
 
 try:
@@ -63,11 +65,50 @@ def test_metadata_tests_retain_python_3_10_toml_support() -> None:
     assert requirement in optional_dependencies["dev"]
 
 
-def test_wheel_includes_the_committed_application_icons() -> None:
-    with (ROOT / "pyproject.toml").open("rb") as stream:
-        package_data = tomllib.load(stream)["tool"]["setuptools"]["package-data"]
+def package_files() -> list[str]:
+    """Every file the package ships that is not source, as posix paths."""
+    package = ROOT / "calibrate_pro"
+    return sorted(
+        path.relative_to(package).as_posix()
+        for path in package.rglob("*")
+        if path.is_file() and path.suffix != ".py" and "__pycache__" not in path.parts
+    )
 
-    assert {"resources/*.ico", "resources/*.png"} <= set(package_data["calibrate_pro"])
+
+def test_the_wheel_carries_every_file_the_package_reads_at_runtime() -> None:
+    """Package data is measured against the directory rather than a suffix list.
+
+    Naming ``resources/*.ico`` and ``resources/*.png`` left the action manifest
+    out of every non-editable install, so the package imported and then had no
+    manifest to build a surface from. A suffix is the wrong thing to gate on,
+    because the next resource added has whichever suffix it happens to have.
+    """
+    with (ROOT / "pyproject.toml").open("rb") as stream:
+        patterns = tomllib.load(stream)["tool"]["setuptools"]["package-data"]["calibrate_pro"]
+
+    package = ROOT / "calibrate_pro"
+    covered = {
+        Path(match).relative_to(package).as_posix()
+        for pattern in patterns
+        for match in glob(str(package / pattern), recursive=True)
+    }
+
+    assert [name for name in package_files() if name not in covered] == []
+
+
+def test_the_sdist_carries_the_same_files_the_wheel_does() -> None:
+    """One directive names the suffixes, applied at every depth beneath the package."""
+    text = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+    directive = next(line for line in text.splitlines() if line.startswith("recursive-include calibrate_pro "))
+    patterns = directive.split()[2:]
+
+    unmatched = [
+        name
+        for name in package_files()
+        if not any(fnmatch(name.rsplit("/", 1)[-1], pattern) for pattern in patterns)
+    ]
+
+    assert unmatched == []
 
 
 def test_sdist_manifest_allowlists_the_complete_release_source() -> None:

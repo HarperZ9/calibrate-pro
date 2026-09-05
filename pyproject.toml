@@ -58,7 +58,11 @@ version = {attr = "calibrate_pro.__version__"}
 include = ["calibrate_pro*"]
 
 [tool.setuptools.package-data]
-calibrate_pro = ["resources/*.ico", "resources/*.png"]
+# Every file under resources/ is package data. The action manifest is read on
+# every startup through importlib.resources, so an extension-by-extension list
+# is what left it out of the wheel: the package imported and then could not
+# build a surface.
+calibrate_pro = ["resources/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
