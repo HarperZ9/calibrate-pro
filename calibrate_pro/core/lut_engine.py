@@ -1266,7 +1266,6 @@ class LUTGenerator:
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
         peak_luminance: float = 1000.0,
-        target_white_luminance: float = 203.0,
         title: str = "HDR Calibration LUT",
     ) -> LUT3D:
         """
@@ -1286,9 +1285,14 @@ class LUTGenerator:
             6. Convert the (possibly compressed) JzAzBz back to XYZ.
             7. Convert XYZ to panel linear RGB.
             8. Apply per-channel inverse panel gamma.
-            9. Map the SDR-in-HDR reference white (203 cd/m^2 by default)
-               so that it lands at the correct level.
-            10. Encode the result back to PQ and write into the LUT.
+            9. Encode the result back to PQ and write into the LUT.
+
+        Reference white is not remapped. The step that would scale it, and
+        the ``target_white_luminance`` argument that carried the BT.2408
+        level, computed a fraction of the peak and discarded it, so every
+        LUT this has written left reference white where the panel puts it.
+        The argument is removed rather than kept as a control that reads
+        like it does something.
 
         The output .cube file should be saved with an ``_hdr`` suffix for
         dwm_lut compatibility (the caller is responsible for naming).
@@ -1301,17 +1305,26 @@ class LUTGenerator:
             gamma_green: Native gamma of the green channel.
             gamma_blue: Native gamma of the blue channel.
             peak_luminance: Panel peak luminance in cd/m^2 (e.g. 1000).
-            target_white_luminance: HDR reference-white luminance in cd/m^2
-                (default 203 cd/m^2 per ITU-R BT.2408).
+                Must be positive: it divides the absolute luminance of every
+                grid point.
             title: Title embedded in the .cube file.
 
         Returns:
             A :class:`LUT3D` whose domain is PQ-encoded [0, 1].
         """
+        # The peak divides absolute luminance at every grid point, so a peak
+        # of zero, which is how a panel with no measured photometry reports
+        # the field, fills the LUT with inf and nan and writes it out as a
+        # calibration. Refuse instead.
+        if peak_luminance <= 0.0:
+            raise ValueError(
+                f"An HDR LUT needs a positive peak luminance, got {peak_luminance} cd/m2. "
+                "Zero marks a panel whose peak brightness was never measured."
+            )
+
         # ---- colour-space matrices ----
         # BT.2020 linear RGB -> XYZ (D65)
         bt2020_to_xyz = BT2020_TO_XYZ.copy()
-        np.linalg.inv(bt2020_to_xyz)
 
         # Panel linear RGB -> XYZ (D65)  and inverse
         panel_to_xyz = primaries_to_xyz_matrix(
@@ -1325,13 +1338,6 @@ class LUTGenerator:
         # Combined matrix: BT.2020 linear -> panel linear (used for the
         # fast in-gamut path and for checking gamut membership).
         bt2020_to_panel = xyz_to_panel @ bt2020_to_xyz
-
-        # Reference-white scaling factor.
-        # The SDR reference white at ``target_white_luminance`` cd/m^2
-        # should map to the same absolute luminance on the panel.  We
-        # express it as a fraction of the peak so that we can rescale
-        # the panel-linear values before gamma encoding.
-        target_white_luminance / peak_luminance  # e.g. 0.203
 
         inv_gammas = np.array(
             [1.0 / gamma_red, 1.0 / gamma_green, 1.0 / gamma_blue],
@@ -1381,8 +1387,7 @@ class LUTGenerator:
         # ---- fast vectorised in-gamut path ----
         ig_panel = np.clip(panel_linear_all[in_gamut_mask], 0.0, 1.0)
         ig_output_linear = np.where(ig_panel > EPS, np.power(ig_panel, inv_gammas), 0.0)
-        # Scale so that reference-white maps correctly, then convert
-        # back to absolute nits and PQ-encode.
+        # Convert back to absolute nits and PQ-encode.
         ig_nits = np.clip(ig_output_linear, 0.0, 1.0) * peak_luminance
         result_all[in_gamut_mask] = pq_oetf(ig_nits)
 
@@ -1400,10 +1405,6 @@ class LUTGenerator:
             Jz, Cz, hz = float(jch[0]), float(jch[1]), float(jch[2])
 
             if Cz > EPS:
-                h_rad = np.radians(hz)
-                np.cos(h_rad)
-                np.sin(h_rad)
-
                 # Binary search: find the maximum chroma in panel gamut
                 lo, hi = 0.0, Cz
                 for _ in range(24):
