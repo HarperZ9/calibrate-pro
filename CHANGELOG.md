@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Made the add-profile dialog do only what the session permits. It opened a file chooser,
+  copied the chosen file into the panel profiles directory, and registered whatever it held,
+  with no action resolved and nothing journalled, while the manifest declared both of those
+  writes disabled and the command line declined them by name. Reading a chosen file is now a
+  declared action: it parses the file where it sits, reports what the file states about the
+  panels it describes, and is recorded like any other action. The two write controls stay on
+  the dialog, disabled, carrying the resolver's own sentence, so an operator reads why this
+  build will not write yet instead of finding a button that quietly does nothing.
+- Removed the second display enumeration the same dialog ran. It now lists what the
+  session's own detection pass observed, so opening the dialog is one action rather than a
+  scan nobody asked for.
+
 - Added the headless calibration session. `detect`, `status`, `verify`,
   `generate-profiles`, and `profiles` drive the actions the window drives, over one
   service, and print what each action returned. A refusal arrives in the words the

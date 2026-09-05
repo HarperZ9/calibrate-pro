@@ -11,7 +11,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from decimal import Decimal
 from functools import partial
-from pathlib import Path
 
 from calibrate_pro import __version__ as APP_VERSION
 from calibrate_pro.qt_runtime import configure_qt_api
@@ -36,10 +35,8 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QPolygonF, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -51,7 +48,6 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
     QSystemTrayIcon,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -69,6 +65,7 @@ from calibrate_pro.application.outcomes import ActionError, ActionOutcome, Actio
 from calibrate_pro.application.results import DetectionSummary, HdrStatus
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.gui.action_binding import ActionBinder, refusal_message
+from calibrate_pro.gui.add_display import AddDisplayDialog
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 from calibrate_pro.workflow import CalibrationMethod
 
@@ -641,492 +638,6 @@ class SensorCard(Card):
         layout.addWidget(text, stretch=1)
 
 
-# Add Display Profile Dialog
-
-
-class AddDisplayDialog(QDialog):
-    """Dialog for adding display profiles via EDID auto-detect or JSON import."""
-
-    display_added = Signal()  # emitted when a profile is added
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Add Display Profile")
-        self.setMinimumSize(520, 460)
-        self.setStyleSheet(
-            f"QDialog {{ background: {C.BG}; }}"
-            f"QTabWidget::pane {{ border: 1px solid {C.BORDER}; border-radius: 10px; "
-            f"  background: {C.SURFACE}; padding: 12px; }}"
-            f"QTabBar::tab {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-            f"  border-top-left-radius: 8px; border-top-right-radius: 8px; "
-            f"  padding: 8px 20px; margin-right: 2px; font-size: 12px; color: {C.TEXT}; }}"
-            f"QTabBar::tab:selected {{ background: {C.SURFACE}; border-bottom-color: {C.SURFACE}; "
-            f"  font-weight: 600; color: {C.ACCENT_TX}; }}"
-            f"QTabBar::tab:hover {{ background: {C.SURFACE}; }}"
-            f"QLabel {{ color: {C.TEXT}; }}"
-            f"QComboBox {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"  border-radius: 8px; padding: 6px 12px; font-size: 12px; }}"
-            f"QComboBox:hover {{ border-color: {C.ACCENT}; }}"
-            f"QComboBox::drop-down {{ border: none; width: 24px; }}"
-        )
-        self._build()
-
-    def _build(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
-
-        heading = QLabel("Add Display Profile")
-        heading.setStyleSheet(f"font-size: 18px; font-weight: 500; color: {C.TEXT};")
-        layout.addWidget(heading)
-
-        tabs = QTabWidget()
-        tabs.addTab(self._build_edid_tab(), "Auto-detect from EDID")
-        tabs.addTab(self._build_import_tab(), "Import from file")
-        layout.addWidget(tabs)
-
-    # EDID auto-detect tab
-    def _build_edid_tab(self):
-        tab = QWidget()
-        vbox = QVBoxLayout(tab)
-        vbox.setContentsMargins(8, 12, 8, 8)
-        vbox.setSpacing(12)
-
-        desc = QLabel(
-            "Detect connected displays via EDID and create panel profiles\nfrom their reported chromaticity data."
-        )
-        desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; line-height: 1.4;")
-        desc.setWordWrap(True)
-        vbox.addWidget(desc)
-
-        # Display selector
-        self._edid_combo = QComboBox()
-        self._edid_combo.setFixedHeight(34)
-        self._edid_combo.currentIndexChanged.connect(self._on_edid_display_changed)
-        vbox.addWidget(self._edid_combo)
-
-        # Info card
-        info_card = QFrame()
-        info_card.setStyleSheet(
-            f"QFrame {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 10px; padding: 12px; }}"
-        )
-        info_layout = QVBoxLayout(info_card)
-        info_layout.setSpacing(6)
-
-        self._edid_info_label = QLabel("Click 'Scan Displays' to detect connected monitors.")
-        self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
-        self._edid_info_label.setWordWrap(True)
-        info_layout.addWidget(self._edid_info_label)
-
-        # Primaries display
-        self._primaries_label = QLabel("")
-        self._primaries_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT}; font-family: 'Consolas', monospace;")
-        self._primaries_label.setWordWrap(True)
-        info_layout.addWidget(self._primaries_label)
-
-        vbox.addWidget(info_card)
-
-        # Panel type and gamma overrides
-        override_form = QFormLayout()
-        override_form.setSpacing(10)
-        override_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-
-        type_label = QLabel("Panel type")
-        type_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        self._panel_type_combo = QComboBox()
-        self._panel_type_combo.addItems(["Auto", "QD-OLED", "WOLED", "IPS", "VA", "Mini-LED", "TN"])
-        self._panel_type_combo.setFixedHeight(32)
-        override_form.addRow(type_label, self._panel_type_combo)
-
-        gamma_label = QLabel("Gamma")
-        gamma_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        self._gamma_combo = QComboBox()
-        self._gamma_combo.addItems(["2.2 (standard)", "2.4 (VA / cinema)", "2.0", "1.8", "sRGB (2.2 + linear toe)"])
-        self._gamma_combo.setFixedHeight(32)
-        override_form.addRow(gamma_label, self._gamma_combo)
-
-        vbox.addLayout(override_form)
-
-        # Buttons
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        scan_btn = QPushButton("Scan Displays")
-        scan_btn.setFixedHeight(34)
-        scan_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 12px; padding: 6px 18px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        scan_btn.clicked.connect(self._scan_displays)
-        btn_row.addWidget(scan_btn)
-
-        btn_row.addStretch()
-
-        self._create_btn = QPushButton("Create Profile")
-        self._create_btn.setFixedHeight(34)
-        self._create_btn.setProperty("primary", True)
-        self._create_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-            f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-            f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-        )
-        self._create_btn.setEnabled(False)
-        self._create_btn.clicked.connect(self._create_edid_profile)
-        btn_row.addWidget(self._create_btn)
-
-        vbox.addLayout(btn_row)
-        vbox.addStretch()
-
-        # Internal state
-        self._scanned_displays = []
-        self._scanned_edid_data = []
-
-        return tab
-
-    # Import-from-file tab
-    def _build_import_tab(self):
-        tab = QWidget()
-        vbox = QVBoxLayout(tab)
-        vbox.setContentsMargins(8, 12, 8, 8)
-        vbox.setSpacing(12)
-
-        desc = QLabel(
-            "Import a community .json panel profile into the database.\n"
-            "Panel profiles contain chromaticity, gamma, and capability data."
-        )
-        desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; line-height: 1.4;")
-        desc.setWordWrap(True)
-        vbox.addWidget(desc)
-
-        # File path display
-        self._import_path_label = QLabel("No file selected")
-        self._import_path_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT3}; padding: 8px; "
-            f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
-        )
-        self._import_path_label.setWordWrap(True)
-        vbox.addWidget(self._import_path_label)
-
-        # Preview area
-        self._import_preview = QLabel("")
-        self._import_preview.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT}; font-family: 'Consolas', monospace; "
-            f"padding: 8px; background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 8px;"
-        )
-        self._import_preview.setWordWrap(True)
-        self._import_preview.setMinimumHeight(80)
-        self._import_preview.hide()
-        vbox.addWidget(self._import_preview)
-
-        # Buttons
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        browse_btn = QPushButton("Browse...")
-        browse_btn.setFixedHeight(34)
-        browse_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 12px; padding: 6px 18px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        browse_btn.clicked.connect(self._browse_import_file)
-        btn_row.addWidget(browse_btn)
-
-        btn_row.addStretch()
-
-        self._import_btn = QPushButton("Import Profile")
-        self._import_btn.setFixedHeight(34)
-        self._import_btn.setProperty("primary", True)
-        self._import_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-            f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-            f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-        )
-        self._import_btn.setEnabled(False)
-        self._import_btn.clicked.connect(self._import_profile)
-        btn_row.addWidget(self._import_btn)
-
-        vbox.addLayout(btn_row)
-        vbox.addStretch()
-
-        self._import_file_path = None
-
-        return tab
-
-    # EDID scanning logic
-    def _scan_displays(self):
-        """Scan for connected displays not already in the panel database."""
-        try:
-            displays = qt_display_snapshots()
-
-            self._edid_combo.clear()
-            self._scanned_displays = []
-            self._scanned_edid_data = []
-
-            for i, display in enumerate(displays):
-                name = display.name
-                panel = None
-
-                # Qt deliberately exposes no EDID bytes. Keep inferred color
-                # characteristics empty instead of importing a writer-capable
-                # legacy module merely to read them.
-                edid_chromaticity = None
-                edid_gamma = 2.2
-
-                in_db = "  [in database]" if panel else "  [unknown]"
-                res = f"{display.width}x{display.height}"
-                self._edid_combo.addItem(f"{name}  ({res}){in_db}")
-
-                self._scanned_displays.append(
-                    {
-                        "display": display,
-                        "name": name,
-                        "index": i,
-                        "in_database": panel is not None,
-                        "panel": panel,
-                        "edid_chromaticity": edid_chromaticity,
-                        "edid_gamma": edid_gamma,
-                        "manufacturer": display.manufacturer or "Unknown",
-                    }
-                )
-                self._scanned_edid_data.append(edid_chromaticity)
-
-            if not displays:
-                self._edid_info_label.setText("No displays detected.")
-                self._create_btn.setEnabled(False)
-            else:
-                self._on_edid_display_changed(0)
-
-        except (ImportError, OSError, AttributeError, KeyError) as e:
-            self._edid_info_label.setText(f"Error scanning displays: {e}")
-            self._create_btn.setEnabled(False)
-
-    def _on_edid_display_changed(self, index):
-        """Update info panel when a different display is selected."""
-        if index < 0 or index >= len(self._scanned_displays):
-            return
-
-        info = self._scanned_displays[index]
-        chrom = info["edid_chromaticity"]
-
-        if info["in_database"]:
-            panel = info["panel"]
-            self._edid_info_label.setText(
-                f"This display is already in the database as:\n{panel.name}  ({panel.panel_type})"
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.GREEN};")
-            self._create_btn.setEnabled(False)
-            if chrom:
-                self._primaries_label.setText(
-                    f"R({chrom['red'][0]:.4f}, {chrom['red'][1]:.4f})  "
-                    f"G({chrom['green'][0]:.4f}, {chrom['green'][1]:.4f})  "
-                    f"B({chrom['blue'][0]:.4f}, {chrom['blue'][1]:.4f})\n"
-                    f"White({chrom['white'][0]:.4f}, {chrom['white'][1]:.4f})"
-                )
-            else:
-                self._primaries_label.setText("")
-        elif chrom:
-            # Calculate approximate gamut coverage
-            r, g, b = chrom["red"], chrom["green"], chrom["blue"]
-            is_wide = r[0] > 0.66 or g[1] > 0.65
-            gamut_desc = "Wide gamut (P3+)" if is_wide else "sRGB-class"
-
-            self._edid_info_label.setText(
-                f"EDID chromaticity detected - ready to create profile.\n"
-                f"Gamut: {gamut_desc}   |   Gamma: {info['edid_gamma']:.1f}"
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT};")
-            self._primaries_label.setText(
-                f"R({r[0]:.4f}, {r[1]:.4f})  "
-                f"G({g[0]:.4f}, {g[1]:.4f})  "
-                f"B({b[0]:.4f}, {b[1]:.4f})\n"
-                f"White({chrom['white'][0]:.4f}, {chrom['white'][1]:.4f})"
-            )
-            self._create_btn.setEnabled(True)
-        else:
-            self._edid_info_label.setText(
-                "No EDID chromaticity data available for this display.\nA generic sRGB profile will be used."
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
-            self._primaries_label.setText("")
-            self._create_btn.setEnabled(False)
-
-    def _create_edid_profile(self):
-        """Create a panel profile from the selected display's EDID data."""
-        index = self._edid_combo.currentIndex()
-        if index < 0 or index >= len(self._scanned_displays):
-            return
-
-        info = self._scanned_displays[index]
-        chrom = info["edid_chromaticity"]
-        if not chrom:
-            return
-
-        # Resolve gamma override
-        gamma_text = self._gamma_combo.currentText()
-        if gamma_text.startswith("2.4"):
-            gamma = 2.4
-        elif gamma_text.startswith("2.0"):
-            gamma = 2.0
-        elif gamma_text.startswith("1.8"):
-            gamma = 1.8
-        else:
-            gamma = info["edid_gamma"]
-
-        # Resolve panel type override
-        panel_type_text = self._panel_type_combo.currentText()
-
-        try:
-            from calibrate_pro.panels.database import DDCRecommendations, PanelDatabase, create_from_edid
-
-            panel = create_from_edid(
-                edid_chromaticity=chrom,
-                monitor_name=info["name"],
-                manufacturer=info["manufacturer"],
-                gamma=gamma,
-            )
-
-            # Override panel type if user selected one
-            if panel_type_text != "Auto":
-                panel.panel_type = panel_type_text
-
-            # Add generic DDC recommendations
-            if panel.ddc is None:
-                panel.ddc = DDCRecommendations(
-                    notes=f"Auto-generated defaults for {info['name']}. "
-                    "Adjust picture mode and color preset in your monitor's OSD "
-                    "for best DDC/CI control."
-                )
-
-            # Save to profiles directory
-            db = PanelDatabase()
-            safe_name = info["name"].replace(" ", "_").replace("/", "_").replace("\\", "_")
-            key = safe_name or f"EDID_Display_{index}"
-            db.add_panel(key, panel)
-            filepath = db.save_panel(key, f"{safe_name.lower()}.json")
-
-            QMessageBox.information(
-                self,
-                "Profile Created",
-                f"Panel profile created successfully.\n\n"
-                f"Name: {info['name']}\n"
-                f"Type: {panel.panel_type}\n"
-                f"Gamma: {gamma}\n"
-                f"Saved to: {filepath}",
-            )
-
-            self.display_added.emit()
-            self.accept()
-
-        except (ImportError, OSError, KeyError, ValueError) as e:
-            QMessageBox.warning(self, "Error", f"Failed to create profile:\n{e}")
-
-    # File import logic
-    def _browse_import_file(self):
-        """Open file dialog to select a .json panel profile."""
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select Panel Profile", "", "JSON Panel Profiles (*.json);;All Files (*)"
-        )
-        if not path:
-            return
-
-        self._import_file_path = path
-        self._import_path_label.setText(path)
-        self._import_path_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT}; padding: 8px; "
-            f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
-        )
-
-        # Preview the file
-        try:
-            import json
-
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-
-            if isinstance(data, list):
-                count = len(data)
-                names = [d.get("display_name", d.get("model_pattern", "?")) for d in data[:5]]
-                preview = f"{count} panel profile(s):\n" + "\n".join(f"  - {n}" for n in names)
-                if count > 5:
-                    preview += f"\n  ... and {count - 5} more"
-            else:
-                mfg = data.get("manufacturer", "?")
-                name = data.get("display_name", data.get("model_pattern", "?"))
-                ptype = data.get("panel_type", "?")
-                preview = f"Manufacturer: {mfg}\nDisplay: {name}\nPanel type: {ptype}"
-
-            self._import_preview.setText(preview)
-            self._import_preview.show()
-            self._import_btn.setEnabled(True)
-
-        except (OSError, json.JSONDecodeError, ValueError, KeyError) as e:
-            self._import_preview.setText(f"Error reading file: {e}")
-            self._import_preview.show()
-            self._import_btn.setEnabled(False)
-
-    def _import_profile(self):
-        """Import the selected JSON file into the panel database."""
-        if not self._import_file_path:
-            return
-
-        try:
-            import json
-            import shutil
-
-            from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase
-
-            with open(self._import_file_path, encoding="utf-8") as f:
-                data = json.load(f)
-
-            db = PanelDatabase()
-            profiles_dir = db.profiles_dir
-            profiles_dir.mkdir(parents=True, exist_ok=True)
-
-            # Copy the file into the profiles directory
-            dest = profiles_dir / Path(self._import_file_path).name
-            if dest.exists():
-                reply = QMessageBox.question(
-                    self,
-                    "File Exists",
-                    f"{dest.name} already exists. Overwrite?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return
-
-            shutil.copy2(self._import_file_path, dest)
-
-            # Load and validate the profiles
-            if isinstance(data, list):
-                count = len(data)
-                for panel_data in data:
-                    panel = PanelCharacterization.from_dict(panel_data)
-                    key = panel.model_pattern.split("|")[0]
-                    db.add_panel(key, panel)
-            else:
-                panel = PanelCharacterization.from_dict(data)
-                key = panel.model_pattern.split("|")[0]
-                db.add_panel(key, panel)
-                count = 1
-
-            QMessageBox.information(
-                self,
-                "Import Successful",
-                f"Imported {count} panel profile(s) from:\n{Path(self._import_file_path).name}\n\nSaved to: {dest}",
-            )
-
-            self.display_added.emit()
-            self.accept()
-
-        except (ImportError, OSError, json.JSONDecodeError, ValueError, KeyError) as e:
-            QMessageBox.warning(self, "Import Error", f"Failed to import profile:\n{e}")
-
-
 class DashboardPage(QWidget):
     """The displays this session observed, and nothing it did not observe.
 
@@ -1184,6 +695,9 @@ class DashboardPage(QWidget):
         self.refresh_btn.setFixedHeight(32)
         header_row.addWidget(self.refresh_btn)
 
+        # Enabled state, visibility, and tooltip belong to the binder in the
+        # window that owns this page, which reads them from the session rather
+        # than from this widget's idea of what the build can do.
         self.add_display_btn = QPushButton("Add Display Profile")
         self.add_display_btn.setFixedHeight(32)
         self.add_display_btn.setStyleSheet(
@@ -1192,15 +706,8 @@ class DashboardPage(QWidget):
             f"QPushButton:hover {{ background: {C.SURFACE2}; border-color: {C.ACCENT_HI}; }}"
             f"QPushButton:disabled {{ background: {C.SURFACE}; border-color: {C.BORDER}; color: {C.TEXT3}; }}"
         )
-        self.add_display_btn.clicked.connect(self._show_add_display_dialog)
-        self.add_display_btn.setEnabled(not self.preview_mode)
-        if self.preview_mode:
-            self.add_display_btn.setToolTip("Disabled in simulated preview")
         header_row.addWidget(self.add_display_btn)
 
-        # Enabled state, visibility, and tooltip belong to the binder in the
-        # window that owns this page, which reads them from the session rather
-        # than from this widget's idea of what the build can do.
         self.calibrate_all_btn = QPushButton("Calibrate All")
         self.calibrate_all_btn.setFixedHeight(32)
         self.calibrate_all_btn.setProperty("primary", not self.preview_mode)
@@ -1404,13 +911,6 @@ class DashboardPage(QWidget):
         self._stat_startup.set_value("Not measured", C.TEXT3)
         self.preview_populated = True
 
-    def _show_add_display_dialog(self):
-        """Show the Add Display Profile dialog."""
-        dialog = AddDisplayDialog(self)
-        dialog.display_added.connect(self._populate)
-        dialog.exec()
-
-
 # Placeholder Pages (to be rebuilt individually)
 
 
@@ -1468,6 +968,10 @@ class CalibrateProWindow(QMainWindow):
         #: has run. The tray reports this and nothing else, so a window that has
         #: observed nothing says so rather than describing an earlier run.
         self._observed: DetectionSummary | None = None
+        #: The add-profile dialog while it is open. It is held because it is
+        #: shown without blocking, and a dialog nothing holds is collected the
+        #: moment the call that opened it returns.
+        self._add_display_dialog: AddDisplayDialog | None = None
         self._binder = ActionBinder(
             self.service,
             report=self.show_toast,
@@ -1714,7 +1218,10 @@ class CalibrateProWindow(QMainWindow):
         self.sidebar._on_click(index)
 
     def _escape_action(self):
-        """Minimize to tray if available, otherwise minimize window."""
+        """Hide or minimize, through the action the manifest declares for it."""
+        self._perform_ui("window.hide_or_minimize", self._hide_or_minimize)
+
+    def _hide_or_minimize(self) -> None:
         if hasattr(self, "_tray") and self._tray.isVisible():
             self.hide()
         else:
@@ -1860,6 +1367,11 @@ class CalibrateProWindow(QMainWindow):
         )
         self.dashboard.navigate_to_calibrate.connect(self._navigate_to_calibrate)
         self._bind_detect(self.dashboard.refresh_btn)
+        self._binder.bind(
+            "panel_profile.dialog.open",
+            self.dashboard.add_display_btn,
+            partial(self.service.perform_ui, "panel_profile.dialog.open", self._open_add_display_dialog),
+        )
         self._binder.bind(
             "calibration.all",
             self.dashboard.calibrate_all_btn,
@@ -2021,11 +1533,14 @@ class CalibrateProWindow(QMainWindow):
 
     def _tray_clicked(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            if self.isVisible():
-                self.hide()
-            else:
-                self.showNormal()
-                self.activateWindow()
+            self._perform_ui("window.toggle_visibility", self._toggle_visibility)
+
+    def _toggle_visibility(self) -> None:
+        if self.isVisible():
+            self.hide()
+        else:
+            self.showNormal()
+            self.activateWindow()
 
     def _update_tray_state(self) -> None:
         """Say what this session observed, and nothing it has not observed.
@@ -2107,10 +1622,45 @@ class CalibrateProWindow(QMainWindow):
             return
         self._shortcut_switch_page(1)
 
+    def _perform_ui(self, action_id: str, effect: Callable[[], None]) -> None:
+        """Run one interface action whose trigger is not a bound control.
+
+        The tray icon and the Escape key emit from objects the binder cannot
+        hold, so a refusal on either has nowhere to render. Reporting it here
+        keeps those two from being the places where a refused action is
+        indistinguishable from nothing having happened.
+        """
+        outcome = self.service.perform_ui(action_id, effect)
+        if isinstance(outcome, ActionError):
+            self.show_toast(refusal_message(outcome), "warning")
+
     def _show_window(self) -> None:
         """Bring the window forward from the tray."""
         self.showNormal()
         self.activateWindow()
+
+    def _open_add_display_dialog(self) -> None:
+        """Open the add-profile dialog on the displays this session observed.
+
+        The dialog is shown without blocking. Running it modally would hold this
+        action open for as long as the operator kept the dialog up, so the
+        journal would record the close rather than the open, and would time the
+        operator rather than the work.
+        """
+        dialog = AddDisplayDialog(
+            self.service,
+            inspect_profile=self.service.inspect_panel_profile,
+            observed=self.dashboard.observed,
+            restrict=self._preview_restriction if self.preview_mode else None,
+            parent=self,
+        )
+        self._add_display_dialog = dialog
+        dialog.finished.connect(self._add_display_closed)
+        dialog.open()
+
+    def _add_display_closed(self, _result: int) -> None:
+        """Drop the closed dialog. Nothing it did needs the page redrawn."""
+        self._add_display_dialog = None
 
     def _show_profiles(self) -> None:
         """Bring the window forward on the page that lists published profiles.

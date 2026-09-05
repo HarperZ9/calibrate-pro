@@ -101,9 +101,16 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         )
 
         buttons = {button.text(): button for button in window.findChildren(QPushButton)}
-        for label in ("Add Display Profile", "Calibrate All", "Calibrate"):
+        for label in ("Calibrate All", "Calibrate"):
             assert label in buttons
             assert not buttons[label].isEnabled()
+        # Opening the add-profile dialog is an interface action and stays open
+        # here, because the restriction narrows what reaches past the interface
+        # rather than what the operator is allowed to look at. The dialog it
+        # opens does nothing on its own: the preview session runs no detection
+        # pass, so it has no display to describe, and reading a chosen file is
+        # classified read_only and so is closed by the same restriction.
+        assert buttons["Add Display Profile"].isEnabled()
         assert "QPushButton:disabled" in buttons["Add Display Profile"].styleSheet()
         assert buttons["Calibrate All"].property("primary") is False
         assert buttons["Calibrate"].property("primary") is False

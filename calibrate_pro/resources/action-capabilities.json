@@ -1162,7 +1162,6 @@
       "action_id": "display.detect",
       "surfaces": [
         "dashboard.refresh",
-        "dialog.add_display.scan",
         "menu.display.detect",
         "menu.view.refresh"
       ],
@@ -1833,7 +1832,7 @@
       "surfaces": [
         "dialog.add_display.import.choose"
       ],
-      "classification": "ui_only",
+      "classification": "read_only",
       "required_stages": [
         "detect",
         "method",
@@ -1852,7 +1851,7 @@
       "required_resources": [],
       "receipt_required": false,
       "evidence_modes": [
-        "none"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
       "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."

@@ -112,9 +112,10 @@ EXPECTED_SURFACES_BY_ACTION = {
     "diagnostics.folder.open": {"settings.diagnostics.open_folder"},
     "diagnostics.bundle.preview": {"settings.diagnostics.preview_bundle"},
     "diagnostics.bundle.create": {"settings.diagnostics.create_bundle"},
-    "display.detect": {
-        "dashboard.refresh", "menu.view.refresh", "menu.display.detect", "dialog.add_display.scan"
-    },
+    # The add-profile dialog used to carry a scan button of its own. It now
+    # lists the displays the session already detected, so detection is offered
+    # in three places and none of them is inside a dialog.
+    "display.detect": {"dashboard.refresh", "menu.view.refresh", "menu.display.detect"},
     "calibration.open_for_display": {"dashboard.display_card.calibrate"},
     "panel_profile.dialog.open": {"dashboard.add_display"},
     "panel_profile.edid.select_display": {"dialog.add_display.edid.display"},

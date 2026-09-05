@@ -15,6 +15,7 @@ the work it is supposed to be showing.
 
 from __future__ import annotations
 
+import json
 import zipfile
 from pathlib import Path
 
@@ -948,3 +949,190 @@ def test_opening_the_folder_reaches_the_folder_the_page_named(
     assert opened == [window.session_root / "diagnostics"]
     assert str(opened[0]) in section._folder.text()
     assert window.toasts == []
+
+
+#: A panel profile written the way the panel database writes one.
+PANEL_FILE = {
+    "manufacturer": "Example Optics",
+    "model_pattern": "EX-2700U",
+    "display_name": "Example EX-2700U",
+    "panel_type": "QD-OLED",
+}
+
+
+def open_add_display(window: object) -> object:
+    """Open the add-profile dialog the way the dashboard button opens it."""
+    window.dashboard.add_display_btn.click()
+    dialog = window._add_display_dialog
+    assert dialog is not None
+    return dialog
+
+
+def answer_open_dialog(monkeypatch: pytest.MonkeyPatch, chosen: Path | None) -> None:
+    """Answer the dialog's file chooser with one path, or with a withdrawal.
+
+    The real chooser blocks until a person answers it, offscreen platform or
+    not, so a test that clicked Browse without this would never return.
+    """
+    from calibrate_pro.gui import add_display
+
+    answer = "" if chosen is None else str(chosen)
+    monkeypatch.setattr(
+        add_display.QFileDialog,
+        "getOpenFileName",
+        staticmethod(lambda *args, **kwargs: (answer, "")),
+    )
+
+
+def test_opening_the_profile_dialog_is_an_action_and_the_only_one(window: object) -> None:
+    """Opening is declared, so it is journalled, and nothing else is.
+
+    The dialog draws the selected display before its selector is bound. Binding
+    first would make opening the dialog look like a choice somebody made, and
+    the journal would carry a selection no operator performed.
+    """
+    dialog = open_add_display(window)
+
+    assert dialog.isVisible()
+    assert [record["action_id"] for record in journal_records(window.session_root)] == [
+        "display.detect",
+        "panel_profile.dialog.open",
+    ]
+
+
+def test_every_control_in_the_profile_dialog_stands_for_a_declared_action(window: object) -> None:
+    """A drawn control the resolver never sees is the defect this dialog had.
+
+    Reading the bindings alone would not catch it, because a control can be
+    built, connected to a handler of its own, and never handed over. That is
+    what both write buttons used to be, so the dialog's own widgets are read
+    here and every interactive one has to be accounted for.
+    """
+    from PySide6.QtWidgets import QComboBox, QPushButton
+
+    dialog = open_add_display(window)
+    bound = {id(binding.control) for binding in dialog._binder.bindings}
+    interactive = [*dialog.findChildren(QComboBox), *dialog.findChildren(QPushButton)]
+
+    assert len(interactive) == 4
+    assert [widget for widget in interactive if id(widget) not in bound] == []
+
+
+def test_the_two_writes_the_profile_dialog_draws_are_closed_by_the_session(window: object) -> None:
+    """Both stay on the dialog, disabled, carrying the resolver's own sentence.
+
+    Removing them would read as a build that never had the feature. They are
+    declared disabled, which is a different statement: there is a Phase 2
+    contract behind each one that this build does not qualify against, and an
+    operator looking for either needs to read why it is closed.
+    """
+    from calibrate_pro.application.actions import ActionDisposition
+
+    dialog = open_add_display(window)
+
+    for action_id, control in (
+        ("panel_profile.edid.create", dialog._create_btn),
+        ("panel_profile.import", dialog._import_btn),
+    ):
+        resolved = window.service.resolve(action_id)
+        assert resolved.disposition is ActionDisposition.DISABLED
+        assert not control.isEnabled()
+        assert not control.isHidden()
+        assert control.toolTip() == resolved.reason
+
+
+def test_browsing_hands_the_file_to_the_session_and_draws_what_it_holds(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The dialog shows a reading it was given, not one it performed.
+
+    The file stays where the operator keeps it. Copying it into the directory
+    the calibration engine reads is the disabled action beside this one, and
+    the journal is read here because the copy this replaced left no record.
+    """
+    chosen = tmp_path / "panel.json"
+    chosen.write_text(json.dumps(PANEL_FILE), encoding="utf-8")
+    answer_open_dialog(monkeypatch, chosen)
+    dialog = open_add_display(window)
+
+    dialog._browse_btn.click()
+
+    assert dialog._path_label.text() == str(chosen)
+    assert "Example EX-2700U" in dialog._preview_label.text()
+    assert "QD-OLED" in dialog._preview_label.text()
+    assert chosen.exists()
+    assert journal_records(window.session_root)[-1]["action_id"] == "panel_profile.import.choose"
+    assert window.toasts == []
+
+
+def test_withdrawing_from_the_profile_chooser_reads_nothing(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A closed chooser is neither a success to report nor a refusal to explain."""
+    from calibrate_pro.gui.add_display import NO_FILE_CHOSEN
+
+    answer_open_dialog(monkeypatch, None)
+    dialog = open_add_display(window)
+    before = journal_records(window.session_root)
+
+    dialog._browse_btn.click()
+
+    assert dialog._path_label.text() == NO_FILE_CHOSEN
+    assert dialog._preview_label.text() == ""
+    assert journal_records(window.session_root) == before
+    assert window.toasts == []
+
+
+def test_a_file_the_session_cannot_read_is_refused_inside_the_dialog(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The window's toasts appear in a corner this dialog covers.
+
+    A refusal shown there is a refusal the operator never reads, so the message
+    goes to the dialog and the toast list has to stay empty. The field is put
+    back at the same time, so it never names a file that was turned down.
+    """
+    from calibrate_pro.gui.add_display import NO_FILE_CHOSEN
+
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    answer_open_dialog(monkeypatch, broken)
+    dialog = open_add_display(window)
+
+    dialog._browse_btn.click()
+
+    assert "could not be read" in dialog._message.text()
+    assert dialog._message.isVisible()
+    assert dialog._path_label.text() == NO_FILE_CHOSEN
+    assert dialog._preview_label.text() == ""
+    assert window.toasts == []
+
+
+def test_the_profile_dialog_can_reach_nothing_that_writes() -> None:
+    """No route through this surface reaches the panel database or the disk.
+
+    The behaviour is proved above, one path at a time. This reads the module
+    instead, because a write that is added later would be added as an import
+    and a call rather than as one of the paths a test already drives.
+    """
+    import ast
+
+    from calibrate_pro.gui import add_display
+
+    source = Path(add_display.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = {
+        alias.name if isinstance(node, ast.Import) else (node.module or "")
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+    assert [name for name in imported if name.startswith("calibrate_pro.panels")] == []
+    assert [name for name in imported if name in {"shutil", "os"}] == []
+    assert [name for name in ("write_text", "mkdir", "copyfile", "save_panel") if name in source] == []

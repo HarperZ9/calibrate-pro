@@ -21,6 +21,7 @@ NO_HANDLER = "NO_HANDLER"
 NOT_A_UI_ACTION = "NOT_A_UI_ACTION"
 NO_SELECTED_PROFILE = "NO_SELECTED_PROFILE"
 PROFILE_SEAL_BROKEN = "PROFILE_SEAL_BROKEN"
+PROFILE_UNREADABLE = "PROFILE_UNREADABLE"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -111,6 +112,22 @@ def profile_seal_broken() -> ActionFailure:
     )
 
 
+def profile_unreadable(reason: str) -> ActionFailure:
+    """Report a chosen panel profile this build could not read.
+
+    The reason is the filesystem's or the parser's own, so the operator is told
+    what stopped the read rather than that the file was rejected. A different
+    file may well work, which is what makes this retryable.
+    """
+    return ActionFailure(
+        code=PROFILE_UNREADABLE,
+        summary=f"That panel profile could not be read: {reason}",
+        retryable=True,
+        next_action="Choose a .json panel profile this account can read.",
+        category="filesystem",
+    )
+
+
 def no_handler(action_id: str) -> ActionFailure:
     """Report an action this composition offers no way to perform.
 
@@ -160,6 +177,7 @@ __all__ = [
     "NO_SEALED_PLAN",
     "NO_SELECTED_PROFILE",
     "PROFILE_SEAL_BROKEN",
+    "PROFILE_UNREADABLE",
     "SESSION_TRANSITION_REJECTED",
     "UNKNOWN_DISPLAY",
     "export_failed",
@@ -174,6 +192,7 @@ __all__ = [
     "not_a_ui_action",
     "policy_refusal",
     "profile_seal_broken",
+    "profile_unreadable",
     "transition_rejected",
     "unknown_display",
 ]

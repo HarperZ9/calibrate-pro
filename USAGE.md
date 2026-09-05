@@ -69,6 +69,12 @@ Rejecting a preview performs no write. Apply remains unavailable when the requir
 capability or authoritative prior-state capture is absent. The tray and calibration
 guard are read-only monitor-and-notify surfaces in 1.1.
 
+**Add Display Profile** lists the displays the session detected. Choosing a panel
+profile reads it where you keep it and prints what the file states about the panels it
+describes. Nothing is copied and nothing is registered: creating a profile from EDID and
+importing one into the panel database are both shown disabled with the reason the
+session gives, which is the answer `import-panel` gives at the command line.
+
 ## Read-only commands
 
 The Python package exposes the commands below. The frozen Windows CLI ships nine of
