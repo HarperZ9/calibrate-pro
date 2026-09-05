@@ -64,6 +64,7 @@ SDR_REFERENCE_WHITE = 80  # SDR content reference (sRGB)
 HDR_REFERENCE_WHITE = 203  # HDR10 reference white
 HDR_PEAK_LUMINANCE = _ST2084_PEAK_NITS  # PQ max luminance
 BUNDLED_DWM_LUT_VERSION = "3.8"
+DWM_LUT_EXECUTABLE = "DwmLutGUI.exe"
 BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS = frozenset({19042, 19043, 22000})
 
 
@@ -619,6 +620,54 @@ def get_dwm_lut_directory() -> Path:
 # =============================================================================
 
 
+def dwm_lut_search_paths() -> list[Path]:
+    """List the directories searched for the DWM LUT tool, most preferred first."""
+    bundled = resource_path("dwm_lut")
+    paths = [bundled]
+    if getattr(sys, "frozen", False):
+        paths.append(Path(sys.executable).parent / "dwm_lut")
+    paths.extend(
+        [
+            Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
+            Path(__file__).parent / "bin",
+            Path("C:/Program Files/dwm_lut"),
+            Path.home() / "dwm_lut",
+        ]
+    )
+    return paths
+
+
+def bundled_dwm_lut_version_at(path: Path) -> str | None:
+    """Return the bundled hook version when `path` is the packaged copy, else None.
+
+    A copy the operator installed elsewhere carries no version this package can
+    vouch for, so it answers None instead of claiming the bundled version.
+    """
+    try:
+        is_bundled = path.resolve() == resource_path("dwm_lut").resolve()
+    except OSError:
+        return None
+    return BUNDLED_DWM_LUT_VERSION if is_bundled else None
+
+
+def find_dwm_lut_directory() -> Path | None:
+    """Locate the installed DWM LUT tool by reading the filesystem only.
+
+    This stats paths and consults PATH. It creates nothing, launches nothing,
+    and is safe to call from the read-only detection pass.
+    """
+    for candidate in dwm_lut_search_paths():
+        try:
+            if (candidate / DWM_LUT_EXECUTABLE).exists():
+                return candidate
+        except OSError:
+            continue
+    located = shutil.which(DWM_LUT_EXECUTABLE)
+    if located:
+        return Path(located).parent
+    return None
+
+
 class DwmLutController:
     """
     Controller for DWM-level 3D LUT application using ledoge/dwm_lut.
@@ -651,39 +700,15 @@ class DwmLutController:
 
     def _find_dwm_lut(self) -> None:
         """Find dwm_lut installation."""
-        if self._dwm_lut_path and (self._dwm_lut_path / "DwmLutGUI.exe").exists():
+        if self._dwm_lut_path and (self._dwm_lut_path / DWM_LUT_EXECUTABLE).exists():
             return
-
-        # Search bundled resources before legacy installation locations.
-        bundled_path = resource_path("dwm_lut")
-        search_paths = [bundled_path]
-
-        # Frozen build: look next to the executable
-        if getattr(sys, "frozen", False):
-            search_paths.append(Path(sys.executable).parent / "dwm_lut")
-
-        search_paths.extend(
-            [
-                Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
-                Path(__file__).parent / "bin",
-                Path("C:/Program Files/dwm_lut"),
-                Path.home() / "dwm_lut",
-            ]
-        )
-
-        for path in search_paths:
-            if path.exists() and (path / "DwmLutGUI.exe").exists():
-                self._dwm_lut_path = path
-                if path.resolve() == bundled_path.resolve():
-                    self._bundled_dependency_version = BUNDLED_DWM_LUT_VERSION
-                return
-
-        # Check PATH
-        import shutil as sh
-
-        exe = sh.which("DwmLutGUI.exe")
-        if exe:
-            self._dwm_lut_path = Path(exe).parent
+        found = find_dwm_lut_directory()
+        if found is None:
+            return
+        self._dwm_lut_path = found
+        version = bundled_dwm_lut_version_at(found)
+        if version is not None:
+            self._bundled_dependency_version = version
 
     def _assert_runtime_compatible(self) -> None:
         """Fail closed before staging or launching a build-sensitive DWM hook."""
