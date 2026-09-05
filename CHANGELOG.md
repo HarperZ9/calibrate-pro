@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+- Stopped dropping a display Windows still owns because its panel went dark. `enumerate_displays`
+  walked the graphics adapters and reported only the monitor devices hanging off each one, so an
+  adapter that reported no monitor device contributed nothing. That is a different condition from
+  no display: an adapter holds an active desktop with no enumerable monitor device whenever the
+  panel is asleep or switched off at the wall, and whenever the mode comes from an indirect display
+  driver. Windows still counts that desktop in `GetSystemMetrics(SM_CMONITORS)`, still enumerates
+  it through `EnumDisplayMonitors`, still accepts a gamma ramp for it, and still resolves its ICC
+  profile, while the tool reported no displays at all and had nothing to calibrate. The adapter is
+  now reported in that case, guarded on the adapter being active and carrying a real mode. Every
+  monitor-specific field stays empty: the adapter's `DeviceString` names the graphics card, so
+  copying it into `monitor_name` would report the GPU as the panel under calibration.
+- Stopped naming a panel model from a display mode alone. `identify_display` fell back to a
+  fingerprint with the manufacturer stripped off, and `DISPLAY_FINGERPRINTS` carried two keys in
+  that form. A mode is not an identity: the table itself lists four panels at 3440x1440@175 and
+  five at 3840x2160@240, so the stripped lookup resolved that ambiguity by returning whichever one
+  held the bare key. Every 3440x1440@175 display was reported as a Dell Alienware AW3423DW and
+  every 3840x2160@240 display as an ASUS PG27UCDM, under a comment reading "assume QD-OLED". The
+  key is not a label: `enrich_display_info` copies the matched panel's native gamma, peak
+  luminance and gamut onto the display, `hdr_detect` reports that panel's peak luminance in nits
+  as the display's, and `vcgt_calibration` builds the correction curve from that gamma, so a
+  guessed identity reached the ramp loaded into the GPU. Fingerprint matching now requires the
+  EDID manufacturer, and the two manufacturer-free keys are gone. A display whose manufacturer is
+  unknown stays unidentified and reports a peak luminance of zero rather than 1000 cd/m2. This
+  path is reachable from the enumeration fix above, which reports an adapter with an empty
+  manufacturer.
+- Stopped reading HDR and wide gamut support off a display mode. `enrich_display_info` set both
+  flags on any unmatched display running 4K above 120 Hz, on the reasoning that such a panel is
+  usually a recent gaming monitor, then set the gamut flag again wherever `bit_depth` reached 10.
+  That second test never failed. `bit_depth` holds DEVMODE's `dmBitsPerPel`, which counts bits per
+  pixel rather than per channel, so an ordinary 8-bit sRGB desktop reports 32 there and every
+  display the panel database did not match came back wide gamut. A 4K 144 Hz sRGB monitor came
+  back HDR as well. The flags select the gamut the correction targets, so a display was calibrated
+  toward a color space it cannot reach. Neither field is a spec sheet a record may fill in from a
+  resolution. Both stay False on an unmatched display, which reads as not known to be capable and
+  sends a caller to the EDID chromaticity primaries for the gamut and to the panel entry or
+  `display.hdr_detect` for HDR.
 - Stopped detection reporting one monitor's characterization for every display. The panel
   lookup was written against a fixed model string, so each display a session detected came
   back as that monitor: its panel type, its manufacturer, and, wherever EDID colorimetry was
