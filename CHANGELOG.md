@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Stopped the HDR LUT dividing by a peak luminance nobody measured.
+  `create_hdr_calibration_lut` divides absolute luminance by the panel peak at every grid point,
+  which was safe while every panel came from the bundled database carrying a measured one. It
+  stopped being safe once an EDID-built panel and an imported community panel began reporting
+  zero for photometry that was never taken: a zero peak fills the whole grid with inf and nan
+  and writes that out as a calibration file. `SensorlessEngine.create_3d_lut` read the
+  capability and passed it through. Both ends now refuse, and the outer one names the panel and
+  says to measure its peak brightness, because a stack trace from inside a LUT loop does not
+  tell an operator what to fix.
+- Removed three luminance arguments that steered nothing. `generate_mhc2_profile` took a peak
+  and a black luminance and documented them as the display luminance written into the profile;
+  the tag it writes is matrix type 1, which holds a signature, a reserved word, the type, and
+  twelve fixed-point values, and has no field for either. `compute_color_volume` took a peak
+  documented as driving rolloff modelling, where the rolloff comes from the panel family and the
+  lightness level. `create_hdr_calibration_lut` took the BT.2408 reference-white level, computed
+  its fraction of the peak on a line of its own, and discarded the expression, so every HDR LUT
+  this has written left reference white where the panel puts it. The call site in
+  `auto_calibration` read an unknown peak and an unknown black off the panel and substituted
+  1000 and 0.0001 before handing them over, which is the importer's fabrication one call deeper.
+  An argument that reads like a measurement input and changes no output is a false report about
+  the code, so all three are gone rather than kept as controls, and the docstrings state what
+  each function does read. Reference-white mapping is not implemented and is not claimed.
 - Stopped a community panel file reporting photometry nobody submitted. `import_panel` filled
   every absent capability: a 100 cd/m2 SDR peak, a 400 cd/m2 HDR peak, a 0.0001 cd/m2 black,
   10-bit colour, and 2.2 for a missing gamma channel. A community file is written under a

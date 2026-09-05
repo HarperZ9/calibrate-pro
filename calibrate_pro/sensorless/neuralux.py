@@ -334,6 +334,12 @@ class SensorlessEngine:
 
         if hdr_mode:
             peak = panel.capabilities.max_luminance_hdr
+            if peak <= 0.0:
+                raise ValueError(
+                    f"{panel.name} reports no measured HDR peak luminance, so an HDR LUT "
+                    "cannot be built. Measure the panel peak brightness, or select a panel "
+                    "profile that carries one."
+                )
             lut = generator.create_hdr_calibration_lut(
                 panel_primaries=panel_prims,
                 panel_white=primaries.white.as_tuple(),
@@ -595,7 +601,6 @@ class SensorlessEngine:
                 lightness_steps=11,
                 hue_steps=36,
                 panel_type=panel.panel_type,
-                peak_luminance=panel.capabilities.max_luminance_hdr,
             )
             results["color_volume"] = {
                 "srgb_pct": vol.srgb_volume_pct,

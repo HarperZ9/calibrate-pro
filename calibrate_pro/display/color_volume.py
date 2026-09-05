@@ -48,7 +48,6 @@ def compute_color_volume(
     lightness_steps: int = 21,
     hue_steps: int = 72,
     panel_type: str = "",
-    peak_luminance: float = 1000.0,
 ) -> ColorVolumeResult:
     """
     Compute 3D color volume for a panel.
@@ -66,7 +65,10 @@ def compute_color_volume(
         lightness_steps: Number of L* levels to sample
         hue_steps: Number of hue angles per level
         panel_type: "QD-OLED", "WOLED", etc. for luminance rolloff
-        peak_luminance: Panel peak luminance for rolloff modeling
+
+    The rolloff is a per-family model applied at each lightness level. It is
+    not read off a measured luminance curve, and there is no peak luminance
+    argument, because none was ever used.
 
     Returns:
         ColorVolumeResult with volumes and per-level areas
