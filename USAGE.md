@@ -49,6 +49,11 @@ runtime resources, PQ reference math, and software capability surfaces. It does 
 probe a physical display, open a colorimeter, or change system state. The JSON form is
 schema-versioned and suitable for a support attachment.
 
+A report that finds a dependency missing prints the command that installs it under a
+`To fix` heading, and the JSON carries the same under `remediation`. A base install
+reports four missing names and answers with the `gui` extra. A packaged build is told
+to reinstall from its release, because pip cannot reach the interpreter it ships.
+
 Then launch the desktop workflow:
 
 ```powershell

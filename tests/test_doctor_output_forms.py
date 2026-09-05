@@ -29,8 +29,8 @@ UNHEALTHY_REPORT: dict[str, Any] = {
     "distribution_mode": "frozen",
     "application_root": r"C:\Program Files\Calibrate Pro",
     "dependencies": {
-        "numpy": {"distribution": "numpy", "installed": True, "version": "2.4.5"},
-        "scipy": {"distribution": "scipy", "installed": False, "version": None},
+        "numpy": {"distribution": "numpy", "extra": None, "installed": True, "version": "2.4.5"},
+        "scipy": {"distribution": "scipy", "extra": None, "installed": False, "version": None},
     },
     "qt": {"api_name": "PySide6", "ok": False},
     "pq": {"ok": False},
@@ -50,6 +50,12 @@ UNHEALTHY_REPORT: dict[str, Any] = {
             "probe": "library_symbol",
             "detail": "Dxva2.dll/GetVCPFeatureAndVCPFeatureReply",
         },
+    },
+    "remediation": {
+        "missing": ["scipy"],
+        "extras": [],
+        "command": None,
+        "note": "This is a packaged build. Reinstall from the release that produced it; pip cannot repair it.",
     },
     "ok": False,
 }
@@ -85,7 +91,51 @@ def test_the_readable_form_names_what_failed() -> None:
     assert "resources/two.json" in rendered
     assert "component policy is unreadable" in rendered
     assert "NOT SUPPORTED" in rendered
-    assert rendered.rstrip().splitlines()[-2] == "Result: NOT OK"
+    lines = rendered.rstrip().splitlines()
+    assert "Result: NOT OK" in lines
+    assert lines.index("Result: NOT OK") < lines.index("To fix")
+
+
+def test_the_readable_form_prints_the_command_that_repairs_the_install() -> None:
+    """A verdict with no next action is where the first public build stopped.
+
+    The reader most likely to run this command is one who installed the base
+    package, saw four MISSING lines, and has no way to know that an extra named
+    `gui` is what carries them.
+    """
+    source_install = {
+        **UNHEALTHY_REPORT,
+        "distribution_mode": "python",
+        "remediation": {
+            "missing": ["PySide6-Essentials", "QtPy", "build-ui", "shiboken6"],
+            "extras": ["gui"],
+            "command": 'pip install "calibrate-pro[gui]"',
+            "note": None,
+        },
+    }
+
+    rendered = render_doctor_text(source_install)
+
+    assert "To fix" in rendered
+    assert 'pip install "calibrate-pro[gui]"' in rendered
+
+
+def test_a_report_with_nothing_missing_prints_no_fix_block() -> None:
+    """The control on the test above: the block is absent, not empty.
+
+    A `To fix` heading over a healthy install would read as a repair the reader
+    still owes, which is the same defect as printing a number nobody measured.
+    """
+    healthy = {
+        **UNHEALTHY_REPORT,
+        "ok": True,
+        "remediation": {"missing": [], "extras": [], "command": None, "note": None},
+    }
+
+    rendered = render_doctor_text(healthy)
+
+    assert "To fix" not in rendered
+    assert "pip install" not in rendered
 
 
 def test_a_healthy_report_says_so_and_a_present_file_is_not_listed() -> None:

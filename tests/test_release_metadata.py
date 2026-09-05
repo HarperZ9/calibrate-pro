@@ -16,7 +16,7 @@ from calibrate_pro.verification.reports import ReportMetadata
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_release_version_is_1_1_0() -> None:
+def test_release_version_matches_the_declaration_this_release_ships() -> None:
     assert __version__ == "2.0.0"
 
 
@@ -56,6 +56,23 @@ def test_all_extra_is_gui_tray_sensor_union() -> None:
     expected = optional_dependencies["gui"] + optional_dependencies["tray"] + optional_dependencies["sensor"]
     assert optional_dependencies["all"] == expected
     assert len(optional_dependencies["all"]) == len(set(optional_dependencies["all"]))
+
+
+def test_every_extra_the_doctor_names_is_one_pip_can_resolve() -> None:
+    """The fix command doctor prints has to reach an extra pyproject declares.
+
+    That table is written by hand beside the dependency names, so a renamed
+    extra would keep printing the old name and send every reader who follows
+    the command to an install that fails.
+    """
+    from calibrate_pro.diagnostics import DEPENDENCIES
+
+    with (ROOT / "pyproject.toml").open("rb") as stream:
+        declared = set(tomllib.load(stream)["project"]["optional-dependencies"])
+    named = {extra for _, _, extra in DEPENDENCIES if extra}
+
+    assert named, "no dependency names an extra"
+    assert named <= declared, f"extras pyproject does not declare: {sorted(named - declared)}"
 
 
 def test_metadata_tests_retain_python_3_10_toml_support() -> None:

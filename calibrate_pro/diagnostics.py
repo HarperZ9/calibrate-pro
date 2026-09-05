@@ -15,14 +15,17 @@ from typing import Any
 from calibrate_pro import __version__
 from calibrate_pro.runtime import application_root
 
-DEPENDENCIES: tuple[tuple[str, str], ...] = (
-    ("build-color", "build-color"),
-    ("build-ui", "build-ui"),
-    ("QtPy", "QtPy"),
-    ("PySide6-Essentials", "PySide6-Essentials"),
-    ("shiboken6", "shiboken6"),
-    ("numpy", "numpy"),
-    ("scipy", "scipy"),
+#: Each runtime dependency, the distribution that provides it, and the extra a
+#: reader installs to get it. ``None`` means the base install already carries it,
+#: so its absence is a damaged installation rather than an option nobody chose.
+DEPENDENCIES: tuple[tuple[str, str, str | None], ...] = (
+    ("build-color", "build-color", None),
+    ("build-ui", "build-ui", "gui"),
+    ("QtPy", "QtPy", "gui"),
+    ("PySide6-Essentials", "PySide6-Essentials", "gui"),
+    ("shiboken6", "shiboken6", "gui"),
+    ("numpy", "numpy", None),
+    ("scipy", "scipy", None),
 )
 
 _DWM_LUT_RESOURCES = (
@@ -106,17 +109,58 @@ def _module_available(module_name: str) -> bool:
 
 def _dependency_report() -> dict[str, dict[str, object]]:
     result: dict[str, dict[str, object]] = {}
-    for name, distribution in DEPENDENCIES:
+    for name, distribution, extra in DEPENDENCIES:
         try:
             version = metadata.version(distribution)
         except metadata.PackageNotFoundError:
             version = None
         result[name] = {
             "distribution": distribution,
+            "extra": extra,
             "installed": version is not None,
             "version": version,
         }
     return result
+
+
+def _remediation(dependencies: dict[str, dict[str, object]], *, frozen_mode: bool) -> dict[str, object]:
+    """The command that repairs a missing dependency, or nothing to run.
+
+    A report that says NOT OK and stops there leaves a reader with no next
+    action, which is the state the first public build shipped in. What repairs
+    it depends on how the installation was made: pip can add an extra to a
+    source install and can do nothing at all to a packaged one.
+    """
+    missing = sorted(name for name, entry in dependencies.items() if not entry["installed"])
+    if not missing:
+        return {"missing": [], "extras": [], "command": None, "note": None}
+    extras = sorted({str(dependencies[name]["extra"]) for name in missing if dependencies[name]["extra"]})
+    base = [name for name in missing if not dependencies[name]["extra"]]
+    if frozen_mode:
+        return {
+            "missing": missing,
+            "extras": extras,
+            "command": None,
+            "note": "This is a packaged build. Reinstall from the release that produced it; pip cannot repair it.",
+        }
+    if base and not extras:
+        return {
+            "missing": missing,
+            "extras": extras,
+            "command": "pip install --force-reinstall calibrate-pro",
+            "note": "Every name above ships with the base install, so this installation is incomplete.",
+        }
+    note = None
+    if base:
+        note = (
+            "Also missing from the base install: " + ", ".join(base) + ". Reinstall rather than adding the extra alone."
+        )
+    return {
+        "missing": missing,
+        "extras": extras,
+        "command": 'pip install "calibrate-pro[' + ",".join(extras) + ']"',
+        "note": note,
+    }
 
 
 def _safe_notice_path(value: Any) -> str | None:
@@ -256,6 +300,7 @@ def build_doctor_report(root: Path | None = None, *, frozen: bool | None = None)
         "resources": resources,
         "pq": pq,
         "capabilities": _capabilities_report(),
+        "remediation": _remediation(dependencies, frozen_mode=frozen_mode),
     }
     report["ok"] = bool(dependencies_ok and qt_ok and resources["ok"] and pq["ok"])
     return report

@@ -88,6 +88,20 @@ def _capability_lines(capabilities: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _remediation_lines(remediation: dict[str, Any]) -> list[str]:
+    """What to run next, printed only when something is actually missing."""
+    if not remediation.get("missing"):
+        return []
+    lines = ["", "To fix"]
+    command = remediation.get("command")
+    if command:
+        lines.append(f"  {command}")
+    note = remediation.get("note")
+    if note:
+        lines.append(f"  {note}")
+    return lines
+
+
 def render_doctor_text(report: dict[str, Any]) -> str:
     """Render the report for a person reading a terminal."""
     lines = [
@@ -102,6 +116,8 @@ def render_doctor_text(report: dict[str, Any]) -> str:
         *_capability_lines(report.get("capabilities", {})),
         "",
         f"Result: {'ok' if report.get('ok') is True else 'NOT OK'}",
+        *_remediation_lines(report.get("remediation", {})),
+        "",
         "Run with --json for the schema-1 report support automation reads.",
     ]
     return "\n".join(lines)

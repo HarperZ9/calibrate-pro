@@ -2,6 +2,15 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Gave `doctor` a next action. A base install leaves four distributions absent, so the
+  report printed four MISSING lines, `Result: NOT OK`, and nothing a reader could run.
+  The dependency table now records which extra carries each name and the report ends
+  with the command that installs it. `remediation` carries the same in the JSON. A
+  packaged build is told to reinstall from its release instead, because pip cannot
+  reach the interpreter that build ships. Verified end to end: a bare wheel install
+  prints `pip install "calibrate-pro[gui]"`, and running that command reaches
+  `Result: ok`.
+
 - Stopped the product window naming the previous release. Eight strings the user
   reads said `disabled in 1.1`, `version 1.1` and `the 1.1 ApplyPlan`, and would have
   said it through 2.0. `calibrate_pro.__release_series__` derives the series from the
