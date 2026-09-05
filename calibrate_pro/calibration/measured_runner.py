@@ -100,7 +100,13 @@ def target_hdr_enabled(states: Iterable[object], device_name: str) -> bool:
     matches = [state for state in states if getattr(state, "device_path", None) == device_name]
     if len(matches) != 1:
         raise ValueError(f"expected exactly one HDR state for {device_name!r}; found {len(matches)}")
-    return bool(matches[0].hdr_enabled)
+    # A state carrying no flag is an unanswered question, and bool() would read
+    # it back as the answer no. Raising keeps the two apart, the way the
+    # identity check above does.
+    hdr_enabled = getattr(matches[0], "hdr_enabled", None)
+    if not isinstance(hdr_enabled, bool):
+        raise ValueError(f"HDR state for {device_name!r} carries no hdr_enabled flag")
+    return hdr_enabled
 
 
 def require_device_id_token(target: DisplayTarget, token: str) -> None:

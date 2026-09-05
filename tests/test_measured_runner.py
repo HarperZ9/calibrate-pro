@@ -99,6 +99,24 @@ def test_hdr_gate_uses_the_exact_display_state_not_a_global_capability_flag() ->
         target_hdr_enabled([], SAMSUNG.device_name)
 
 
+def test_a_state_carrying_no_hdr_flag_is_an_error_rather_than_a_reading_of_off() -> None:
+    """The gate answers from a flag it read, or it does not answer.
+
+    A state object without the attribute used to be passed to bool(), and the
+    identity check above it does not catch that, because a record can match one
+    display exactly and still carry nothing about HDR. What came back was the
+    same False a display with HDR genuinely off produces, so the calibration ran
+    against a mode nothing had established.
+    """
+
+    class Nameless:
+        def __init__(self, device_path: str) -> None:
+            self.device_path = device_path
+
+    with pytest.raises(ValueError, match="no hdr_enabled flag"):
+        target_hdr_enabled([Nameless(SAMSUNG.device_name)], SAMSUNG.device_name)
+
+
 def test_device_id_token_binds_generic_windows_monitor_names() -> None:
     require_device_id_token(SAMSUNG, "SAM72F2")
     with pytest.raises(ValueError, match="identity token"):
