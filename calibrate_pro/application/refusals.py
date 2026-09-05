@@ -19,6 +19,8 @@ NO_EXPORT_DIRECTORY = "NO_EXPORT_DIRECTORY"
 EXPORT_FAILED = "EXPORT_FAILED"
 NO_HANDLER = "NO_HANDLER"
 NOT_A_UI_ACTION = "NOT_A_UI_ACTION"
+NO_SELECTED_PROFILE = "NO_SELECTED_PROFILE"
+PROFILE_SEAL_BROKEN = "PROFILE_SEAL_BROKEN"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -79,6 +81,36 @@ def no_export_directory() -> ActionFailure:
     )
 
 
+def no_such_profile() -> ActionFailure:
+    return policy_refusal(
+        NO_SELECTED_PROFILE,
+        "That profile is not in the current listing.",
+        "Refresh the profile list, then choose one of the profiles it reports.",
+    )
+
+
+def no_verified_profile() -> ActionFailure:
+    return policy_refusal(
+        NO_SELECTED_PROFILE,
+        "No inspected profile is selected in this session.",
+        "Select a published profile so its files can be checked, then export it.",
+    )
+
+
+def profile_seal_broken() -> ActionFailure:
+    """Refuse to copy a bundle whose files no longer match its own manifest.
+
+    The manifest is what makes a copy checkable somewhere else. Copying files
+    that have drifted away from it would produce a second bundle carrying a
+    manifest that describes something other than what sits beside it.
+    """
+    return policy_refusal(
+        PROFILE_SEAL_BROKEN,
+        "The files in this profile no longer match the digests its manifest records.",
+        "Inspect the profile to see which files changed, then generate it again.",
+    )
+
+
 def no_handler(action_id: str) -> ActionFailure:
     """Report an action this composition offers no way to perform.
 
@@ -126,6 +158,8 @@ __all__ = [
     "NO_EXPORT_DIRECTORY",
     "NO_HANDLER",
     "NO_SEALED_PLAN",
+    "NO_SELECTED_PROFILE",
+    "PROFILE_SEAL_BROKEN",
     "SESSION_TRANSITION_REJECTED",
     "UNKNOWN_DISPLAY",
     "export_failed",
@@ -135,8 +169,11 @@ __all__ = [
     "no_handler",
     "no_sealed_plan",
     "no_such_asset",
+    "no_such_profile",
+    "no_verified_profile",
     "not_a_ui_action",
     "policy_refusal",
+    "profile_seal_broken",
     "transition_rejected",
     "unknown_display",
 ]

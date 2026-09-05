@@ -1592,7 +1592,8 @@
       "action_id": "navigation.profiles",
       "surfaces": [
         "menu.view.profiles",
-        "sidebar.profiles"
+        "sidebar.profiles",
+        "tray.profiles"
       ],
       "classification": "ui_only",
       "required_stages": [
@@ -2488,7 +2489,7 @@
     {
       "action_id": "tray.switch_profile",
       "surfaces": [
-        "tray.profile.dynamic"
+        "tray.switch_profile"
       ],
       "classification": "physical_mutation",
       "required_stages": [

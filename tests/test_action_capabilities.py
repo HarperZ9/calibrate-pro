@@ -103,7 +103,7 @@ EXPECTED_SURFACES_BY_ACTION = {
     "navigation.dashboard": {"sidebar.dashboard", "menu.view.dashboard"},
     "navigation.calibrate": {"sidebar.calibrate", "menu.view.calibrate"},
     "navigation.verify": {"sidebar.verify", "menu.view.verify"},
-    "navigation.profiles": {"sidebar.profiles", "menu.view.profiles"},
+    "navigation.profiles": {"sidebar.profiles", "menu.view.profiles", "tray.profiles"},
     "navigation.ddc": {"sidebar.ddc", "menu.view.ddc"},
     "navigation.settings": {"sidebar.settings", "menu.view.settings"},
     "help.about": {"menu.help.about"},
@@ -192,7 +192,7 @@ EXPECTED_SURFACES_BY_ACTION = {
     },
     "settings.argyll_path": {"settings.argyll_path", "settings.argyll_path.browse"},
     "settings.panel_profiles_path": {"settings.panel_profiles_path", "settings.panel_profiles_path.browse"},
-    "tray.switch_profile": {"tray.profile.dynamic"},
+    "tray.switch_profile": {"tray.switch_profile"},
     "measurement.live.toggle": {"dashboard.live_sensor.toggle"},
 }
 # fmt: on

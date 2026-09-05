@@ -1,582 +1,292 @@
+"""The bundles this application published, listed from what it actually wrote.
+
+The page this replaces globbed ``~/Documents/Calibrate Pro/Calibrations`` for
+``.cube`` and ``.icc`` files, a folder no part of this application writes to,
+and described whatever it found using figures nobody had recorded. Its buttons
+copied, renamed, and deleted files directly. No action stood behind any of them,
+so a profile could be destroyed by a control the session had never been asked
+about, and the page reported the deletion by removing its own card.
+
+What is here now reads the export directory the session recorded, finds bundles
+by the manifest each one carries, and hands every control to the action it
+stands for. Mutation stays closed: activate, rename, delete, and generate are
+bound to actions this build has no handler for, so each button carries the
+manifest's reason rather than doing the work.
+
+Nothing is read until an action reads it. The page opens saying so, and the
+first listing is one the operator asked for.
 """
-Calibrate Pro -- Profiles Page
 
-Profile management: view, activate, export, and delete calibration profiles.
-Scans ~/Documents/Calibrate Pro/Calibrations/ for .cube and .icc file pairs.
-"""
+from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
+from collections.abc import Callable
+from functools import partial
+from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
-    QMessageBox,
-    QPushButton,
+    QListWidget,
+    QListWidgetItem,
     QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading, Stat
+from calibrate_pro.application.outcomes import ActionOutcome
+from calibrate_pro.application.profiles import ProfileInspection, ProfileListing, ProfileRecord
+from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
+from calibrate_pro.gui.app import C, Heading
+from calibrate_pro.gui.pages.profile_detail import ProfileDetail, action_button, note_style
 
-# Constants
+#: Drawn before the listing action has run, because nothing has been read yet.
+NOT_READ = "No profile listing has been read in this session."
 
-CALIBRATIONS_DIR = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
+#: When the session holds no export directory, so there is nowhere to look. This
+#: is a different answer from an empty folder and is worded as one.
+NOWHERE_TO_LOOK = "No export directory is set in this session, so there is nowhere to read profiles from."
 
-TARGET_GAMUTS = ["sRGB", "Display P3", "BT.709", "Adobe RGB"]
+#: When a directory was read and held no bundle this build can describe.
+NONE_FOUND = "No published bundle under {directory}."
+
+#: When a directory was read and held some.
+FOUND = "{count} published bundle(s) under {directory}."
+
+#: Above the directories whose manifest this build could not read.
+UNREADABLE = "Holds a manifest this build cannot read:"
+
+#: The mutations the manifest holds closed, each bound so its button explains
+#: itself with the resolver's own sentence.
+CLOSED_MUTATIONS = ("profile.activate", "profile.rename", "profile.delete")
 
 
-# Profile Data
+def _item_text(record: ProfileRecord) -> str:
+    """Label one row with what its manifest recorded, and nothing else."""
+    return f"{record.name}\n{record.panel_name} · {record.target.preset_id} · {record.evidence_kind}"
 
 
-def _scan_profiles() -> list[dict]:
+def _where_text(listing: ProfileListing) -> str:
+    if not listing.searched:
+        return NOWHERE_TO_LOOK
+    if not listing.profiles:
+        return NONE_FOUND.format(directory=listing.directory)
+    return FOUND.format(count=len(listing.profiles), directory=listing.directory)
+
+
+def _unreadable_text(listing: ProfileListing) -> str:
+    """Name every directory that held a manifest and could not be read.
+
+    A bundle that has become unreadable is something an operator needs to see,
+    so it stays in view with its reason attached instead of being dropped from
+    the listing and appearing to have never existed.
     """
-    Scan the calibrations directory for .cube / .icc pairs.
-
-    Returns a list of dicts with keys:
-        name, cube_path, icc_path, cube_size, icc_size
-    """
-    profiles: list[dict] = []
-
-    if not CALIBRATIONS_DIR.exists():
-        return profiles
-
-    # Collect all .cube files, then look for matching .icc
-    cube_files = sorted(CALIBRATIONS_DIR.glob("*.cube"))
-
-    seen_stems: set = set()
-
-    for cube in cube_files:
-        stem = cube.stem
-        if stem in seen_stems:
-            continue
-        seen_stems.add(stem)
-
-        icc = CALIBRATIONS_DIR / f"{stem}.icc"
-        icc_path = icc if icc.exists() else None
-
-        cube_stat = cube.stat() if cube.exists() else None
-        icc_stat = icc_path.stat() if icc_path and icc_path.exists() else None
-
-        # Use the most recent modification time from either file
-        mod_time = None
-        if cube_stat:
-            mod_time = datetime.fromtimestamp(cube_stat.st_mtime)
-        if icc_stat:
-            icc_mod = datetime.fromtimestamp(icc_stat.st_mtime)
-            if mod_time is None or icc_mod > mod_time:
-                mod_time = icc_mod
-
-        profiles.append(
-            {
-                "name": stem.replace("_", " ").replace("-", " -- ", 1),
-                "stem": stem,
-                "cube_path": cube,
-                "icc_path": icc_path,
-                "cube_size": cube_stat.st_size if cube_stat else 0,
-                "icc_size": icc_stat.st_size if icc_stat else 0,
-                "modified": mod_time,
-            }
-        )
-
-    # Also pick up .icc files that have no matching .cube
-    for icc in sorted(CALIBRATIONS_DIR.glob("*.icc")):
-        if icc.stem not in seen_stems:
-            seen_stems.add(icc.stem)
-            icc_stat = icc.stat()
-            mod_time = datetime.fromtimestamp(icc_stat.st_mtime)
-            profiles.append(
-                {
-                    "name": icc.stem.replace("_", " ").replace("-", " -- ", 1),
-                    "stem": icc.stem,
-                    "cube_path": None,
-                    "icc_path": icc,
-                    "cube_size": 0,
-                    "icc_size": icc_stat.st_size,
-                    "modified": mod_time,
-                }
-            )
-
-    return profiles
-
-
-def _format_size(size_bytes: int) -> str:
-    """Human-readable file size."""
-    if size_bytes == 0:
-        return "--"
-    if size_bytes < 1024:
-        return f"{size_bytes} B"
-    if size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.1f} KB"
-    return f"{size_bytes / (1024 * 1024):.1f} MB"
-
-
-# Profile Card Widget
-
-
-class ProfileCard(Card):
-    """Card showing a single calibration profile."""
-
-    clicked = Signal(dict)
-
-    def __init__(self, profile: dict, is_active: bool = False, parent=None):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(110)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._profile = profile
-
-        root = QVBoxLayout(self)
-        root.setContentsMargins(20, 16, 20, 16)
-        root.setSpacing(10)
-
-        # --- Top row: name + active pill ---
-        top = QHBoxLayout()
-        top.setSpacing(10)
-
-        name_label = QLabel(profile["name"])
-        name_label.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
-        top.addWidget(name_label)
-
-        if is_active:
-            pill = QLabel("Active")
-            pill.setStyleSheet(
-                f"background: {C.GREEN}; color: white; font-size: 10px; "
-                f"font-weight: 600; border-radius: 9px; padding: 3px 12px;"
-            )
-            pill.setFixedHeight(20)
-            top.addWidget(pill)
-
-        top.addStretch()
-        root.addLayout(top)
-
-        # --- Detail row: display name, file size, date ---
-        detail_parts = []
-
-        # Extract display name from the profile filename
-        display_name = profile["stem"].replace("_", " ").replace("-", " ")
-        detail_parts.append(display_name)
-
-        # Total file size
-        total_size = profile.get("cube_size", 0) + profile.get("icc_size", 0)
-        if total_size > 0:
-            detail_parts.append(_format_size(total_size))
-
-        # Modification date
-        mod_time = profile.get("modified")
-        if mod_time:
-            detail_parts.append(mod_time.strftime("%b %d, %Y  %H:%M"))
-
-        detail = QLabel("  |  ".join(detail_parts))
-        detail.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
-        root.addWidget(detail)
-
-        # --- File paths row ---
-        files_row = QVBoxLayout()
-        files_row.setSpacing(4)
-
-        if profile.get("cube_path"):
-            cube_label = QLabel(f".cube  {_format_size(profile['cube_size'])}  \u2014  {profile['cube_path']}")
-            cube_label.setStyleSheet(
-                f"font-size: 10px; color: {C.TEXT3}; font-family: 'Cascadia Code', 'Consolas', monospace;"
-            )
-            cube_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            files_row.addWidget(cube_label)
-
-        if profile.get("icc_path"):
-            icc_label = QLabel(f".icc  {_format_size(profile['icc_size'])}  \u2014  {profile['icc_path']}")
-            icc_label.setStyleSheet(
-                f"font-size: 10px; color: {C.TEXT3}; font-family: 'Cascadia Code', 'Consolas', monospace;"
-            )
-            icc_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            files_row.addWidget(icc_label)
-
-        if not profile.get("cube_path") and not profile.get("icc_path"):
-            no_files = QLabel("No files")
-            no_files.setStyleSheet(f"font-size: 10px; color: {C.TEXT3};")
-            files_row.addWidget(no_files)
-
-        root.addLayout(files_row)
-
-        # --- Buttons row ---
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.addStretch()
-
-        self._activate_btn = QPushButton("Activate")
-        self._activate_btn.setFixedHeight(30)
-        self._activate_btn.setFixedWidth(90)
-        self._activate_btn.setProperty("primary", True)
-        self._activate_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; color: white; "
-            f"border: none; border-radius: 10px; font-size: 11px; "
-            f"font-weight: 600; padding: 4px 14px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-        )
-        self._activate_btn.clicked.connect(self._on_activate)
-        btn_row.addWidget(self._activate_btn)
-
-        self._export_btn = QPushButton("Export")
-        self._export_btn.setFixedHeight(30)
-        self._export_btn.setFixedWidth(80)
-        self._export_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 11px; padding: 4px 14px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        self._export_btn.clicked.connect(self._on_export)
-        btn_row.addWidget(self._export_btn)
-
-        self._delete_btn = QPushButton("Delete")
-        self._delete_btn.setFixedHeight(30)
-        self._delete_btn.setFixedWidth(80)
-        self._delete_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 11px; padding: 4px 14px; "
-            f"color: {C.RED}; }}"
-            f"QPushButton:hover {{ border-color: {C.RED}; background: {C.SURFACE2}; }}"
-        )
-        self._delete_btn.clicked.connect(self._on_delete)
-        btn_row.addWidget(self._delete_btn)
-
-        root.addLayout(btn_row)
-
-    # --- Click to select ---
-
-    def mousePressEvent(self, event):
-        """Emit clicked signal with the profile dict when the card is clicked."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self._profile)
-        super().mousePressEvent(event)
-
-    # --- Actions ---
-
-    def _on_activate(self):
-        """Select a profile for review without applying it."""
-        QMessageBox.information(
-            self,
-            "Profile Preview",
-            f"Selected: {self._profile['name']}\n\nNo LUT or ICC profile was applied. Confirm it in Calibrate.",
-        )
-
-    def _on_export(self):
-        """Export profile files to a chosen directory."""
-        dest = QFileDialog.getExistingDirectory(self, "Export Profile To")
-        if not dest:
-            return
-        try:
-            import shutil
-
-            dest_path = Path(dest)
-            for key in ("cube_path", "icc_path"):
-                src = self._profile.get(key)
-                if src and src.exists():
-                    shutil.copy2(str(src), str(dest_path / src.name))
-            QMessageBox.information(self, "Exported", f"Profile exported to {dest_path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Export Error", str(e))
-
-    def _on_delete(self):
-        """Delete profile files after confirmation."""
-        reply = QMessageBox.question(
-            self,
-            "Delete Profile",
-            f"Delete '{self._profile['name']}' and its files?\n\nThis cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        try:
-            for key in ("cube_path", "icc_path"):
-                p = self._profile.get(key)
-                if p and p.exists():
-                    p.unlink()
-            # Remove this card from the layout
-            self.setParent(None)
-            self.deleteLater()
-        except Exception as e:
-            QMessageBox.warning(self, "Delete Error", str(e))
-
-
-# Profiles Page
+    if not listing.unreadable:
+        return ""
+    lines = [f"  {entry.directory}: {entry.reason}" for entry in listing.unreadable]
+    return "\n".join([UNREADABLE, *lines])
 
 
 class ProfilesPage(QWidget):
-    """Profile management page."""
+    """List published bundles, check one, and copy it where it is asked for."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._binder: ActionBinder | None = None
+        self._inspect_binding: SurfaceBinding | None = None
+        self._inspect_profile: Callable[[str], ActionOutcome[Any]] | None = None
+        self._export_profile: Callable[[str], ActionOutcome[Any]] | None = None
+        #: Where the last listing looked, offered as the copy dialog's start.
+        self._directory: str | None = None
+        #: The record the detail pane is drawing, held so a redrawn list can
+        #: tell a surviving selection from one that has changed underneath it.
+        self._selected: ProfileRecord | None = None
         self._build()
 
-    def _build(self):
+    def bind_actions(
+        self,
+        binder: ActionBinder,
+        *,
+        refresh: Operation,
+        inspect_profile: Callable[[str], ActionOutcome[Any]],
+        export_profile: Callable[[str], ActionOutcome[Any]],
+        unhandled: Callable[[str], ActionOutcome[Any]],
+    ) -> None:
+        """Hand every control here to the action it stands for.
+
+        The list is bound without a connection. Qt would trigger it on a click,
+        which would leave a row reachable by the keyboard and not by the action,
+        so the selection signal drives the invocation instead and both routes
+        arrive at the same place.
+
+        Copy is the one write this page performs, and it is bound to the export
+        action rather than to the no-handler path: the manifest enables it once
+        a profile has been checked, and a control bound to a refusal would still
+        look ready at that point.
+        """
+        self._binder = binder
+        self._inspect_profile = inspect_profile
+        self._export_profile = export_profile
+        binder.bind(
+            "profile.list.refresh",
+            self._refresh_button,
+            refresh,
+            on_success=self.render_listing,
+            hides=False,
+        )
+        binder.bind(
+            "profile.generate_all",
+            self._generate_button,
+            partial(unhandled, "profile.generate_all"),
+            hides=False,
+        )
+        self._inspect_binding = binder.bind(
+            "profile.inspect",
+            self._list,
+            self._inspect_selected,
+            on_success=self._render_inspection,
+            hides=False,
+            connect=False,
+        )
+        binder.bind(
+            "profile.export",
+            self._detail.export_button,
+            self._copy_to_chosen_directory,
+            on_success=self._detail.render_export,
+            hides=False,
+        )
+        for action_id, button in zip(
+            CLOSED_MUTATIONS,
+            (self._detail.activate_button, self._detail.rename_button, self._detail.delete_button),
+            strict=True,
+        ):
+            binder.bind(action_id, button, partial(unhandled, action_id), hides=False)
+
+    def render_listing(self, listing: ProfileListing) -> None:
+        """Redraw the list from one reading, keeping a selection that survived.
+
+        Repopulating moves the current row, so the signal is blocked while it
+        happens. Without that, a refresh would inspect whatever landed under the
+        cursor and replace a selection the operator had made.
+
+        A selection survives only when its record comes back unchanged. A bundle
+        whose manifest has been rewritten is a different record, and the session
+        drops it for the same reason, so the pane and the export gate close
+        together instead of disagreeing.
+        """
+        self._directory = listing.directory
+        self._where.setText(_where_text(listing))
+        self._unreadable.setText(_unreadable_text(listing))
+        blocked = self._list.blockSignals(True)
+        try:
+            self._list.clear()
+            for record in listing.profiles:
+                item = QListWidgetItem(_item_text(record))
+                item.setData(Qt.ItemDataRole.UserRole, record.directory)
+                self._list.addItem(item)
+            self._restore_selection(listing)
+        finally:
+            self._list.blockSignals(blocked)
+
+    def _restore_selection(self, listing: ProfileListing) -> None:
+        for row, record in enumerate(listing.profiles):
+            if record == self._selected:
+                self._list.setCurrentRow(row)
+                return
+        self._selected = None
+        self._detail.clear()
+
+    def _render_inspection(self, inspection: ProfileInspection) -> None:
+        self._selected = inspection.record
+        self._detail.render_inspection(inspection)
+
+    def _on_row_changed(self, _row: int) -> None:
+        """Check whatever the operator moved to, by keyboard or by mouse."""
+        binder = self._binder
+        binding = self._inspect_binding
+        if binder is not None and binding is not None:
+            binder.invoke(binding)
+
+    def _inspect_selected(self) -> ActionOutcome[Any] | None:
+        """Check the bundle the list is on, if it is on one."""
+        inspect = self._inspect_profile
+        item = self._list.currentItem()
+        if inspect is None or item is None:
+            return None
+        return inspect(item.data(Qt.ItemDataRole.UserRole))
+
+    def _copy_to_chosen_directory(self) -> ActionOutcome[Any] | None:
+        """Ask where the copy should go, then let the session decide about it.
+
+        Closing the dialog reports nothing, so a withdrawn choice never reaches
+        the journal and never changes what the pane says.
+        """
+        export = self._export_profile
+        if export is None:
+            return None
+        directory = QFileDialog.getExistingDirectory(self, "Copy profile into", self._directory or "")
+        if not directory:
+            return None
+        return export(directory)
+
+    def _build(self) -> None:
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         outer.addWidget(scroll)
 
-        self._content = QWidget()
-        self._layout = QVBoxLayout(self._content)
-        self._layout.setContentsMargins(32, 28, 32, 28)
-        self._layout.setSpacing(20)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 28)
+        layout.setSpacing(16)
+        layout.addLayout(self._header())
 
-        # --- Header ---
-        header = QHBoxLayout()
-        header.addWidget(Heading("Profiles"))
-        header.addStretch()
+        self._where = QLabel(NOT_READ)
+        self._where.setWordWrap(True)
+        self._where.setStyleSheet(note_style(C.TEXT2))
+        layout.addWidget(self._where)
 
-        self._generate_btn = QPushButton("Generate All")
-        self._generate_btn.setFixedHeight(34)
-        self._generate_btn.setProperty("primary", True)
-        self._generate_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; color: white; "
-            f"border: none; border-radius: 10px; font-size: 12px; "
-            f"font-weight: 600; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
+        self._list = QListWidget()
+        self._list.setMinimumHeight(220)
+        self._list.setStyleSheet(
+            f"QListWidget {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
+            f"border-radius: 12px; color: {C.TEXT}; font-size: 12px; padding: 6px; }}"
+            f"QListWidget::item {{ padding: 8px; border-radius: 8px; }}"
+            f"QListWidget::item:selected {{ background: {C.SURFACE2}; color: {C.TEXT}; }}"
         )
-        self._generate_btn.clicked.connect(self._generate_all)
-        header.addWidget(self._generate_btn)
+        self._list.currentRowChanged.connect(self._on_row_changed)
+        layout.addWidget(self._list)
 
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.setFixedHeight(34)
-        refresh_btn.clicked.connect(self._populate)
-        header.addWidget(refresh_btn)
+        self._unreadable = QLabel("")
+        self._unreadable.setWordWrap(True)
+        self._unreadable.setStyleSheet(note_style(C.YELLOW, mono=True))
+        layout.addWidget(self._unreadable)
 
-        self._layout.addLayout(header)
+        self._detail = ProfileDetail()
+        layout.addWidget(self._detail)
+        layout.addStretch()
+        scroll.setWidget(content)
 
-        # --- Cards container ---
-        self._cards_layout = QVBoxLayout()
-        self._cards_layout.setSpacing(12)
-        self._layout.addLayout(self._cards_layout)
+    def _header(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addWidget(Heading("Profiles"))
+        row.addStretch()
+        self._generate_button = action_button("Generate All", 140)
+        self._refresh_button = action_button("Refresh", 110, primary=True)
+        row.addWidget(self._generate_button)
+        row.addWidget(self._refresh_button)
+        return row
 
-        # --- Detail section (shown when a card is clicked) ---
-        self._detail_card = Card()
-        self._detail_card.setMinimumHeight(420)
-        self._detail_card.hide()
-        self._detail_layout = QVBoxLayout(self._detail_card)
-        self._detail_layout.setContentsMargins(24, 20, 24, 20)
-        self._detail_layout.setSpacing(14)
-        self._layout.addWidget(self._detail_card)
 
-        self._layout.addStretch()
-        scroll.setWidget(self._content)
-
-        # Initial population
-        self._populate()
-
-    def _populate(self):
-        """Scan for profiles and rebuild the card list."""
-        # Clear existing cards
-        while self._cards_layout.count():
-            item = self._cards_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
-        profiles = _scan_profiles()
-
-        if not profiles:
-            self._show_empty_state()
-            return
-
-        # Determine which profile is currently active (if any)
-        active_stem: str | None = None
-        try:
-            from calibrate_pro.utils.startup_manager import StartupManager
-
-            mgr = StartupManager()
-            cal = mgr.get_display_calibration(0)
-            if cal and cal.lut_path:
-                active_stem = Path(cal.lut_path).stem
-        except Exception:
-            pass
-
-        for profile in profiles:
-            is_active = active_stem is not None and profile["stem"] == active_stem
-            card = ProfileCard(profile, is_active=is_active)
-            card.clicked.connect(self._show_detail)
-            self._cards_layout.addWidget(card)
-
-    def _show_detail(self, profile: dict):
-        """Show detail section for the selected profile with CIE diagram and stats."""
-        # Clear previous detail content
-        while self._detail_layout.count():
-            item = self._detail_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-            sub = item.layout()
-            if sub:
-                while sub.count():
-                    sub_item = sub.takeAt(0)
-                    if sub_item.widget():
-                        sub_item.widget().deleteLater()
-
-        self._detail_card.show()
-
-        # --- Header row: profile name + Rename button ---
-        header_row = QHBoxLayout()
-        header_row.setSpacing(12)
-
-        name_label = QLabel(profile["name"])
-        name_label.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {C.TEXT};")
-        header_row.addWidget(name_label)
-        header_row.addStretch()
-
-        rename_btn = QPushButton("Rename")
-        rename_btn.setFixedHeight(30)
-        rename_btn.setFixedWidth(90)
-        rename_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 11px; padding: 4px 14px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        rename_btn.clicked.connect(lambda: self._rename_profile(profile))
-        header_row.addWidget(rename_btn)
-
-        self._detail_layout.addLayout(header_row)
-
-        # --- Content row: CIE diagram on left, stats on right ---
-        content_row = QHBoxLayout()
-        content_row.setSpacing(20)
-
-        # CIE Diagram
-        try:
-            from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
-
-            cie = CIEDiagramWidget()
-            cie.setFixedSize(350, 350)
-
-            # Display primaries remain unset until an authoritative read-only
-            # EDID sensor supplies them; the profile can still be inspected.
-
-            content_row.addWidget(cie)
-        except Exception:
-            placeholder = QLabel("CIE diagram unavailable")
-            placeholder.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-            placeholder.setFixedSize(350, 350)
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            content_row.addWidget(placeholder)
-
-        # Stats column
-        stats = QVBoxLayout()
-        stats.setSpacing(12)
-
-        # Determine target gamut from profile name
-        target_gamut = "sRGB"
-        profile_name_lower = profile["name"].lower()
-        for g in ["display p3", "p3", "bt.709", "adobe rgb"]:
-            if g.lower() in profile_name_lower:
-                target_gamut = g
-                break
-
-        stat_data = [
-            ("Target Gamut", target_gamut),
-            ("White Point", "D65 (6500K)"),
-            ("Gamma", "2.2"),
-        ]
-
-        # Creation date
-        mod_time = profile.get("modified")
-        if mod_time:
-            stat_data.append(("Created", mod_time.strftime("%b %d, %Y  %H:%M")))
-        else:
-            stat_data.append(("Created", "Unknown"))
-
-        # File info
-        total_size = profile.get("cube_size", 0) + profile.get("icc_size", 0)
-        if total_size > 0:
-            stat_data.append(("Total Size", _format_size(total_size)))
-
-        has_cube = profile.get("cube_path") is not None
-        has_icc = profile.get("icc_path") is not None
-        files_str = ", ".join(f for f, present in [(".cube", has_cube), (".icc", has_icc)] if present) or "None"
-        stat_data.append(("Files", files_str))
-
-        for label, value in stat_data:
-            stat_widget = Stat(label, value, C.TEXT)
-            stats.addWidget(stat_widget)
-
-        stats.addStretch()
-        content_row.addLayout(stats, stretch=1)
-
-        self._detail_layout.addLayout(content_row)
-
-    def _rename_profile(self, profile: dict):
-        """Open a dialog to rename the profile files."""
-        new_name, ok = QInputDialog.getText(
-            self,
-            "Rename Profile",
-            "New name:",
-            text=profile["name"],
-        )
-        if not ok or not new_name.strip():
-            return
-        new_stem = new_name.strip().replace(" ", "_").replace(" \u2014 ", "-")
-        try:
-            for key in ("cube_path", "icc_path"):
-                p = profile.get(key)
-                if p and p.exists():
-                    new_path = p.parent / f"{new_stem}{p.suffix}"
-                    p.rename(new_path)
-            self._populate()
-        except Exception as e:
-            QMessageBox.warning(self, "Rename Error", str(e))
-
-    def _show_empty_state(self):
-        """Show a friendly message when no profiles exist."""
-        card, layout = Card.with_layout()
-        card.setMinimumHeight(120)
-
-        msg = QLabel("No profiles found.")
-        msg.setStyleSheet(f"font-size: 14px; color: {C.TEXT2}; font-weight: 500;")
-        msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(msg)
-
-        hint = QLabel("Run 'Calibrate' to create your first profile.")
-        hint.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-        hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(hint)
-
-        self._cards_layout.addWidget(card)
-
-    def _generate_all(self):
-        """Generate profiles for sRGB, P3, BT.709, and Adobe RGB."""
-        reply = QMessageBox.question(
-            self,
-            "Generate All Profiles",
-            "Generate calibration profiles for:\n\n"
-            "  - sRGB\n"
-            "  - Display P3\n"
-            "  - BT.709\n"
-            "  - Adobe RGB\n\n"
-            "This may take a few minutes.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            CALIBRATIONS_DIR.mkdir(parents=True, exist_ok=True)
-
-            from calibrate_pro.calibration.engine import CalibrationEngine
-
-            engine = CalibrationEngine()
-
-            for gamut in TARGET_GAMUTS:
-                try:
-                    engine.calibrate(target_gamut=gamut, output_dir=str(CALIBRATIONS_DIR))
-                except Exception as e:
-                    QMessageBox.warning(self, "Generation Error", f"Failed to generate {gamut} profile:\n{e}")
-
-            self._populate()
-
-        except Exception as e:
-            QMessageBox.warning(self, "Error", str(e))
+__all__ = [
+    "FOUND",
+    "NONE_FOUND",
+    "NOT_READ",
+    "NOWHERE_TO_LOOK",
+    "UNREADABLE",
+    "ProfilesPage",
+]

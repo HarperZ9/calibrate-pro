@@ -22,6 +22,7 @@ from typing import Literal
 from calibrate_pro.application.actions import ActionContext, ExportFormat, RuntimeMode
 from calibrate_pro.application.assets import AssetFormat, GeneratedAssets
 from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel, EvidenceKind
+from calibrate_pro.application.profiles import ProfileInspection, ProfileRecord
 from calibrate_pro.workflow import CalibrationMethod, CapabilityState, WorkflowStage
 
 ConfirmationState = Literal["none", "live", "confirmed", "consumed", "expired"]
@@ -79,7 +80,8 @@ class SessionState:
     export_directory_valid: bool = False
     journal_ready: bool = False
     diagnostic_bundle_preview_live: bool = False
-    selected_profile_reparsed: bool = False
+    profiles: tuple[ProfileRecord, ...] = ()
+    selected_profile: ProfileInspection | None = None
     validated_import_ready: bool = False
     supported_vcp_codes: frozenset[int] = frozenset()
 
@@ -88,6 +90,17 @@ class SessionState:
             raise TypeError("fake_acceptance must be an exact boolean")
         if self.runtime_mode not in {"source", "frozen"}:
             raise ValueError("runtime_mode must be source or frozen")
+
+    @property
+    def selected_profile_reparsed(self) -> bool:
+        """Report whether a published profile was read back and still matches.
+
+        Profile export is gated on this. Deriving it from the inspection rather
+        than storing a flag means the answer cannot outlive the reading that
+        produced it: clearing the selection closes the gate, and an inspection
+        that found a changed file never opens it.
+        """
+        return self.selected_profile is not None and self.selected_profile.sealed
 
     @property
     def target_hdr(self) -> bool:

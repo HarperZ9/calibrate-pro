@@ -15,7 +15,6 @@ the work it is supposed to be showing.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -37,47 +36,6 @@ CALIBRATE_ALL = "&Calibrate All"
 #: What the bundled fixture display resolves to once the session has adopted it.
 FIXTURE_LABEL = "Display - FAKE-ACCEPTANCE-PANEL"
 FIXTURE_PANEL_KEY = "PG27UCDM"
-
-
-def _unreachable(*args: object, **kwargs: object) -> None:
-    raise AssertionError("the window reached a hardware boundary")
-
-
-@pytest.fixture
-def window(qapp: object, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[object]:
-    """Build the active window around a session that touches no hardware."""
-    from calibrate_pro.application.composition import build_fake_acceptance_service
-    from calibrate_pro.gui import app as gui_app
-    from calibrate_pro.gui.app import CalibrateProWindow
-    from calibrate_pro.hardware.ddc_ci import DDCCIController
-    from calibrate_pro.hardware.i1d3_native import I1D3Driver
-    from calibrate_pro.utils.startup_manager import StartupManager
-
-    # Background services are the one part of this window that legitimately
-    # reaches the machine, and they are stubbed out. What the window does after
-    # that is held to the session: the enumerators below are wired to fail, so a
-    # page that reads a display for itself fails every test in this file.
-    monkeypatch.setattr(gui_app, "qt_display_snapshots", _unreachable)
-    monkeypatch.setattr(I1D3Driver, "find_devices", _unreachable)
-    monkeypatch.setattr(DDCCIController, "enumerate_monitors", _unreachable)
-    monkeypatch.setattr(StartupManager, "__init__", _unreachable)
-
-    recorded: list[tuple[str, str]] = []
-    monkeypatch.setattr(CalibrateProWindow, "_start_services", lambda self: None)
-    monkeypatch.setattr(CalibrateProWindow, "_check_first_run", lambda self: None)
-    monkeypatch.setattr(
-        CalibrateProWindow,
-        "show_toast",
-        lambda self, message, level="info": recorded.append((message, level)),
-    )
-    root = tmp_path / "session"
-    built = CalibrateProWindow(service=build_fake_acceptance_service(root))
-    built.toasts = recorded
-    built.session_root = root
-    try:
-        yield built
-    finally:
-        built.close()
 
 
 def entries(window: object) -> dict[str, object]:

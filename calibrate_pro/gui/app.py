@@ -2071,8 +2071,16 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.profiles import ProfilesPage
 
-                self.stack.addWidget(ProfilesPage())  # 3
-            except ImportError as e:
+                self.profiles_page = ProfilesPage()
+                self.profiles_page.bind_actions(
+                    self._binder,
+                    refresh=self.service.list_profiles,
+                    inspect_profile=self.service.inspect_profile,
+                    export_profile=self.service.export_profile,
+                    unhandled=self.service.unhandled,
+                )
+                self.stack.addWidget(self.profiles_page)  # 3
+            except (ImportError, TypeError) as e:
                 logger.warning("Failed to load ProfilesPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Profiles"))  # 3
 

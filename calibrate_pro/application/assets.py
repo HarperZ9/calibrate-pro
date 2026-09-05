@@ -375,24 +375,29 @@ def _write_durable(path: Path, payload: bytes) -> None:
         os.fsync(handle.fileno())
 
 
-def publish_bundle(
-    generated: GeneratedAssets,
+def place_atomically(
     directory: str | Path,
+    payloads: Mapping[str, bytes],
     *,
     overwrite: bool = False,
-) -> ExportBundle:
-    """Place every artifact and its manifest, or place nothing at all."""
-    if not isinstance(generated, GeneratedAssets):
-        raise TypeError("generated must be a GeneratedAssets value")
+) -> Path:
+    """Write a set of named files into one directory, all of them or none.
+
+    An export that half succeeded is worse than one that failed, because what
+    is left behind still looks like a bundle. Every file is written and fsynced
+    into a staging directory first, then moved into place, and anything already
+    there is moved aside rather than overwritten so a failure part way through
+    can put it back.
+
+    Copying a published bundle needs the same guarantee as publishing one, so
+    the guarantee lives here and both paths call it.
+    """
+    if not payloads:
+        raise BundlePublishError("no files were given to place")
 
     destination = Path(directory)
     if destination.exists() and not destination.is_dir():
         raise BundlePublishError(f"export destination is not a directory: {destination}")
-
-    request = generated.request
-    payloads: dict[str, bytes] = {request.filename_for(fmt): generated.assets[fmt] for fmt in generated.assets}
-    manifest = build_manifest(generated)
-    payloads[MANIFEST_FILENAME] = manifest
 
     created_destination = not destination.exists()
     if created_destination:
@@ -409,6 +414,17 @@ def publish_bundle(
             "refusing to replace files that already exist in the export directory: " + ", ".join(collisions)
         )
 
+    _swap_into_place(destination, payloads, created_destination=created_destination)
+    return destination
+
+
+def _swap_into_place(
+    destination: Path,
+    payloads: Mapping[str, bytes],
+    *,
+    created_destination: bool,
+) -> None:
+    """Stage every payload, then move each one in, undoing all of it on failure."""
     staging = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX, dir=destination))
     backups = staging / _BACKUP_DIRNAME
     moved: list[str] = []
@@ -430,8 +446,25 @@ def publish_bundle(
         if created_destination:
             _remove_quietly(destination)
         raise BundlePublishError(f"export was rolled back: {exc}") from exc
-
     _remove_quietly(staging)
+
+
+def publish_bundle(
+    generated: GeneratedAssets,
+    directory: str | Path,
+    *,
+    overwrite: bool = False,
+) -> ExportBundle:
+    """Place every artifact and its manifest, or place nothing at all."""
+    if not isinstance(generated, GeneratedAssets):
+        raise TypeError("generated must be a GeneratedAssets value")
+
+    request = generated.request
+    payloads: dict[str, bytes] = {request.filename_for(fmt): generated.assets[fmt] for fmt in generated.assets}
+    manifest = build_manifest(generated)
+    payloads[MANIFEST_FILENAME] = manifest
+
+    destination = place_atomically(directory, payloads, overwrite=overwrite)
     published = tuple(
         PublishedAsset(
             format=fmt.value,
@@ -488,5 +521,6 @@ __all__ = [
     "GeneratedAssets",
     "PublishedAsset",
     "build_manifest",
+    "place_atomically",
     "publish_bundle",
 ]

@@ -24,6 +24,7 @@ from calibrate_pro.application.generation import generate_bundle
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.planning import target_for
 from calibrate_pro.application.prediction import predict_accuracy
+from calibrate_pro.application.profile_actions import ProfileActions
 from calibrate_pro.application.refusals import (
     no_display_selected,
     no_sealed_plan,
@@ -51,7 +52,7 @@ from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
 
 
-class FunctionalRecoveryService(SurfaceActions):
+class FunctionalRecoveryService(ProfileActions, SurfaceActions):
     """One calibration session, driven one action at a time."""
 
     def __init__(

@@ -20,6 +20,8 @@ GUI_TRUTHFULNESS_FILES = (
     "calibrate_pro/gui/pages/calibrate.py",
     "calibrate_pro/gui/pages/calibration_page.py",
     "calibrate_pro/gui/pages/dashboard_page.py",
+    "calibrate_pro/gui/pages/profile_detail.py",
+    "calibrate_pro/gui/pages/profiles.py",
     "calibrate_pro/gui/pages/verification_page.py",
     "calibrate_pro/gui/pages/verify.py",
 )
