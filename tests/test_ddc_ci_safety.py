@@ -317,6 +317,7 @@ def test_close_retains_a_false_destroy_for_an_authoritative_retry(
 def test_close_retains_a_handle_when_cancellation_prevents_the_native_destroy_call(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     controller = make_controller(monkeypatch)
     controller._monitors = [{"handle": 101}, {"handle": 202}]
@@ -359,6 +360,7 @@ def test_close_retains_a_handle_when_cancellation_prevents_the_native_destroy_ca
 def test_close_finishes_authoritative_detachment_if_publication_is_cancelled(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     controller = make_controller(monkeypatch)
     controller._monitors = [{"handle": 101}, {"handle": 202}]

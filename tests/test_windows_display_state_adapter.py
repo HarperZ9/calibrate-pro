@@ -62,6 +62,68 @@ def _isolate_process_mutexes_between_adapter_tests() -> object:
             lock.release()
 
 
+#: How long teardown waits for one owner thread to leave its command loop.
+OWNER_RETIREMENT_SECONDS = 5.0
+
+#: The class-level evidence a retiring owner would otherwise republish.
+_MUTEX_REGISTRIES = (
+    WindowsNamedDisplayTransactionMutex._poisoned_display_keys,
+    WindowsNamedDisplayTransactionMutex._poisoned_native_leases,
+    WindowsNamedDisplayTransactionMutex._poisoned_native_claims,
+    WindowsNamedDisplayTransactionMutex._pending_native_attempts,
+    WindowsNamedDisplayTransactionMutex._pending_native_reservations,
+    WindowsNamedDisplayTransactionMutex._pending_native_owners,
+    WindowsNamedDisplayTransactionMutex._active_native_leases,
+    WindowsNamedDisplayTransactionMutex._active_native_claims,
+    WindowsNamedDisplayTransactionMutex._transient_native_quarantines,
+)
+
+
+@pytest.fixture(autouse=True)
+def _retire_owner_threads_started_by_a_test(monkeypatch: pytest.MonkeyPatch) -> object:
+    """Shut down the mutex owner threads a test leaves running.
+
+    An owner whose release the OS never confirmed keeps its handle, and the
+    thread holding it stays parked on a command that is never coming. The
+    product is meant to do that, because closing a handle on a guess is the
+    failure these tests exist to prevent. It also means a run accumulates live
+    threads, and a thread started while coverage is measuring carries the
+    coverage trace function for as long as it lives. A later test that installs
+    a tracer of its own leaves the interpreter calling into a tracer that has
+    been stopped, and the process dies with an access violation instead of
+    reporting a result.
+
+    Every assertion has run by the time this executes. Ending the command loop
+    retires the thread and touches no handle, so what a test observed is what
+    the product produced.
+    """
+    started: list[object] = []
+    begin = windows_state._WindowsMutexOwner.start
+
+    def record(owner: object) -> None:
+        started.append(owner)
+        begin(owner)
+
+    monkeypatch.setattr(windows_state._WindowsMutexOwner, "start", record)
+    yield
+    # Reaching a terminal state is a published event, so retiring a thread here
+    # would write the registries the test has already finished cleaning up.
+    # What the test left behind is what the next one inherits.
+    left_behind = [(shared, shared.copy()) for shared in _MUTEX_REGISTRIES]
+    for owner in started:
+        # Both reads happen under the condition the loop waits on. This is the
+        # one exit that leaves an unconfirmed handle alone.
+        with owner._condition:
+            owner.terminal = True
+            owner._condition.notify_all()
+    for owner in started:
+        owner.thread.join(OWNER_RETIREMENT_SECONDS)
+        assert not owner.thread.is_alive(), f"mutex owner for {owner.display_key!r} outlived its test"
+    for shared, contents in left_behind:
+        shared.clear()
+        shared.update(contents)
+
+
 def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
@@ -3337,6 +3399,7 @@ def test_materialize_never_leaves_zero_byte_poison_at_exclusive_publish_boundary
 def test_materialize_cleans_stage_when_path_publication_is_interrupted(
     tmp_path: Path,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     color_dir = tmp_path / "color"
     color_dir.mkdir()
@@ -3580,6 +3643,7 @@ def test_restore_compares_complete_icc_state_before_compensating(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("before native close"), SystemExit(52)])
 def test_windows_icc_lease_retains_handle_if_interrupted_before_native_close(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Function:
         def __init__(self, callback: object) -> None:
@@ -3772,6 +3836,7 @@ def test_windows_named_mutex_cleans_native_handle_after_owner_callback_failure(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("process handoff"), SystemExit(56)])
 def test_production_mutex_cleans_process_lock_at_first_post_acquire_line(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     releases: list[str] = []
 
@@ -3898,6 +3963,7 @@ def test_icc_lease_cleanup_handoff_still_closes_exactly_once(
     tmp_path: Path,
     interruption: BaseException,
     operation: str,
+    unmeasured_tracing: None,
 ) -> None:
     payload = valid_icc_payload(b"cleanup-handoff")
     closes = 0
@@ -4045,6 +4111,7 @@ def test_apply_fails_before_selection_when_prior_default_was_absent_but_target_a
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("post-acquire"), SystemExit(59)])
 def test_in_process_mutex_releases_lock_when_first_post_acquire_handoff_is_interrupted(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     display_id = f"post-acquire-{type(interruption).__name__}"
     key = display_id.casefold()
@@ -4106,7 +4173,9 @@ class _RoundSevenTestMutex:
 
 
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("capture gap"), SystemExit(60)])
-def test_capture_phase_publication_is_inside_cleanup_guard(interruption: BaseException) -> None:
+def test_capture_phase_publication_is_inside_cleanup_guard(
+    interruption: BaseException, unmeasured_tracing: None
+) -> None:
     adapter = make_adapter(FakeWindowsDisplayPorts(), transaction_mutex=_RoundSevenTestMutex())
     plan = make_plan()
     coordinator = coordinator_for(adapter)
@@ -4142,6 +4211,7 @@ def test_capture_phase_publication_is_inside_cleanup_guard(interruption: BaseExc
 def test_restore_retries_after_boundary_cancellation_and_attempts_remaining_domains(
     tmp_path: Path,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     vcgt_path, vcgt_sha = write_asset(tmp_path, "target.cal", b"target")
     lut_path, lut_sha = write_asset(tmp_path, "target.cube", b"target")
@@ -4200,6 +4270,7 @@ def test_restore_retries_after_boundary_cancellation_and_attempts_remaining_doma
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("ownership gap"), SystemExit(62)])
 def test_restore_retries_cleanup_ownership_publication_before_compensation(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class TrackingMutex:
         def __init__(self) -> None:
@@ -4244,7 +4315,9 @@ def test_restore_retries_cleanup_ownership_publication_before_compensation(
 
 
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("lease dispatch"), SystemExit(63)])
-def test_icc_close_dispatch_retries_before_close_is_entered(interruption: BaseException) -> None:
+def test_icc_close_dispatch_retries_before_close_is_entered(
+    interruption: BaseException, unmeasured_tracing: None
+) -> None:
     closes = 0
 
     class Lease:
@@ -4276,7 +4349,9 @@ def test_icc_close_dispatch_retries_before_close_is_entered(interruption: BaseEx
 
 
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("native dispatch"), SystemExit(64)])
-def test_windows_icc_close_remains_retryable_before_native_entry(interruption: BaseException) -> None:
+def test_windows_icc_close_remains_retryable_before_native_entry(
+    interruption: BaseException, unmeasured_tracing: None
+) -> None:
     class Function:
         def __init__(self, callback: object) -> None:
             self.callback = callback
@@ -4487,6 +4562,7 @@ def test_named_mutex_terminal_callback_exception_is_honest_after_native_close(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("composite publication"), SystemExit(67)])
 def test_composite_mutex_release_continues_after_child_state_publication_interruption(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     releases: list[str] = []
 
@@ -4599,6 +4675,7 @@ def test_successful_icc_operations_close_lease_when_success_handoff_is_interrupt
     tmp_path: Path,
     operation: str,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     payload = valid_icc_payload(b"success-handoff")
     closes = 0
@@ -4671,6 +4748,7 @@ def test_successful_icc_operations_retry_close_dispatch_after_handoff_interrupti
     tmp_path: Path,
     operation: str,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     payload = valid_icc_payload(b"close-call-handoff")
     closes = 0
@@ -4802,6 +4880,7 @@ def test_named_mutex_false_close_retains_uncertain_native_handle_truth() -> None
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("release dispatch"), SystemExit(72)])
 def test_adapter_mutex_release_retains_precise_ownership_at_dispatch(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     handle = object()
     releases: list[object] = []
@@ -4876,6 +4955,7 @@ def test_named_mutex_busy_close_callback_failure_is_retained(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("lease close preamble"), SystemExit(74)])
 def test_icc_close_retries_cancellation_from_lease_close_preamble(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     closes = 0
 
@@ -4912,6 +4992,7 @@ def test_icc_close_retries_cancellation_from_lease_close_preamble(
 def test_successful_ddc_session_closes_when_close_dispatch_is_interrupted(
     operation: str,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     target = DdcTargetIdentity("display-1", "path-1")
     controllers: list[object] = []
@@ -4982,6 +5063,7 @@ def test_restore_keeps_cleanup_ownership_during_iterative_retry_prologue(
     primary: BaseException,
     dispatch_interruption: BaseException,
     monkeypatch: pytest.MonkeyPatch,
+    unmeasured_tracing: None,
 ) -> None:
     class TrackingMutex:
         def __init__(self) -> None:
@@ -5175,6 +5257,7 @@ def test_restore_single_owner_retries_cancellation_after_recursive_marker_or_ite
     primary: BaseException,
     prologue: BaseException,
     monkeypatch: pytest.MonkeyPatch,
+    unmeasured_tracing: None,
 ) -> None:
     class TrackingMutex:
         def __init__(self) -> None:
@@ -5227,6 +5310,7 @@ def test_restore_single_owner_retries_cancellation_after_recursive_marker_or_ite
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("lock store"), SystemExit(81)])
 def test_in_process_acquire_reconciles_opcode_cancellation_after_lock_call(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     display_id = f"opcode-in-process-{type(interruption).__name__}"
     key = display_id.casefold()
@@ -5256,6 +5340,7 @@ def test_in_process_acquire_reconciles_opcode_cancellation_after_lock_call(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("child store"), SystemExit(82)])
 def test_production_acquire_sink_releases_child_lost_at_store_opcode(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     releases: list[str] = []
 
@@ -5294,6 +5379,7 @@ def test_production_acquire_sink_releases_child_lost_at_store_opcode(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("capture append"), SystemExit(83)])
 def test_capture_acquisition_sink_releases_lease_lost_before_append_opcode(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     handle = object()
     releases: list[object] = []
@@ -5338,6 +5424,7 @@ def test_capture_acquisition_sink_releases_lease_lost_before_append_opcode(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("release pop"), SystemExit(84)])
 def test_release_reconciles_terminal_lease_after_pop_opcode_cancellation(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Lease:
         released = False
@@ -5620,6 +5707,7 @@ def test_named_acquire_uncertain_release_retains_exact_handle_without_close(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("restore phase"), SystemExit(89)])
 def test_restore_retries_claim_until_restoring_phase_is_published(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class TrackingMutex:
         def __init__(self) -> None:
@@ -5834,6 +5922,7 @@ def test_release_owner_callback_cancellation_retains_native_evidence(
 @pytest.mark.parametrize("interruption", [KeyboardInterrupt("close inner pre-call"), SystemExit(94)])
 def test_close_worker_retries_inner_instruction_cancellation_before_native_entry(
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Function:
         def __init__(self, callback: object) -> None:
@@ -6602,7 +6691,7 @@ def test_shutdown_releases_active_named_mutex_on_its_owner_thread() -> None:
 
 @REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("domain", ["unclaimed", "icc", "native"])
-def test_drain_claim_publication_cancellation_rolls_back_exact_claim(domain: str) -> None:
+def test_drain_claim_publication_cancellation_rolls_back_exact_claim(domain: str, unmeasured_tracing: None) -> None:
     if domain == "unclaimed":
         record = windows_state._UnclaimedMutexLease(SimpleNamespace(release=lambda _lease: None), object(), False)
         token = 99_001
@@ -6669,7 +6758,7 @@ def test_drain_claim_publication_cancellation_rolls_back_exact_claim(domain: str
 
 @REQUIRES_OPCODE_MONITORING
 @pytest.mark.parametrize("domain", ["icc", "native"])
-def test_capacity_reservation_return_cancellation_retires_pending_slot(domain: str) -> None:
+def test_capacity_reservation_return_cancellation_retires_pending_slot(domain: str, unmeasured_tracing: None) -> None:
     interruption = KeyboardInterrupt(f"{domain} reservation return")
     if domain == "icc":
         windows_state._ICC_LEASE_RESERVATIONS.clear()
@@ -6720,7 +6809,9 @@ def test_capacity_reservation_return_cancellation_retires_pending_slot(domain: s
 
 
 @pytest.mark.parametrize("domain", ["icc", "native"])
-def test_terminal_retirement_cancellation_releases_claim_without_losing_evidence(domain: str) -> None:
+def test_terminal_retirement_cancellation_releases_claim_without_losing_evidence(
+    domain: str, unmeasured_tracing: None
+) -> None:
     interruption = KeyboardInterrupt(f"{domain} retirement")
     if domain == "icc":
         lease = SimpleNamespace(close=lambda: None)

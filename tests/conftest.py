@@ -194,3 +194,31 @@ def tray_window(qapp: object, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(QSystemTrayIcon, "isSystemTrayAvailable", staticmethod(lambda: True))
     with active_window(monkeypatch, tmp_path) as built:
         yield built
+
+
+@pytest.fixture
+def unmeasured_tracing() -> Iterator[None]:
+    """Suspend coverage measurement while a test installs a tracer of its own.
+
+    A coverage core built on ``sys.settrace`` holds the one trace function the
+    interpreter has. The tests that ask for this fixture replace it, turn on
+    opcode tracing in frames it had already instrumented, and raise out of the
+    middle of one of them. CPython then dies with an access violation rather
+    than reporting a failure, which is what the Windows CI lane saw and what no
+    exit status distinguishes from a crash in the product. Measurement stops
+    here and starts again afterwards, keeping what it had already collected.
+
+    Stopping has to happen here rather than in the test body. A trace function
+    installed in the same frame that stopped measurement is never called, so a
+    test doing both would hand the interpreter its tracer and watch nothing
+    arrive. Stopping one frame out leaves the test free to trace normally.
+    """
+    measuring = sys.modules.get("coverage")
+    suspended = None if measuring is None else measuring.Coverage.current()
+    if suspended is not None:
+        suspended.stop()
+    try:
+        yield
+    finally:
+        if suspended is not None:
+            suspended.start()

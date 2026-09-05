@@ -9,6 +9,19 @@
   panel profile it does not have. Each display now resolves against the model string its own
   EDID carries, with the name the bus reports as the fallback, and a display that neither one
   matches is reported as unmatched rather than borrowing another monitor's answer.
+- Made a coverage run report a failure instead of dying. The Windows CI lane runs the suite
+  under coverage, and the process was exiting with an access violation partway through, which
+  reads as a crash in the product and ends the lane before the rest of the suite runs. Neither
+  cause was a native call. The Win32 cancellation contracts install a trace function of their
+  own, turn on opcode tracing in frames the coverage tracer had already instrumented, and raise
+  out of the middle of one of them, so measurement is now suspended for the length of each of
+  those windows and started again after, keeping what it had already collected. The mutex tests
+  were also leaving one owner thread running for every release the operating system never
+  confirmed, and a thread started while coverage is measuring carries its trace function for as
+  long as it lives. Those threads are retired once the test that started them has finished
+  asserting, which ends the command loop and leaves the unconfirmed handle alone. The note in
+  the packaging configuration blamed native GDI calls on daemon threads, which measurement
+  ruled out, and now says what was measured.
 - Made a suite that passes exit as one. The Windows run finished every assertion and then
   died with an access violation raised inside a garbage collection during interpreter
   shutdown, in three of five observed runs, and the process exit status is what a runner

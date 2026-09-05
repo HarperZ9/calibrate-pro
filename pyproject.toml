@@ -73,14 +73,12 @@ markers = [
 [tool.coverage.run]
 source = ["calibrate_pro"]
 omit = ["*/gui/*", "*/tray/*"]  # GUI/tray are exercised manually, not in headless CI
-# A coverage run on this machine dies with an access violation inside the display
-# DC path in panels/detection.py rather than reporting a failure, so a crashed
-# run is not a red suite and must not be read as one. Every native GDI call there
-# runs on a daemon thread, and the terminal cleanup path starts a second one, so
-# the tracer is attached to threads the interpreter can kill mid-call. That is the
-# suspected mechanism, not a diagnosed one: confirming it means driving real GDI
-# against the attached displays, which the contributor rules put outside routine
-# work. The plain suite is unaffected and is the gate.
+# A coverage run used to die with an access violation instead of reporting a
+# failure. Both causes were test-side rather than native: a test that installs
+# its own trace function while a settrace core holds the interpreter's, and an
+# owner thread outliving the test that started it while still carrying the
+# coverage tracer. See the unmeasured_tracing fixture in tests/conftest.py and
+# the owner retirement in tests/test_windows_display_state_adapter.py.
 
 [tool.coverage.report]
 show_missing = true
