@@ -15,6 +15,7 @@ Zero-dependency JSON-RPC 2.0 over stdio, newline-delimited, matching the protoco
 the sibling flagships speak. Launch it with ``calibrate-pro mcp`` or
 ``python -m calibrate_pro.main mcp``.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,28 +41,40 @@ def _text(text: str, *, is_error: bool = False) -> dict:
 
 def _tool_defs() -> list[dict]:
     return [
-        {"name": "calibrate-pro.status",
-         "description": "Liveness and identity of the Calibrate Pro MCP server "
-                        "(name, version, protocol). Device-free health probe.",
-         "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "calibrate-pro.doctor",
-         "description": "Read-only readiness diagnostic: identity, exposed tools, "
-                        "and the installation/capability report (no device probe).",
-         "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "calibrate-pro.list-targets",
-         "description": "The calibration target presets (profiles, white points, "
-                        "luminance, gamma/EOTF, gamut). Pure data, no hardware.",
-         "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "calibrate-pro.list-panels",
-         "description": "The characterized panel database (key, name, manufacturer, "
-                        "type) used for sensorless calibration estimates.",
-         "inputSchema": {"type": "object", "properties": {}}},
-        {"name": "calibrate-pro.panel-info",
-         "description": "Stored characterization for one panel key: native "
-                        "primaries and white point. Estimated for an attached unit.",
-         "inputSchema": {"type": "object", "required": ["panel"],
-             "properties": {"panel": {"type": "string",
-                            "description": "a key from calibrate-pro.list-panels"}}}},
+        {
+            "name": "calibrate-pro.status",
+            "description": "Liveness and identity of the Calibrate Pro MCP server "
+            "(name, version, protocol). Device-free health probe.",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "calibrate-pro.doctor",
+            "description": "Read-only readiness diagnostic: identity, exposed tools, "
+            "and the installation/capability report (no device probe).",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "calibrate-pro.list-targets",
+            "description": "The calibration target presets (profiles, white points, "
+            "luminance, gamma/EOTF, gamut). Pure data, no hardware.",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "calibrate-pro.list-panels",
+            "description": "The characterized panel database (key, name, manufacturer, "
+            "type) used for sensorless calibration estimates.",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "calibrate-pro.panel-info",
+            "description": "Stored characterization for one panel key: native "
+            "primaries and white point. Estimated for an attached unit.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["panel"],
+                "properties": {"panel": {"type": "string", "description": "a key from calibrate-pro.list-panels"}},
+            },
+        },
     ]
 
 
@@ -69,8 +82,7 @@ _TOOL_NAMES = frozenset(t["name"] for t in _tool_defs())
 
 
 def _status_payload() -> dict:
-    return {"ok": True, "server": "calibrate-pro", "version": __version__,
-            "protocol": MCP_PROTOCOL_VERSION}
+    return {"ok": True, "server": "calibrate-pro", "version": __version__, "protocol": MCP_PROTOCOL_VERSION}
 
 
 def _doctor_payload() -> dict:
@@ -78,6 +90,7 @@ def _doctor_payload() -> dict:
     info["tools"] = [t["name"] for t in _tool_defs()]
     try:
         from calibrate_pro.diagnostics import build_doctor_report
+
         info["diagnostics"] = build_doctor_report()
     except Exception as exc:  # doctor reports the fault; it never fails the probe
         info["diagnostics"] = {"ok": None, "error": f"{type(exc).__name__}: {exc}"}
@@ -92,48 +105,53 @@ def _targets_payload() -> dict:
         get_profile_presets,
         get_whitepoint_presets,
     )
+
     return {
-        "profiles": [{"name": p.name, "description": p.description, "hdr": p.is_hdr()}
-                     for p in get_profile_presets()],
-        "whitepoints": [{"preset": w.preset.value, "cct": round(w.get_cct(), 1)}
-                        for w in get_whitepoint_presets()],
-        "luminance": [{"standard": m.standard.value,
-                       "peak_nits": round(m.get_peak_luminance(), 1), "hdr": m.is_hdr()}
-                      for m in get_luminance_presets()],
+        "profiles": [{"name": p.name, "description": p.description, "hdr": p.is_hdr()} for p in get_profile_presets()],
+        "whitepoints": [{"preset": w.preset.value, "cct": round(w.get_cct(), 1)} for w in get_whitepoint_presets()],
+        "luminance": [
+            {"standard": m.standard.value, "peak_nits": round(m.get_peak_luminance(), 1), "hdr": m.is_hdr()}
+            for m in get_luminance_presets()
+        ],
         "gamma": [{"preset": g.preset.value, "hdr": g.is_hdr()} for g in get_gamma_presets()],
-        "gamut": [{"preset": g.preset.value, "wide_gamut": g.is_wide_gamut()}
-                  for g in get_gamut_presets()],
+        "gamut": [{"preset": g.preset.value, "wide_gamut": g.is_wide_gamut()} for g in get_gamut_presets()],
     }
 
 
 def _panels_payload() -> dict:
     from calibrate_pro.panels.database import PanelDatabase
+
     database = PanelDatabase()
     panels = []
     for key in sorted(database.list_panels()):
         panel = database.get_panel(key)
         if panel is not None:
-            panels.append({"key": key, "name": panel.name,
-                           "manufacturer": panel.manufacturer, "panel_type": panel.panel_type})
+            panels.append(
+                {"key": key, "name": panel.name, "manufacturer": panel.manufacturer, "panel_type": panel.panel_type}
+            )
     return {"count": len(panels), "panels": panels}
 
 
 def _panel_info_payload(key: str) -> dict:
     from calibrate_pro.panels.database import PanelDatabase
+
     database = PanelDatabase()
     panel = database.get_panel(key) or database.find_panel(key)
     if panel is None:
         raise ValueError(f"no panel {key!r}; use calibrate-pro.list-panels for keys")
     primaries = panel.native_primaries
     return {
-        "key": key, "name": panel.name, "manufacturer": panel.manufacturer,
+        "key": key,
+        "name": panel.name,
+        "manufacturer": panel.manufacturer,
         "panel_type": panel.panel_type,
         "estimate": "characterized estimate for an attached unit, not a live measurement",
         "native_primaries": {
             "red": [primaries.red.x, primaries.red.y],
             "green": [primaries.green.x, primaries.green.y],
             "blue": [primaries.blue.x, primaries.blue.y],
-            "white": [primaries.white.x, primaries.white.y]},
+            "white": [primaries.white.x, primaries.white.y],
+        },
     }
 
 
@@ -159,9 +177,14 @@ def handle_request(req: dict) -> dict | None:
     if "id" not in req:
         return None
     if method == "initialize":
-        return _ok(mid, {"protocolVersion": MCP_PROTOCOL_VERSION,
-                         "capabilities": {"tools": {}},
-                         "serverInfo": {"name": "calibrate-pro", "version": __version__}})
+        return _ok(
+            mid,
+            {
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "calibrate-pro", "version": __version__},
+            },
+        )
     if method == "ping":
         return _ok(mid, {})
     if method == "tools/list":

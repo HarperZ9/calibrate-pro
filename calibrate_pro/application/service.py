@@ -285,9 +285,7 @@ class FunctionalRecoveryService(
 
     def export_format(self, export_name: str) -> ActionOutcome[ExportBundle]:
         """Publish one generated format into a directory named for that format."""
-        return self._runner.run(
-            f"export.active.{export_name}", lambda: export_single_format(self._state, export_name)
-        )
+        return self._runner.run(f"export.active.{export_name}", lambda: export_single_format(self._state, export_name))
 
     # -- shared helpers -----------------------------------------------------
 

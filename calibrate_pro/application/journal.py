@@ -50,12 +50,8 @@ if TYPE_CHECKING:
 
 DIAGNOSTIC_JOURNAL_MAX_BYTES = 1_048_576
 DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES = 65_536
-DIAGNOSTIC_ARCHIVE_BASENAMES = tuple(
-    f"diagnostics.{generation}.jsonl" for generation in range(1, 6)
-)
-_DIAGNOSTIC_BUNDLE_BASENAMES = tuple(
-    sorted(("diagnostics.jsonl", *DIAGNOSTIC_ARCHIVE_BASENAMES))
-)
+DIAGNOSTIC_ARCHIVE_BASENAMES = tuple(f"diagnostics.{generation}.jsonl" for generation in range(1, 6))
+_DIAGNOSTIC_BUNDLE_BASENAMES = tuple(sorted(("diagnostics.jsonl", *DIAGNOSTIC_ARCHIVE_BASENAMES)))
 
 _JOURNAL_LOCK = threading.RLock()
 _PRIVATE_SALT_LOCK = threading.RLock()
@@ -69,9 +65,7 @@ _MAX_TERMINAL_RESERVATION_KEYS = 1_024
 _RESERVATION_RE = re.compile(r"\.diagnostics\.reserve\.[0-9a-f]{32}\.tmp\Z")
 _ZERO_CHUNK = bytes(65_536)
 _APPEND_TEMP_BASENAME = ".diagnostics.append.tmp"
-_ROTATION_TEMP_BASENAMES = tuple(
-    f".diagnostics.rotate.{generation}.tmp" for generation in range(6)
-)
+_ROTATION_TEMP_BASENAMES = tuple(f".diagnostics.rotate.{generation}.tmp" for generation in range(6))
 _BUNDLE_TEMP_RE = re.compile(
     r"\.calibrate-pro-diagnostic-bundle\.(?P<pid>[1-9][0-9]{0,19})\."
     r"[0-9a-f]{32}\.tmp\Z"
@@ -89,9 +83,7 @@ _RECOGNIZED_REDACTION_MARKER_RE = re.compile(
     rf"\[REDACTED(?:_PATH(?::{_SAFE_MARKER_BASENAME_PATTERN})?"
     r"|_DEVICE|_INVALID_UTF8)?\]"
 )
-_DYNAMIC_PATH_MARKER_RE = re.compile(
-    r"\[REDACTED_PATH:(?P<basename>[^\]\r\n]*)\]"
-)
+_DYNAMIC_PATH_MARKER_RE = re.compile(r"\[REDACTED_PATH:(?P<basename>[^\]\r\n]*)\]")
 
 _PRIVATE_KEY_RE = re.compile(
     r"-----BEGIN [^-\r\n]*PRIVATE KEY-----.*?-----END [^-\r\n]*PRIVATE KEY-----",
@@ -202,9 +194,7 @@ _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 _SYNCHRONIZE = 0x00100000
 _WAIT_OBJECT_0 = 0x00000000
 _PRIVATE_SALT_ALLOWED_FILE_ATTRIBUTES = (
-    _FILE_ATTRIBUTE_HIDDEN
-    | _FILE_ATTRIBUTE_ARCHIVE
-    | _FILE_ATTRIBUTE_NOT_CONTENT_INDEXED
+    _FILE_ATTRIBUTE_HIDDEN | _FILE_ATTRIBUTE_ARCHIVE | _FILE_ATTRIBUTE_NOT_CONTENT_INDEXED
 )
 
 
@@ -245,6 +235,8 @@ class _WindowsSaltFileMetadata:
     file_attributes: int
     link_count: int
     byte_length: int
+
+
 _OPTIONAL_SHA256_FIELDS = ("display_pseudonym", "plan_sha256", "export_sha256")
 
 
@@ -310,9 +302,7 @@ class DiagnosticRedactor:
         resolved_environment = os.environ if environment is None else environment
         self._username = resolved_username.strip() if type(resolved_username) is str else ""
         identity_values = {
-            value
-            for value in (resolved_username, resolved_home)
-            if type(value) is str and value.strip()
+            value for value in (resolved_username, resolved_home) if type(value) is str and value.strip()
         }
         environment_values = {
             value
@@ -333,9 +323,7 @@ class DiagnosticRedactor:
                 pattern = rf"(?<!\w){pattern}(?!\w)"
             sensitive_patterns.append(f"(?:{pattern})")
         self._sensitive_pattern: re.Pattern[str] | None = (
-            re.compile("|".join(sensitive_patterns), re.IGNORECASE)
-            if sensitive_patterns
-            else None
+            re.compile("|".join(sensitive_patterns), re.IGNORECASE) if sensitive_patterns else None
         )
 
     @staticmethod
@@ -364,9 +352,7 @@ class DiagnosticRedactor:
         redacted_parts: list[str] = []
         position = 0
         for marker in _RECOGNIZED_REDACTION_MARKER_RE.finditer(prepared):
-            redacted_parts.append(
-                self._redact_unprotected(prepared[position : marker.start()])
-            )
+            redacted_parts.append(self._redact_unprotected(prepared[position : marker.start()]))
             redacted_parts.append(marker.group(0))
             position = marker.end()
         redacted_parts.append(self._redact_unprotected(prepared[position:]))
@@ -379,9 +365,7 @@ class DiagnosticRedactor:
         if re.match(r"^(?:[A-Za-z]:[\\/]|\\\\|/)", stripped):
             return self._path_marker(stripped)
         redacted = (
-            self._sensitive_pattern.sub(REDACTION_MARKER, value)
-            if self._sensitive_pattern is not None
-            else value
+            self._sensitive_pattern.sub(REDACTION_MARKER, value) if self._sensitive_pattern is not None else value
         )
         redacted = _PRIVATE_KEY_RE.sub(REDACTION_MARKER, redacted)
         redacted = _BEARER_RE.sub(f"Bearer {REDACTION_MARKER}", redacted)
@@ -420,10 +404,7 @@ class DiagnosticRedactor:
 
     @staticmethod
     def _redact_labeled_device(match: re.Match[str]) -> str:
-        return (
-            f"{match.group('label')}{match.group('separator')}"
-            f"{REDACTED_DEVICE_MARKER}"
-        )
+        return f"{match.group('label')}{match.group('separator')}{REDACTED_DEVICE_MARKER}"
 
     def _sanitize_path_marker(self, match: re.Match[str]) -> str:
         basename = match.group("basename")
@@ -435,10 +416,7 @@ class DiagnosticRedactor:
         return match.group(0)
 
     def _redact_labeled_path(self, match: re.Match[str]) -> str:
-        return (
-            f"{match.group('label')}{match.group('separator')}"
-            f"{self._path_marker(match.group('path').strip())}"
-        )
+        return f"{match.group('label')}{match.group('separator')}{self._path_marker(match.group('path').strip())}"
 
     def _redact_path(self, match: re.Match[str]) -> str:
         return self._path_marker(match.group(0))
@@ -454,10 +432,7 @@ class DiagnosticRedactor:
             not basename
             or basename in {".", ".."}
             or re.fullmatch(_SAFE_MARKER_BASENAME_PATTERN, basename) is None
-            or any(
-                sensitive.casefold() in basename.casefold()
-                for sensitive in self._sensitive_values
-            )
+            or any(sensitive.casefold() in basename.casefold() for sensitive in self._sensitive_values)
         ):
             return REDACTED_PATH_MARKER
         return f"[REDACTED_PATH:{basename}]"
@@ -692,9 +667,7 @@ class _CtypesWindowsPrivateSaltBackend:
             void_pointer_pointer,
             ctypes.POINTER(wintypes.DWORD),
         ]
-        self._advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW.restype = (
-            wintypes.BOOL
-        )
+        self._advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW.restype = wintypes.BOOL
         self._advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [
             ctypes.c_void_p,
             wintypes.DWORD,
@@ -702,9 +675,7 @@ class _CtypesWindowsPrivateSaltBackend:
             ctypes.POINTER(wintypes.LPWSTR),
             ctypes.POINTER(wintypes.DWORD),
         ]
-        self._advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW.restype = (
-            wintypes.BOOL
-        )
+        self._advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW.restype = wintypes.BOOL
         self._advapi32.GetSecurityInfo.argtypes = [
             wintypes.HANDLE,
             ctypes.c_int,
@@ -810,9 +781,7 @@ class _CtypesWindowsPrivateSaltBackend:
             0,
             ctypes.byref(security_attributes),
             _CREATE_NEW,
-            _FILE_ATTRIBUTE_HIDDEN
-            | _FILE_ATTRIBUTE_NOT_CONTENT_INDEXED
-            | _FILE_FLAG_OPEN_REPARSE_POINT,
+            _FILE_ATTRIBUTE_HIDDEN | _FILE_ATTRIBUTE_NOT_CONTENT_INDEXED | _FILE_FLAG_OPEN_REPARSE_POINT,
             None,
         )
         if self._is_invalid_handle(handle):
@@ -824,13 +793,16 @@ class _CtypesWindowsPrivateSaltBackend:
         try:
             buffer = ctypes.create_string_buffer(candidate_salt, _PRIVATE_SALT_BYTES)
             written = wintypes.DWORD()
-            if not self._kernel32.WriteFile(
-                handle,
-                buffer,
-                _PRIVATE_SALT_BYTES,
-                ctypes.byref(written),
-                None,
-            ) or written.value != _PRIVATE_SALT_BYTES:
+            if (
+                not self._kernel32.WriteFile(
+                    handle,
+                    buffer,
+                    _PRIVATE_SALT_BYTES,
+                    ctypes.byref(written),
+                    None,
+                )
+                or written.value != _PRIVATE_SALT_BYTES
+            ):
                 raise OSError("Windows private salt write failed")
             if not self._kernel32.FlushFileBuffers(handle):
                 raise OSError("Windows private salt synchronization failed")
@@ -873,13 +845,16 @@ class _CtypesWindowsPrivateSaltBackend:
                 return None
             buffer = ctypes.create_string_buffer(_PRIVATE_SALT_BYTES)
             read = wintypes.DWORD()
-            if not self._kernel32.ReadFile(
-                handle,
-                buffer,
-                _PRIVATE_SALT_BYTES,
-                ctypes.byref(read),
-                None,
-            ) or read.value != _PRIVATE_SALT_BYTES:
+            if (
+                not self._kernel32.ReadFile(
+                    handle,
+                    buffer,
+                    _PRIVATE_SALT_BYTES,
+                    ctypes.byref(read),
+                    None,
+                )
+                or read.value != _PRIVATE_SALT_BYTES
+            ):
                 return None
             return bytes(buffer.raw[:_PRIVATE_SALT_BYTES])
         finally:
@@ -897,8 +872,7 @@ class _CtypesWindowsPrivateSaltBackend:
             file_type=file_type,
             file_attributes=int(information.dwFileAttributes),
             link_count=int(information.nNumberOfLinks),
-            byte_length=(int(information.nFileSizeHigh) << 32)
-            | int(information.nFileSizeLow),
+            byte_length=(int(information.nFileSizeHigh) << 32) | int(information.nFileSizeLow),
         )
 
     def _security_sddl_for_handle(self, handle: int) -> str:
@@ -1105,9 +1079,7 @@ class DiagnosticJournal:
         self.path = resolved_root / "diagnostics.jsonl"
         self.archive_paths = tuple(resolved_root / name for name in DIAGNOSTIC_ARCHIVE_BASENAMES)
         self._append_temp_path = resolved_root / _APPEND_TEMP_BASENAME
-        self._rotation_temp_paths = tuple(
-            resolved_root / name for name in _ROTATION_TEMP_BASENAMES
-        )
+        self._rotation_temp_paths = tuple(resolved_root / name for name in _ROTATION_TEMP_BASENAMES)
 
     def preflight(self, action_id: str, correlation_id: str) -> ActionOutcome[None]:
         stage = _fallback_stage()
@@ -1195,16 +1167,11 @@ class DiagnosticJournal:
             with self._exclusive_root():
                 current_reservation = self._coordinator.reservations.get(key)
                 current_partial_match = any(
-                    reserved_action == record.action_id
-                    or reserved_correlation == record.correlation_id
+                    reserved_action == record.action_id or reserved_correlation == record.correlation_id
                     for reserved_action, reserved_correlation in self._coordinator.reservations
                 )
                 current_terminal = key in self._coordinator.terminal_keys
-                if (
-                    current_reservation is not None
-                    or current_partial_match
-                    or current_terminal
-                ):
+                if current_reservation is not None or current_partial_match or current_terminal:
                     return _diagnostic_error(
                         action_id=record.action_id,
                         correlation_id=record.correlation_id,
@@ -1212,9 +1179,7 @@ class DiagnosticJournal:
                         code="DIAGNOSTIC_RESERVATION_MISMATCH",
                         summary="The diagnostic reservation identity does not match.",
                         retryable=False,
-                        next_action=(
-                            "Start the action again with a new correlation identifier."
-                        ),
+                        next_action=("Start the action again with a new correlation identifier."),
                     )
                 self._recover_stale_state()
                 live_count = self._reap_abandoned_reservations()
@@ -1257,12 +1222,7 @@ class DiagnosticJournal:
         path: Path | None = None
         locked = False
         try:
-            flags = (
-                os.O_RDWR
-                | os.O_CREAT
-                | os.O_EXCL
-                | getattr(os, "O_BINARY", 0)
-            )
+            flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
             for _attempt in range(16):
                 candidate = self._root / f".diagnostics.reserve.{secrets.token_hex(16)}.tmp"
                 try:
@@ -1377,9 +1337,7 @@ class DiagnosticJournal:
                     self._redactor,
                 ).encode("utf-8")
                 if len(encoded_line) > DIAGNOSTIC_RECEIPT_RECORD_MAX_BYTES:
-                    raise AssertionError(
-                        "bounded diagnostic fallback exceeds its reservation"
-                    )
+                    raise AssertionError("bounded diagnostic fallback exceeds its reservation")
                 bound_failure = _diagnostic_error(
                     action_id=record.action_id,
                     correlation_id=record.correlation_id,
@@ -1719,11 +1677,7 @@ class DiagnosticBundleManager:
     def preview_is_live(self, token: str) -> bool:
         with _JOURNAL_LOCK:
             grant = self._grant
-            if (
-                grant is None
-                or not _is_valid_bundle_token(token)
-                or not hmac.compare_digest(token, grant.token)
-            ):
+            if grant is None or not _is_valid_bundle_token(token) or not hmac.compare_digest(token, grant.token):
                 return False
             try:
                 now = self._monotonic()
@@ -1746,11 +1700,7 @@ class DiagnosticBundleManager:
     def create(self, token: str, destination: Path) -> DiagnosticBundleReceipt:
         with _JOURNAL_LOCK:
             grant = self._grant
-            if (
-                grant is None
-                or not _is_valid_bundle_token(token)
-                or not hmac.compare_digest(token, grant.token)
-            ):
+            if grant is None or not _is_valid_bundle_token(token) or not hmac.compare_digest(token, grant.token):
                 _raise_bundle_failure(
                     "DIAGNOSTIC_BUNDLE_TOKEN_INVALID",
                     "The diagnostic bundle preview token is invalid.",
@@ -2057,8 +2007,7 @@ class DiagnosticBundleManager:
                 bundle_sha256=bundle_sha256,
                 byte_length=byte_length,
                 member_hashes=tuple(
-                    (basename, hashlib.sha256(payload).hexdigest())
-                    for basename, payload in public_payloads
+                    (basename, hashlib.sha256(payload).hexdigest()) for basename, payload in public_payloads
                 ),
                 readback_verified=True,
             )
@@ -2081,10 +2030,7 @@ class DiagnosticBundleManager:
     def _open_temporary(parent: Path) -> tuple[Path, int]:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
         for _attempt in range(32):
-            basename = (
-                f".calibrate-pro-diagnostic-bundle.{os.getpid()}."
-                f"{secrets.token_hex(16)}.tmp"
-            )
+            basename = f".calibrate-pro-diagnostic-bundle.{os.getpid()}.{secrets.token_hex(16)}.tmp"
             if _BUNDLE_TEMP_RE.fullmatch(basename) is None:
                 continue
             path = parent / basename
@@ -2183,9 +2129,7 @@ def _bounded_reservation_failure_record(record: JournalRecord) -> JournalRecord:
         export_basename = None
         export_sha256 = None
     phase_flags = record.apply_phase_flags
-    if len(phase_flags) > 32 or any(
-        len(key.encode("utf-8")) > 128 for key, _value in phase_flags
-    ):
+    if len(phase_flags) > 32 or any(len(key.encode("utf-8")) > 128 for key, _value in phase_flags):
         phase_flags = ()
     bounded = replace(
         record,
@@ -2218,8 +2162,7 @@ def _bounded_reservation_failure_record(record: JournalRecord) -> JournalRecord:
         recovery_guarantee=(
             record.recovery_guarantee
             if record.recovery_guarantee is not None
-            and _bounded_or_omitted(record.recovery_guarantee, 512, "")
-            == record.recovery_guarantee
+            and _bounded_or_omitted(record.recovery_guarantee, 512, "") == record.recovery_guarantee
             else None
         ),
         export_basename=export_basename,
@@ -2297,21 +2240,20 @@ def _encode_record(
             )
         elif type(value) is tuple:
             if field.name in _PAIR_TUPLE_FIELDS:
-                payload[field.name] = tuple(
-                    (selected_redactor.redact(pair[0]), pair[1]) for pair in value
-                )
+                payload[field.name] = tuple((selected_redactor.redact(pair[0]), pair[1]) for pair in value)
             else:
-                payload[field.name] = tuple(
-                    selected_redactor.redact(item) for item in value
-                )
+                payload[field.name] = tuple(selected_redactor.redact(item) for item in value)
         else:
             payload[field.name] = value
-    return json.dumps(
-        payload,
-        ensure_ascii=False,
-        allow_nan=False,
-        separators=(",", ":"),
-    ) + "\n"
+    return (
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        )
+        + "\n"
+    )
 
 
 def _normalize_export_basename(value: str, redactor: DiagnosticRedactor) -> str:

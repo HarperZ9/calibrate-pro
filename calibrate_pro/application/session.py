@@ -129,9 +129,7 @@ class SessionState:
         """Name the anchor artifacts actually held in memory right now."""
         if self.generated is None:
             return frozenset()
-        kinds = {
-            _ASSET_KIND_BY_FORMAT[fmt] for fmt in self.generated.assets if fmt in _ASSET_KIND_BY_FORMAT
-        }
+        kinds = {_ASSET_KIND_BY_FORMAT[fmt] for fmt in self.generated.assets if fmt in _ASSET_KIND_BY_FORMAT}
         return frozenset(kinds)
 
     @property
@@ -139,9 +137,7 @@ class SessionState:
         """Name only the formats this session has already generated."""
         if self.generated is None:
             return frozenset()
-        formats = {
-            EXPORTABLE_FORMATS[fmt] for fmt in self.generated.assets if fmt in EXPORTABLE_FORMATS
-        }
+        formats = {EXPORTABLE_FORMATS[fmt] for fmt in self.generated.assets if fmt in EXPORTABLE_FORMATS}
         return frozenset(formats)
 
     @property

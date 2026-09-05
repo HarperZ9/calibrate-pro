@@ -130,13 +130,8 @@ class DwmLutError(Exception):
 
 def assert_dwm_lut_runtime_supported(version: str, windows_build: int) -> None:
     """Reject DWM injection when bundled hook offsets are not build-compatible."""
-    if (
-        version == BUNDLED_DWM_LUT_VERSION
-        and windows_build not in BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS
-    ):
-        supported = ", ".join(
-            str(build) for build in sorted(BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS)
-        )
+    if version == BUNDLED_DWM_LUT_VERSION and windows_build not in BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS:
+        supported = ", ".join(str(build) for build in sorted(BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS))
         raise DwmLutError(
             f"bundled dwm_lut {version} is unsupported on Windows build "
             f"{windows_build}; supported builds: {supported}. Refusing DWM injection."

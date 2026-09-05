@@ -41,8 +41,6 @@ EXPECTED_ACTION_ORDER = (
 )
 
 
-
-
 class StagedFailure(RuntimeError):
     """A failure a test adapter raises on purpose. The product never raises it."""
 

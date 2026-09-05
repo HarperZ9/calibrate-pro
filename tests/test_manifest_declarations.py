@@ -65,9 +65,7 @@ def unimportable(modules: Iterable[str]) -> list[str]:
 
 def actions_requiring(module: str) -> list[str]:
     """Which actions named one module, so a failure says whose it is."""
-    return sorted(
-        action["action_id"] for action in manifest()["actions"] if module in action["required_modules"]
-    )
+    return sorted(action["action_id"] for action in manifest()["actions"] if module in action["required_modules"])
 
 
 def test_every_module_the_manifest_requires_can_be_imported() -> None:

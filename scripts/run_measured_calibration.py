@@ -55,7 +55,6 @@ from calibrate_pro.lut_system.dwm_lut import (
 )
 from calibrate_pro.panels.detection import enumerate_displays
 
-
 OLED_FALLBACK_MATRIX = [
     [0.03836831, -0.02175997, 0.01696057],
     [0.01449629, 0.01611903, 0.00057150],
@@ -309,7 +308,9 @@ def main() -> int:
 
     dwm_status_before = get_lut_status()
     dwm_port = ExactDwmPort(target)
-    monitor = dwm_port._monitor(target.device_name)
+    # Raises unless the target resolves to exactly one DWM monitor. Every later
+    # call through this port assumes that, so the run stops here if it is false.
+    dwm_port._monitor(target.device_name)
     if target_hdr_enabled(detect_hdr_state(), target.device_name):
         raise RuntimeError("target is currently in HDR; this runner is deliberately SDR-only")
     if dwm_port.has_active_lut(target.device_name):
@@ -333,8 +334,7 @@ def main() -> int:
         white_y = float(white_xyz[1])
         white_sum = float(np.sum(white_xyz))
         print(
-            f"WHITE: Y={white_y:.3f} xy=({white_xyz[0] / white_sum:.5f},"
-            f"{white_xyz[1] / white_sum:.5f})",
+            f"WHITE: Y={white_y:.3f} xy=({white_xyz[0] / white_sum:.5f},{white_xyz[1] / white_sum:.5f})",
             flush=True,
         )
 
@@ -343,8 +343,7 @@ def main() -> int:
         if baseline.valid_patches != 24:
             raise RuntimeError(f"baseline incomplete: {baseline.valid_patches}/24")
         print(
-            f"BASELINE SUMMARY: avg={baseline.delta_e_average:.3f} "
-            f"max={baseline.delta_e_maximum:.3f}",
+            f"BASELINE SUMMARY: avg={baseline.delta_e_average:.3f} max={baseline.delta_e_maximum:.3f}",
             flush=True,
         )
 
@@ -391,8 +390,7 @@ def main() -> int:
         if direct.valid_patches != 24:
             raise RuntimeError(f"direct correction incomplete: {direct.valid_patches}/24")
         print(
-            f"DIRECT SUMMARY: avg={direct.delta_e_average:.3f} "
-            f"max={direct.delta_e_maximum:.3f}",
+            f"DIRECT SUMMARY: avg={direct.delta_e_average:.3f} max={direct.delta_e_maximum:.3f}",
             flush=True,
         )
         if direct.delta_e_average >= baseline.delta_e_average:

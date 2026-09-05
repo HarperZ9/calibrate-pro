@@ -87,9 +87,7 @@ def select_exact_display(
         raise ValueError(f"expected exactly one display named {device_name!r}; found {len(matches)}")
     selected = matches[0]
     if selected.geometry != geometry:
-        raise ValueError(
-            f"display geometry changed for {device_name}: expected {geometry}, found {selected.geometry}"
-        )
+        raise ValueError(f"display geometry changed for {device_name}: expected {geometry}, found {selected.geometry}")
     if not selected.device_id:
         raise ValueError(f"display identity is unavailable for {device_name}")
     return selected
@@ -112,21 +110,17 @@ def target_hdr_enabled(states: Iterable[object], device_name: str) -> bool:
 def require_device_id_token(target: DisplayTarget, token: str) -> None:
     """Bind a generic Windows monitor label to a stable PnP identity token."""
     if not token or token.casefold() not in target.device_id.casefold():
-        raise ValueError(
-            f"display identity token {token!r} is absent from {target.device_id!r}"
-        )
+        raise ValueError(f"display identity token {token!r} is absent from {target.device_id!r}")
 
 
 def _validate_summary(summary: VerificationSummary, label: str) -> None:
     if summary.valid_patches != REQUIRED_COLORCHECKER_PATCHES:
         raise ValueError(
-            f"{label} requires {REQUIRED_COLORCHECKER_PATCHES} valid patches; "
-            f"found {summary.valid_patches}"
+            f"{label} requires {REQUIRED_COLORCHECKER_PATCHES} valid patches; found {summary.valid_patches}"
         )
     if len(summary.patch_results) != REQUIRED_COLORCHECKER_PATCHES:
         raise ValueError(
-            f"{label} requires {REQUIRED_COLORCHECKER_PATCHES} patch receipts; "
-            f"found {len(summary.patch_results)}"
+            f"{label} requires {REQUIRED_COLORCHECKER_PATCHES} patch receipts; found {len(summary.patch_results)}"
         )
     metrics = [summary.delta_e_average, summary.delta_e_maximum]
     metrics.extend(result.delta_e for result in summary.patch_results)

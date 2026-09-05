@@ -103,9 +103,7 @@ def test_the_sdist_carries_the_same_files_the_wheel_does() -> None:
     patterns = directive.split()[2:]
 
     unmatched = [
-        name
-        for name in package_files()
-        if not any(fnmatch(name.rsplit("/", 1)[-1], pattern) for pattern in patterns)
+        name for name in package_files() if not any(fnmatch(name.rsplit("/", 1)[-1], pattern) for pattern in patterns)
     ]
 
     assert unmatched == []

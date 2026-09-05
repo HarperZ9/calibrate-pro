@@ -98,8 +98,6 @@ def completed_run(tmp_path_factory: pytest.TempPathFactory) -> CompletedRun:
     )
 
 
-
-
 def test_the_slice_detects_generates_applies_verifies_and_exports(completed_run: CompletedRun) -> None:
     performed = tuple(outcome.action_id for outcome in completed_run.outcomes)
     returned = tuple(action for action in EXPECTED_ACTION_ORDER if action != "settings.output_directory")
@@ -112,9 +110,7 @@ def test_detection_selects_the_bundled_display_and_rejects_nothing(completed_run
     assert summary.selected_display_id == load_fake_display().device_name
     assert summary.rejected == ()
     assert summary.capability_generation == 1
-    assert [entry.platform_display_id for entry in summary.dashboard.displays] == [
-        load_fake_display().device_name
-    ]
+    assert [entry.platform_display_id for entry in summary.dashboard.displays] == [load_fake_display().device_name]
 
 
 def test_generation_names_the_matched_panel_and_calls_the_numbers_estimated(

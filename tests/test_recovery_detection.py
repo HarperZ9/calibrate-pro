@@ -347,7 +347,9 @@ def test_display_requires_the_canonical_capability_state() -> None:
         _display(capabilities=(False, False, False, False, False, False))  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("evidence", ({"identity:qscreen_name"}, iter(("identity:qscreen_name",)), "identity:qscreen_name"))
+@pytest.mark.parametrize(
+    "evidence", ({"identity:qscreen_name"}, iter(("identity:qscreen_name",)), "identity:qscreen_name")
+)
 def test_evidence_accepts_only_producer_sequences_that_can_be_frozen(evidence: object) -> None:
     with pytest.raises(TypeError):
         _display(evidence=evidence)  # type: ignore[arg-type]

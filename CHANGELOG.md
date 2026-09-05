@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Turned the two lint gates green. `ruff check .` was reporting an unsorted import block and
+  an assignment whose value is never read in the measured calibration script, and a loop in
+  the i1d3 driver that reads as `any(...)`. The unread assignment stays as a call, because
+  what it is there for is the exception it raises when the target does not resolve to
+  exactly one DWM monitor. `ruff format --check .` was reporting eighteen files, seventeen
+  of them written by this branch to an 88 column width the project does not use. CI pins
+  ruff 0.15.21 and runs both as required checks, so neither was passing before this.
 - Made `doctor` answer a person as well as it answers a parser. `--json` was declared by
   both dispatchers and printed in both usage listings, and the command emitted compact
   JSON whichever way it was called, so the first command the documentation tells an

@@ -106,7 +106,7 @@ def test_matched_panel_reports_matched_characterization(generated):
 def test_unsupported_format_is_rejected(generator):
     with pytest.raises(TypeError):
         AssetRequest(
-        display_id=DISPLAY_ID,
+            display_id=DISPLAY_ID,
             panel_key=MATCHED_PANEL_KEY,
             preset_id="calibration.preset.srgb_web",
             formats=("cube",),  # strings are not AssetFormat members

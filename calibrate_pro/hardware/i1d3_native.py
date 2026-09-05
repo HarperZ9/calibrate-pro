@@ -208,10 +208,7 @@ class I1D3Driver:
         """Run the verified challenge-response exchange for known variants."""
         if self._device is None:
             return False
-        for key0, key1, _name in CHALLENGE_UNLOCK_KEYS:
-            if self._unlock_with_key(key0, key1):
-                return True
-        return False
+        return any(self._unlock_with_key(key0, key1) for key0, key1, _name in CHALLENGE_UNLOCK_KEYS)
 
     def measure(self, integration_time: float = None) -> I1D3Measurement | None:
         """
@@ -329,18 +326,8 @@ class I1D3Driver:
             return False
 
         scrambled = bytearray(challenge[3] ^ challenge[35 + index] for index in range(8))
-        ci0 = (
-            (scrambled[3] << 24)
-            + (scrambled[0] << 16)
-            + (scrambled[4] << 8)
-            + scrambled[6]
-        )
-        ci1 = (
-            (scrambled[1] << 24)
-            + (scrambled[7] << 16)
-            + (scrambled[2] << 8)
-            + scrambled[5]
-        )
+        ci0 = (scrambled[3] << 24) + (scrambled[0] << 16) + (scrambled[4] << 8) + scrambled[6]
+        ci1 = (scrambled[1] << 24) + (scrambled[7] << 16) + (scrambled[2] << 8) + scrambled[5]
         mask = 0xFFFFFFFF
         negative0 = (-key0) & mask
         negative1 = (-key1) & mask

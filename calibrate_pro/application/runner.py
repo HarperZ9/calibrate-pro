@@ -115,9 +115,7 @@ class SessionActionRunner:
             outcome = self._boundary.invoke(action_id, stage, guarded)
         finally:
             self._correlation_ids.release()
-        self._state.journal_ready = not (
-            isinstance(outcome, ActionError) and outcome.category == _DIAGNOSTICS_CATEGORY
-        )
+        self._state.journal_ready = not (isinstance(outcome, ActionError) and outcome.category == _DIAGNOSTICS_CATEGORY)
         return outcome
 
     def run_diagnostic_preview(self, action_id: str, operation: Callable[[], T]) -> ActionOutcome[T]:
@@ -139,9 +137,7 @@ class SessionActionRunner:
             outcome = self._boundary.invoke_diagnostic_preview(stage, guarded)
         finally:
             self._correlation_ids.release()
-        self._state.journal_ready = not (
-            isinstance(outcome, ActionError) and outcome.category == _DIAGNOSTICS_CATEGORY
-        )
+        self._state.journal_ready = not (isinstance(outcome, ActionError) and outcome.category == _DIAGNOSTICS_CATEGORY)
         return outcome
 
     def resolve(self, action_id: str) -> ResolvedAction:

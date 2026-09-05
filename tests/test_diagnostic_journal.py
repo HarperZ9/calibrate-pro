@@ -248,8 +248,7 @@ def test_duplicate_and_ninth_reservations_fail_with_staged_bytes_bounded(
 ) -> None:
     journals = [DiagnosticJournal(tmp_path) for _ in range(9)]
     outcomes = [
-        journal.preflight("report.save", f"bounded-correlation-{index}")
-        for index, journal in enumerate(journals[:8])
+        journal.preflight("report.save", f"bounded-correlation-{index}") for index, journal in enumerate(journals[:8])
     ]
     duplicate = DiagnosticJournal(tmp_path).preflight(
         "report.save",
@@ -320,9 +319,7 @@ def test_oversized_unknown_workflow_stage_still_has_a_bounded_failure_receipt(
 ) -> None:
     journal = DiagnosticJournal(tmp_path)
     correlation_id = "oversized-workflow-correlation"
-    unterminated_private_key = (
-        "-----BEGIN PRIVATE KEY-----\n" + "DIRECTSECRETMATERIAL" * 5_000
-    )
+    unterminated_private_key = "-----BEGIN PRIVATE KEY-----\n" + "DIRECTSECRETMATERIAL" * 5_000
     record = replace(
         _record(correlation_id),
         action_id="report.save",
@@ -393,17 +390,10 @@ def test_boundary_bounds_ordinary_action_failure_before_record_construction_with
 ) -> None:
     journal = DiagnosticJournal(tmp_path)
     boundary = ActionBoundary(lambda: "bounded-failure-correlation", journal)
-    private_key = (
-        "-----BEGIN PRIVATE KEY-----\n"
-        + "SENSITIVEKEYMATERIAL" * 5_000
-        + "\n-----END PRIVATE KEY-----"
-    )
+    private_key = "-----BEGIN PRIVATE KEY-----\n" + "SENSITIVEKEYMATERIAL" * 5_000 + "\n-----END PRIVATE KEY-----"
     oversized_code = "錯" * 400
     oversized_category = "類" * 400
-    oversized_flags = tuple(
-        ((f"phase-{index}-" + "秘密" * 80), index % 2 == 0)
-        for index in range(40)
-    )
+    oversized_flags = tuple(((f"phase-{index}-" + "秘密" * 80), index % 2 == 0) for index in range(40))
     published = ("bounded-report.json", "a" * 64)
 
     def fail() -> Any:
@@ -1062,12 +1052,8 @@ def test_full_reservation_identity_matrix_preserves_unrelated_read_only_append(
     assert isinstance(journal.preflight(action_id, correlation_id), ActionSuccess)
 
     try:
-        wrong_action = journal.append_and_sync(
-            replace(_record(correlation_id), action_id="report.export")
-        )
-        wrong_correlation = journal.append_and_sync(
-            replace(_record("identity-matrix-wrong"), action_id=action_id)
-        )
+        wrong_action = journal.append_and_sync(replace(_record(correlation_id), action_id="report.export"))
+        wrong_correlation = journal.append_and_sync(replace(_record("identity-matrix-wrong"), action_id=action_id))
         duplicate = DiagnosticJournal(tmp_path).preflight(action_id, correlation_id)
         unrelated = journal.append_and_sync(
             replace(
@@ -1098,11 +1084,7 @@ def test_normal_append_rechecks_identity_after_matching_preflight_enters_gap(
     normal_journal = DiagnosticJournal(tmp_path)
     reserving_journal = DiagnosticJournal(tmp_path)
     normal_key = ("report.save", "identity-gap-normal")
-    reserved_key = (
-        normal_key
-        if identity_gap == "exact"
-        else (normal_key[0], "identity-gap-partial")
-    )
+    reserved_key = normal_key if identity_gap == "exact" else (normal_key[0], "identity-gap-partial")
     classification_complete = threading.Event()
     allow_root_entry = threading.Event()
     real_exclusive_root = normal_journal._exclusive_root
@@ -1167,9 +1149,7 @@ def test_multiple_instances_and_threads_share_the_eight_reservation_cap(
         with ThreadPoolExecutor(max_workers=8) as executor:
             appends = list(
                 executor.map(
-                    lambda pair: pair[0].append_and_sync(
-                        replace(_record(pair[1]), action_id="report.save")
-                    ),
+                    lambda pair: pair[0].append_and_sync(replace(_record(pair[1]), action_id="report.save")),
                     zip(journals[:8], correlations[:8], strict=True),
                 )
             )
@@ -1467,9 +1447,7 @@ def test_windows_cross_process_reserved_appends_have_no_lost_updates(
     correlations = [f"cross-process-{index}" for index in range(4)]
     children = [_popen_test_child(script, str(tmp_path), value) for value in correlations]
     try:
-        assert [_read_child_line_with_timeout(child) for child in children] == [
-            "ActionSuccess"
-        ] * 4
+        assert [_read_child_line_with_timeout(child) for child in children] == ["ActionSuccess"] * 4
         assert len(list(tmp_path.glob(".diagnostics.reserve.*.tmp"))) == 4
         for child in children:
             assert child.stdin is not None
@@ -1564,9 +1542,7 @@ def test_append_rejects_journal_record_subclass_before_io(tmp_path: Path) -> Non
         pass
 
     base = _record()
-    subclass = JournalRecordSubclass(
-        **{field.name: getattr(base, field.name) for field in fields(JournalRecord)}
-    )
+    subclass = JournalRecordSubclass(**{field.name: getattr(base, field.name) for field in fields(JournalRecord)})
     root = tmp_path / "subclass"
 
     with pytest.raises(TypeError, match="exact JournalRecord"):
@@ -1713,9 +1689,7 @@ def test_threshold_rotation_retains_active_plus_five_deterministic_archives(
     large_id = "x" * (1_048_576 // 2)
 
     for generation in range(6):
-        outcome = journal.append_and_sync(
-            replace(_record(), correlation_id=f"{generation}-{large_id}")
-        )
+        outcome = journal.append_and_sync(replace(_record(), correlation_id=f"{generation}-{large_id}"))
         assert isinstance(outcome, ActionSuccess)
 
     assert journal.path.exists()
@@ -1752,18 +1726,19 @@ def test_rotation_replace_failure_preserves_prior_active_bytes_and_returns_error
 
 def _seed_full_rotation_set(journal: DiagnosticJournal) -> tuple[bytes, ...]:
     journal.path.parent.mkdir(parents=True, exist_ok=True)
-    active = json.dumps(
-        {"marker": "active", "padding": "x" * (1_048_576 - 128)},
-        separators=(",", ":"),
-    ).encode("utf-8") + b"\n"
+    active = (
+        json.dumps(
+            {"marker": "active", "padding": "x" * (1_048_576 - 128)},
+            separators=(",", ":"),
+        ).encode("utf-8")
+        + b"\n"
+    )
     assert len(active) <= 1_048_576
     assert len(active) + len(journal_module._encode_record(_record()).encode("utf-8")) > 1_048_576
     journal.path.write_bytes(active)
     archives: list[bytes] = []
     for generation, path in enumerate(journal.archive_paths, start=1):
-        payload = json.dumps(
-            {"marker": f"archive-{generation}"}, separators=(",", ":")
-        ).encode("utf-8") + b"\n"
+        payload = json.dumps({"marker": f"archive-{generation}"}, separators=(",", ":")).encode("utf-8") + b"\n"
         path.write_bytes(payload)
         archives.append(payload)
     return (active, *archives)
@@ -1816,9 +1791,7 @@ def test_every_rotation_replace_failure_recovers_with_exact_generation_policy(
     restarted.cancel_preflight("diagnostics.test", f"recovery-{replace_failure_call}")
     assert not [path for path in tmp_path.iterdir() if path.name.endswith(".tmp")]
     paths = (restarted.path, *restarted.archive_paths)
-    markers_by_path = {
-        path.name: [record["marker"] for record in _json_lines(path)] for path in paths
-    }
+    markers_by_path = {path.name: [record["marker"] for record in _json_lines(path)] for path in paths}
     assert markers_by_path == {
         "diagnostics.jsonl": [],
         "diagnostics.1.jsonl": ["active"],
@@ -1837,13 +1810,12 @@ def test_every_rotation_replace_failure_recovers_with_exact_generation_policy(
     resulting_records = [record for path in paths for record in _json_lines(path)]
     assert resulting_records
     assert all(path.read_bytes().endswith(b"\n") for path in paths if path.exists())
-    assert sum(
-        record.get("correlation_id") == f"post-recovery-{replace_failure_call}"
-        for record in resulting_records
-    ) == 1
+    assert (
+        sum(record.get("correlation_id") == f"post-recovery-{replace_failure_call}" for record in resulting_records)
+        == 1
+    )
     assert not any(
-        record.get("correlation_id") == f"failed-record-{replace_failure_call}"
-        for record in resulting_records
+        record.get("correlation_id") == f"failed-record-{replace_failure_call}" for record in resulting_records
     )
 
 
@@ -2062,11 +2034,7 @@ def test_two_threads_append_complete_decodable_lines_with_bounded_archives(
         start.wait()
         outcomes: list[ActionSuccess[None] | ActionError] = []
         for generation in range(8):
-            outcomes.append(
-                journals[worker].append_and_sync(
-                    _record(f"thread-{worker}-{generation}-" + "x" * 400_000)
-                )
-            )
+            outcomes.append(journals[worker].append_and_sync(_record(f"thread-{worker}-{generation}-" + "x" * 400_000)))
         return outcomes
 
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -2075,15 +2043,9 @@ def test_two_threads_append_complete_decodable_lines_with_bounded_archives(
         outcomes = [outcome for future in futures for outcome in future.result()]
 
     assert all(isinstance(outcome, ActionSuccess) for outcome in outcomes)
-    existing_paths = [
-        path for path in (journals[0].path, *journals[0].archive_paths) if path.exists()
-    ]
+    existing_paths = [path for path in (journals[0].path, *journals[0].archive_paths) if path.exists()]
     assert len(existing_paths[1:]) <= 5
-    decoded = [
-        json.loads(line.decode("utf-8"))
-        for path in existing_paths
-        for line in path.read_bytes().splitlines()
-    ]
+    decoded = [json.loads(line.decode("utf-8")) for path in existing_paths for line in path.read_bytes().splitlines()]
     assert decoded
     assert all(tuple(record) == ALLOWLISTED_FIELDS for record in decoded)
 
@@ -2180,9 +2142,7 @@ def test_append_persists_redacted_copy_across_active_and_archive_without_mutatio
     assert isinstance(second, ActionSuccess)
     assert record is source_snapshot
     assert record.platform_version == sensitive
-    persisted_paths = [
-        path for path in (journal.path, *journal.archive_paths) if path.exists()
-    ]
+    persisted_paths = [path for path in (journal.path, *journal.archive_paths) if path.exists()]
     assert [path.name for path in persisted_paths[:2]] == [
         "diagnostics.jsonl",
         "diagnostics.1.jsonl",
@@ -2323,10 +2283,7 @@ def test_byte_redaction_reuses_scalar_rules_and_fails_closed_for_invalid_utf8() 
         home=r"C:\Users\Byte.User",
         environment={"CALIBRATE_BYTE_SECRET": environment_value},
     )
-    valid_source = (
-        "ordinary byte diagnostic; password=BytePassword-123; "
-        f"environment={environment_value}"
-    ).encode()
+    valid_source = (f"ordinary byte diagnostic; password=BytePassword-123; environment={environment_value}").encode()
     invalid_source = b"invalid-prefix-\xff" + environment_value.encode("utf-8")
 
     valid_redacted = redactor.redact_bytes(valid_source)
@@ -2515,9 +2472,7 @@ def test_default_redactor_uses_deterministic_user_home_and_environment_snapshot(
             "COMMON": "true",
         },
     )
-    source = (
-        f"ordinary x true; user={username}; home={home}; environment={environment_value}"
-    )
+    source = f"ordinary x true; user={username}; home={home}; environment={environment_value}"
 
     redacted = journal_module.DiagnosticRedactor().redact(source)
 
@@ -2878,18 +2833,14 @@ def test_display_pseudonymizer_uses_domain_separated_hmac_sha256_stably() -> Non
 def test_display_pseudonymizer_fails_closed_for_unverified_salt_results(
     store_result: object,
 ) -> None:
-    pseudonymizer = journal_module.DisplayPseudonymizer(
-        cast(Any, _VerifiedSaltStore(store_result))
-    )
+    pseudonymizer = journal_module.DisplayPseudonymizer(cast(Any, _VerifiedSaltStore(store_result)))
 
     assert pseudonymizer.pseudonymize("display-1") is None
 
 
 def test_display_pseudonymizer_fails_closed_without_exposing_store_exception() -> None:
     secret = "salt-value-that-must-not-escape"
-    pseudonymizer = journal_module.DisplayPseudonymizer(
-        cast(Any, _RaisingVerifiedSaltStore(secret))
-    )
+    pseudonymizer = journal_module.DisplayPseudonymizer(cast(Any, _RaisingVerifiedSaltStore(secret)))
 
     assert pseudonymizer.pseudonymize("display-1") is None
     assert secret not in repr(pseudonymizer)
@@ -2931,9 +2882,7 @@ def test_for_current_user_has_no_non_windows_fallback_but_injection_still_works(
     monkeypatch.setattr(journal_module.os, "name", "posix")
 
     assert journal_module.DisplayPseudonymizer.for_current_user().pseudonymize("display") is None
-    injected = journal_module.DisplayPseudonymizer(
-        cast(Any, _VerifiedSaltStore(b"v" * 32))
-    )
+    injected = journal_module.DisplayPseudonymizer(cast(Any, _VerifiedSaltStore(b"v" * 32)))
     assert injected.pseudonymize("display") is not None
 
 
@@ -3168,9 +3117,7 @@ def test_pseudonym_persistence_scan_excludes_raw_identifier_and_salt_from_all_ge
 ) -> None:
     raw_identifier = r"DISPLAY\\ACME\\SECRET-SERIAL-9988"
     salt = b"private-salt-material-32-bytes!!"
-    pseudonym = journal_module.DisplayPseudonymizer(
-        cast(Any, _VerifiedSaltStore(salt))
-    ).pseudonymize(raw_identifier)
+    pseudonym = journal_module.DisplayPseudonymizer(cast(Any, _VerifiedSaltStore(salt))).pseudonymize(raw_identifier)
     assert pseudonym is not None
     assert len(pseudonym) == 64
     assert pseudonym == pseudonym.lower()
@@ -3222,9 +3169,7 @@ def test_display_pseudonym_rejects_noncanonical_values_before_io(
     root = tmp_path / invalid_pseudonym[:12]
 
     with pytest.raises(TypeError, match="display_pseudonym"):
-        DiagnosticJournal(root).append_and_sync(
-            replace(_record(), display_pseudonym=invalid_pseudonym)
-        )
+        DiagnosticJournal(root).append_and_sync(replace(_record(), display_pseudonym=invalid_pseudonym))
 
     assert not root.exists()
 
@@ -3258,9 +3203,7 @@ def test_valid_display_pseudonym_bypasses_environment_redaction_collision(
         ),
     )
 
-    outcome = journal.append_and_sync(
-        replace(_record(), display_pseudonym=pseudonym)
-    )
+    outcome = journal.append_and_sync(replace(_record(), display_pseudonym=pseudonym))
 
     assert isinstance(outcome, ActionSuccess)
     payload = json.loads(journal.path.read_text(encoding="utf-8"))
@@ -3571,15 +3514,12 @@ def test_bundle_create_consumes_exact_token_and_publishes_verified_deterministic
 
     receipt = manager.create(preview.token, destination)
 
-    expected_payloads = {
-        basename: redactor.redact_bytes(payload) for basename, payload in raw_payloads.items()
-    }
+    expected_payloads = {basename: redactor.redact_bytes(payload) for basename, payload in raw_payloads.items()}
     assert receipt.published_path == destination
     assert receipt.byte_length == destination.stat().st_size
     assert receipt.bundle_sha256 == hashlib.sha256(destination.read_bytes()).hexdigest()
     assert receipt.member_hashes == tuple(
-        (basename, hashlib.sha256(expected_payloads[basename]).hexdigest())
-        for basename in sorted(expected_payloads)
+        (basename, hashlib.sha256(expected_payloads[basename]).hexdigest()) for basename in sorted(expected_payloads)
     )
     assert receipt.readback_verified is True
     with zipfile.ZipFile(destination, "r") as archive:
@@ -3837,10 +3777,9 @@ def test_boundary_diagnostic_preview_scrubs_raw_finalizer_exception_and_records_
     assert [record["outcome"] for record in records] == ["success", "failure"]
     assert records[-1]["exception_type"] == "RuntimeError"
     assert records[-1]["error_code"] == "DIAGNOSTIC_BUNDLE_PREVIEW_FAILED"
-    assert {
-        (record["action_id"], record["workflow_stage"], record["correlation_id"])
-        for record in records
-    } == {("diagnostics.bundle.preview", "preview", "raw-finalizer-correlation")}
+    assert {(record["action_id"], record["workflow_stage"], record["correlation_id"]) for record in records} == {
+        ("diagnostics.bundle.preview", "preview", "raw-finalizer-correlation")
+    }
 
 
 def test_boundary_diagnostic_preview_failed_correction_sync_returns_sync_failure() -> None:
@@ -3887,9 +3826,7 @@ def test_boundary_diagnostic_preview_failed_correction_sync_returns_sync_failure
     assert outcome.code == "ACTION_COMPLETED_DIAGNOSTICS_FAILED"
     assert len(journal.records) == 2
     assert [record.outcome for record in journal.records] == ["success", "failure"]
-    assert {record.correlation_id for record in journal.records} == {
-        "correction-sync-correlation"
-    }
+    assert {record.correlation_id for record in journal.records} == {"correction-sync-correlation"}
 
 
 @pytest.mark.parametrize("process_exception", [KeyboardInterrupt, SystemExit])
@@ -4118,12 +4055,8 @@ def test_bundle_cleanup_removes_only_provably_dead_process_temp(
         tmp_path,
         process_is_alive=lambda pid: pid == active_pid,
     )
-    dead_temp = tmp_path / (
-        f".calibrate-pro-diagnostic-bundle.{dead_pid}.{'a' * 32}.tmp"
-    )
-    active_temp = tmp_path / (
-        f".calibrate-pro-diagnostic-bundle.{active_pid}.{'b' * 32}.tmp"
-    )
+    dead_temp = tmp_path / (f".calibrate-pro-diagnostic-bundle.{dead_pid}.{'a' * 32}.tmp")
+    active_temp = tmp_path / (f".calibrate-pro-diagnostic-bundle.{active_pid}.{'b' * 32}.tmp")
     unrelated = tmp_path / ".calibrate-pro-diagnostic-bundle.not-owned.tmp"
     dead_temp.write_bytes(b"stale")
     active_temp.write_bytes(b"active")

@@ -61,9 +61,7 @@ def test_apply_failure_restores_and_leaves_the_session_retryable(
     assert disposition(service, "calibration.preview") is ActionDisposition.ENABLED
 
 
-def test_a_failed_readback_restores_and_withholds_verification(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_failed_readback_restores_and_withholds_verification(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(composition, "RecordingFakeAdapter", failing_adapter(verify_result=False))
     service = build_service(tmp_path)
     drive_to_confirmed(service)
@@ -74,9 +72,7 @@ def test_a_failed_readback_restores_and_withholds_verification(
     assert disposition(service, "verification.sensorless") is not ActionDisposition.ENABLED
 
 
-def test_a_non_boolean_readback_counts_as_a_failed_apply(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_non_boolean_readback_counts_as_a_failed_apply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(composition, "RecordingFakeAdapter", failing_adapter(verify_result=1))
     service = build_service(tmp_path)
     drive_to_confirmed(service)
