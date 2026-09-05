@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "note": "Fixture display for the fake-acceptance proof. Nothing here is read from a machine. The device name is deliberately not shaped like a Windows device path, and panel_database_key names the characterization the proof stands in for rather than a panel that was detected.",
+  "display": {
+    "device_name": "FAKE-ACCEPTANCE-DISPLAY",
+    "device_string": "Calibrate Pro fake acceptance fixture",
+    "monitor_name": "Fake Acceptance Panel",
+    "device_id": "FAKE-ACCEPTANCE-0000",
+    "is_primary": true,
+    "is_active": true,
+    "width": 3840,
+    "height": 2160,
+    "refresh_rate": 60,
+    "bit_depth": 8,
+    "position_x": 0,
+    "position_y": 0,
+    "manufacturer": "Fake Acceptance",
+    "model": "FAKE-ACCEPTANCE-PANEL",
+    "serial": "",
+    "year": 0,
+    "panel_type": "QD-OLED",
+    "connection_type": "DisplayPort",
+    "hdr_capable": false,
+    "wide_gamut": true,
+    "native_gamma": 2.2,
+    "panel_database_key": "PG27UCDM"
+  }
+}

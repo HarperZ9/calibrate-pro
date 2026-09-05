@@ -234,6 +234,40 @@ class WorkflowController:
         self.capabilities.validate(plan)
         self.preview = plan
 
+    def invalidate_preview(self) -> None:
+        """Drop the previewed plan after a change that made it stale.
+
+        A session that had already moved past preview returns to it, because a
+        plan the operator saw is no longer the plan the session holds. The call
+        is refused during APPLY: an apply in flight owns the transition out of
+        that stage, and letting anything else move it would lose the record of
+        whether a write had already started.
+        """
+        if self.stage is WorkflowStage.APPLY:
+            raise ValueError("preview cannot be invalidated while an apply is in flight")
+        self.preview = None
+        if self.stage in {WorkflowStage.VERIFY, WorkflowStage.SAVE_REPORT}:
+            self.stage = WorkflowStage.PREVIEW
+
+    def apply_failed(self) -> None:
+        """Return a failed apply to preview so a retry needs a fresh decision."""
+        if self.stage is not WorkflowStage.APPLY:
+            raise ValueError("apply failure requires the apply stage")
+        self.preview = None
+        self.stage = WorkflowStage.PREVIEW
+
+    def acknowledge_without_apply(self) -> None:
+        """Accept a plan that nothing will write, and move to verification.
+
+        The production composition performs no physical mutation, so its
+        confirmation skips APPLY entirely. Reserving that stage for a
+        composition which actually drives an adapter keeps the stage itself an
+        honest record of whether anything was written to a display.
+        """
+        if self.stage is not WorkflowStage.PREVIEW or self.preview is None:
+            raise ValueError("acknowledgement requires a completed preview")
+        self.stage = WorkflowStage.VERIFY
+
     def confirm_apply(self) -> None:
         if self.stage is not WorkflowStage.PREVIEW or self.preview is None:
             raise ValueError("apply requires a completed preview")

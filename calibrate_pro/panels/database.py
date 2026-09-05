@@ -21,6 +21,10 @@ from calibrate_pro.panels.panel_types import (  # noqa: F401
     PanelPrimaries,
 )
 
+#: Key of the explicit generic profile. Asking for it by name is a deliberate
+#: generic choice, so callers that label provenance must not read it as a match.
+GENERIC_PANEL_KEY = "GENERIC_SRGB"
+
 
 class PanelDatabase:
     """
@@ -86,7 +90,7 @@ class PanelDatabase:
         """
         # First, try exact match on known panel names
         for key, panel in self.panels.items():
-            if key != "GENERIC_SRGB":  # Skip generic fallback
+            if key != GENERIC_PANEL_KEY:  # Skip generic fallback
                 if re.search(panel.model_pattern, model_string, re.IGNORECASE):
                     return panel
 
@@ -98,11 +102,11 @@ class PanelDatabase:
 
     def get_fallback(self) -> PanelCharacterization:
         """Get generic fallback panel profile."""
-        return self.panels["GENERIC_SRGB"]
+        return self.panels[GENERIC_PANEL_KEY]
 
     def list_panels(self) -> list[str]:
         """List all available panel keys."""
-        return [k for k in self.panels if k != "GENERIC_SRGB"]
+        return [k for k in self.panels if k != GENERIC_PANEL_KEY]
 
     def add_panel(self, key: str, panel: PanelCharacterization):
         """Add or update a panel characterization."""

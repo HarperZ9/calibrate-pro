@@ -33,7 +33,12 @@ from calibrate_pro import __version__
 from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.core.lut_engine import LUT3D, LUTFormat
-from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase, get_database
+from calibrate_pro.panels.database import (
+    GENERIC_PANEL_KEY,
+    PanelCharacterization,
+    PanelDatabase,
+    get_database,
+)
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.verification.provenance import EvidenceKind
 
@@ -190,6 +195,19 @@ class ExportBundle:
     evidence_kind: str
     characterization_kind: str
 
+    @property
+    def published_artifact(self) -> tuple[str, str]:
+        """Name the one file that seals this publish, with its digest.
+
+        The action journal records a local write as an effect only when the
+        outcome can name what landed on disk. The manifest carries the digest of
+        every asset in the bundle, so its own digest changes whenever any asset
+        changes. That makes the manifest the honest single witness for the whole
+        publish, and it is a filename rather than a path, so no export location
+        reaches the journal.
+        """
+        return (self.manifest_filename, self.manifest_sha256)
+
 
 class AssetGenerator:
     """Turn a request into byte-exact artifacts without touching a display."""
@@ -203,7 +221,15 @@ class AssetGenerator:
         self._engine = engine or SensorlessEngine(self._database)
 
     def resolve_panel(self, panel_key: str) -> tuple[PanelCharacterization, CharacterizationKind]:
-        """Return a characterization and say plainly where it came from."""
+        """Return a characterization and say plainly where it came from.
+
+        Asking for the generic key by name is a deliberate generic choice, so it
+        answers EXPLICIT_GENERIC even though the database holds a record under
+        that key. Reporting it as MATCHED would let a session that never
+        recognized its display claim a characterized panel.
+        """
+        if panel_key == GENERIC_PANEL_KEY:
+            return self._database.get_fallback(), CharacterizationKind.EXPLICIT_GENERIC
         panel = self._database.get_panel(panel_key) or self._database.find_panel(panel_key)
         if panel is not None:
             return panel, CharacterizationKind.MATCHED

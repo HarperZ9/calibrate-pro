@@ -34,13 +34,15 @@ from calibrate_pro.application.contracts import (
     DisplayObservation,
     PanelCharacterization,
 )
+from calibrate_pro.panels.database import GENERIC_PANEL_KEY, PanelDatabase, get_database
 from calibrate_pro.panels.database import PanelCharacterization as PanelRecord
-from calibrate_pro.panels.database import PanelDatabase, get_database
 from calibrate_pro.panels.detection import DisplayInfo
 from calibrate_pro.workflow import CapabilityState
 
 UNKNOWN_PROVENANCE = "detector:no_panel_match"
-GENERIC_PANEL_KEY = "GENERIC_SRGB"
+#: Prefix a matched characterization carries so the panel key that produced it
+#: can be read back. Written and parsed in this module and nowhere else.
+PANEL_DATABASE_PROVENANCE_PREFIX = "panel-database:"
 
 _CHROMATICITY_DECIMALS = 4
 _GAMMA_DECIMALS = 4
@@ -321,6 +323,26 @@ def unknown_characterization() -> PanelCharacterization:
     )
 
 
+def panel_key_from_provenance(characterization: PanelCharacterization) -> str | None:
+    """Recover the panel key behind a matched characterization, or None.
+
+    Generation needs the key, not the numbers, because the generator resolves
+    its own record from the database. Parsing lives beside the code that writes
+    the provenance string so one edit changes both. A characterization that was
+    not produced by a database match answers None, and the caller falls back to
+    the explicit generic panel rather than guessing a key.
+    """
+    if not isinstance(characterization, PanelCharacterization):
+        raise DetectionError("characterization must be a PanelCharacterization")
+    if characterization.kind is not CharacterizationKind.MATCHED:
+        return None
+    provenance = characterization.provenance
+    if not provenance.startswith(PANEL_DATABASE_PROVENANCE_PREFIX):
+        return None
+    key = provenance[len(PANEL_DATABASE_PROVENANCE_PREFIX) :].strip()
+    return key or None
+
+
 @dataclass(frozen=True)
 class RejectedDisplay:
     """A display the platform reported that no observation can describe."""
@@ -363,7 +385,8 @@ def _match_panel(display: DisplayInfo, database: PanelDatabase) -> tuple[PanelCh
     if key and key != GENERIC_PANEL_KEY:
         record = database.get_panel(key)
         if record is not None:
-            return characterization_from_panel(record, f"panel-database:{key}"), f"panel-match:key={key}"
+            provenance = f"{PANEL_DATABASE_PROVENANCE_PREFIX}{key}"
+            return characterization_from_panel(record, provenance), f"panel-match:key={key}"
     for candidate in (display.model, display.monitor_name):
         text = (candidate or "").strip()
         if not text:
@@ -372,7 +395,7 @@ def _match_panel(display: DisplayInfo, database: PanelDatabase) -> tuple[PanelCh
         if record is None:
             continue
         matched_key = _resolve_panel_key(database, record)
-        provenance = f"panel-database:{matched_key}"
+        provenance = f"{PANEL_DATABASE_PROVENANCE_PREFIX}{matched_key}"
         return characterization_from_panel(record, provenance), f"panel-match:model={text!r} key={matched_key}"
     return unknown_characterization(), "panel-match:none"
 
@@ -540,6 +563,7 @@ def read_hdr_states() -> dict[str, bool]:
 
 __all__ = [
     "GENERIC_PANEL_KEY",
+    "PANEL_DATABASE_PROVENANCE_PREFIX",
     "UNKNOWN_PROVENANCE",
     "CapabilityFinding",
     "CapabilityProbe",
@@ -555,6 +579,7 @@ __all__ = [
     "color_directory_present",
     "dwm_lut_path_usable",
     "gamma_ramp_api_present",
+    "panel_key_from_provenance",
     "read_hdr_states",
     "unknown_characterization",
     "windows_read_only_probe",
