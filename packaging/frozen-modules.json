@@ -88,6 +88,7 @@
     "calibrate_pro.gui.pages.verification_page",
     "calibrate_pro.gui.pages.verify",
     "calibrate_pro.gui.pattern_window",
+    "calibrate_pro.gui.plan_dialog",
     "calibrate_pro.gui.preview",
     "calibrate_pro.gui.report_viewer",
     "calibrate_pro.gui.theme",

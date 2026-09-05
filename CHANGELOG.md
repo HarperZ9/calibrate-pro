@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Widened the GUI truthfulness gates to the window they are about. Three source scans
+  read a list of filenames written by hand, and nine of the fourteen modules the window
+  reaches were not on it, so both dialogs, the DDC page, the settings page, and the
+  binder every control is registered with were reported as covered by a suite that never
+  opened them. The list is now read off what the window imports, and a gate fails when a
+  module the window reaches is missing from it.
+- Gave the window somewhere to answer a plan. Confirming and declining are declared
+  actions whose two dialog surfaces no window presented, so a session driven from the
+  window sealed a plan, previewed it, and stopped there. Everything downstream stopped
+  with it, because sensorless verification reads a plan the session confirmed and the
+  report and export actions read that verification, which left three reachable pages
+  permanently refused. Previewing now opens the plan beside its digest with both answers
+  bound to the resolver. Accepting records the digest and sends nothing to the display,
+  which the dialog states beside the button, because Accept under a list of ICC and LUT
+  files otherwise reads as a promise to load them.
 - Made the add-profile dialog do only what the session permits. It opened a file chooser,
   copied the chosen file into the panel profiles directory, and registered whatever it held,
   with no action resolved and nothing journalled, while the manifest declared both of those

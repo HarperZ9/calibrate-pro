@@ -62,10 +62,11 @@ from calibrate_pro.application.contracts import (
 )
 from calibrate_pro.application.detection import panel_key_from_provenance
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
-from calibrate_pro.application.results import DetectionSummary, HdrStatus
+from calibrate_pro.application.results import DetectionSummary, HdrStatus, PlanPreview
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.gui.action_binding import ActionBinder, refusal_message
 from calibrate_pro.gui.add_display import AddDisplayDialog
+from calibrate_pro.gui.plan_dialog import PlanConfirmationDialog
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 from calibrate_pro.workflow import CalibrationMethod
 
@@ -911,6 +912,7 @@ class DashboardPage(QWidget):
         self._stat_startup.set_value("Not measured", C.TEXT3)
         self.preview_populated = True
 
+
 # Placeholder Pages (to be rebuilt individually)
 
 
@@ -972,6 +974,10 @@ class CalibrateProWindow(QMainWindow):
         #: shown without blocking, and a dialog nothing holds is collected the
         #: moment the call that opened it returns.
         self._add_display_dialog: AddDisplayDialog | None = None
+        #: The plan-confirmation dialog while it is open, held for the same
+        #: reason. It is opened by a previewed plan rather than by a control,
+        #: so nothing else in the window has a reference to it.
+        self._plan_dialog: PlanConfirmationDialog | None = None
         self._binder = ActionBinder(
             self.service,
             report=self.show_toast,
@@ -1396,6 +1402,7 @@ class CalibrateProWindow(QMainWindow):
                     unhandled=self.service.unhandled,
                     generate=self.service.generate,
                     preview=self.service.preview,
+                    confirm_plan=self._open_plan_dialog,
                 )
                 self.stack.addWidget(self.calibrate_page)  # 1
             except (ImportError, AttributeError) as e:
@@ -1661,6 +1668,48 @@ class CalibrateProWindow(QMainWindow):
     def _add_display_closed(self, _result: int) -> None:
         """Drop the closed dialog. Nothing it did needs the page redrawn."""
         self._add_display_dialog = None
+
+    def _open_plan_dialog(self, preview: PlanPreview) -> None:
+        """Put a previewed plan in front of the operator to be answered.
+
+        The window had no way to answer one. Confirming a plan is what the
+        session reads before it will verify, and a saved report and every active
+        export read the verification, so a window that could preview and not
+        confirm ended at the preview and refused the three pages after it. The
+        terminal never had that gap: ``verify`` and ``generate`` both confirm
+        the plan they printed.
+
+        There is no action for opening this, and inventing a button for one
+        would be a control standing for nothing. The plan itself is the
+        occasion, so the preview that produced it opens the dialog.
+        """
+        dialog = PlanConfirmationDialog(
+            self.service,
+            preview,
+            accept=partial(self.service.confirm_plan, accepted=True),
+            decline=partial(self.service.confirm_plan, accepted=False),
+            restrict=self._preview_restriction if self.preview_mode else None,
+            parent=self,
+        )
+        self._plan_dialog = dialog
+        dialog.finished.connect(self._plan_dialog_closed)
+        dialog.open()
+
+    def _plan_dialog_closed(self, _result: int) -> None:
+        """Take the answer back to the page, and re-resolve what it opened.
+
+        Every control in the window resolves against the session, so a confirmed
+        plan reaches Verify only once the window refreshes. The dialog holds its
+        own binder and refreshed that, which is a different set of controls.
+        """
+        dialog = self._plan_dialog
+        self._plan_dialog = None
+        if dialog is None:
+            return
+        decision = dialog.decision()
+        if decision is not None:
+            self.calibrate_page.render_decision(decision)
+        self._binder.refresh()
 
     def _show_profiles(self) -> None:
         """Bring the window forward on the page that lists published profiles.

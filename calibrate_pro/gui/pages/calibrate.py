@@ -57,6 +57,7 @@ from calibrate_pro.application.results import (
     DisplaySelection,
     GenerationResult,
     MethodSelection,
+    PlanDecision,
     PlanPreview,
     TargetSelection,
 )
@@ -103,6 +104,15 @@ NO_METHOD_NOTE = "No profiling method selected in this session."
 
 #: Beside the generated bundle. Generation seals files and changes no display.
 GENERATED_NOTE = "Generated and sealed in memory. No display state was changed."
+
+#: After the operator accepts a previewed plan. The sentence stays about the
+#: display, because a workflow step called "confirm" beside a list of profile
+#: files otherwise reads as one that loaded them.
+CONFIRMED_NOTE = "Plan confirmed. Nothing was sent to the display. Verification reads this plan."
+
+#: After the operator declines one. The seal is gone with it, so the page says
+#: what is needed to get back to a plan rather than leaving a stale digest up.
+DECLINED_NOTE = "Plan declined. Generate again to seal a new one."
 
 
 def _preset_values(field: int) -> list[str]:
@@ -217,6 +227,7 @@ class CalibratePage(QWidget):
         self._displays: list[tuple[str, str]] = []
         self._display_id: str | None = None
         self._target: TargetSelection | None = None
+        self._confirm_plan: Callable[[PlanPreview], None] | None = None
         self._build()
 
     # -- construction -------------------------------------------------------
@@ -379,7 +390,7 @@ class CalibratePage(QWidget):
         layout.addWidget(self._files_label)
 
         self._progress_bar = QProgressBar()
-        self._progress_bar.setRange(0, 3)
+        self._progress_bar.setRange(0, 4)
         self._progress_bar.setValue(0)
         self._progress_bar.setFixedHeight(8)
         self._progress_bar.setTextVisible(False)
@@ -466,6 +477,7 @@ class CalibratePage(QWidget):
         unhandled: Callable[[str], ActionOutcome[Any]],
         generate: Operation,
         preview: Operation,
+        confirm_plan: Callable[[PlanPreview], None],
     ) -> None:
         """Hand every control here to the action it stands for.
 
@@ -485,6 +497,7 @@ class CalibratePage(QWidget):
         self._binder = binder
         self._select_display = select_display
         self._set_target = set_target
+        self._confirm_plan = confirm_plan
 
         self._display_binding = binder.bind(
             "workflow.select_display",
@@ -696,7 +709,14 @@ class CalibratePage(QWidget):
         self._progress_bar.setValue(3)
 
     def render_preview(self, preview: PlanPreview) -> None:
-        """Report the proposal, including whether anything reached the display."""
+        """Report the proposal, then hand it on to be answered.
+
+        A previewed plan is the last thing this page can produce on its own.
+        Verification, saving a report and every active export read a plan the
+        session confirmed, and confirming one is an action with its own surface,
+        so the preview is passed out to whoever wired that surface up rather
+        than left on screen with no way to answer it.
+        """
         applied = preview.physical_apply_performed
         self._result_heading.setText(
             "Plan applied to the display." if applied else "Plan previewed. No display state was changed."
@@ -706,6 +726,25 @@ class CalibratePage(QWidget):
         )
         self._digest_label.setText(f"plan sha256: {preview.plan_sha256}")
         self._progress_bar.setValue(3)
+        if self._confirm_plan is not None:
+            self._confirm_plan(preview)
+
+    def render_decision(self, decision: PlanDecision) -> None:
+        """Report which way the plan went, naming the plan it went for.
+
+        A declined plan clears the result rather than greying it, because the
+        session dropped the preview and returned to the preview stage. Leaving
+        the digest up would leave a seal on screen that nothing downstream can
+        still cite.
+        """
+        if not decision.accepted:
+            self._clear_result()
+            self._result_heading.setText(DECLINED_NOTE)
+            return
+        self._result_heading.setText(CONFIRMED_NOTE)
+        self._result_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
+        self._digest_label.setText(f"plan sha256: {decision.plan_sha256}")
+        self._progress_bar.setValue(4)
 
     # -- clearing what the session dropped -----------------------------------
 
@@ -788,6 +827,8 @@ def _select(set_target: Callable[[str], ActionOutcome[Any]], preset_id: str) -> 
 
 
 __all__ = [
+    "CONFIRMED_NOTE",
+    "DECLINED_NOTE",
     "GENERATED_NOTE",
     "HDR_PRESET_ACTION",
     "NOT_GENERATED_NOTE",

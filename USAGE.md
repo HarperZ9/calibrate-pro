@@ -61,7 +61,12 @@ The workflow is:
 2. **Method** -- choose a target. Sensorless is the method this build offers; the
    measured method is shown disabled with the reason it is closed.
 3. **Preview** -- inspect the complete proposed DDC, ICC, VCGT, LUT, and output plan.
-4. **Apply** -- explicitly confirm that exact, one-use plan.
+4. **Apply** -- explicitly confirm that exact, one-use plan. Previewing opens the
+   plan beside its sha256 digest with the two answers the session accepts. Accepting
+   records that digest as the plan this session confirmed. It sends nothing to the
+   display and loads no profile, and it is what verification and any saved report
+   then cite. Declining drops the plan, so generating again seals a new one carrying
+   its own digest.
 5. **Verify** -- record measured or characterized evidence without relabelling it.
 6. **Save/Report** -- save the selected outputs and their source receipts.
 

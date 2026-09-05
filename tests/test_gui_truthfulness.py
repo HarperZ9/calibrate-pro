@@ -11,20 +11,68 @@ import pytest
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 ROOT = Path(__file__).resolve().parents[1]
-GUI_TRUTHFULNESS_FILES = (
-    "calibrate_pro/gui/app.py",
+WINDOW_ROOT = "calibrate_pro/gui/app.py"
+
+#: Modules the gate covered when the list was written by hand. Seven of them are
+#: not reachable from the window this build launches, and they are kept here so
+#: retiring the list does not quietly stop reading a file it used to read.
+LEGACY_GUI_FILES = (
     "calibrate_pro/gui/calibration_details.py",
     "calibrate_pro/gui/calibration_wizard.py",
     "calibrate_pro/gui/dialogs.py",
     "calibrate_pro/gui/measurement_view.py",
-    "calibrate_pro/gui/pages/calibrate.py",
     "calibrate_pro/gui/pages/calibration_page.py",
     "calibrate_pro/gui/pages/dashboard_page.py",
-    "calibrate_pro/gui/pages/profile_detail.py",
-    "calibrate_pro/gui/pages/profiles.py",
     "calibrate_pro/gui/pages/verification_page.py",
-    "calibrate_pro/gui/pages/verify.py",
 )
+
+
+def _module_path(module: str) -> Path:
+    return ROOT / (module.replace(".", "/") + ".py")
+
+
+def _gui_imports(tree: ast.AST) -> list[str]:
+    """Every ``calibrate_pro.gui`` name one module imports, module or symbol.
+
+    A ``from`` import is expanded into the module and each name under it,
+    because ``from calibrate_pro.gui.pages import verify`` and
+    ``from calibrate_pro.gui.pages.verify import VerifyPage`` reach the same
+    file and only one of them names it in ``node.module``.
+    """
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.append(node.module)
+            names.extend(f"{node.module}.{alias.name}" for alias in node.names)
+    return [name for name in names if name.startswith("calibrate_pro.gui")]
+
+
+def window_module_closure() -> tuple[str, ...]:
+    """The GUI files the shipped window reaches, read off the imports.
+
+    The list this replaced was maintained by hand, and nine of the fourteen
+    modules the window reaches were absent from it, among them both dialogs, the
+    DDC page, the settings page, and the binder every control is registered
+    with. A file joins the gate here by being imported rather than by being
+    remembered.
+    """
+    seen: set[str] = set()
+    queue = ["calibrate_pro.gui.app"]
+    while queue:
+        module = queue.pop()
+        if module in seen:
+            continue
+        path = _module_path(module)
+        if not path.exists():
+            continue
+        seen.add(module)
+        queue.extend(_gui_imports(ast.parse(path.read_text(encoding="utf-8"), filename=str(path))))
+    return tuple(sorted(module.replace(".", "/") + ".py" for module in seen))
+
+
+GUI_TRUTHFULNESS_FILES = tuple(sorted({*window_module_closure(), *LEGACY_GUI_FILES}))
 
 SEEDED_PERFORMANCE_PATTERNS = (
     re.compile(r"Average Delta E:\s*[0-9]", re.I),
@@ -53,6 +101,22 @@ UNPERFORMED_OPERATION_CLAIMS = (
 
 def _sources() -> dict[str, str]:
     return {relative: (ROOT / relative).read_text(encoding="utf-8") for relative in GUI_TRUTHFULNESS_FILES}
+
+
+def test_every_file_the_window_reaches_is_read_by_these_gates() -> None:
+    """The gate reads the window, so a new surface cannot open outside it.
+
+    The three source gates below read a list, and a list of filenames is a claim
+    about what the window is made of. It was written once and the window moved,
+    which is the failure this catches: a module the window imports and the gate
+    never opened would report as covered on a green suite.
+    """
+    missing = [name for name in window_module_closure() if name not in GUI_TRUTHFULNESS_FILES]
+
+    assert missing == []
+    assert WINDOW_ROOT in GUI_TRUTHFULNESS_FILES
+    for relative in GUI_TRUTHFULNESS_FILES:
+        assert (ROOT / relative).exists(), f"{relative} is gated and is not there"
 
 
 def test_gui_sources_do_not_generate_random_or_simulated_performance_metrics() -> None:

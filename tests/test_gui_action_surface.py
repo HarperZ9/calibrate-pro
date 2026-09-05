@@ -24,13 +24,15 @@ from PySide6.QtCore import QSettings
 
 from calibrate_pro.application.outcomes import ActionError, ActionSuccess
 from calibrate_pro.application.prediction import MODEL_NAME
+from calibrate_pro.gui.pages.calibrate import CONFIRMED_NOTE, DECLINED_NOTE
 from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
 from calibrate_pro.gui.pages.settings import OUTPUT_REJECTED, OUTPUT_UNSET
 from calibrate_pro.gui.pages.settings_diagnostics import NOT_PREVIEWED
 from calibrate_pro.gui.pages.verify import NOT_RUN_NOTE
+from calibrate_pro.gui.plan_dialog import ACCEPT_NOTE, NO_DDC_CHANGES, NOT_IN_PLAN, ddc_text, plan_rows
 from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
 from calibrate_pro.verification.provenance import EvidenceKind
-from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
+from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowStage
 from tests.fake_acceptance_support import MANIFEST_NAME, PRESET_ID, journal_records
 
 CUBE_EXPORT = ".cube (Resolve / dwm_lut)"
@@ -672,7 +674,6 @@ def test_a_directory_the_session_refuses_leaves_the_save_closed(
     assert not button.isEnabled()
 
 
-
 #: Surface prefix the manifest uses for controls that live on the settings page.
 SETTINGS_SURFACE = "settings."
 
@@ -703,9 +704,7 @@ def test_the_settings_page_binds_every_action_the_session_will_answer(window: ob
 
     declared = settings_page_actions()
     hidden = {
-        action_id
-        for action_id in declared
-        if window.service.resolve(action_id).disposition is ActionDisposition.HIDDEN
+        action_id for action_id in declared if window.service.resolve(action_id).disposition is ActionDisposition.HIDDEN
     }
     bound = {binding.action_id for binding in window._binder.bindings if binding.action_id in declared}
 
@@ -811,9 +810,9 @@ def test_a_refused_grid_puts_the_selector_back(
 
     assert page._lut_combo.currentText() == str(window.service.lut_size) == "33"
     assert [message for message, level in window.toasts] == [
-        "A 9-point LUT grid is not one this build generates. "
-        "Choose one of the grids this build generates: 17, 33, 65."
+        "A 9-point LUT grid is not one this build generates. Choose one of the grids this build generates: 17, 33, 65."
     ]
+
 
 def answer_save_dialog(monkeypatch: pytest.MonkeyPatch, destination: Path | None) -> None:
     """Answer the diagnostics save dialog with one path, or with a withdrawal."""
@@ -1136,3 +1135,288 @@ def test_the_profile_dialog_can_reach_nothing_that_writes() -> None:
     assert [name for name in imported if name.startswith("calibrate_pro.panels")] == []
     assert [name for name in imported if name in {"shutil", "os"}] == []
     assert [name for name in ("write_text", "mkdir", "copyfile", "save_panel") if name in source] == []
+
+
+#: The journal after the window has previewed a plan and answered nothing.
+THROUGH_PREVIEW = [
+    "display.detect",
+    "calibration.method.sensorless",
+    PRESET_ID,
+    "calibration.generate",
+    "calibration.preview",
+]
+
+
+def drive_to_generated(window: object) -> None:
+    """Walk the session to a sealed plan, leaving the preview to the window.
+
+    Detection already ran when the window opened, so it is not repeated here.
+    Every later step runs through the service rather than through a control,
+    because what is being tested is the one control after them.
+    """
+    for step in (
+        lambda: window.service.select_method(CalibrationMethod.SENSORLESS),
+        lambda: window.service.set_target(PRESET_ID),
+        window.service.generate,
+    ):
+        outcome = step()
+        assert isinstance(outcome, ActionSuccess), f"the session stopped at {outcome}"
+    window._binder.refresh()
+
+
+def preview_from_the_page(window: object) -> object:
+    """Use the page control, and hand back the dialog the plan opened."""
+    drive_to_generated(window)
+    window.calibrate_page._btn_preview.click()
+    dialog = window._plan_dialog
+    assert dialog is not None
+    return dialog
+
+
+def test_previewing_a_plan_opens_the_surface_that_can_answer_it(window: object) -> None:
+    """The window could preview a plan and had nowhere to decide about it.
+
+    Confirming a plan is a declared action with two declared surfaces, and no
+    window presented either one. The terminal presented both: verify and
+    generate each confirm the plan they printed. So a session driven from the
+    window sealed a plan, previewed it, and stopped.
+
+    Opening the dialog is not itself an action, and no action declares it. The
+    plan is the occasion, so the preview that produced one opens it, and the
+    journal reads exactly the work the operator asked for.
+    """
+    dialog = preview_from_the_page(window)
+
+    assert dialog.isVisible()
+    assert [record["action_id"] for record in journal_records(window.session_root)] == THROUGH_PREVIEW
+
+
+def test_both_controls_in_the_plan_dialog_stand_for_declared_actions(window: object) -> None:
+    """Neither button decides anything the resolver was not asked about first."""
+    from PySide6.QtWidgets import QPushButton
+
+    dialog = preview_from_the_page(window)
+    bound = {id(binding.control): binding.action_id for binding in dialog._binder.bindings}
+
+    buttons = dialog.findChildren(QPushButton)
+    assert len(buttons) == 2
+    assert {bound.get(id(button)) for button in buttons} == {
+        "calibration.confirm_plan",
+        "calibration.decline_plan",
+    }
+
+
+def test_the_dialog_describes_the_plan_it_is_asking_about(window: object) -> None:
+    """A decision names one plan, so the digest and the fields are its own.
+
+    The rows are read back off the plan the session sealed rather than off the
+    page, because a dialog that redrew what the page showed would let an
+    operator accept a plan while reading about a different one.
+    """
+    dialog = preview_from_the_page(window)
+    plan = dialog.preview.plan
+    values = dict(plan_rows(plan))
+
+    assert dialog.preview.plan_sha256 in dialog._digest_label.text()
+    assert values["display"] == plan.display_id
+    assert values["method"] == plan.method.value
+    assert values["white point"] == plan.target_whitepoint
+    assert values["gamut"] == plan.target_gamut
+    assert plan.output_files
+    for name in plan.output_files:
+        assert name in values["files"]
+
+
+def test_the_dialog_says_that_accepting_reaches_no_display(window: object) -> None:
+    """Accept beside a list of profile files has to say what it does not do.
+
+    Acceptance records a decision. It sends nothing to the display, and every
+    action classified as a physical mutation is declared disabled in this
+    build, so a button reading only Accept would be read as one that loaded the
+    files listed above it.
+    """
+    from PySide6.QtWidgets import QLabel
+
+    dialog = preview_from_the_page(window)
+    notes = " ".join(label.text() for label in dialog.findChildren(QLabel))
+
+    assert ACCEPT_NOTE in notes
+    assert "sends nothing to the display" in ACCEPT_NOTE
+    assert dialog.preview.physical_apply_performed is False
+
+
+def test_accepting_records_the_decision_and_reports_it_on_the_page(window: object) -> None:
+    """The decision is journalled, and the page states the plan it went for."""
+    dialog = preview_from_the_page(window)
+    digest = dialog.preview.plan_sha256
+
+    dialog._accept_btn.click()
+
+    assert dialog.decision().accepted is True
+    assert dialog.decision().plan_sha256 == digest
+    assert not dialog.isVisible()
+    assert window._plan_dialog is None
+    assert [record["action_id"] for record in journal_records(window.session_root)] == [
+        *THROUGH_PREVIEW,
+        "calibration.confirm_plan",
+    ]
+
+    page = window.calibrate_page
+    assert page._result_heading.text() == CONFIRMED_NOTE
+    assert digest in page._digest_label.text()
+    assert page._progress_bar.value() == page._progress_bar.maximum()
+
+
+def test_a_confirmed_plan_carries_the_window_through_to_verification(window: object) -> None:
+    """The defect this closes, stated as the thing the window could not do.
+
+    Sensorless verification reads a plan the session confirmed. Saving a report
+    reads the verification, and every active export reads the report, so a
+    window that could not confirm dead-ended at the preview with the three
+    pages after it reachable and permanently refused.
+
+    This composition puts one more step between a confirmation and a
+    verification: the fake adapter redeems the confirmation token, which is the
+    stage production never enters. That step is not a surface and has no
+    control, so it is driven here through the session, and what is being read
+    afterwards is the window.
+    """
+    dialog = preview_from_the_page(window)
+    verify_btn = window.verify_page._btn_verify
+    assert not verify_btn.isEnabled()
+
+    dialog._accept_btn.click()
+    assert window.service.stage is WorkflowStage.APPLY
+
+    assert isinstance(window.service.apply_confirmed_plan(), ActionSuccess)
+    window._binder.refresh()
+
+    assert verify_btn.isEnabled()
+    verify_btn.click()
+    assert window.verify_page._stat_avg_de._value_label.text() != "Not measured"
+
+
+def test_declining_drops_the_seal_and_the_page_stops_citing_it(window: object) -> None:
+    """A declined plan is gone, so the page stops showing its digest.
+
+    The session returns to the preview stage and drops what it sealed. Leaving
+    the digest on screen would leave a seal up that nothing downstream can
+    still cite, which is the same class of claim as a figure whose measurement
+    was thrown away.
+    """
+    dialog = preview_from_the_page(window)
+    digest = dialog.preview.plan_sha256
+
+    dialog._decline_btn.click()
+
+    assert dialog.decision().accepted is False
+    assert [record["action_id"] for record in journal_records(window.session_root)] == [
+        *THROUGH_PREVIEW,
+        "calibration.decline_plan",
+    ]
+
+    page = window.calibrate_page
+    assert page._result_heading.text() == DECLINED_NOTE
+    assert digest not in page._digest_label.text()
+    assert page._progress_bar.value() == 0
+    assert not window.verify_page._btn_verify.isEnabled()
+
+
+def test_closing_the_dialog_without_answering_decides_nothing(window: object) -> None:
+    """Withdrawing is not a decline, so it is not recorded as one.
+
+    Both answers are actions the session journals. Shutting the dialog is
+    neither, and a window that treated it as a decline would put a decision the
+    operator never made into the record.
+    """
+    dialog = preview_from_the_page(window)
+
+    dialog.reject()
+
+    assert dialog.decision() is None
+    assert [record["action_id"] for record in journal_records(window.session_root)] == THROUGH_PREVIEW
+    assert window.service.stage is WorkflowStage.PREVIEW
+    assert window.calibrate_page._digest_label.text().endswith(dialog.preview.plan_sha256)
+    assert window.toasts == []
+
+
+def test_the_plan_dialog_can_reach_nothing_that_writes() -> None:
+    """A decision surface that could write is a decision that already ran.
+
+    The dialog draws a plan and performs two actions the session owns. Read the
+    module rather than the behaviour, because an adapter call added later would
+    arrive as an import and a call rather than as a path a test already drives.
+    """
+    import ast
+
+    from calibrate_pro.gui import plan_dialog
+
+    source = Path(plan_dialog.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = {
+        alias.name if isinstance(node, ast.Import) else (node.module or "")
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+    assert [name for name in imported if name.startswith("calibrate_pro.adapters")] == []
+    assert [name for name in imported if name.startswith("calibrate_pro.hardware")] == []
+    assert [name for name in imported if name in {"shutil", "os", "subprocess"}] == []
+    assert [name for name in ("write_text", "mkdir", "apply(", "restore(") if name in source] == []
+
+
+def bare_plan(**overrides: object) -> ApplyPlan:
+    """The smallest plan the workflow accepts, so a row is read in isolation."""
+    fields = {
+        "display_id": "DISPLAY-1",
+        "method": CalibrationMethod.SENSORLESS,
+        "target_whitepoint": "D65",
+        "target_gamma": "sRGB",
+        "target_gamut": "sRGB",
+    }
+    fields.update(overrides)
+    return ApplyPlan(**fields)  # type: ignore[arg-type]
+
+
+def test_a_plan_carrying_no_assets_says_so_on_every_row() -> None:
+    """An absent file is worded, because an empty row reads as an omission.
+
+    The plan the fake session seals carries assets on every row, so the rows
+    that state an absence are read here instead. A blank beside "ICC profile"
+    would be read as a file the dialog failed to print rather than as a file
+    this plan does not carry.
+    """
+    values = dict(plan_rows(bare_plan()))
+
+    assert values["ICC profile"] == NOT_IN_PLAN
+    assert values["VCGT ramp"] == NOT_IN_PLAN
+    assert values["dwm LUT"] == NOT_IN_PLAN
+    assert values["files"] == NOT_IN_PLAN
+    assert values["DDC changes"] == NO_DDC_CHANGES
+
+
+def test_an_asset_row_prints_the_digest_that_seals_it() -> None:
+    """The digest is what makes the row a citation rather than a filename."""
+    plan = bare_plan(icc_profile_path="C:/out/panel.icc", icc_profile_sha256="a" * 64)
+
+    assert dict(plan_rows(plan))["ICC profile"] == f"C:/out/panel.icc  {'a' * 64}"
+
+
+def test_no_plan_can_name_an_asset_it_has_not_sealed() -> None:
+    """Why the asset rows are citations: the unsealed pair cannot be built.
+
+    The dialog renders a path and a digest together and carries no branch for a
+    path arriving alone. That holds because the plan refuses the pair rather
+    than because the dialog checks, which is the stronger of the two places for
+    it to hold.
+    """
+    with pytest.raises(ValueError, match="vcgt_path requires vcgt_sha256"):
+        bare_plan(vcgt_path="C:/out/ramp.cal")
+
+
+def test_proposed_control_changes_are_named_with_their_values() -> None:
+    """A count of changes would not tell an operator what is being proposed."""
+    plan = bare_plan(ddc_changes=(("BRIGHTNESS", 42), ("CONTRAST", 70)))
+
+    assert ddc_text(plan) == "BRIGHTNESS 42, CONTRAST 70"
