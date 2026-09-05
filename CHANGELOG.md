@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+- Stopped an EDID-built panel reporting photometry that EDID does not carry. `create_from_edid` is
+  the fallback for a display the panel database does not hold, and it wrote the same four numbers
+  for every one: a 250 cd/m2 SDR peak, a 400 cd/m2 HDR peak, a 0.1 cd/m2 black and a contrast
+  ratio of 1000. It also copied the gamut flag into `hdr_capable`, which is a different property,
+  because a P3 SDR monitor is wide gamut and is not HDR. EDID chromaticity carries primaries, a
+  white point and a gamma byte. It carries no photometry at all, and `parse_edid` reads only the
+  base block, so the CTA extension blocks that would hold HDR static metadata are never opened.
+  Those numbers reach hardware. The SDR peak divides the target luminance to produce the DDC/CI
+  brightness byte written to the monitor, a black level under 0.01 marks the panel as OLED and
+  picks the contrast and black level bytes beside it, and the HDR peak is what the detection layer
+  reports as the display's peak in nits. All four now report zero, which the consumers read as not
+  known, and the profile notes say which fields have no evidence behind them. `wide_gamut` still
+  follows from the primaries, which EDID does carry. The two sites that divide by the peak return
+  no brightness percentage rather than a percentage of a constant, and the black level path leaves
+  the monitor's settings alone rather than reading an unknown black as a perfect one.
+- Derived the EDID correction matrix from the primaries instead of weighting it by hand.
+  `create_from_edid` built the matrix from the distance of each primary to its sRGB counterpart
+  times a fixed coefficient, and the diagonal grew as that distance grew. A panel whose red sits
+  well outside sRGB red was told to drive red harder than a panel already at sRGB, which is
+  backwards. A wider primary needs less drive to land on the target, not more. The matrix is
+  multiplied into linear RGB in `per_display_calibration` on the way to the LUT loaded into the
+  GPU, so the error moved pixels rather than a readout. NeuraLux had already stopped trusting it
+  and recomputes its own from the primaries, under a comment saying a stored profile matrix may be
+  incorrect. The matrix now follows the standard route, sRGB to XYZ to native RGB, the same
+  derivation `sensorless_calibration` and `neuralux` use. A panel with sRGB primaries gets the
+  identity, and each sRGB primary driven through the matrix lands on its own chromaticity when
+  measured through the panel's own primaries. Degenerate primaries return no matrix rather than an
+  identity, which would claim no correction is needed.
+- Stopped a clip in the LUT path calling itself a gamut mapping. `_map_gamut` took a source and
+  a target set of primaries, read neither, and clipped into the unit cube under a docstring
+  reading "Simple relative colorimetric mapping". Relative colorimetric adapts the source white
+  to the target white and then maps what falls outside the target gamut, so a caller reading the
+  name expects out-of-gamut colour to keep its hue and gets it flattened against the cube face
+  instead. The clip is unchanged, because changing it needs a mapping to be chosen and measured.
+  The docstring now says what the code does and what it does not do.
 - Stopped the ICC tone curve parser applying the wrong curve to the display. A `para` tag names
   the formula in a function type field, and `_parse_trc` read every type as the type 0 pure gamma
   `X ** g`. Types 1 through 4 carry a linear segment near black, so the curve the parser produced
