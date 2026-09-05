@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Made `doctor` answer a person as well as it answers a parser. `--json` was declared by
+  both dispatchers and printed in both usage listings, and the command emitted compact
+  JSON whichever way it was called, so the first command the documentation tells an
+  operator to run returned one long line of it. The flag now selects the form. Without it
+  the report is laid out to read: dependencies with versions, the three whole-installation
+  checks, and the capability block. The capability block states that nothing was probed,
+  because `supported` beside a bus or a colorimeter otherwise reads as a device that
+  answered. The JSON form is unchanged, which is what every packaged script and every
+  test asks for.
 - Gave a display the bundled panel database cannot name a way forward. Detection adopts
   such a display rather than rejecting it, and adopts it uncharacterized, so every
   calibration method and every target after that refused it. The one action that supplies
