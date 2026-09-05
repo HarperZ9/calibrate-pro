@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- Made the colorimeter read the patch it is asked about. `_measure_patch` took a reading without
+  putting anything on screen, on a comment saying a pattern window would be needed and that the
+  patch could be assumed displayed for now, then filed the reading under the RGB it had been
+  asked for. The grayscale sweep and the primaries sweep would have read whatever the desktop was
+  showing, once per patch, and labelled each reading differently. The engine now takes a patch
+  display callback through `initialize` or `set_patch_display`, shows the patch, gives the panel
+  time to settle, and reads after that. Without the callback it returns nothing and says why.
+- Made the camera engine show a pattern before capturing one. `measure_single_color` accepted a
+  `PatternDisplay` and never called it, so a capture from a real camera was a frame of whatever
+  the screen already held, recorded under `pattern_rgb`. It now drives the display, and raises
+  when there is no display and the camera is not the simulator.
+- Stopped the camera engine reporting a calibration it did not apply. With `apply_to_hardware`
+  set and consent given, the run reported that it was applying a correction over a statement that
+  does nothing, then returned success. Nothing in that engine writes to a display. The call now
+  returns unsuccessful and says to take the measured correction through the LUT or DDC/CI path.
+  The second grayscale ramp was labelled a verification and its result published as the Delta E
+  after correction, which measured the same uncorrected display twice. It is now named a repeat
+  measurement, and the result says the correction was computed and not applied.
+- Made the Spyder display analysis show white and black before reading them. `analyze_display`
+  took two readings back to back, filed the first as the white point and the second as the black
+  level, and never put either patch on screen. Both readings described whatever image was already
+  there, so the contrast ratio built from them sat near 1.0 for any panel and the reported white
+  chromaticity and CCT belonged to the desktop. The method now requires a display callback, shows
+  each patch before the read it is filed under, and returns nothing with the reason on the
+  progress channel when no callback is given.
+- Kept the requested stimulus on a measurement record. `MeasurementResult` carried the blue
+  channel of the patch and the Lab b* component in one field, so computing Lab overwrote the blue
+  value the patch had been asked for. Every record in the grayscale and primaries sweeps reported
+  a stimulus it had not been measured at. The Lab triple is now `lab_l`, `lab_a` and `lab_b`.
 - Stopped the fleet server reporting results for displays it never contacted. A calibration job
   queued against a remote node ran a stub that waited a tenth of a second and returned a Delta E
   mean of 1.2 with a pass flag, and the server stored that under the node id and marked the job
