@@ -200,7 +200,10 @@ def _srgb_to_native_matrix(
 
 
 def create_from_edid(
-    edid_chromaticity: dict, monitor_name: str = "Unknown", manufacturer: str = "Unknown", gamma: float = 2.2
+    edid_chromaticity: dict,
+    monitor_name: str = "Unknown",
+    manufacturer: str = "Unknown",
+    gamma: float | None = None,
 ) -> PanelCharacterization:
     """
     Create a PanelCharacterization from EDID chromaticity data.
@@ -215,7 +218,7 @@ def create_from_edid(
         edid_chromaticity: Dict with 'red', 'green', 'blue', 'white' as (x, y) tuples
         monitor_name: Display name from EDID
         manufacturer: Manufacturer name
-        gamma: Assumed gamma (2.2 for most IPS/VA, 2.4 for some VA panels)
+        gamma: Gamma read from EDID byte 23, or None when the EDID carried none
 
     Returns:
         PanelCharacterization built from EDID data
@@ -245,6 +248,15 @@ def create_from_edid(
     # this into linear RGB on the way to the LUT loaded into the GPU.
     ccm = _srgb_to_native_matrix(red, green, blue, white)
 
+    # None means the EDID stated no gamma. The curves below need a number, so
+    # they take 2.2, and the note says which of the two a reader has. The
+    # parameter used to default to 2.2 outright, which made a gamma read off
+    # byte 23 and a gamma nobody read identical inside the profile.
+    gamma_value = 2.2 if gamma is None else gamma
+    gamma_note = (
+        "Gamma assumed 2.2, the EDID carried none." if gamma is None else f"Gamma {gamma_value:.2f} read from EDID."
+    )
+
     return PanelCharacterization(
         manufacturer=manufacturer,
         model_pattern=re.escape(monitor_name),
@@ -255,9 +267,9 @@ def create_from_edid(
             blue=ChromaticityCoord(blue[0], blue[1]),
             white=ChromaticityCoord(white[0], white[1]),
         ),
-        gamma_red=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
-        gamma_green=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
-        gamma_blue=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
+        gamma_red=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
+        gamma_green=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
+        gamma_blue=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
         capabilities=PanelCapabilities(
             # Zero means not known. EDID chromaticity carries no photometry, and
             # parse_edid does not read the CTA extension blocks that would carry
@@ -281,6 +293,6 @@ def create_from_edid(
         color_correction_matrix=ccm,
         notes=f"Built from EDID chromaticity. Primaries: R({red[0]:.4f},{red[1]:.4f}) "
         f"G({green[0]:.4f},{green[1]:.4f}) B({blue[0]:.4f},{blue[1]:.4f}). "
-        f"Gamma assumed {gamma}. Luminance, contrast and HDR support are not in "
+        f"{gamma_note} Luminance, contrast and HDR support are not in "
         f"EDID chromaticity and are reported as unknown.",
     )

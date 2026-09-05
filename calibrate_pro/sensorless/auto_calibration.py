@@ -795,7 +795,13 @@ class AutoCalibrationEngine:
                     edid_chromaticity = self._extract_edid_chromaticity(edid_data)
 
                     if edid_chromaticity:
-                        edid_gamma = edid_info.get("gamma", 2.2) or 2.2
+                        # parse_edid leaves gamma at 0.0 when EDID byte 23 reads
+                        # 0xFF, which is the EDID saying its gamma sits in an
+                        # extension block this parser does not read. `or 2.2`
+                        # erased that, so the line below printed a number nobody
+                        # read next to primaries that were read.
+                        edid_gamma = edid_info.get("gamma", 0.0) or None
+                        gamma_text = "not in EDID, model assumes 2.2" if edid_gamma is None else f"{edid_gamma:.2f}"
                         panel = create_from_edid(
                             edid_chromaticity=edid_chromaticity,
                             monitor_name=name or "EDID Display",
@@ -805,7 +811,7 @@ class AutoCalibrationEngine:
                         logger.info(
                             "EDID-based profiling used for '%s' (not in panel database). "
                             "Primaries: R(%.4f,%.4f) G(%.4f,%.4f) B(%.4f,%.4f), "
-                            "White(%.4f,%.4f), Gamma=%.2f. "
+                            "White(%.4f,%.4f), Gamma=%s. "
                             "This provides significantly better calibration than generic sRGB fallback.",
                             name or "Unknown",
                             edid_chromaticity["red"][0],
@@ -816,7 +822,7 @@ class AutoCalibrationEngine:
                             edid_chromaticity["blue"][1],
                             edid_chromaticity["white"][0],
                             edid_chromaticity["white"][1],
-                            edid_gamma,
+                            gamma_text,
                         )
                         self._report_progress(
                             f"Using EDID chromaticity for {name or 'display'} (panel type: {panel.panel_type})",

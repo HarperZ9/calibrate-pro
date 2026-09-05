@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Stopped an EDID that states no gamma reporting one. EDID byte 23 holds gamma, and the value
+  0xFF means the gamma sits in an extension block, so `parse_edid` leaves the field at 0.0 and
+  `update_from_edid` only copies it when it is above zero. `_match_panel` read
+  `edid_info.get("gamma", 2.2) or 2.2`, which erased that, and its log line then printed
+  "Gamma=2.20" beside six chromaticities the EDID really carried. `create_from_edid` wrote
+  "Gamma assumed 2.2" into the panel notes whatever the caller passed, so a gamma read off byte
+  23 and a gamma nobody read looked identical in the profile. The parameter is now
+  `float | None`, the panel model still uses 2.2 when nothing was read, and the note and the log
+  line each say which of the two the reader has.
 - Stopped a cancelled manual measurement filing itself as black. `_manual_measure_xyz` prompts
   the operator for an XYZ reading, and on end-of-input or Ctrl+C it printed "Measurement
   cancelled" and then returned `(0.0, 0.0, 0.0)`. Black is a valid reading, so the caller could
