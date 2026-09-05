@@ -24,7 +24,10 @@ class HDRDisplayState:
     hdr_enabled: bool
     hdr_capable: bool
     peak_luminance: float  # Current peak in cd/m2
-    sdr_white_level: float  # SDR content white level in cd/m2 (typically 80-480)
+    # None when the OS reported no SDR content white level. This used to fall
+    # back to 200 cd/m2, which printed a luminance nobody read as though the
+    # display had been queried for it.
+    sdr_white_level: float | None  # SDR content white level in cd/m2
     color_space: str  # "sRGB", "scRGB", "BT2020_PQ", etc.
     bit_depth: int  # 8, 10, or 12
 
@@ -136,13 +139,13 @@ def _check_hdr_registry(device_name: str) -> bool:
     return False
 
 
-def _get_sdr_white_level(device_name: str) -> float:
+def _get_sdr_white_level(device_name: str) -> float | None:
     """
     Get the SDR content white level for HDR mode.
 
     Windows allows users to set the brightness of SDR content when
     HDR is enabled (Settings > Display > HDR > SDR content brightness).
-    Default is typically 200 cd/m2 on OLED, 100-300 on LCD.
+    Returns None when Windows reports no level for this display.
     """
     try:
         base = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AdvancedDisplay"
@@ -165,7 +168,7 @@ def _get_sdr_white_level(device_name: str) -> float:
     except Exception:
         pass
 
-    return 200.0  # Default SDR white level
+    return None
 
 
 class HDRModeWatcher:
@@ -240,7 +243,10 @@ def print_hdr_status():
         print(f"    Mode: {mode} ({capable})")
         if state.hdr_enabled:
             print(f"    Color space: {state.color_space}")
-            print(f"    SDR white level: {state.sdr_white_level:.0f} cd/m2")
+            if state.sdr_white_level is None:
+                print("    SDR white level: not reported by the OS")
+            else:
+                print(f"    SDR white level: {state.sdr_white_level:.0f} cd/m2")
             if state.peak_luminance > 0:
                 print(f"    Peak luminance: {state.peak_luminance:.0f} cd/m2")
         print(f"    Bit depth: {state.bit_depth}")

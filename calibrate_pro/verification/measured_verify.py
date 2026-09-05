@@ -295,9 +295,13 @@ def _manual_measure_xyz(r: float, g: float, b: float) -> tuple[float, float, flo
                 print("  Please enter three numeric values separated by spaces.")
         except ValueError:
             print("  Invalid input. Please enter three numbers.")
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt) as exc:
             print("\n  Measurement cancelled.")
-            return (0.0, 0.0, 0.0)
+            # Not (0.0, 0.0, 0.0). Black is a valid XYZ reading, so returning
+            # it here files a cancelled patch as a measurement of pure black
+            # and no caller can tell the two apart. The ArgyllCMS backend
+            # beside this one raises when it has no data. Same contract.
+            raise RuntimeError("Measurement cancelled. No reading was taken.") from exc
 
 
 # =============================================================================

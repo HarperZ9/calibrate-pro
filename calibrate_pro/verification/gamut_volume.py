@@ -131,7 +131,10 @@ class GamutCoverage:
 
     color_space: ColorSpace
     coverage_percent: float  # Percentage of target gamut covered
-    volume_ratio: float  # Measured volume / target volume
+    # None when the volume could not be computed. This used to default to 1.0,
+    # which published a display nobody sampled as an exact match for the
+    # target volume.
+    volume_ratio: float | None  # Measured volume / target volume
     exceeds_percent: float  # Percentage outside target (can exceed)
 
     # Primary accuracy
@@ -141,7 +144,7 @@ class GamutCoverage:
     # Detailed metrics
     area_xy: float  # 2D area in xy chromaticity
     area_uv: float  # 2D area in u'v' chromaticity
-    volume_lab: float  # 3D volume in Lab space
+    volume_lab: float | None  # 3D volume in Lab space, None when not computed
 
     grade: GamutGrade
 
@@ -203,7 +206,7 @@ class GamutAnalysisResult:
     oog_analysis: dict[ColorSpace, OutOfGamutAnalysis]
 
     # Overall metrics
-    total_volume_lab: float
+    total_volume_lab: float | None
     # None when measured_primaries carried no "W". These used to default to
     # D65, which reported a panel whose white nobody read as a perfect 6504K
     # at Duv 0.0000. An absent measurement is absent, not a passing one.
@@ -544,7 +547,7 @@ def generate_gamut_samples(color_space: ColorSpace, samples_per_axis: int = 17) 
     return np.array(samples)
 
 
-def calculate_gamut_volume_lab(samples: np.ndarray) -> float:
+def calculate_gamut_volume_lab(samples: np.ndarray) -> float | None:
     """
     Calculate gamut volume in Lab space using convex hull.
 
@@ -552,29 +555,34 @@ def calculate_gamut_volume_lab(samples: np.ndarray) -> float:
         samples: Array of Lab values
 
     Returns:
-        Volume in Lab³ units
+        Volume in Lab³ units, or None when no hull could be built
     """
+    if ConvexHull is None:
+        return None
     try:
         hull = ConvexHull(samples)
-        return hull.volume
+        return float(hull.volume)
     except Exception:
-        return 0.0
+        # None, not 0.0. A convex hull fails on degenerate samples, and a
+        # reported volume of zero reads as a display that covers nothing
+        # rather than one this function never managed to measure.
+        return None
 
 
-def calculate_gamut_volume_ratio(measured_samples: np.ndarray, target_space: ColorSpace) -> float:
+def calculate_gamut_volume_ratio(measured_samples: np.ndarray, target_space: ColorSpace) -> float | None:
     """
     Calculate ratio of measured volume to target color space volume.
 
     Returns:
-        Volume ratio (1.0 = same volume)
+        Volume ratio (1.0 = same volume), or None when either volume is absent
     """
     target_samples = generate_gamut_samples(target_space, 17)
 
     measured_volume = calculate_gamut_volume_lab(measured_samples)
     target_volume = calculate_gamut_volume_lab(target_samples)
 
-    if target_volume <= 0:
-        return 0.0
+    if measured_volume is None or target_volume is None or target_volume <= 0:
+        return None
 
     return measured_volume / target_volume
 
@@ -687,7 +695,7 @@ class GamutAnalyzer:
                 oog_analysis[color_space] = oog
 
         # Calculate total volume
-        total_volume = 0.0
+        total_volume: float | None = None
         if measured_samples is not None:
             total_volume = calculate_gamut_volume_lab(measured_samples)
 
@@ -731,8 +739,8 @@ class GamutAnalyzer:
         area_uv = calculate_gamut_area_uv(measured_primaries)
 
         # Calculate volume ratio
-        volume_ratio = 1.0
-        volume_lab = 0.0
+        volume_ratio: float | None = None
+        volume_lab: float | None = None
         if measured_samples is not None:
             volume_ratio = calculate_gamut_volume_ratio(measured_samples, target_space)
             volume_lab = calculate_gamut_volume_lab(measured_samples)
@@ -957,7 +965,9 @@ def print_gamut_summary(result: GamutAnalysisResult) -> None:
         f"  Adobe RGB: {result.adobe_rgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.adobe_rgb_coverage.grade)}"
     )
     print()
-    if result.total_volume_lab > 0:
+    if result.total_volume_lab is None:
+        print("Total Volume (Lab³): not computed")
+    elif result.total_volume_lab > 0:
         print(f"Total Volume (Lab³): {result.total_volume_lab:.0f}")
     print("=" * 60)
 

@@ -14,7 +14,7 @@ talks to a colorimeter or writes a profile.
 import pytest
 
 from calibrate_pro.verification.gamut_volume import GamutAnalyzer, print_gamut_summary
-from calibrate_pro.verification.reports import _wp_num, _wp_xy
+from calibrate_pro.verification.reports import _num_or, _wp_xy
 
 # A plausible wide-gamut panel, offset from sRGB so a zero delta means the
 # fallback fired rather than the panel happening to be exact.
@@ -99,11 +99,11 @@ class TestAnUnmeasuredWhitePointStaysEmpty:
     def test_the_report_formatters_say_not_measured(self):
         result = self._without_white()
         assert _wp_xy(result) == "not measured"
-        assert _wp_num(result.white_point_cct, "{:.0f}K") == "not measured"
-        assert _wp_num(result.white_point_duv, "{:.4f}") == "not measured"
+        assert _num_or(result.white_point_cct, "{:.0f}K") == "not measured"
+        assert _num_or(result.white_point_duv, "{:.4f}") == "not measured"
 
     def test_the_report_formatters_still_format_a_real_reading(self):
         """Control: the formatters are not stuck on the empty answer."""
         result = GamutAnalyzer().analyze(MEASURED)
         assert _wp_xy(result).startswith("(0.3135")
-        assert _wp_num(result.white_point_cct, "{:.0f}K").endswith("K")
+        assert _num_or(result.white_point_cct, "{:.0f}K").endswith("K")

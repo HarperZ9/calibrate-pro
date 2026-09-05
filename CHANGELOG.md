@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Stopped a cancelled manual measurement filing itself as black. `_manual_measure_xyz` prompts
+  the operator for an XYZ reading, and on end-of-input or Ctrl+C it printed "Measurement
+  cancelled" and then returned `(0.0, 0.0, 0.0)`. Black is a valid reading, so the caller could
+  not tell a cancelled patch from a panel emitting nothing, and the zero went on to a Delta E
+  and into a report. The ArgyllCMS backend beside it already raises when it has no data. The
+  manual backend now raises the same way, so the two paths keep one contract.
+- Stopped the SDR white level defaulting to a guess. `_get_sdr_white_level` reads Windows
+  settings for the SDR content brightness, and when the registry carried no such value it ended
+  with `return 200.0`. Its own docstring called 200 a typical figure, which is what a guess
+  looks like written down. The status line then printed "SDR white level: 200 cd/m2" as though
+  the OS had answered. The reader now returns `None`, `HDRDisplayState.sdr_white_level` holds
+  `None`, and the status line says the OS reported no level.
+- Stopped an uncomputed gamut volume reporting as zero, and an unsampled one as a perfect
+  match. `calculate_gamut_volume_lab` wrapped its convex hull in `except Exception: return 0.0`,
+  so degenerate samples and a missing scipy both came back as a display covering nothing.
+  `_analyze_coverage` then started `volume_ratio` at 1.0, so a run given no samples published a
+  ratio of 1.00 in the HTML report, meaning a volume identical to the target. Both functions
+  now return `None` when they compute nothing, `GamutCoverage` and `GamutAnalysisResult` carry
+  that `None` through, the console summary says the volume was not computed, the report cells
+  route through the same formatter the white point uses, and the JSON emits null.
 - Stopped gamut analysis scoring a primary against itself. `_analyze_coverage` read each
   measured chromaticity as `measured_primaries.get(name, target_xy)`, so an absent red, green
   or blue became the target primary of the space being scored. The delta then came out at

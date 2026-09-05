@@ -129,14 +129,14 @@ class VerificationSummary:
     recommendations: list[str] = field(default_factory=list)
 
 
-def _wp_num(value: float | None, spec: str) -> str:
-    """Format a white point number, or say it was never measured.
+def _num_or(value: float | None, spec: str, absent: str = "not measured") -> str:
+    """Format a number, or say the reading behind it never arrived.
 
-    The gamut result carries None for all three white point fields when the
-    caller supplied no measured white. A dash in the report is what an absent
-    reading looks like; a formatted number there is a reading nobody took.
+    The gamut result carries None for a white point the caller never measured
+    and for a volume this run could not compute. A formatted number in either
+    place is a reading nobody took.
     """
-    return "not measured" if value is None else spec.format(value)
+    return absent if value is None else spec.format(value)
 
 
 def _wp_xy(result: GamutAnalysisResult) -> str:
@@ -535,8 +535,8 @@ class ReportGenerator:
         # a report that prints a number there claims a reading nobody took.
         wp_text = (
             f"<b>White Point:</b> {_wp_xy(result)}<br/>"
-            f"<b>CCT:</b> {_wp_num(result.white_point_cct, '{:.0f}K')}<br/>"
-            f"<b>Duv:</b> {_wp_num(result.white_point_duv, '{:.4f}')}"
+            f"<b>CCT:</b> {_num_or(result.white_point_cct, '{:.0f}K')}<br/>"
+            f"<b>Duv:</b> {_num_or(result.white_point_duv, '{:.4f}')}"
         )
         elements.append(Paragraph(wp_text, body_style))
 
@@ -886,25 +886,25 @@ class ReportGenerator:
             <tr>
                 <td>sRGB</td>
                 <td>{result.srgb_coverage.coverage_percent:.1f}%</td>
-                <td>{result.srgb_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.srgb_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.srgb_coverage.grade.name.lower()}">{result.srgb_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>DCI-P3</td>
                 <td>{result.p3_coverage.coverage_percent:.1f}%</td>
-                <td>{result.p3_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.p3_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.p3_coverage.grade.name.lower()}">{result.p3_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>BT.2020</td>
                 <td>{result.bt2020_coverage.coverage_percent:.1f}%</td>
-                <td>{result.bt2020_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.bt2020_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.bt2020_coverage.grade.name.lower()}">{result.bt2020_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>Adobe RGB</td>
                 <td>{result.adobe_rgb_coverage.coverage_percent:.1f}%</td>
-                <td>{result.adobe_rgb_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.adobe_rgb_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.adobe_rgb_coverage.grade.name.lower()}">{result.adobe_rgb_coverage.grade.name}</span></td>
             </tr>
         </table>
@@ -916,11 +916,11 @@ class ReportGenerator:
                 <div class="stat-label">xy Chromaticity</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{_wp_num(result.white_point_cct, "{:.0f}K")}</div>
+                <div class="stat-value">{_num_or(result.white_point_cct, "{:.0f}K")}</div>
                 <div class="stat-label">CCT</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{_wp_num(result.white_point_duv, "{:.4f}")}</div>
+                <div class="stat-value">{_num_or(result.white_point_duv, "{:.4f}")}</div>
                 <div class="stat-label">Duv</div>
             </div>
         </div>
