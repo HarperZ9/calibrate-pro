@@ -1,10 +1,80 @@
-"""Public release documentation must describe the 1.1 safety contract."""
+"""Public release documentation must describe the 1.1 safety contract.
+
+Most of what is checked here is that a sentence is present. The last four are a
+different kind of check: they read a number or a list off the code and require
+the README to agree with it, so that adding a panel or moving a command between
+the two builds fails here rather than leaving a page that quietly stops being
+true. A count carried forward by hand is the drift these are for.
+"""
 
 from __future__ import annotations
 
+import collections
+import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+#: The heading whose first fenced block a reader runs before anything else.
+TRY_IT_HEADING = "## Try it"
+
+#: The sentence introducing the names only the developer wheel answers.
+DEVELOPER_ONLY_INTRO = "These names exist only in the developer wheel"
+
+#: Every page a reader outside the repository can reach. A claim about what this
+#: build does has to hold on all of them, because a reader arrives at one.
+PUBLIC_SURFACES = (
+    "README.md",
+    "USAGE.md",
+    "RELEASE_NOTES.md",
+    "docs/ENTERPRISE-READINESS.md",
+    "docs/TECHNICAL.md",
+    "docs/index.html",
+)
+
+#: The two actions that decide whether this build measures anything.
+MEASURED_ACTIONS = frozenset({"calibration.method.measured", "verification.measured"})
+
+#: Said on a page where a reader will meet the measured mode. The wording differs
+#: per page; this is the part every one of them shares.
+CLOSURE_MARKER = "closed in 1.1"
+
+#: Reads as though buying the instrument is what stands between a reader and a
+#: measured result. It is not: both actions are disabled whatever is plugged in.
+HARDWARE_IS_THE_ONLY_GATE = re.compile(
+    r"(?:requires|needs)\s+a\s+supported\s+(?:colorimeter|instrument|sensor)",
+    re.IGNORECASE,
+)
+
+
+def readme() -> str:
+    return (ROOT / "README.md").read_text(encoding="utf-8")
+
+
+def fenced_commands(text: str, after: str) -> list[str]:
+    """The command names in the first fenced block following a heading.
+
+    The anchor and the fence are checked before they are used, because a page
+    that lost the whole section would otherwise fail with an index error rather
+    than with the thing that is wrong.
+    """
+    parts = text.split(after, 1)
+    assert len(parts) == 2, f"the README no longer contains {after!r}"
+    fences = parts[1].split("```")
+    assert len(fences) >= 3, f"no fenced block follows {after!r}"
+    block = fences[1]
+    names = []
+    for line in block.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("calibrate-pro "):
+            continue
+        names.append(stripped.split()[1])
+    return names
+
+
+def frozen_features() -> dict[str, list[str]]:
+    return json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
 
 
 def test_readme_identifies_the_current_release_and_qt_binding() -> None:
@@ -171,3 +241,128 @@ def test_read_only_example_routes_actions_to_the_confirmed_gui_workflow() -> Non
     assert "require hardware / admin" not in text
     assert "automatic calibration of all displays" not in text
     assert "commands that DO touch hardware/system state" not in text
+
+
+def test_the_readme_panel_counts_are_read_off_the_panel_database() -> None:
+    """A panel added to the database without touching this page fails here.
+
+    The totals were 58 and 20 while the database held 59 and 21, which is what a
+    number transcribed once and then carried forward does. Both the total and
+    every per-technology count are derived here, so the page cannot drift again
+    without the drift being the failure.
+    """
+    from calibrate_pro.panels.database import get_builtin_panels
+
+    panels = get_builtin_panels()
+    counts = collections.Counter(panel.panel_type for panel in panels.values())
+    text = readme()
+
+    assert f"{len(panels)} characterized panels" in text
+    for technology, count in sorted(counts.items()):
+        assert f"- **{technology} ({count})**" in text, f"{technology} is listed as something other than {count}"
+
+
+def test_every_command_the_readme_offers_first_is_answered_by_the_packaged_binary() -> None:
+    """The first block on the page runs against the build the page recommends.
+
+    It offered list-targets and list-panels while recommending the release
+    build, which answers neither. Someone following the page in order met an
+    error on the second line.
+    """
+    shipped = set(frozen_features()["commands"])
+
+    offered = fenced_commands(readme(), TRY_IT_HEADING)
+
+    assert offered, "the Try it block names no commands"
+    assert set(offered) <= shipped, f"not in the packaged build: {sorted(set(offered) - shipped)}"
+
+
+def test_the_readme_sorts_the_developer_only_names_the_way_the_packaging_does() -> None:
+    """Two lists, one policy. A name that moves between them moves on this page.
+
+    The names are checked against the packaging file rather than against each
+    other, because a name dropped from both halves of the README reads as a
+    command that does not exist rather than as one that lives elsewhere.
+    """
+    features = frozen_features()
+    shipped = set(features["commands"])
+    withheld = set(features["developer_only_commands"])
+    text = readme()
+
+    listed = set(fenced_commands(text, DEVELOPER_ONLY_INTRO))
+
+    assert listed, "the developer-wheel block names no commands"
+    assert listed <= withheld, f"the packaged build does answer: {sorted(listed & shipped)}"
+    assert "exit code 2" in text
+    assert "available only in the developer wheel" in text
+
+
+def test_the_readme_does_not_offer_a_measured_mode_the_manifest_declares_disabled() -> None:
+    """The page says closed for exactly as long as the manifest says disabled.
+
+    The mode table read as a choice between two methods, and the driver section
+    read as a shipped capability, while both measured actions were disabled in
+    the wheel and in the frozen binary. The check runs in both directions: it
+    fails if the README stops saying closed, and it fails if the manifest opens
+    the actions while the README still says they are closed.
+    """
+    manifest = json.loads((ROOT / "calibrate_pro/resources/action-capabilities.json").read_text(encoding="utf-8"))
+    measured = {
+        action["action_id"]: action
+        for action in manifest["actions"]
+        if action["action_id"] in {"calibration.method.measured", "verification.measured"}
+    }
+    assert len(measured) == 2, "the measured actions are not both declared"
+    policies = {policy for action in measured.values() for policy in (action["source_policy"], action["frozen_policy"])}
+
+    text = readme()
+    says_closed = "**Measured calibration is closed in 1.1.**" in text and "No surface in 1.1 opens it." in text
+
+    assert says_closed is (policies == {"disabled"}), (
+        f"README says closed={says_closed} while the manifest policies are {sorted(policies)}"
+    )
+    if says_closed:
+        assert not re.search(r"\|\s*Measured\s*\|[^|]*\|\s*Instrument observations", text)
+
+
+def measured_policies() -> set[str]:
+    """Every policy the manifest declares for the two measured actions."""
+    manifest = json.loads((ROOT / "calibrate_pro/resources/action-capabilities.json").read_text(encoding="utf-8"))
+    declared = [action for action in manifest["actions"] if action["action_id"] in MEASURED_ACTIONS]
+    assert {action["action_id"] for action in declared} == MEASURED_ACTIONS
+    return {policy for action in declared for policy in (action["source_policy"], action["frozen_policy"])}
+
+
+def test_no_public_page_makes_owning_an_instrument_the_thing_that_opens_measurement() -> None:
+    """Four pages said a measured workflow requires a supported instrument.
+
+    Each was true of the design and false of the build. Both measured actions are
+    declared disabled in the wheel and in the frozen binary, so an operator who
+    bought the colorimeter the page named would find the method still closed,
+    with a reason that never mentions hardware. The gate is conditional on the
+    manifest so that the sentence becomes sayable again on the day it is true.
+    """
+    if measured_policies() != {"disabled"}:
+        return
+
+    offenders = [
+        name for name in PUBLIC_SURFACES if HARDWARE_IS_THE_ONLY_GATE.search((ROOT / name).read_text(encoding="utf-8"))
+    ]
+
+    assert offenders == [], f"these pages gate measurement on hardware alone: {offenders}"
+
+
+def test_every_public_page_says_measured_calibration_is_closed_while_it_is() -> None:
+    """One build, one answer, whichever page a reader arrived on.
+
+    Checking the pages against the manifest rather than against each other is
+    what makes this catch the case that matters: the manifest opens the actions
+    and six pages go on saying closed, or it stays shut and a page quietly drops
+    the sentence during an edit.
+    """
+    closed = measured_policies() == {"disabled"}
+
+    said = {name for name in PUBLIC_SURFACES if CLOSURE_MARKER in (ROOT / name).read_text(encoding="utf-8")}
+
+    expected = set(PUBLIC_SURFACES) if closed else set()
+    assert said == expected, f"manifest closed={closed}; pages saying so: {sorted(said)}"

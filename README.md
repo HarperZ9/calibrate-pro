@@ -21,12 +21,12 @@ Calibrate Pro is a Windows display-calibration toolkit for characterized and mea
 
 ```bash
 calibrate-pro doctor
-calibrate-pro list-targets
-calibrate-pro list-panels
+calibrate-pro detect
+calibrate-pro status
 calibrate-pro gui
 ```
 
-Install from the Windows release build or run from source with `pip install -e ".[all]"`.
+Install from the Windows release build or run from source with `pip install -e ".[all]"`. Those four names answer in both. The packaged binary ships a subset of the command line and refuses the rest by saying they are in the developer wheel, so the two lists are kept apart under [Usage](#usage) rather than presented as one surface.
 
 ## Why it matters
 
@@ -72,19 +72,7 @@ Requires Python 3.10+ and Windows 10/11.
 
 ## Usage
 
-Launch the installed application or run `calibrate-pro gui`. Read-only CLI surfaces include:
-
-```bash
-calibrate-pro doctor            # Read-only installation/capability diagnostics
-calibrate-pro doctor --json     # Stable machine-readable diagnostics
-calibrate-pro list-targets      # List calibration targets
-calibrate-pro list-panels       # List characterized panel profiles
-calibrate-pro info <panel>      # Show stored characterization evidence
-calibrate-pro hdr-status        # Query Windows HDR state
-calibrate-pro gui               # Launch the calibration workflow
-```
-
-The calibration session also runs headless, over the same actions the window calls:
+Launch the installed application or run `calibrate-pro gui`. The calibration session runs headless over the same actions the window calls:
 
 ```bash
 calibrate-pro detect                                  # Displays observed, with characterization sources
@@ -92,9 +80,27 @@ calibrate-pro status --closed                         # Actions this session can
 calibrate-pro verify --target srgb_web                # Sealed plan and its predicted accuracy
 calibrate-pro generate-profiles out --target srgb_web # Publish one sealed bundle into 'out'
 calibrate-pro profiles out                            # Re-check the seal on published bundles
+calibrate-pro doctor                                  # Read-only installation and capability diagnostics
+calibrate-pro doctor --json                           # Stable machine-readable diagnostics
+calibrate-pro hdr                                     # Open the HDR proposal application
+calibrate-pro gui                                     # Launch the calibration workflow
 ```
 
-`CalibrateProCLI.exe` answers these in the packaged build, so a headless run needs no Python installation. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the window.
+`CalibrateProCLI.exe` answers every name above, so a headless run needs no Python installation.
+
+These names exist only in the developer wheel, and the packaged binary answers each of them with `This command is available only in the developer wheel` and exit code 2:
+
+```bash
+calibrate-pro list-targets      # List calibration targets
+calibrate-pro list-panels       # List characterized panel profiles
+calibrate-pro info <panel>      # Show stored characterization evidence
+calibrate-pro hdr-status        # Query Windows HDR state
+calibrate-pro plugins           # List discovered plugins
+calibrate-pro tray              # Open the read-only system tray
+calibrate-pro mcp               # Serve the MCP endpoint
+```
+
+The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in neither half reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the window.
 
 See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v1.1.0/examples).
 
@@ -113,27 +119,29 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAG
 | Mode | Requires | Evidence |
 |------|----------|----------|
 | Sensorless | A characterized panel profile or EDID-derived inputs | Estimated; never presented as a measurement of the attached unit |
-| Measured | A supported colorimeter | Instrument observations with source/provenance attached |
+| Measured | A supported colorimeter | Closed in 1.1. See below. |
 
 Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
-### Native USB Colorimeter
+**Measured calibration is closed in 1.1.** The action manifest declares `calibration.method.measured` and `verification.measured` disabled in the wheel and in the frozen binary alike, for the reason it prints when asked: measured calibration is disabled pending a distinct qualified measurement contract. No setting opens it. `calibrate-pro status --closed` reports it, the method control in the window is disabled rather than hidden, and `native-calibrate` and `refine` decline at the terminal and name that action. Everything 1.1 produces is sensorless, and it is labelled estimated.
 
-Built-in USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display). No ArgyllCMS required.
+### Native USB colorimeter driver
 
-Native USB HID driver for the i1Display3 family reads per-unit calibration matrices from each device's EEPROM - 9 stored matrices for different display technologies (OLED, WhiteLED, CCFL, WideGamut, etc.). Falls back to approximate constants if EEPROM reading fails.
+The package carries a USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display), which reads each unit's own calibration matrices from its EEPROM and needs no ArgyllCMS install. The device holds nine matrices for different display technologies, and the driver falls back to approximate constants when the EEPROM read fails.
+
+No surface in 1.1 opens it. It is the implementation measured calibration will use once that contract exists, and until then it is code the release ships rather than a capability an operator can reach. Nothing in the window or the terminal enumerates or opens a colorimeter, so no product screen reports a device that the session never observed.
 
 ## Supported Displays
 
-58 characterized panels with DDC/CI recommendations:
+59 characterized panels with DDC/CI recommendations:
 
 - **QD-OLED (17)**: ASUS PG27UCDM, Samsung G6/G7/G8/G9, Dell AW3423DW/DWF/AW2725DF/AW3225QF, MSI 321URX
 - **WOLED (10)**: LG C2/C3/C4/G4, ASUS PG27AQDP/PG34WCDM, LG 34GS95QE
-- **IPS (20)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
+- **IPS (21)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
 - **Nano-IPS (2)**: LG UltraGear 27GP950-B, LG UltraGear 27GP850-B
 - **Mini-LED (4)**: ASUS PG32UCDM, Apple Pro Display XDR
 - **VA (3)**: Samsung Odyssey G7, Sony INZONE M9
-- **RGB OLED (2)**: ASUS ProArt PA32DC
+- **OLED (2)**: ASUS ProArt PA32DC
 
 Unknown monitors are calibrated using EDID chromaticity data.
 

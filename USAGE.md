@@ -58,7 +58,8 @@ calibrate-pro gui
 The workflow is:
 
 1. **Detect** -- select a display and inspect available capabilities.
-2. **Method** -- choose sensorless or measured evidence and a target.
+2. **Method** -- choose a target. Sensorless is the method this build offers; the
+   measured method is shown disabled with the reason it is closed.
 3. **Preview** -- inspect the complete proposed DDC, ICC, VCGT, LUT, and output plan.
 4. **Apply** -- explicitly confirm that exact, one-use plan.
 5. **Verify** -- record measured or characterized evidence without relabelling it.
@@ -80,14 +81,18 @@ exits 2, rather than reporting it as a name that does not exist.
 | `calibrate-pro --help` | Show the complete command surface |
 | `calibrate-pro --version` | Show the installed version |
 | `calibrate-pro doctor [--json]` | Inspect the installation without probing devices |
-| `calibrate-pro list-targets` | List calibration target presets |
-| `calibrate-pro list-panels` | List stored characterized-panel profiles |
-| `calibrate-pro info <panel>` | Show one stored characterization |
-| `calibrate-pro hdr-status` | Query the operating-system HDR state |
-| `calibrate-pro plugins [--plugin-dir PATH]` | List discovered plugin metadata |
-| `calibrate-pro tray` | Launch the read-only tray monitor |
+| `calibrate-pro list-targets` | Developer wheel only. List calibration target presets |
+| `calibrate-pro list-panels` | Developer wheel only. List stored characterized-panel profiles |
+| `calibrate-pro info <panel>` | Developer wheel only. Show one stored characterization |
+| `calibrate-pro hdr-status` | Developer wheel only. Query the operating-system HDR state |
+| `calibrate-pro plugins [--plugin-dir PATH]` | Developer wheel only. List discovered plugin metadata |
+| `calibrate-pro tray` | Developer wheel only. Launch the read-only tray monitor |
 | `calibrate-pro gui` | Launch the main preview-and-confirm workflow |
 | `calibrate-pro hdr` | Launch the HDR target/proposal workflow |
+
+Names marked developer wheel only are absent from the packaged binary, which answers
+each of them with `This command is available only in the developer wheel` and exit
+code 2. The split is recorded in `packaging/frozen-features.json`.
 
 The stored values printed by `info` describe the characterization source. For an
 attached unit they remain estimates unless a supported instrument measures that unit.
@@ -191,8 +196,12 @@ if panel is not None:
   on PyPI and verify its SHA-256 against `SHA256SUMS.txt`.
 - If a display control is unavailable, treat that as a capability result; do not run the
   whole application as administrator to bypass it.
-- A measured workflow requires a supported colorimeter. Missing hardware is reported,
-  not replaced with fabricated readings.
+- Measured calibration is closed in 1.1, so owning a colorimeter does not open it. The
+  action manifest declares `calibration.method.measured` and `verification.measured`
+  disabled in the wheel and in the packaged binary alike, pending a distinct qualified
+  measurement contract. `calibrate-pro status --closed` prints the reason. Everything
+  1.1 produces is sensorless and labelled estimated, and a missing observation is
+  reported as **Not measured** rather than replaced with a fabricated reading.
 - Report defects through [GitHub Issues](https://github.com/HarperZ9/calibrate-pro/issues)
   and suspected vulnerabilities through the repository's private Security Advisory
   form.

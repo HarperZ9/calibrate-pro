@@ -100,7 +100,7 @@
       </div>
       <div class="card">
         <h3>Sensorless Mode</h3>
-        <p>Build an estimated plan from panel characterization without claiming measured accuracy. A supported i1Display3 provides instrument observations.</p>
+        <p>Build an estimated plan from panel characterization without claiming measured accuracy. Measured calibration is closed in 1.1, so every result this release produces is sensorless and labelled estimated.</p>
       </div>
       <div class="card">
         <h3>Read-Only Monitoring</h3>
@@ -122,7 +122,7 @@
       <div class="step">
         <div class="step-num">2</div>
         <h3>Choose</h3>
-        <p>Select a characterized or measured method and a calibration target.</p>
+        <p>Select a calibration target. The characterized method is the one 1.1 offers; the measured method is present and disabled, and the window says why.</p>
       </div>
       <div class="step">
         <div class="step-num">3</div>
@@ -145,7 +145,7 @@
       <li><strong>OS:</strong> Windows 10 / 11</li>
       <li><strong>Python:</strong> 3.10+</li>
       <li><strong>GUI:</strong> PySide6</li>
-      <li><strong>Sensor:</strong> Optional &mdash; i1Display3 family</li>
+      <li><strong>Sensor:</strong> Not used in 1.1. The i1Display3 driver ships, and no surface opens it.</li>
     </ul>
   </div>
 </section>
@@ -160,8 +160,9 @@
       <pre>calibrate-pro gui</pre>
       <h3>Read-Only CLI</h3>
       <pre>calibrate-pro doctor        <span class="comment"># Installation and capability diagnostics</span>
-calibrate-pro list-targets  <span class="comment"># List calibration target presets</span>
-calibrate-pro list-panels   <span class="comment"># List characterized panel profiles</span></pre>
+calibrate-pro doctor --json <span class="comment"># Stable machine-readable diagnostics</span>
+calibrate-pro profiles out  <span class="comment"># Re-check the seal on published bundles</span></pre>
+      <p style="color: var(--muted); font-size: 0.85rem;">The packaged binary answers these. <code>list-targets</code>, <code>list-panels</code>, <code>info</code>, and <code>hdr-status</code> exist only in the developer wheel, and the binary refuses each with exit code 2.</p>
       <h3>Headless Session</h3>
       <pre>calibrate-pro detect        <span class="comment"># Displays observed, with characterization sources</span>
 calibrate-pro status        <span class="comment"># Actions this session can run, and why the rest cannot</span>

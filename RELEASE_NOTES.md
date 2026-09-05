@@ -31,12 +31,12 @@ Both desktop executables start unelevated (`asInvoker`). An Apply is available o
 
 ## Evidence boundary
 
-Sensorless results are estimates derived from characterization inputs; they are not measurements of the attached unit. Measured results require a supported instrument. Missing observations display as **Not measured**, and numeric report values carry an evidence kind and source receipt.
+Sensorless results are estimates derived from characterization inputs; they are not measurements of the attached unit. Missing observations display as **Not measured**, and numeric report values carry an evidence kind and source receipt.
 
 ## Known limitations
 
 - The packaged desktop release targets Windows x64.
 - Display controls differ by monitor and driver; unsupported controls fail closed.
-- Measured calibration requires a supported colorimeter.
+- Measured calibration is closed in 1.1. The action manifest declares `calibration.method.measured` and `verification.measured` disabled in both builds, pending a distinct qualified measurement contract, so a supported colorimeter does not open it. Every result 1.1 produces is sensorless and labelled estimated.
 - DWM LUT application remains unavailable unless authoritative prior-state capture is possible.
 - Calibrate Pro does not promise a particular accuracy, gamut, or luminance result without recorded measurements from the attached display.

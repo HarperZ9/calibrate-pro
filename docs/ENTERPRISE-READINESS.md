@@ -79,7 +79,7 @@ build or support investigation can identify the exact inputs and outputs.
 
 - Hardware controls vary by display, firmware, GPU driver, and Windows capability.
   Unsupported or non-restorable operations remain unavailable.
-- A measured workflow requires a supported instrument.
+- Measured calibration is closed in 1.1. Both measured actions are declared disabled in the wheel and in the packaged binary, pending a distinct qualified measurement contract, so procurement of an instrument does not enable the workflow. Every 1.1 result is sensorless and labelled estimated.
 - Sensorless characterization cannot measure unit variation or drift.
 - Recovery is an in-process compensating transaction, not a crash-proof hardware
   transaction across power loss or operating-system failure.
