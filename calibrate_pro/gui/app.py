@@ -1252,7 +1252,7 @@ class CalibrateProWindow(QMainWindow):
         available = observed is not None and any(
             display.capabilities.sensor_available for display in observed.dashboard.displays
         )
-        sensor_text = "Colorimeter present" if available else "No colorimeter \u2014 sensorless mode available"
+        sensor_text = "Colorimeter present" if available else "No colorimeter; sensorless mode available"
         sensor_color = C.GREEN_HI if available else C.TEXT3
 
         sensor_row = QHBoxLayout()

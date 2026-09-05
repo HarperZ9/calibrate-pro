@@ -1,4 +1,4 @@
-# Calibrate Pro 1.1 -- Usage Guide
+# Calibrate Pro 2.0 -- Usage Guide
 
 Calibrate Pro is a Windows display-calibration toolkit with two evidence paths:
 characterization-based estimates and instrument measurements. Display changes are
@@ -8,8 +8,8 @@ available only through an interactive preview-and-confirm workflow.
 
 ### Windows package
 
-Download either `CalibratePro-1.1.0-Setup.exe` or
-`CalibratePro-1.1.0-win64.zip` from
+Download either `CalibratePro-2.0.0-Setup.exe` or
+`CalibratePro-2.0.0-win64.zip` from
 [GitHub Releases](https://github.com/HarperZ9/calibrate-pro/releases).
 
 Calibrate Pro starts unelevated: the per-user installer uses lowest privilege and both
@@ -26,7 +26,7 @@ described below. Run it with no arguments to see the list it ships.
 ### Python package
 
 ```powershell
-py -m pip install "calibrate-pro[gui,sensor]==1.1.0"
+py -m pip install "calibrate-pro[gui,sensor]==2.0.0"
 calibrate-pro doctor
 calibrate-pro gui
 ```
@@ -78,7 +78,7 @@ The workflow is:
 
 Rejecting a preview performs no write. Apply remains unavailable when the required
 capability or authoritative prior-state capture is absent. The tray and calibration
-guard are read-only monitor-and-notify surfaces in 1.1.
+guard are read-only monitor-and-notify surfaces in 2.0.
 
 **Add Display Profile** lists the displays the session detected. Choosing a panel
 profile reads it where you keep it and prints what the file states about the panels it
@@ -218,7 +218,7 @@ display change still requires the window's preview and an explicit confirmation.
 
 ## Evidence labels
 
-Every performance metric in a 1.1 report is one of:
+Every performance metric in a 2.0 report is one of:
 
 - **measured** -- observed with an instrument and linked to its source;
 - **estimated** -- derived from characterization/model inputs;
@@ -256,11 +256,11 @@ if panel is not None:
   on PyPI and verify its SHA-256 against `SHA256SUMS.txt`.
 - If a display control is unavailable, treat that as a capability result; do not run the
   whole application as administrator to bypass it.
-- Measured calibration is closed in 1.1, so owning a colorimeter does not open it. The
+- Measured calibration is closed in 2.0, so owning a colorimeter does not open it. The
   action manifest declares `calibration.method.measured` and `verification.measured`
   disabled in the wheel and in the packaged binary alike, pending a distinct qualified
   measurement contract. `calibrate-pro status --closed` prints the reason. Everything
-  1.1 produces is sensorless and labelled estimated, and a missing observation is
+  2.0 produces is sensorless and labelled estimated, and a missing observation is
   reported as **Not measured** rather than replaced with a fabricated reading.
 - Report defects through [GitHub Issues](https://github.com/HarperZ9/calibrate-pro/issues)
   and suspected vulnerabilities through the repository's private Security Advisory

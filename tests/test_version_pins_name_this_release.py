@@ -14,11 +14,12 @@ single acknowledgement sufficient.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
 
-from calibrate_pro import __version__
+from calibrate_pro import __release_series__, __version__
 from scripts.product_version import (
     INSTALLER_NAME,
     PORTABLE_NAME,
@@ -30,7 +31,7 @@ from scripts.product_version import (
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: `1.1` out of `1.1.0`. Contract prose names the release series, not the patch.
+#: `2.0` out of `2.0.0`. Contract prose names the release series, not the patch.
 SERIES = ".".join(__version__.split(".")[:2])
 
 #: A version string attached to this product's own name. A dependency URL that
@@ -54,11 +55,14 @@ _HISTORICAL = (
 def _tracked_text_files() -> list[Path]:
     wanted = {".md", ".txt", ".html", ".yml", ".yaml", ".json", ".py", ".ps1", ".iss", ".toml"}
     skip_dirs = {".git", "build", "dist", "__pycache__", ".venv", "node_modules", ".ruff_cache", ".pytest_cache"}
+    # Generated package metadata. `git check-ignore` reports `*.egg-info/`,
+    # so an editable install leaves a stale name here that no release ships.
     found: list[Path] = []
     for path in ROOT.rglob("*"):
         if not path.is_file() or path.suffix not in wanted:
             continue
-        if skip_dirs & set(path.relative_to(ROOT).parts):
+        parts = set(path.relative_to(ROOT).parts)
+        if skip_dirs & parts or any(part.endswith(".egg-info") for part in parts):
             continue
         found.append(path)
     return found
@@ -130,3 +134,109 @@ def test_no_tracked_file_still_names_a_previous_release() -> None:
             line = text.count(chr(10), 0, match.start()) + 1
             stale.append(f"{relative}:{line} names {found} in {match.group(0)!r}")
     assert stale == [], "these name a release this build is not:" + chr(10) + chr(10).join(stale)
+
+
+#: A release number written into a string the product shows. `disabled in 1.1`,
+#: `version 2.0`, `the 1.1 ApplyPlan`. Every one of these now derives from the
+#: single declaration, so a literal here is a hardcode whatever number it names,
+#: and the next bump would leave it behind. Gamma ranges and stimulus values are
+#: numbers in prose too, so a release word or a release noun has to sit beside it.
+_RELEASE_NUMBER_IN_PROSE = re.compile(
+    r"(?:disabled in|enabled in|closed in|deferred to|[Vv]ersion|[Rr]elease)\s+v?\d+\.\d+"
+    r"|\bthe\s+\d+\.\d+\s+(?:ApplyPlan|application|release|shell|build|surface|contract|installer|package)"
+)
+
+#: The em-dash. Written by codepoint because the rule that bans it applies to
+#: this file too.
+_EM_DASH = chr(8212)
+
+
+def _shipped_strings() -> list[tuple[str, int, str]]:
+    """Every string constant in the package, with where it was written.
+
+    Read through the parser rather than by line, so a string spanning several
+    lines is examined whole and a number in code is not mistaken for prose.
+    """
+    found: list[tuple[str, int, str]] = []
+    for path in sorted((ROOT / "calibrate_pro").rglob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(path))
+        relative = path.relative_to(ROOT).as_posix()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                found.append((relative, node.lineno, node.value))
+    return found
+
+
+def test_no_shipped_string_hardcodes_a_release_number() -> None:
+    """The window said `disabled in 1.1` through the whole of 1.1 and would have
+    said it in 2.0. The sweep above could not see it: a bare series carries no
+    product name to anchor on. This reads the strings themselves.
+    """
+    hardcoded = [
+        f"{relative}:{lineno} writes {match.group(0)!r} into {value.strip()[:60]!r}"
+        for relative, lineno, value in _shipped_strings()
+        if (match := _RELEASE_NUMBER_IN_PROSE.search(value))
+    ]
+    assert hardcoded == [], (
+        "these name a release in a string instead of deriving it from "
+        "calibrate_pro.__release_series__:" + chr(10) + chr(10).join(hardcoded)
+    )
+
+
+def test_the_hardcode_detector_fires_on_the_strings_that_shipped() -> None:
+    """A sweep that matches nothing passes whether or not the defect is there.
+    These are the strings the product actually displayed, and a current-release
+    hardcode, which is just as stale one bump from now.
+    """
+    for shipped in (
+        "Status: disabled in 1.1; no command sent",
+        "Raw VCP scanning is disabled in version 1.1; no command was sent.",
+        "Brightness is not representable by the 1.1 ApplyPlan",
+        "Keep arbitrary VCP probing outside the 1.1 application surface.",
+        "Version 1.1 keeps conversion disabled until its exporter is isolated.",
+        f"Measured calibration is closed in {SERIES}.",
+    ):
+        assert _RELEASE_NUMBER_IN_PROSE.search(shipped), f"detector missed {shipped!r}"
+
+    for prose in (
+        "clamped into the 1.8 to 3.0 a display produces",
+        "the gamma of 2.2 was assumed, not read",
+        "test LUT at contrast 1.15 and saturation 1.1",
+    ):
+        assert not _RELEASE_NUMBER_IN_PROSE.search(prose), f"detector fired on {prose!r}"
+
+
+def test_no_shipped_string_carries_an_em_dash() -> None:
+    """The prose rule reaches the strings a tester reads in the window, not only
+    the documents. Nineteen of these were in the shipped GUI.
+    """
+    offenders = [
+        f"{relative}:{lineno}: {value.strip()[:70]!r}"
+        for relative, lineno, value in _shipped_strings()
+        if _EM_DASH in value
+    ]
+    assert offenders == [], "an em-dash reaches the user here:" + chr(10) + chr(10).join(offenders)
+
+
+def test_the_series_the_product_shows_derives_from_the_declaration() -> None:
+    assert __release_series__ == SERIES
+    assert __version__.startswith(__release_series__ + ".")
+
+
+def test_the_changelog_has_a_dated_section_for_this_release() -> None:
+    """The changelog is the one surface deliberately exempt from the sweep,
+    because a history names old releases on purpose. That exemption also lets a
+    release ship with its own entries still sitting under `Unreleased`, which is
+    what a reader checks first. The heading for this version has to exist.
+    """
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    headings = [line for line in text.splitlines() if line.startswith("## ")]
+
+    assert headings, "the changelog has no release headings"
+    assert headings[0].startswith(f"## v{__version__} ("), (
+        f"the newest changelog heading is {headings[0]!r}, not this release"
+    )
+    assert not any(line.strip() == "## Unreleased" for line in headings), (
+        "an Unreleased section is still open at release time"
+    )

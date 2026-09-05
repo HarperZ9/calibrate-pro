@@ -1,5 +1,5 @@
 ---
-description: Show project progress — files, tests, recent activity
+description: Show project progress: files, tests, recent activity
 allowed-tools: Read, Bash(find:*), Bash(ls:*), Bash(wc:*), Bash(git log:*)
 ---
 

@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## v2.0.0 (2026-09-05)
+
+- Stopped the product window naming the previous release. Eight strings the user
+  reads said `disabled in 1.1`, `version 1.1` and `the 1.1 ApplyPlan`, and would have
+  said it through 2.0. `calibrate_pro.__release_series__` derives the series from the
+  one declaration and every one of those strings reads it. The version sweep could
+  not see them, because it anchors on the product name and a bare `1.1` carries none,
+  so a second gate parses the package and checks the string constants themselves.
+  It is proved against the six strings that shipped.
+
+- Removed the em-dash from seventeen strings the window displays, which the writing
+  standard bans on a surface a reader sees. One was written `\u2014`, which a search
+  for the character cannot find; reading the strings through the parser finds it.
 
 - Made the release version derive from one declaration. `calibrate_pro/__init__.py`
   declared it and twelve other files repeated it by hand, including a release-workflow

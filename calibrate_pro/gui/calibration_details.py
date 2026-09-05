@@ -244,7 +244,7 @@ class CalibrationProfileCard(QFrame):
                 self.lut_size_label.setText(f"{size_kb:.0f} KB")
                 self.lut_nodes_label.setText("33x33x33 (35,937 nodes)")
 
-                self.lut_status_label.setText("SAVED — apply confirmation required")
+                self.lut_status_label.setText("SAVED; apply confirmation required")
                 self.lut_status_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: 500;")
             else:
                 self.lut_file_label.setText("Not generated")
@@ -398,7 +398,7 @@ class CalibrationDetailsWidget(QWidget):
             manager = StartupManager()
             displays = manager.get_all_calibrations().values()
 
-            self.autoload_label.setText("Auto-Apply: Disabled — confirmation required")
+            self.autoload_label.setText("Auto-Apply: Disabled; confirmation required")
             self.autoload_label.setStyleSheet(f"color: {COLORS['warning']};")
 
             # Create card for each display

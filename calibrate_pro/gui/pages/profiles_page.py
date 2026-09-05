@@ -53,7 +53,7 @@ class ProfilesPage(QWidget):
     def _init_color_loader(self):
         """Keep profile application behind the confirmed actuator."""
         self.color_loader = None
-        self.global_status.setText("Preview only — confirmation required")
+        self.global_status.setText("Preview only; confirmation required")
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

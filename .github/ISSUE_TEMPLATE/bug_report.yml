@@ -1,0 +1,90 @@
+name: Bug report
+description: Something behaved differently from what the interface said it would do.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `doctor --json` is the fastest way to tell a driver problem apart from a
+        product defect, so it is required below. It reports installed versions and
+        which capabilities are present. It probes no hardware and reads no display
+        identity, so it is safe to paste in public.
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Diagnostics
+      description: Output of `calibrate-pro doctor --json`, or `CalibrateProCLI.exe doctor --json` on a packaged install.
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it was installed
+      options:
+        - Windows installer (CalibratePro-Setup.exe)
+        - Portable ZIP
+        - pip install from source
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: What you did, and what the product did in response.
+      placeholder: |
+        1. Opened the DDC page and selected the second display
+        2. Moved brightness to 45 and pressed Preview
+        3. The panel changed brightness before I confirmed anything
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: displayed_value
+    attributes:
+      label: The value the product displayed
+      description: |
+        Paste the number or label exactly as it appeared, including any evidence
+        label beside it. A quantity that reads as a measurement when nothing was
+        measured is a defect in this product, so the wording matters more than the
+        number does.
+      placeholder: 'Measured white point: 6504 K, Duv 0.0000'
+    validations:
+      required: false
+
+  - type: textarea
+    id: display_hardware
+    attributes:
+      label: Display and connection
+      description: |
+        Model, connection (DisplayPort, HDMI, USB-C, built-in panel), and whether it
+        runs through a dock, KVM, or adapter. Report the serial number only if you
+        are willing to publish it; nothing here needs it.
+      placeholder: |
+        Dell U2723QE, DisplayPort from an RTX 4070, no dock
+    validations:
+      required: false
+
+  - type: textarea
+    id: journal
+    attributes:
+      label: Journal excerpt
+      description: |
+        Optional. `calibrate-pro diagnostics` names every file a support bundle would
+        carry, each with its digest, and writes nothing. `--bundle PATH` then publishes
+        exactly those bytes to that file path. Read what you are sending before you
+        send it; the journal is redacted, not empty.
+      render: text
+    validations:
+      required: false

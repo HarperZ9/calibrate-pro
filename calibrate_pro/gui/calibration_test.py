@@ -495,7 +495,7 @@ class CalibrationTestWindow(QMainWindow):
         self.monitor_combo.currentIndexChanged.connect(self.on_display_changed)
         monitor_layout.addWidget(self.monitor_combo)
 
-        self.status_label = QLabel("Preview only — confirmation is required to apply")
+        self.status_label = QLabel("Preview only; confirmation is required to apply")
         self.status_label.setStyleSheet("color: #4CAF50;")
         monitor_layout.addWidget(self.status_label)
 
@@ -755,7 +755,7 @@ class CalibrationTestWindow(QMainWindow):
         )
 
         if result:
-            self.status_label.setText("Preview staged — no display state changed")
+            self.status_label.setText("Preview staged; no display state changed")
             self.status_label.setStyleSheet("color: #4CAF50;")
         else:
             self.status_label.setText("Could not stage preview")
@@ -891,7 +891,7 @@ class CalibrationTestWindow(QMainWindow):
 
         # Clear only the in-memory proposal.
         self.gamma_ctrl.reset_display(self.current_display)
-        self.status_label.setText("Preview reset — no display state changed")
+        self.status_label.setText("Preview reset; no display state changed")
         self.status_label.setStyleSheet("color: #4CAF50;")
 
     def closeEvent(self, event):

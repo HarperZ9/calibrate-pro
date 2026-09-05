@@ -100,7 +100,7 @@
       </div>
       <div class="card">
         <h3>Sensorless Mode</h3>
-        <p>Build an estimated plan from panel characterization without claiming measured accuracy. Measured calibration is closed in 1.1, so every result this release produces is sensorless and labelled estimated.</p>
+        <p>Build an estimated plan from panel characterization without claiming measured accuracy. Measured calibration is closed in 2.0, so every result this release produces is sensorless and labelled estimated.</p>
       </div>
       <div class="card">
         <h3>Read-Only Monitoring</h3>
@@ -122,7 +122,7 @@
       <div class="step">
         <div class="step-num">2</div>
         <h3>Choose</h3>
-        <p>Select a calibration target. The characterized method is the one 1.1 offers; the measured method is present and disabled, and the window says why.</p>
+        <p>Select a calibration target. The characterized method is the one 2.0 offers; the measured method is present and disabled, and the window says why.</p>
       </div>
       <div class="step">
         <div class="step-num">3</div>
@@ -145,7 +145,7 @@
       <li><strong>OS:</strong> Windows 10 / 11</li>
       <li><strong>Python:</strong> 3.10+</li>
       <li><strong>GUI:</strong> PySide6</li>
-      <li><strong>Sensor:</strong> Not used in 1.1. The i1Display3 driver ships, and no surface opens it.</li>
+      <li><strong>Sensor:</strong> Not used in 2.0. The i1Display3 driver ships, and no surface opens it.</li>
     </ul>
   </div>
 </section>
@@ -170,7 +170,7 @@ calibrate-pro verify --target srgb_web
                             <span class="comment"># Sealed plan and its predicted accuracy</span>
 calibrate-pro diagnostics   <span class="comment"># What a support bundle would carry, with digests</span></pre>
       <p style="color: var(--muted); font-size: 0.85rem;">The headless session runs the same actions the window runs. It reads, it plans, and it publishes sealed bundles into a directory you name. It does not change display state. Accuracy figures from a sensorless plan are estimated, and the command prints that beneath them.</p>
-      <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, and <code>restore</code> are proposal-only in 1.1. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
+      <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, and <code>restore</code> are proposal-only in 2.0. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
     </div>
   </div>
 </section>

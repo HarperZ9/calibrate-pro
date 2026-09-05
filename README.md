@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v1.1.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
 </p>
 <!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
 
@@ -9,9 +9,9 @@
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
 
-[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE)
+[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![version](https://img.shields.io/badge/version-1.1.0-informational.svg)
+![version](https://img.shields.io/badge/version-2.0.0-informational.svg)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
 [![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
@@ -44,9 +44,23 @@ proposed by the window and by nothing else.
 - Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
 - Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
 
+### Reporting what you find
+
+Open a [bug report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=bug_report.yml)
+when the product did something other than what it said it would do, or a
+[display compatibility report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=display_report.yml)
+for what worked and what refused on a specific monitor. A control that failed closed on a panel
+advertising it is worth reporting; so is a number that reads as a measurement when nothing was
+measured, which is a defect in this product whatever the number says.
+
+Both forms ask for `calibrate-pro doctor --json`. It reports installed versions and which
+capabilities are present, probes no hardware, and reads no display identity. For a suspected
+vulnerability use [Security Advisories](https://github.com/HarperZ9/calibrate-pro/security/advisories/new)
+instead of a public issue.
+
 ## Current status
 
-- **Release:** Calibrate Pro 1.1.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
+- **Release:** Calibrate Pro 2.0.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
 - **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
 - **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
 - **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
@@ -57,7 +71,7 @@ proposed by the window and by nothing else.
 
 Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated; unavailable hardware or operating-system capabilities fail closed and are reported by `calibrate-pro doctor`.
 
-The 1.1.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
+The 2.0.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
 
 ### From source
 
@@ -101,9 +115,9 @@ calibrate-pro tray              # Open the read-only system tray
 calibrate-pro mcp               # Serve the MCP endpoint
 ```
 
-The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in neither half reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the window.
+The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in neither half reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 2.0: they do not mutate the display and instead direct the operator to preview and confirm through the window.
 
-See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v1.1.0/examples).
+See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.0/examples).
 
 ## How It Works
 
@@ -113,24 +127,24 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAG
 4. **Confirms** the exact plan with a one-use confirmation before the first write.
 5. **Applies** only supported operations after capturing restorable prior state; failures trigger verified compensation.
 6. **Verifies** the result and labels every performance value by evidence kind.
-7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 1.1.
+7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 2.0.
 
 ## Calibration Modes
 
 | Mode | Requires | Evidence |
 |------|----------|----------|
 | Sensorless | A characterized panel profile or EDID-derived inputs | Estimated; never presented as a measurement of the attached unit |
-| Measured | A supported colorimeter | Closed in 1.1. See below. |
+| Measured | A supported colorimeter | Closed in 2.0. See below. |
 
 Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
-**Measured calibration is closed in 1.1.** The action manifest declares `calibration.method.measured` and `verification.measured` disabled in the wheel and in the frozen binary alike, for the reason it prints when asked: measured calibration is disabled pending a distinct qualified measurement contract. No setting opens it. `calibrate-pro status --closed` reports it, the method control in the window is disabled rather than hidden, and `native-calibrate` and `refine` decline at the terminal and name that action. Everything 1.1 produces is sensorless, and it is labelled estimated.
+**Measured calibration is closed in 2.0.** The action manifest declares `calibration.method.measured` and `verification.measured` disabled in the wheel and in the frozen binary alike, for the reason it prints when asked: measured calibration is disabled pending a distinct qualified measurement contract. No setting opens it. `calibrate-pro status --closed` reports it, the method control in the window is disabled rather than hidden, and `native-calibrate` and `refine` decline at the terminal and name that action. Everything 2.0 produces is sensorless, and it is labelled estimated.
 
 ### Native USB colorimeter driver
 
 The package carries a USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display), which reads each unit's own calibration matrices from its EEPROM and needs no ArgyllCMS install. The device holds nine matrices for different display technologies, and the driver falls back to approximate constants when the EEPROM read fails.
 
-No surface in 1.1 opens it. It is the implementation measured calibration will use once that contract exists, and until then it is code the release ships rather than a capability an operator can reach. Nothing in the window or the terminal enumerates or opens a colorimeter, so no product screen reports a device that the session never observed.
+No surface in 2.0 opens it. It is the implementation measured calibration will use once that contract exists, and until then it is code the release ships rather than a capability an operator can reach. Nothing in the window or the terminal enumerates or opens a colorimeter, so no product screen reports a device that the session never observed.
 
 ## Supported Displays
 
@@ -205,7 +219,7 @@ powershell -File scripts/build_windows.ps1
 
 ## License
 
-FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE).
+FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE).
 
 ## For developers
 

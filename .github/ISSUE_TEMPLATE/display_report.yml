@@ -1,0 +1,78 @@
+name: Display compatibility report
+description: Report what this build could and could not do with a specific monitor.
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Display controls differ by monitor, driver, cable, and dock. A refusal is
+        often correct behavior rather than a defect, so these reports are useful
+        whether things worked or not. A report saying a control failed closed on a
+        panel that advertises it is worth as much as one saying everything worked.
+
+  - type: input
+    id: model
+    attributes:
+      label: Monitor model
+      placeholder: LG 27GP950-B
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection
+      options:
+        - DisplayPort
+        - HDMI
+        - USB-C / Thunderbolt
+        - Built-in laptop panel
+        - Through a dock or KVM
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Diagnostics
+      description: Output of `calibrate-pro doctor --json`. It probes no hardware and reads no display identity.
+      render: json
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: worked
+    attributes:
+      label: What worked
+      options:
+        - label: The display was detected
+        - label: The panel database named the model
+        - label: DDC/CI brightness read back a value
+        - label: A preview was produced
+        - label: An apply was accepted and the panel changed
+        - label: A verification pass ran
+
+  - type: textarea
+    id: refusals
+    attributes:
+      label: What refused, and in what words
+      description: |
+        Paste the refusal text as it appeared. The wording states which capability
+        was missing, and that is the part that identifies the cause.
+      placeholder: |
+        DWM LUT application unavailable: authoritative prior-state capture is not possible
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: wrong_values
+    attributes:
+      label: Any value that looked wrong
+      description: |
+        A number that reads as a measurement when nothing was measured, a panel
+        identified as the wrong model, or a quantity that did not change when the
+        display did. Include what the value was and what you believe it should be.
+    validations:
+      required: false

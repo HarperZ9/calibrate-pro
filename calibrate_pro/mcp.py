@@ -1,4 +1,4 @@
-"""mcp.py — Calibrate Pro over MCP stdio, a read-only catalog and doctor surface.
+"""mcp.py: Calibrate Pro over MCP stdio, a read-only catalog and doctor surface.
 
 An agent (or a Flywheel lane probe) drives Calibrate Pro's deterministic,
 device-free knowledge here: the calibration target presets, the characterized

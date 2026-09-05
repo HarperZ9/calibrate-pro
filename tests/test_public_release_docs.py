@@ -424,3 +424,46 @@ def test_the_headless_table_reader_reports_a_command_with_no_row() -> None:
 
     assert "detect" in documented
     assert table_commands(thinned, HEADLESS_HEADING) == documented - {"detect"}
+
+
+def _referenced_issue_templates(text: str) -> set[str]:
+    """Every issue form a document sends a reader to, by file name."""
+    return set(re.findall(r"issues/new[?]template=([A-Za-z0-9_.-]+[.]yml)", text))
+
+
+def test_every_issue_form_a_document_links_to_exists() -> None:
+    """A link to a template that is not there opens a blank form, and the report
+    arrives without the diagnostics the form would have required. Discussions was
+    linked from the template config while the repository had them switched off,
+    which is the same defect one layer along.
+    """
+    folder = ROOT / ".github" / "ISSUE_TEMPLATE"
+    present = {path.name for path in folder.glob("*.yml")} - {"config.yml"}
+
+    assert present, "the repository offers no issue forms"
+    for surface in PUBLIC_SURFACES:
+        text = (ROOT / surface).read_text(encoding="utf-8")
+        missing = _referenced_issue_templates(text) - present
+        assert missing == set(), f"{surface} links to issue forms that do not exist: {sorted(missing)}"
+
+
+def test_every_issue_form_requires_the_diagnostics_that_make_it_actionable() -> None:
+    """A report without `doctor --json` cannot tell a driver problem apart from a
+    defect here, so the field is required rather than suggested. The form also has
+    to keep saying what the command does and does not read, because that claim is
+    what makes pasting it into a public issue safe.
+    """
+    import yaml
+
+    folder = ROOT / ".github" / "ISSUE_TEMPLATE"
+    forms = sorted(path for path in folder.glob("*.yml") if path.name != "config.yml")
+
+    assert forms, "the repository offers no issue forms"
+    for path in forms:
+        body = yaml.safe_load(path.read_text(encoding="utf-8"))["body"]
+        doctor = [field for field in body if field.get("id") == "doctor"]
+        assert doctor, f"{path.name} does not ask for doctor output"
+        assert doctor[0]["validations"]["required"] is True, f"{path.name} does not require it"
+        described = doctor[0]["attributes"]["description"]
+        assert "doctor --json" in described
+        assert "no hardware" in described or "packaged" in described

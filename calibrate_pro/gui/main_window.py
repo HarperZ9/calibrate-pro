@@ -425,7 +425,7 @@ class MainWindow(QMainWindow):
     def _install_profile(self):
         path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
         if path:
-            self.status_label.setText(f"Selected: {Path(path).name} — confirmation required")
+            self.status_label.setText(f"Selected: {Path(path).name}; confirmation required")
             QMessageBox.information(
                 self,
                 "Profile Preview",
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
             )
 
     def _reset_gamma(self):
-        self.status_label.setText("Reset proposal ready — confirmation required")
+        self.status_label.setText("Reset proposal ready; confirmation required")
         QMessageBox.information(
             self,
             "Confirmation Required",

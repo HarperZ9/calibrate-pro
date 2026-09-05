@@ -10,7 +10,7 @@ from calibrate_pro.qt_runtime import configure_qt_api
 configure_qt_api()
 
 _EXPORTS: dict[str, tuple[str, str]] = {
-    # Active 1.1 shell.
+    # Active shell.
     "CalibrateProWindow": ("calibrate_pro.gui.app", "CalibrateProWindow"),
     # Historical main-window API.
     "MainWindow": ("calibrate_pro.gui.main_window", "MainWindow"),

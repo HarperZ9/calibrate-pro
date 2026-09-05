@@ -1,6 +1,6 @@
 # Architecture
 
-Calibrate Pro 1.1 separates color computation, workflow policy, user confirmation, and
+Calibrate Pro 2.0 separates color computation, workflow policy, user confirmation, and
 Windows display actuation. The central rule is simple: application-facing code can
 propose a display change, but only the confirmation coordinator and canonical Windows
 adapter can execute it.
@@ -107,7 +107,7 @@ become an observation of the attached display.
   publishes it as a support bundle when a path is given.
 - `list-targets`, `list-panels`, `info`, `hdr-status`, and `plugins`: read-only
   listings and diagnostics.
-- Tray and calibration guard: monitor-and-notify only in 1.1.
+- Tray and calibration guard: monitor-and-notify only in 2.0.
 
 Both frozen executables use `asInvoker`; the installer is per-user and lowest privilege.
 

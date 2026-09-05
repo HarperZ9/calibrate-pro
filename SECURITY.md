@@ -2,20 +2,20 @@
 
 ## Supported
 
-Calibrate Pro follows a rolling release. Until a 2.0 line exists, only the latest release
-on the default branch is supported for fixes.
+Calibrate Pro follows a rolling release. The latest release on the default branch is the
+only version that receives fixes. Earlier releases get no backports.
 
 ## Reporting a vulnerability
 
-Report suspected vulnerabilities privately via GitHub Security Advisories — the
-"Security" tab of this repository, then "Report a vulnerability". Do NOT open a public
+Report suspected vulnerabilities privately through GitHub Security Advisories. Open
+the "Security" tab of this repository, then "Report a vulnerability". Do NOT open a public
 issue for an unfixed vulnerability. Include the affected component and version, a
 reproduction, and the impact. The maintainer will acknowledge within a stated window and
 agree a disclosure date.
 
 ## Trust surface (the honest part)
 
-**Release status:** Calibrate Pro 1.1 routes confirmed display mutation through the
+**Release status:** Calibrate Pro 2.0 routes confirmed display mutation through the
 hardened transaction boundary described below. Repository-wide actuator-isolation,
 Windows ABI, cancellation, cleanup, and boundary tests passed for the release candidate;
 the residual limitations in this document remain part of the supported trust model. The
@@ -77,7 +77,7 @@ release trust surface is:
   `calibrate-pro-{sha256}.icc`. A future collector needs a separately designed
   authoritative all-display/all-scope scan.
 - **DWM LUT injection.** System-wide correction can install a 3D LUT via the Windows
-  Desktop Window Manager. The default 1.1 actuator refuses this write until an
+  Desktop Window Manager. The default 2.0 actuator refuses this write until an
   authoritative OS-level SDR/HDR prior-state reader exists; process-local LUT memory is
   not accepted as recovery evidence. VCGT gamma-ramp reads/writes remain separately gated
   through typed GDI32 DC calls, and an uncertain `DeleteDC` result fails closed.

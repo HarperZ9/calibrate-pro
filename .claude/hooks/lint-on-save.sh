@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lint on Save Hook — PostToolUse (Python projects)
+# Lint on Save Hook: PostToolUse (Python projects)
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | python -c "import sys,json; print(json.load(sys.stdin).get('tool_input',{}).get('file_path',''))" 2>/dev/null)

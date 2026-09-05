@@ -272,7 +272,7 @@ class SoftwareColorControlPage(QWidget):
     def _initialize(self):
         """Populate the read-only Qt display list."""
         self._refresh_displays()
-        self.status_label.setText("Ready — adjust sliders to build a preview")
+        self.status_label.setText("Ready; adjust sliders to build a preview")
         self.status_label.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
 
     def _refresh_displays(self):
@@ -340,7 +340,7 @@ class SoftwareColorControlPage(QWidget):
             self._pending_ramp = ramp
             self.status_label.setText(
                 f"Preview ready: Brightness={self._brightness:.2f}, "
-                f"Contrast={self._contrast:.2f}, Gamma={self._gamma:.2f} — confirmation required"
+                f"Contrast={self._contrast:.2f}, Gamma={self._gamma:.2f}; confirmation required"
             )
             self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
@@ -371,7 +371,7 @@ class SoftwareColorControlPage(QWidget):
         self._updating = False
 
         self._apply_settings()
-        self.status_label.setText("Default ramp preview ready — confirmation required")
+        self.status_label.setText("Default ramp preview ready; confirmation required")
         self.status_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _preset_default(self):

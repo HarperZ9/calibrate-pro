@@ -46,7 +46,7 @@ class CalibrationWorker(QThread):
             result = SimpleNamespace(
                 success=True,
                 preview_only=True,
-                message="Preview ready — no display settings were changed. Explicit confirmation is required.",
+                message="Preview ready; no display settings were changed. Explicit confirmation is required.",
                 plan=plan,
             )
             self.progress.emit("Preview ready", 1.0)

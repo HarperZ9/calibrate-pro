@@ -13,7 +13,7 @@ Create a new git worktree for isolated work. Main stays untouched.
 ## Steps
 
 1. Parse branch name (prefix with `task/` if no prefix given)
-2. Check for uncommitted changes — warn if dirty
+2. Check for uncommitted changes, warn if dirty
 3. Create worktree: `git worktree add -b <branch> ../<repo>--<branch> <base>`
 4. Report the directory path and next steps
 
