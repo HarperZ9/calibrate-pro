@@ -57,7 +57,13 @@ calibrate-pro gui
 
 The workflow is:
 
-1. **Detect** -- select a display and inspect available capabilities.
+1. **Detect** -- select a display and inspect available capabilities. The dashboard
+   states how the session characterized the display it holds. A display the bundled
+   panel database does not name is still detected, and it is held uncharacterized,
+   which closes every method and every target after it. **Use Generic Panel** supplies
+   a nominal sRGB characterization so the workflow opens, and the row then says the
+   plan describes a nominal panel rather than that unit. A display the database does
+   name keeps that control disabled, with the reason beside it.
 2. **Method** -- choose a target. Sensorless is the method this build offers; the
    measured method is shown disabled with the reason it is closed.
 3. **Preview** -- inspect the complete proposed DDC, ICC, VCGT, LUT, and output plan.
