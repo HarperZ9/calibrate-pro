@@ -90,6 +90,10 @@ PAGE_MENU_ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("&Settings", "Ctrl+6", "navigation.settings"),
 )
 
+#: Where the profiles page sits in the stack, read from the navigation table so
+#: the tray entry and the View menu cannot come to point at different pages.
+PROFILES_PAGE_INDEX = next(index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.profiles")
+
 #: The Export submenu in menu order: the name the session publishes a format
 #: under, and the label the entry carries.
 EXPORT_MENU_ENTRIES: tuple[tuple[str, str], ...] = (
@@ -221,97 +225,26 @@ def qt_display_snapshots() -> list[QtDisplaySnapshot]:
     return snapshots
 
 
-def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
+#: What the tray says before a detection pass has answered in this process.
+NOTHING_OBSERVED = "no displays read yet"
+
+
+def detection_sentence(summary: DetectionSummary) -> str:
+    """Name what one pass found, including the displays it turned down.
+
+    The status line and the tray both show this, so they cannot come to
+    describe the same pass differently.
     """
-    Create a tray icon variant with a specific accent color.
+    text = f"{len(summary.dashboard.displays)} display(s) detected"
+    rejected = len(summary.rejected)
+    if rejected:
+        text = f"{text}, {rejected} not usable"
+    return text
 
-    The accent color tints the calibration arcs, check mark, stand, and
-    frame to visually indicate calibration state:
-        - Green (#92ad7e): all displays calibrated
-        - Yellow (#e0c87a): calibration is stale (>30 days)
-        - Gray  (#bfb0a4): no calibration applied
-    """
-    icon = QIcon()
-    for size in [16, 24, 32, 48, 64, 128, 256]:
-        pm = QPixmap(size, size)
-        pm.fill(QColor(0, 0, 0, 0))
 
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        s = size
-        m = s * 0.08
-
-        # Monitor body
-        body_rect = (m, m, s - 2 * m, s * 0.72)
-        p.setPen(QPen(QColor(accent_color), max(1, s * 0.04)))
-        p.setBrush(QColor("#f7f3ee"))
-        p.drawRoundedRect(
-            int(body_rect[0]), int(body_rect[1]), int(body_rect[2]), int(body_rect[3]), s * 0.08, s * 0.08
-        )
-
-        # Screen area
-        inset = s * 0.14
-        screen_x = inset
-        screen_y = inset
-        screen_w = s - 2 * inset
-        screen_h = s * 0.52
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("#f0ebe4"))
-        p.drawRoundedRect(int(screen_x), int(screen_y), int(screen_w), int(screen_h), s * 0.04, s * 0.04)
-
-        # Single-color calibration arc
-        cx = s * 0.5
-        cy = s * 0.42
-        radius = s * 0.18
-
-        for angle_start in [200, 240, 280]:
-            pen = QPen(QColor(accent_color), max(1.5, s * 0.05))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            p.setPen(pen)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            arc_rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
-            p.drawArc(arc_rect, angle_start * 16, 35 * 16)
-
-        # Stand
-        stand_top = s * 0.76
-        stand_w = s * 0.22
-        stand_h = s * 0.08
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(accent_color))
-        stand = QPolygonF(
-            [
-                QPointF(cx - stand_w * 0.4, stand_top),
-                QPointF(cx + stand_w * 0.4, stand_top),
-                QPointF(cx + stand_w * 0.7, stand_top + stand_h),
-                QPointF(cx - stand_w * 0.7, stand_top + stand_h),
-            ]
-        )
-        p.drawPolygon(stand)
-
-        # Base
-        base_y = stand_top + stand_h
-        base_w = s * 0.30
-        p.drawRoundedRect(int(cx - base_w / 2), int(base_y), int(base_w), int(s * 0.04), s * 0.02, s * 0.02)
-
-        # Check mark in accent color
-        if size >= 24:
-            check_x = screen_x + screen_w * 0.65
-            check_y = screen_y + screen_h * 0.55
-            check_s = s * 0.14
-            pen = QPen(QColor(accent_color), max(1.5, s * 0.04))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            p.setPen(pen)
-            p.drawLine(
-                QPointF(check_x, check_y + check_s * 0.4), QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75)
-            )
-            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75), QPointF(check_x + check_s, check_y))
-
-        p.end()
-        icon.addPixmap(pm)
-
-    return icon
+def tray_tooltip(summary: DetectionSummary | None) -> str:
+    """The line the tray carries, for a session that has observed this much."""
+    return f"{APP_NAME} - {NOTHING_OBSERVED if summary is None else detection_sentence(summary)}"
 
 
 def make_app_icon() -> QIcon:
@@ -1626,6 +1559,10 @@ class CalibrateProWindow(QMainWindow):
         super().__init__()
         self.preview_mode = preview_mode
         self.service = service if service is not None else build_production_service()
+        #: The last detection pass this session answered with, or None before one
+        #: has run. The tray reports this and nothing else, so a window that has
+        #: observed nothing says so rather than describing an earlier run.
+        self._observed: DetectionSummary | None = None
         self._binder = ActionBinder(
             self.service,
             report=self.show_toast,
@@ -1657,13 +1594,6 @@ class CalibrateProWindow(QMainWindow):
             self._build_tray()
             self._restore_geometry()
             self._start_services()
-            self._update_tray_state()
-
-            # Periodic tray state refresh (every 60 seconds)
-            self._tray_timer = QTimer(self)
-            self._tray_timer.timeout.connect(self._update_tray_state)
-            self._tray_timer.start(60_000)
-
             self._prime_session()
             QTimer.singleShot(500, self._check_first_run)
 
@@ -2045,7 +1975,6 @@ class CalibrateProWindow(QMainWindow):
                 from calibrate_pro.gui.pages.calibrate import CalibratePage
 
                 cal_page = CalibratePage()
-                cal_page.calibration_completed.connect(self._update_tray_state)
                 self.stack.addWidget(cal_page)  # 1
             except (ImportError, AttributeError) as e:
                 logger.warning("Failed to load CalibratePage: %s", e)
@@ -2127,7 +2056,7 @@ class CalibrateProWindow(QMainWindow):
 
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self._app_icon)
-        self._tray.setToolTip(f"{APP_NAME} -- Display Calibration")
+        self._tray.setToolTip(tray_tooltip(self._observed))
 
         menu = QMenu()
         menu.setStyleSheet(STYLE)
@@ -2153,9 +2082,16 @@ class CalibrateProWindow(QMainWindow):
 
         menu.addSeparator()
 
-        # --- Switch Profile submenu ---
-        self._profile_submenu = menu.addMenu("Switch Profile")
-        self._rebuild_profile_submenu()
+        self._binder.bind(
+            "navigation.profiles",
+            menu_action(menu, "Profiles", self),
+            partial(self.service.perform_ui, "navigation.profiles", self._show_profiles),
+        )
+        self._binder.bind(
+            "tray.switch_profile",
+            menu_action(menu, "Switch Profile", self),
+            partial(self.service.unhandled, "tray.switch_profile"),
+        )
 
         menu.addSeparator()
 
@@ -2177,126 +2113,29 @@ class CalibrateProWindow(QMainWindow):
                 self.showNormal()
                 self.activateWindow()
 
-    def _update_tray_state(self):
-        """Check calibration status across all displays and update the tray icon/tooltip."""
-        if not hasattr(self, "_tray"):
-            return
+    def _update_tray_state(self) -> None:
+        """Say what this session observed, and nothing it has not observed.
 
-        try:
-            from datetime import datetime
+        The tray this replaces read a startup record for every display index,
+        took a LUT file existing on disk as a calibration, coloured the icon
+        green on the strength of that record, and called anything older than
+        thirty days stale. It reached the registry and the display enumerator
+        directly, once at startup and again every sixty seconds, so a window
+        whose session had detected nothing still carried a sentence about
+        calibration state.
 
-            from calibrate_pro.utils.startup_manager import StartupManager
-
-            mgr = StartupManager()
-            displays = qt_display_snapshots()
-
-            calibrated_count = 0
-            stale_count = 0
-            total = len(displays)
-            per_display_status = []
-
-            for i, d in enumerate(displays):
-                name = d.name
-                cal = mgr.get_display_calibration(i)
-                if cal and cal.lut_path and Path(cal.lut_path).exists():
-                    # Check age
-                    is_stale = False
-                    if cal.last_calibrated:
-                        try:
-                            cal_dt = datetime.fromisoformat(cal.last_calibrated)
-                            age_days = (datetime.now() - cal_dt).days
-                            if age_days > 30:
-                                is_stale = True
-                        except (ValueError, TypeError):
-                            pass
-                    if is_stale:
-                        stale_count += 1
-                        per_display_status.append(f"{name}: stale")
-                    else:
-                        calibrated_count += 1
-                        per_display_status.append(f"{name}: calibrated")
-                else:
-                    per_display_status.append(f"{name}: not calibrated")
-
-            # Determine icon color and tooltip
-            if total == 0:
-                icon_color = C.TEXT3
-                tooltip = f"{APP_NAME} - No displays detected"
-            elif calibrated_count == total:
-                icon_color = C.GREEN
-                tooltip = f"{APP_NAME} - All displays calibrated"
-            elif (
-                stale_count > 0 and (calibrated_count + stale_count) == total or calibrated_count > 0 or stale_count > 0
-            ):
-                icon_color = C.YELLOW
-                tooltip = f"{APP_NAME} - {', '.join(per_display_status)}"
-            else:
-                icon_color = C.TEXT3
-                tooltip = f"{APP_NAME} - No calibration applied"
-
-            self._tray.setIcon(make_tray_icon(icon_color))
-            self._tray.setToolTip(tooltip)
-
-        except (ImportError, OSError, AttributeError) as e:
-            logger.debug("Could not update tray state: %s", e)
-            # Fall back to default icon
-            self._tray.setIcon(make_tray_icon(C.TEXT3))
-            self._tray.setToolTip(f"{APP_NAME} - Display Calibration")
-
-    def _rebuild_profile_submenu(self):
-        """Populate the tray 'Switch Profile' submenu with available profiles."""
-        if not hasattr(self, "_profile_submenu"):
-            return
-        self._profile_submenu.clear()
-
-        cal_dir = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
-        if not cal_dir.exists():
-            no_act = QAction("No profiles found", self)
-            no_act.setEnabled(False)
-            self._profile_submenu.addAction(no_act)
-            return
-
-        # Find all .cube files
-        cube_files = sorted(cal_dir.glob("*.cube"))
-        if not cube_files:
-            no_act = QAction("No profiles found", self)
-            no_act.setEnabled(False)
-            self._profile_submenu.addAction(no_act)
-            return
-
-        # Determine currently active profile stem
-        active_stem = None
-        try:
-            from calibrate_pro.utils.startup_manager import StartupManager
-
-            mgr = StartupManager()
-            cal = mgr.get_display_calibration(0)
-            if cal and cal.lut_path:
-                active_stem = Path(cal.lut_path).stem
-        except (ImportError, OSError, AttributeError):
-            pass
-
-        for cube in cube_files:
-            name = cube.stem.replace("_", " ").replace("-", " \u2014 ", 1)
-            act = QAction(name, self)
-            act.setCheckable(True)
-            if active_stem and cube.stem == active_stem:
-                act.setChecked(True)
-            act.triggered.connect(lambda checked, p=str(cube): self._apply_tray_profile(p))
-            self._profile_submenu.addAction(act)
-
-    def _apply_tray_profile(self, cube_path: str):
-        """Stage a calibration profile selection without changing display state."""
-        profile_name = Path(cube_path).stem.replace("_", " ")
-        self.show_toast(
-            f"Preview selected: {profile_name}. Open Calibrate to review and confirm.",
-            level="info",
-        )
+        What the tray carries now is the detection pass the session last
+        answered with, in the same words the status line uses. A calibration
+        applied in an earlier run is not reported: nothing in this process has
+        observed it, and the tray is not the place to state a result no action
+        produced.
+        """
+        tray = getattr(self, "_tray", None)
+        if tray is not None:
+            tray.setToolTip(tray_tooltip(self._observed))
 
     def _quit(self):
         self._stop_services()
-        if hasattr(self, "_tray_timer"):
-            self._tray_timer.stop()
         if hasattr(self, "_tray"):
             self._tray.hide()
         QApplication.quit()
@@ -2353,6 +2192,17 @@ class CalibrateProWindow(QMainWindow):
         self.showNormal()
         self.activateWindow()
 
+    def _show_profiles(self) -> None:
+        """Bring the window forward on the page that lists published profiles.
+
+        The tray entry this replaces listed files it found by globbing a folder
+        no part of this application writes to, named each one by mangling its
+        filename, and applied nothing when clicked. What the tray can honestly
+        offer is the way to the page that reads published bundles back.
+        """
+        self._show_window()
+        self._shortcut_switch_page(PROFILES_PAGE_INDEX)
+
     # --- Bound action handlers ---
 
     def _detect_displays(self) -> ActionOutcome[DetectionSummary]:
@@ -2369,6 +2219,8 @@ class CalibrateProWindow(QMainWindow):
             for page in pages:
                 if page is not None:
                     page.render_session(outcome.value)
+            self._observed = outcome.value
+            self._update_tray_state()
         return outcome
 
     def _program_state(self) -> tuple[tuple[str, str], tuple[str, str]]:
@@ -2394,11 +2246,7 @@ class CalibrateProWindow(QMainWindow):
 
     def _report_detection(self, summary: DetectionSummary) -> None:
         """Say what the pass found, including the displays it turned down."""
-        text = f"{len(summary.dashboard.displays)} display(s) detected"
-        rejected = len(summary.rejected)
-        if rejected:
-            text = f"{text}, {rejected} not usable"
-        self._status.setText(text)
+        self._status.setText(detection_sentence(summary))
 
     def _export_format(self, export_name: str) -> "ActionOutcome[ExportBundle] | None":
         """Publish one generated format into a directory the operator chooses.
