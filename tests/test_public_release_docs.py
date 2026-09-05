@@ -77,16 +77,17 @@ def test_usage_guide_matches_the_1_1_command_and_privilege_contract() -> None:
 
 
 def test_the_usage_guide_lists_exactly_the_names_this_build_declines() -> None:
-    """The block of legacy names is read back off the dispatcher that declines them.
+    """The block of declined names is read back off the dispatcher that declines them.
 
     It was a hand-kept list, and it named five commands that run now. A guide that
     tells an operator a working command exits 2 reads as a reason not to try it,
-    which is the failure this catches rather than a typo in a table.
+    which is the failure this catches rather than a typo in a table. It also missed
+    a name going the other way, when `patterns` stopped opening its viewer.
     """
     from calibrate_pro.main import _CONFIRMATION_COMMANDS
 
     text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
-    section = text.split("## Proposal-only legacy commands", 1)[1]
+    section = text.split("## Commands this build declines", 1)[1]
     listed = section.split("```text", 1)[1].split("```", 1)[0]
 
     assert set(listed.split()) == set(_CONFIRMATION_COMMANDS)

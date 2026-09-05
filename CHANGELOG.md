@@ -24,6 +24,13 @@
 - Corrected the public documentation. `detect`, `status`, `verify`, `generate-profiles`,
   and `profiles` were documented as proposal-only names that exit 2, which they no longer
   are.
+- Stopped `patterns` from opening a fullscreen viewer. The manifest declares
+  `patterns.open` disabled, the window routes it through the resolver, and the frozen
+  binary does not ship the name, so the developer command line now declines it in the
+  same words rather than being the one surface that acts.
+- Gated the declared calibration presets against the table a session selects from. A
+  preset declared without an entry there inherited a refusal naming conditions the
+  session already met, which reads as a fault in the session.
 
 ## v1.1.0 (2026-07-11)
 

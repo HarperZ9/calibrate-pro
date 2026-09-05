@@ -84,7 +84,6 @@ exits 2, rather than reporting it as a name that does not exist.
 | `calibrate-pro list-panels` | List stored characterized-panel profiles |
 | `calibrate-pro info <panel>` | Show one stored characterization |
 | `calibrate-pro hdr-status` | Query the operating-system HDR state |
-| `calibrate-pro patterns [--display N]` | Show visual test patterns |
 | `calibrate-pro plugins [--plugin-dir PATH]` | List discovered plugin metadata |
 | `calibrate-pro tray` | Launch the read-only tray monitor |
 | `calibrate-pro gui` | Launch the main preview-and-confirm workflow |
@@ -134,16 +133,17 @@ digests from the bytes on disk, so a bundle whose files changed is reported as `
 and the run exits 1. A path with nothing at it is refused with exit code 2 instead of
 being counted as a directory holding no bundles.
 
-## Proposal-only legacy commands
+## Commands this build declines
 
-These names are retained so an older script fails safely rather than appearing to work:
+Most of these are retained so an older script fails safely rather than appearing to
+work. `patterns` is a current name whose action this build has not qualified:
 
 ```text
 auto                 calibrate             ddc-calibrate
 ddc-info             disable-startup       enable-startup
 export-panel         import-panel          match
-native-calibrate     refine                restore
-uniformity
+native-calibrate     patterns              refine
+restore              uniformity
 ```
 
 Each returns exit code 2 without changing display state. A name with a declared action

@@ -24,9 +24,14 @@ from calibrate_pro.commands.catalog import banner, list_panels, list_targets, pa
 #: What a declined command exits with, matching the session driver.
 REFUSED = 2
 
-#: Legacy names whose work is one declared action this build has not qualified.
-#: Pairing them is what lets a refusal cite the resolver rather than restate a
-#: policy, which would give the same decision two places to drift from.
+#: Names whose work is one declared action this build has not qualified. Pairing
+#: them is what lets a refusal cite the resolver rather than restate a policy,
+#: which would give the same decision two places to drift from.
+#:
+#: 'patterns' is here for that reason rather than as a name from an earlier
+#: release. The window routes patterns.open through the resolver and the frozen
+#: binary does not ship the name at all, so a terminal that opened the viewer
+#: anyway was a second answer to one question about what this build performs.
 _DECLARED_REFUSALS = MappingProxyType(
     {
         "calibrate": "calibration.all",
@@ -37,6 +42,7 @@ _DECLARED_REFUSALS = MappingProxyType(
         "export-panel": "panel_profile.edid.create",
         "import-panel": "panel_profile.import",
         "native-calibrate": "calibration.method.measured",
+        "patterns": "patterns.open",
         "refine": "calibration.method.measured",
         "restore": "display.restore_defaults",
     }
@@ -45,7 +51,7 @@ _DECLARED_REFUSALS = MappingProxyType(
 #: Legacy names with no declared action behind them anywhere in this build.
 _UNBUILT_COMMANDS = frozenset({"auto", "match", "uniformity"})
 
-#: Every legacy name this build declines, which is what the MCP boundary gate
+#: Every name this build declines, which is what the MCP boundary gate
 #: walks to prove none of them is reachable as a tool.
 _CONFIRMATION_COMMANDS = frozenset(_DECLARED_REFUSALS) | _UNBUILT_COMMANDS
 
@@ -125,15 +131,6 @@ def cmd_tray(args: argparse.Namespace) -> int:
     return int(result or 0)
 
 
-def cmd_patterns(args: argparse.Namespace) -> int:
-    """Show visual test patterns; this does not mutate calibration state."""
-    from calibrate_pro.patterns.display import show_patterns
-
-    display = max(0, (args.display or 1) - 1)
-    show_patterns(display=display)
-    return 0
-
-
 def cmd_doctor(args: argparse.Namespace) -> int:
     """Run read-only installation and capability diagnostics."""
     from calibrate_pro.commands.doctor import run
@@ -167,8 +164,6 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("gui", help="Launch the unelevated calibration GUI")
     subparsers.add_parser("hdr", help="Launch the unelevated HDR target GUI")
     subparsers.add_parser("tray", help="Launch the read-only tray monitor")
-    patterns = subparsers.add_parser("patterns", help="Display visual test patterns")
-    patterns.add_argument("--display", "-d", type=int)
     plugins = subparsers.add_parser("plugins", help="List discovered plugins")
     plugins.add_argument("--plugin-dir")
     subparsers.add_parser("mcp", help="Serve read-only catalog + doctor over MCP stdio")
@@ -188,7 +183,6 @@ _HANDLERS = {
     "list-panels": list_panels,
     "list-targets": list_targets,
     "mcp": cmd_mcp,
-    "patterns": cmd_patterns,
     "plugins": cmd_plugins,
     "tray": cmd_tray,
 }

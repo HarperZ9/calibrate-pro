@@ -92,6 +92,28 @@ def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_ow
     assert main._UNTOUCHED in printed
 
 
+def test_the_pattern_viewer_is_declined_rather_than_opened(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Asking a terminal about patterns.open gets the answer the window gives.
+
+    This name opened a fullscreen viewer while the manifest declared patterns.open
+    disabled, the window routed the action through the resolver, and the frozen
+    binary did not ship the name. One question had two answers, and the surface
+    that acted was the one with no resolver in front of it.
+
+    The viewer module is checked for its absence afterwards, because a refusal
+    that had already imported it would read the same way in the captured output.
+    """
+    code = main.main(["patterns"])
+
+    printed = capsys.readouterr().out
+    assert code == main.REFUSED
+    assert "patterns.open" in printed
+    assert main._UNTOUCHED in printed
+    assert "calibrate_pro.patterns.display" not in sys.modules
+
+
 def test_a_name_with_nothing_behind_it_says_so_without_naming_an_action(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

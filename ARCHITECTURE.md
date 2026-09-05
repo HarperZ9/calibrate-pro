@@ -93,8 +93,8 @@ become an observation of the attached display.
 - `calibrate-pro doctor [--json]`: deterministic, read-only installation diagnostics.
 - `detect`, `status`, `verify`, `generate-profiles`, and `profiles`: the headless
   session, running the actions the window runs and writing only where it was told to.
-- `list-targets`, `list-panels`, `info`, `hdr-status`, `patterns`, and `plugins`:
-  read-only or visual-inspection utilities.
+- `list-targets`, `list-panels`, `info`, `hdr-status`, and `plugins`: read-only
+  listings and diagnostics.
 - Tray and calibration guard: monitor-and-notify only in 1.1.
 
 Both frozen executables use `asInvoker`; the installer is per-user and lowest privilege.

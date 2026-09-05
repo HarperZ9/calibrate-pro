@@ -47,7 +47,7 @@ proposed by the window and by nothing else.
 ## Current status
 
 - **Release:** Calibrate Pro 1.1.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
-- **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, patterns, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
+- **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
 - **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
 - **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
 
@@ -81,7 +81,6 @@ calibrate-pro list-targets      # List calibration targets
 calibrate-pro list-panels       # List characterized panel profiles
 calibrate-pro info <panel>      # Show stored characterization evidence
 calibrate-pro hdr-status        # Query Windows HDR state
-calibrate-pro patterns          # Display visual test patterns
 calibrate-pro gui               # Launch the calibration workflow
 ```
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 from dataclasses import fields, replace
+from importlib import resources
 
 import pytest
 
@@ -523,6 +524,35 @@ def test_preset_targets_are_exact_literals_and_hdr10_stays_disabled():
     for action_id in expected:
         assert registry.resolve(action_id, context).disposition is ActionDisposition.ENABLED
     assert registry.resolve("calibration.preset.hdr10", context).disposition is ActionDisposition.DISABLED
+
+
+def test_every_declared_preset_is_selectable_or_says_why_it_is_not():
+    """A declared preset is in the table, or the resolver names its own reason.
+
+    The four selectable presets share a manifest fallback naming what a session
+    needs before they open. A fifth preset declared without an entry in
+    PRESET_TARGETS would inherit that sentence and stay closed to a session that
+    already meets every condition it names, so an operator would read it as a
+    fault in their session rather than as a preset nobody wired up. hdr10 is the
+    shape this holds: declared, closed, and refused in words of its own.
+    """
+    payload = resources.files("calibrate_pro").joinpath("resources", "action-capabilities.json").read_bytes()
+    declared = {
+        record["action_id"]: record["unavailable_reason"]
+        for record in json.loads(payload)["actions"]
+        if record["action_id"].startswith("calibration.preset.")
+    }
+    registry = ActionRegistry.load_default()
+    context = _context()
+
+    assert set(PRESET_TARGETS) <= set(declared)
+    for action_id, fallback in sorted(declared.items()):
+        resolved = registry.resolve(action_id, context)
+        if action_id in PRESET_TARGETS:
+            assert resolved.disposition is ActionDisposition.ENABLED
+            continue
+        assert resolved.disposition is not ActionDisposition.ENABLED
+        assert resolved.reason != fallback
 
 
 @pytest.mark.parametrize(
