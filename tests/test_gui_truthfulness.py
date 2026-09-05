@@ -40,6 +40,12 @@ UNPERFORMED_OPERATION_CLAIMS = (
     "Profile installed successfully!",
     "Reading sensor...",
     "Measurement sequence complete!",
+    # Claimed by the old export handler, which showed a save dialog and then
+    # reported the chosen filename without writing anything to it.
+    "Exported: ",
+    # Claimed by the old Calibrate All handler, which set this label and did
+    # nothing else at all.
+    "Calibrating all displays...",
 )
 
 

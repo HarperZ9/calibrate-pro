@@ -17,6 +17,8 @@ SESSION_TRANSITION_REJECTED = "SESSION_TRANSITION_REJECTED"
 NO_SEALED_PLAN = "NO_SEALED_PLAN"
 NO_EXPORT_DIRECTORY = "NO_EXPORT_DIRECTORY"
 EXPORT_FAILED = "EXPORT_FAILED"
+NO_HANDLER = "NO_HANDLER"
+NOT_A_UI_ACTION = "NOT_A_UI_ACTION"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -77,6 +79,30 @@ def no_export_directory() -> ActionFailure:
     )
 
 
+def no_handler(action_id: str) -> ActionFailure:
+    """Report an action this composition offers no way to perform.
+
+    Every action in this state is hidden or disabled by the manifest, so the
+    runner refuses it before the operation runs. Raising here is what makes that
+    a checked guarantee: if a policy change ever enabled one of these, the
+    surface reports a refusal instead of appearing to work.
+    """
+    return policy_refusal(
+        NO_HANDLER,
+        f"This build has no way to perform {action_id}.",
+        "Use a build where this action is qualified.",
+    )
+
+
+def not_a_ui_action(action_id: str) -> ActionFailure:
+    """Refuse to run a side-effecting action through the interface-only path."""
+    return policy_refusal(
+        NOT_A_UI_ACTION,
+        f"{action_id} changes something outside the interface.",
+        "Perform this action through the session method that owns its effect.",
+    )
+
+
 def transition_rejected(reason: str) -> ActionFailure:
     """Report an illegal workflow transition using the rule's own wording."""
     return policy_refusal(SESSION_TRANSITION_REJECTED, reason, _COMPLETE_EARLIER_STEPS)
@@ -96,7 +122,9 @@ def export_failed() -> ActionFailure:
 __all__ = [
     "EXPORT_FAILED",
     "NO_DETECTION",
+    "NOT_A_UI_ACTION",
     "NO_EXPORT_DIRECTORY",
+    "NO_HANDLER",
     "NO_SEALED_PLAN",
     "SESSION_TRANSITION_REJECTED",
     "UNKNOWN_DISPLAY",
@@ -104,8 +132,10 @@ __all__ = [
     "incomplete_setup",
     "no_display_selected",
     "no_export_directory",
+    "no_handler",
     "no_sealed_plan",
     "no_such_asset",
+    "not_a_ui_action",
     "policy_refusal",
     "transition_rejected",
     "unknown_display",

@@ -149,12 +149,50 @@ class ExportDirectory:
     valid: bool
 
 
+@dataclass(frozen=True)
+class HdrDisplayState:
+    """What the last detection pass saw of one display's HDR switch."""
+
+    display_id: str
+    safe_label: str
+    #: True and False are the two answers a query returned. None means the query
+    #: did not run or did not answer for this display, which is not the same as
+    #: HDR being off and is never rendered as if it were.
+    hdr_enabled: bool | None
+
+    @property
+    def summary(self) -> str:
+        if self.hdr_enabled is None:
+            return "not reported"
+        return "HDR on" if self.hdr_enabled else "SDR"
+
+
+@dataclass(frozen=True)
+class HdrStatus:
+    """The HDR switch positions carried by the current dashboard snapshot.
+
+    Reading the stored snapshot rather than querying again is deliberate. This
+    action reports what the session already observed, so the answer on screen
+    matches the observation every other view was built from.
+    """
+
+    displays: tuple[HdrDisplayState, ...]
+    observed_utc: str
+
+    @property
+    def queried(self) -> bool:
+        """Report whether any display carried an answer at all."""
+        return any(entry.hdr_enabled is not None for entry in self.displays)
+
+
 __all__ = [
     "DetectionSummary",
     "DisplaySelection",
     "ExportDirectory",
     "FakeApplyResult",
     "GenerationResult",
+    "HdrDisplayState",
+    "HdrStatus",
     "MethodSelection",
     "PlanDecision",
     "PlanPreview",

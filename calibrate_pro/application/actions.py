@@ -276,6 +276,17 @@ class ActionRegistry:
             )
         return ResolvedAction(action_id, ActionDisposition.ENABLED, None, spec.handler)
 
+    def classification_of(self, action_id: str) -> ActionClassification | None:
+        """Report what kind of effect one action has, or None if unknown.
+
+        A surface reads this to apply its own narrowing rule, such as a preview
+        that performs nothing outside the interface. The classification is
+        source-controlled, so a rule written against it cannot be widened by
+        anything a surface does.
+        """
+        spec = self._specs_by_id.get(action_id)
+        return None if spec is None else spec.classification
+
     def _spec_for(self, action_id: str) -> ActionSpec | None:
         return self._specs_by_id.get(action_id)
 

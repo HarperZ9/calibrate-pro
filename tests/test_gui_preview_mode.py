@@ -68,12 +68,10 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         "_start_services",
         "_update_tray_state",
         "_check_first_run",
-        "_calibrate_all",
-        "_restore_defaults",
-        "_install_profile",
-        "_export",
-        "_test_patterns",
-        "_hdr_status",
+        "_prime_session",
+        "_detect_displays",
+        "_export_format",
+        "_show_hdr_status",
     ):
         monkeypatch.setattr(
             CalibrateProWindow,
@@ -137,6 +135,18 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         ):
             assert label in actions
             assert not actions[label].isEnabled()
+
+        # An action the session hides is removed rather than shown greyed out.
+        # A permanently disabled "Calibrate All" would still advertise a
+        # workflow this build does not have.
+        assert not actions["&Calibrate All"].isVisible()
+        assert buttons["Calibrate All"].isHidden()
+
+        # Every disabled control explains itself in the session's own words.
+        # Qt answers an empty tooltip with the entry's own text, so a reason is
+        # present only when the tooltip says something the label does not.
+        for label in ("&Restore Defaults", "&Install ICC Profile...", "&Test Patterns", "&HDR Status"):
+            assert actions[label].toolTip() not in ("", label)
 
         assert window.stack.count() == 6
         assert window.sidebar.isEnabled()

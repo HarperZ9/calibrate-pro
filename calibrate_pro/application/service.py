@@ -16,7 +16,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from calibrate_pro.application.actions import ResolvedAction
 from calibrate_pro.application.assets import AssetGenerator, ExportBundle
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.detection import DisplayDetector
@@ -25,12 +24,18 @@ from calibrate_pro.application.generation import generate_bundle
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.planning import target_for
 from calibrate_pro.application.prediction import predict_accuracy
-from calibrate_pro.application.refusals import no_sealed_plan, transition_rejected
+from calibrate_pro.application.refusals import (
+    no_display_selected,
+    no_sealed_plan,
+    transition_rejected,
+)
 from calibrate_pro.application.results import (
     DetectionSummary,
     DisplaySelection,
     ExportDirectory,
     GenerationResult,
+    HdrDisplayState,
+    HdrStatus,
     MethodSelection,
     PlanDecision,
     PlanPreview,
@@ -40,12 +45,13 @@ from calibrate_pro.application.results import (
 from calibrate_pro.application.runner import SessionActionRunner
 from calibrate_pro.application.selection import DENIED_CAPABILITIES, adopt, current_selection
 from calibrate_pro.application.session import SessionState
+from calibrate_pro.application.surface import SurfaceActions
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
 
 
-class FunctionalRecoveryService:
+class FunctionalRecoveryService(SurfaceActions):
     """One calibration session, driven one action at a time."""
 
     def __init__(
@@ -67,17 +73,11 @@ class FunctionalRecoveryService:
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 
-    # -- surface support ----------------------------------------------------
-
-    def resolve(self, action_id: str) -> ResolvedAction:
-        """Report what one action is right now, for rendering a control."""
-        return self._runner.resolve(action_id)
+    # -- session state, detection, and selection ----------------------------
 
     @property
     def stage(self) -> WorkflowStage:
         return self._state.stage
-
-    # -- detection and selection --------------------------------------------
 
     def detect(self) -> ActionOutcome[DetectionSummary]:
         return self._runner.run("display.detect", self._detect)
@@ -218,6 +218,26 @@ class FunctionalRecoveryService:
         state.verification_evidence = result.evidence
         self._transition(self._controller.verify_complete)
         return result
+
+    def hdr_status(self) -> ActionOutcome[HdrStatus]:
+        """Report the HDR switch positions the last detection pass observed."""
+        return self._runner.run("display.hdr_status", self._hdr_status)
+
+    def _hdr_status(self) -> HdrStatus:
+        dashboard = self._state.dashboard
+        if dashboard is None:
+            raise no_display_selected()
+        return HdrStatus(
+            displays=tuple(
+                HdrDisplayState(
+                    display_id=entry.platform_display_id,
+                    safe_label=entry.safe_label,
+                    hdr_enabled=entry.hdr_enabled,
+                )
+                for entry in dashboard.displays
+            ),
+            observed_utc=dashboard.refreshed_utc,
+        )
 
     # -- export -------------------------------------------------------------
 

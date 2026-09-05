@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, Heading, StatusDot, qt_display_snapshots
+from calibrate_pro.application.results import DetectionSummary
+from calibrate_pro.gui.app import C, Card, Heading, StatusDot
 from calibrate_pro.workflow import DDC_WRITE_CODES
 
 # Slider Stylesheet
@@ -123,8 +124,19 @@ def _make_slider_row(
 # DDC Control Page
 
 
+#: What the selector shows before any detection pass has been handed to it.
+NO_SESSION_ITEM = "No detection pass has run in this session"
+
+
 class DDCControlPage(QWidget):
-    """DDC/CI hardware control page."""
+    """DDC/CI staging surface, listing the displays the session observed.
+
+    Nothing on this page reaches a monitor. Brightness and the other allowlisted
+    controls are staged for a plan that a confirmed transaction applies, and
+    every other control reports that it sent no command. The display list is
+    handed in by the window rather than read here, so the page never opens a
+    display of its own.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -164,7 +176,7 @@ class DDCControlPage(QWidget):
 
         self._display_combo = QComboBox()
         self._display_combo.setMinimumWidth(300)
-        self._display_combo.addItem("Detecting displays...")
+        self._display_combo.addItem(NO_SESSION_ITEM)
         self._display_combo.currentIndexChanged.connect(self._on_display_changed)
         selector_layout.addWidget(self._display_combo, stretch=1)
 
@@ -518,25 +530,30 @@ class DDCControlPage(QWidget):
         layout.addStretch()
         scroll.setWidget(content)
 
-        # --- Initialize controller ---
-        self._init_controller()
+    # Monitor list
 
-    # Controller & Monitor Management
+    def render_session(self, summary: DetectionSummary) -> None:
+        """List the displays one detection pass observed, and only those.
 
-    def _init_controller(self):
-        """List Qt-observed displays without opening a DDC writer."""
+        The page used to enumerate displays itself while it was being built, so
+        its selector could name hardware that no action had looked at. The list
+        now comes from the session, which means an entry here stands for an
+        observation the session recorded.
+        """
         self._display_combo.clear()
         self._monitors = [
-            {"name": display.name, "display_id": display.device_name} for display in qt_display_snapshots()
+            {"name": display.safe_label, "display_id": display.platform_display_id}
+            for display in summary.dashboard.displays
         ]
+        self._status_dot.set_color(C.YELLOW)
         if not self._monitors:
-            self._display_combo.addItem("No displays detected")
-            self._status_dot.set_color(C.YELLOW)
+            self._current_monitor = None
+            self._display_combo.addItem("The last detection pass found no usable display")
+            self._status_label.setText("")
             return
         for monitor in self._monitors:
             self._display_combo.addItem(str(monitor["name"]))
         self._current_monitor = self._monitors[0]
-        self._status_dot.set_color(C.YELLOW)
         self._status_label.setText("Preview only — confirmation required before DDC/CI writes")
 
     def _on_display_changed(self, index: int):

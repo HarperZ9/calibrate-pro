@@ -13,7 +13,12 @@ import threading
 from collections.abc import Callable
 from typing import TypeVar
 
-from calibrate_pro.application.actions import ActionDisposition, ActionRegistry, ResolvedAction
+from calibrate_pro.application.actions import (
+    ActionClassification,
+    ActionDisposition,
+    ActionRegistry,
+    ResolvedAction,
+)
 from calibrate_pro.application.outcomes import (
     ActionBoundary,
     ActionError,
@@ -124,6 +129,10 @@ class SessionActionRunner:
         refused.
         """
         return self._registry.resolve(action_id, self._state.to_context())
+
+    def classification(self, action_id: str) -> ActionClassification | None:
+        """Report what kind of effect one action has, for a surface's own rule."""
+        return self._registry.classification_of(action_id)
 
     def require_enabled(self, action_id: str) -> None:
         """Refuse an action the manifest does not currently enable.
