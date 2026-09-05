@@ -8,10 +8,12 @@ Uses ArgyllCMS backend with device-specific optimizations.
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from calibrate_pro.hardware.argyll_backend import ArgyllBackend
 from calibrate_pro.hardware.colorimeter_base import (
+    CalibrationPatch,
     ColorMeasurement,
     DeviceInfo,
 )
@@ -302,49 +304,54 @@ class SpyderDriver(ArgyllBackend):
 
         return super().calibrate_device()
 
-    def analyze_display(self) -> dict | None:
+    def analyze_display(self, display_callback: Callable[[CalibrationPatch], None] | None = None) -> dict | None:
         """
-        Perform quick display analysis.
+        Measure white and black on the display and derive contrast from them.
 
-        Measures:
-        - White point
-        - Brightness
-        - Black level
-        - Contrast ratio
-        - Gamut coverage estimate
+        Args:
+            display_callback: Puts a patch on screen. Required. Without it the
+                two reads below land on whatever the screen already showed,
+                which is one measurement of one unchanged image reported twice
+                under two different labels, and a contrast ratio near 1.0 that
+                describes nothing about the panel.
 
-        Returns dictionary with analysis results.
+        Returns:
+            White luminance, white chromaticity, correlated color temperature,
+            black luminance, and the contrast ratio between the two reads.
+            None when the device is not connected or no display callback was
+            given.
         """
         if not self.is_connected:
             return None
 
-        results = {}
+        if display_callback is None:
+            self._report_progress(
+                "No display callback, so white and black cannot be put on screen and "
+                "neither read would be of the patch it is filed under.",
+                0.0,
+            )
+            return None
+
+        results: dict = {}
 
         self._report_progress("Analyzing display...", 0)
 
-        # Measure white
         self._report_progress("Measuring white point...", 0.2)
-        # Would need to display white patch first
+        display_callback(CalibrationPatch(1.0, 1.0, 1.0, 0, "White"))
         white = self.measure_spot()
         if white:
             results["white_luminance"] = white.luminance
             results["white_xy"] = (white.x, white.y)
             results["cct"] = white.cct
 
-        # Measure black
         self._report_progress("Measuring black level...", 0.4)
-        # Would need to display black patch
+        display_callback(CalibrationPatch(0.0, 0.0, 0.0, 1, "Black"))
         black = self.measure_spot()
         if black:
             results["black_luminance"] = black.luminance
 
-        # Calculate contrast
         if white and black and black.luminance > 0:
             results["contrast_ratio"] = white.luminance / black.luminance
-
-        # Measure primaries for gamut estimate
-        self._report_progress("Measuring primaries...", 0.6)
-        # Would measure R, G, B patches
 
         self._report_progress("Analysis complete", 1.0)
 
