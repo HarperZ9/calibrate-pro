@@ -250,30 +250,16 @@ class SpectrophotometerDriver(ArgyllBackend):
         CRI measures how accurately a light source renders colors
         compared to a reference illuminant.
 
-        Returns CRI value (0-100, 100 is perfect).
+        Raises:
+            NotImplementedError: always. See the message for what is missing.
         """
-        # Simplified CRI calculation
-        # Full implementation would use 8 or 14 test color samples
-
-        if not spectral_data:
-            return 0.0
-
-        # Calculate CCT first
-        X, Y, Z = self.spectral_to_xyz(spectral_data)
-        total = X + Y + Z
-        if total == 0:
-            return 0.0
-
-        x = X / total
-        y = Y / total
-
-        # McCamy's CCT approximation
-        n = (x - 0.3320) / (0.1858 - y)
-        449 * n**3 + 3525 * n**2 + 6823.3 * n + 5520.33
-
-        # For emission sources, CRI is typically high (90+)
-        # This is a placeholder - real calculation is complex
-        return 95.0
+        raise NotImplementedError(
+            "CRI is not computed. The method converted the spectrum to a chromaticity, "
+            "discarded the result, and returned a fixed 95.0 for every spectrum it was "
+            "given, which reads as a measured rendering index for the light under test. "
+            "CIE 13.3 needs the 8 or 14 test color samples and a reference illuminant "
+            "at the measured correlated color temperature."
+        )
 
     def calculate_tlci(self, spectral_data: dict[float, float]) -> float:
         """
@@ -281,10 +267,14 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         TLCI measures color accuracy for video/broadcast applications.
 
-        Returns TLCI value (0-100).
+        Raises:
+            NotImplementedError: always. See the message for what is missing.
         """
-        # Placeholder - TLCI calculation requires camera response data
-        return 90.0
+        raise NotImplementedError(
+            "TLCI is not computed. The method returned a fixed 90.0 for every spectrum. "
+            "EBU Tech 3355 needs the standard camera spectral response and the display "
+            "model it scores against."
+        )
 
     def measure_reflective(self, reference_white: bool = True) -> ColorMeasurement | None:
         """
@@ -294,12 +284,20 @@ class SpectrophotometerDriver(ArgyllBackend):
 
         Args:
             reference_white: Whether to use white reference calibration
+
+        Raises:
+            NotImplementedError: when the device reports reflective capability.
+                Devices without it still return None.
         """
         if "reflective" not in (self.device_info.capabilities if self.device_info else []):
             return None
 
-        # Would use spotread with reflective mode
-        return self.measure_spot()
+        raise NotImplementedError(
+            "Reflective measurement is not wired up. The method returned an emissive "
+            "spot reading, which is a measurement of the display rather than of the "
+            "material in front of the instrument, under a name that says otherwise. "
+            "It needs spotread in reflective mode and the white reference step."
+        )
 
     def calibrate_device(self) -> bool:
         """

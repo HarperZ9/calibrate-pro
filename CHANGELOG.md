@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Stopped the fleet server reporting results for displays it never contacted. A calibration job
+  queued against a remote node ran a stub that waited a tenth of a second and returned a Delta E
+  mean of 1.2 with a pass flag, and the server stored that under the node id and marked the job
+  completed. There is no transport to a node, so nothing was measured anywhere. A fleet operator
+  reading the job record could not tell that apart from a reading an instrument took on the
+  remote display. All five remote operations now raise, naming the operation and the node, and
+  the job ends failed with the reason recorded against the node.
+- Stopped the ambient light sensors answering with a room level nobody sampled. The base sensor
+  class returned 300 lux at 6500 K, and the Windows sensor returned 300 lux whether or not a
+  sensor was present, while its initializer did nothing at all. The Windows.Devices.Sensors
+  binding is not written, so the Windows sensor now reports itself unavailable and refuses to
+  read, and the base class raises and points at the simulated sensor. `SimulatedSensor` is where
+  a stand-in value belongs, and it still returns one.
+- Stopped the spectrophotometer reporting rendering indices it does not compute. `calculate_cri`
+  converted the spectrum to a chromaticity, discarded the result, and returned 95.0 for every
+  spectrum it was handed. `calculate_tlci` returned 90.0 the same way. `measure_reflective`
+  returned an emissive spot reading, which measures the display rather than the material in front
+  of the instrument. All three now raise and name what is missing: the CIE 13.3 test color samples
+  and reference illuminant, the TLCI camera model, and spotread in reflective mode with its white
+  reference step. A device without the reflective capability still answers None.
+- Stopped the fleet server confirming profile pushes that never left the machine.
+  `_send_profile_to_node` built a PROFILE_PUSH message, dropped it, and returned True, so
+  `push_profile_to_nodes` reported success per node and `ProfileSyncManager.sync_all` listed the
+  package under `synced_profiles` with no sync errors. An operator reading that state concludes
+  the display is running the profile named there while it runs whatever it had before. The method
+  now returns False until a transport exists, and the sync record carries the failure per node.
 - Stopped dropping a display Windows still owns because its panel went dark. `enumerate_displays`
   walked the graphics adapters and reported only the monitor devices hanging off each one, so an
   adapter that reported no monitor device contributed nothing. That is a different condition from
