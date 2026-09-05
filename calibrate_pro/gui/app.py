@@ -62,7 +62,7 @@ from calibrate_pro.application.contracts import (
 )
 from calibrate_pro.application.detection import panel_key_from_provenance
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
-from calibrate_pro.application.results import DetectionSummary, HdrStatus, PlanPreview
+from calibrate_pro.application.results import DetectionSummary, DisplaySelection, HdrStatus, PlanPreview
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.gui.action_binding import ActionBinder, refusal_message
 from calibrate_pro.gui.add_display import AddDisplayDialog
@@ -92,6 +92,12 @@ PAGE_MENU_ENTRIES: tuple[tuple[str, str, str], ...] = (
 #: Where the profiles page sits in the stack, read from the navigation table so
 #: the tray entry and the View menu cannot come to point at different pages.
 PROFILES_PAGE_INDEX = next(index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.profiles")
+
+#: Where the dashboard sits, read from the same table for the same reason. The
+#: window repaints the characterization row when this page comes back into view.
+DASHBOARD_PAGE_INDEX = next(
+    index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.dashboard"
+)
 
 #: The Export submenu in menu order: the name the session publishes a format
 #: under, and the label the entry carries.
@@ -137,6 +143,37 @@ def characterization_text(characterization: PanelCharacterization) -> str:
     if key is not None:
         return f"Panel {key}"
     return f"Panel characterization: {characterization.provenance}"
+
+
+def characterization_note(selection: DisplaySelection | None) -> str:
+    """State how the session characterized the display it holds.
+
+    A card names the characterization of one observation. This names the
+    characterization of the session, which is a different thing in two cases
+    that matter. A matched panel whose record the session cannot name is
+    adopted as uncharacterized, and a session that took the generic path holds
+    that decision while the observation behind it still reads unknown. Reading
+    the observation here would show the operator a state the resolver was not
+    working from.
+    """
+    if selection is None:
+        return "No display is selected. Run a detection pass to select one."
+    kind = selection.characterization_kind
+    if kind is CharacterizationKind.UNKNOWN:
+        return (
+            "This display is not in the bundled panel database, so the session holds no description "
+            "of its primaries. Calibration methods and targets stay closed until a characterization "
+            "is chosen."
+        )
+    if kind is CharacterizationKind.EXPLICIT_GENERIC:
+        return (
+            "This session is using the generic characterization. It describes a nominal sRGB panel "
+            "rather than this unit, and every figure derived from it carries that provenance."
+        )
+    return (
+        f"Characterized from the bundled panel record {selection.panel_key}, which describes the "
+        "product rather than the unit on the desk."
+    )
 
 
 def chromaticity_point(pair: tuple[str, str] | None) -> tuple[float, float] | None:
@@ -722,6 +759,8 @@ class DashboardPage(QWidget):
         self._cards_layout.setSpacing(12)
         layout.addLayout(self._cards_layout)
 
+        layout.addWidget(self._build_characterization_row())
+
         # Sensor status
         self._sensor_layout = QVBoxLayout()
         layout.addLayout(self._sensor_layout)
@@ -749,6 +788,41 @@ class DashboardPage(QWidget):
             QTimer.singleShot(0, self._populate)
         else:
             self._populate()
+
+    def _build_characterization_row(self) -> QWidget:
+        """Build the row that says how the session characterized its display.
+
+        The row sits outside the cards layout because it survives a redraw, and
+        it is one row rather than one per card because the action behind it is
+        about the display the session selected. A per-card button would state a
+        disposition for a display the resolver was never asked about.
+
+        The starting sentence is the one a window that has detected nothing
+        should show. A preview says something else, because its cards come from
+        a bundled fixture rather than from a pass, so a sentence about a
+        selection would read as a claim about this machine.
+        """
+        card, row = Card.with_layout(QHBoxLayout, margins=(16, 12, 16, 12), spacing=12)
+
+        self._characterization_label = QLabel(
+            "These cards come from a bundled fixture. No session selected a display."
+            if self.preview_mode
+            else characterization_note(None)
+        )
+        self._characterization_label.setWordWrap(True)
+        self._characterization_label.setStyleSheet(f"background: transparent; font-size: 11px; color: {C.TEXT2};")
+        row.addWidget(self._characterization_label, 1)
+
+        # Enabled state and reason belong to the binder in the window that owns
+        # this page, which resolves them against the session.
+        self.use_generic_btn = QPushButton("Use Generic Panel")
+        self.use_generic_btn.setFixedHeight(32)
+        row.addWidget(self.use_generic_btn)
+        return card
+
+    def render_characterization(self, selection: DisplaySelection | None) -> None:
+        """Say how the session characterized the display it currently holds."""
+        self._characterization_label.setText(characterization_note(selection))
 
     def render_session(self, summary: DetectionSummary) -> None:
         """Show exactly what one detection pass observed, replacing the last."""
@@ -1383,6 +1457,18 @@ class CalibrateProWindow(QMainWindow):
             self.dashboard.calibrate_all_btn,
             partial(self.service.unhandled, "calibration.all"),
         )
+        # A display outside the bundled panel database is adopted uncharacterized,
+        # and every method and target after it requires a characterization, so
+        # without this control that display reached the Calibrate page and was
+        # refused by everything on it. The row is disabled in place rather than
+        # hidden, matching the disposition the manifest declares for it.
+        self._binder.bind(
+            "display.characterization.use_generic",
+            self.dashboard.use_generic_btn,
+            self.service.use_generic_characterization,
+            on_success=self.dashboard.render_characterization,
+            hides=False,
+        )
         self.stack.addWidget(self.dashboard)  # 0
 
         if self.preview_mode:
@@ -1582,6 +1668,11 @@ class CalibrateProWindow(QMainWindow):
         """Switch page with a subtle opacity fade transition."""
         if index == self.stack.currentIndex():
             return
+        if index == DASHBOARD_PAGE_INDEX:
+            # The Calibrate page can adopt a different display while the
+            # operator is on it, so the dashboard reads the session back rather
+            # than showing the selection it drew for the last one.
+            self._render_characterization()
         target = self.stack.widget(index)
         if target:
             try:
@@ -1744,8 +1835,21 @@ class CalibrateProWindow(QMainWindow):
                 if page is not None:
                     page.render_session(outcome.value)
             self._observed = outcome.value
+            self._render_characterization()
             self._update_tray_state()
         return outcome
+
+    def _render_characterization(self) -> None:
+        """Repaint the dashboard row from what the session currently holds.
+
+        A pass adopts a display on its own, so no outcome carries that adoption
+        out to be rendered, and the Calibrate page can adopt a different one
+        while the operator is looking elsewhere. Both are read back off the
+        session here rather than pushed from the surfaces that caused them.
+        """
+        page = getattr(self, "dashboard", None)
+        if page is not None:
+            page.render_characterization(self.service.selection)
 
     def _program_state(self) -> tuple[tuple[str, str], tuple[str, str]]:
         """Report the two services this process runs, for the dashboard to show.

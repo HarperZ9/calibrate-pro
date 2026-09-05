@@ -91,6 +91,23 @@ class FunctionalRecoveryService(
     def stage(self) -> WorkflowStage:
         return self._state.stage
 
+    @property
+    def selection(self) -> DisplaySelection | None:
+        """Describe the display this session holds, or None if it holds none.
+
+        Reading is not an action and nothing is journalled here. A surface needs
+        this because a detection pass adopts a display on its own: no control
+        performed that adoption, so no outcome carried the characterization out
+        to be rendered. Deriving it from the observation instead would put the
+        surface one step behind the session, which is the whole difficulty. A
+        matched panel the session cannot name is adopted as uncharacterized, and
+        a session that took the generic path holds a kind the observation never
+        carried.
+        """
+        if self._state.selected_display_id is None or self._state.dashboard is None:
+            return None
+        return current_selection(self._state)
+
     def detect(self) -> ActionOutcome[DetectionSummary]:
         return self._runner.run("display.detect", self._detect)
 
