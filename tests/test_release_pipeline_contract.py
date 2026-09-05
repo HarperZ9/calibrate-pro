@@ -18,7 +18,7 @@ def test_inno_is_per_user_and_version_is_injected() -> None:
     assert "PrivilegesRequired=lowest" in text
     assert r"DefaultDirName={localappdata}\Programs\Calibrate Pro" in text
     assert "#ifndef AppVersion" in text
-    assert '#define AppVersion "1.1.0"' not in text
+    assert '#define AppVersion "' not in text
     assert "runatstartup" not in text.lower()
 
 
@@ -31,7 +31,8 @@ def test_build_script_uses_hash_lock_canonical_spec_and_final_byte_order() -> No
     assert "Compress-Archive" not in text
     assert "release_artifacts.py" in text
     assert "--sdist --wheel --no-isolation" in text
-    assert "calibrate_pro-1.1.0.tar.gz" in text
+    assert "__version__" in text
+    assert "calibrate_pro-$productVersion.tar.gz" in text
     assert "scripts\\normalize_sdist.py" in text
     assert "Copy-Item -LiteralPath $wheel[0].FullName -Destination $releaseDir" in text
     assert "Copy-Item -LiteralPath $sdist[0].FullName -Destination $releaseDir" in text
@@ -111,9 +112,10 @@ def test_reproducibility_uses_two_isolated_unsigned_builds() -> None:
     assert text.count("-SkipInstaller") >= 2
     assert text.count("-SkipSourceProvenance") >= 2
     assert "staged-inventory.json" in text
-    assert "CalibratePro-1.1.0-win64.zip" in text
-    assert "calibrate_pro-1.1.0-py3-none-any.whl" in text
-    assert "calibrate_pro-1.1.0.tar.gz" in text
+    assert "__version__" in text
+    assert '$portableName = "CalibratePro-$productVersion-win64.zip"' in text
+    assert '$wheelName = "calibrate_pro-$productVersion-py3-none-any.whl"' in text
+    assert '$sdistName = "calibrate_pro-$productVersion.tar.gz"' in text
     assert "[switch]$KeepOnFailure" in text
     assert "$succeeded = $true" in text
     assert "$KeepOnFailure -and -not $succeeded" in text

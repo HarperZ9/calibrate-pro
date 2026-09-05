@@ -12,6 +12,8 @@ from types import SimpleNamespace
 import pytest
 
 import scripts.release_artifacts as release_artifacts
+from calibrate_pro import __version__
+from scripts.product_version import PORTABLE_NAME, SDIST_NAME
 from scripts.release_artifacts import (
     audit_analysis_toc,
     audit_staged_tree,
@@ -112,10 +114,10 @@ def synthetic_valid_stage(tmp_path: Path) -> tuple[Path, Path, dict[str, Path]]:
                 {
                     "id": "calibrate-pro",
                     "owner": "calibrate-pro",
-                    "version": "1.1.0",
+                    "version": __version__,
                     "license": "LicenseRef-FSL-1.1-MIT",
                     "notice_paths": ["LICENSE"],
-                    "provenance": [{"kind": "release_source", "name": "calibrate_pro-1.1.0.tar.gz"}],
+                    "provenance": [{"kind": "release_source", "name": SDIST_NAME}],
                 },
                 {
                     "id": "cpython",
@@ -242,7 +244,7 @@ def test_package_inventory_and_zip_use_post_sign_bytes(tmp_path: Path) -> None:
         "pyinstaller-bootloader",
     ]
     assert record["qt_component_ids"] == []
-    with zipfile.ZipFile(release / "CalibratePro-1.1.0-win64.zip") as archive:
+    with zipfile.ZipFile(release / PORTABLE_NAME) as archive:
         assert archive.read("CalibratePro/CalibratePro.exe") == b"signed-final-bytes"
 
 
@@ -293,7 +295,7 @@ def test_finalize_without_installer_hashes_every_completed_release_file(
     names = {line.split("  ", 1)[1] for line in checksum_lines}
     assert "build-receipt.json" in names
     assert "signature-inventory.json" in names
-    assert "CalibratePro-1.1.0-win64.zip" in names
+    assert PORTABLE_NAME in names
 
 
 def test_finalize_requires_expected_valid_timestamped_signer(

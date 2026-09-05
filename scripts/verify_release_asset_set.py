@@ -1,4 +1,4 @@
-"""Verify the exact, fully checksummed Calibrate Pro 1.1 GitHub asset set."""
+"""Verify the exact, fully checksummed Calibrate Pro GitHub asset set."""
 
 from __future__ import annotations
 
@@ -7,14 +7,19 @@ import hashlib
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
+try:  # imported as `scripts.verify_release_asset_set` from the test suite
+    from scripts.product_version import INSTALLER_NAME, PORTABLE_NAME, SDIST_NAME, WHEEL_NAME
+except ModuleNotFoundError:  # run as `python scripts/verify_release_asset_set.py`
+    from product_version import INSTALLER_NAME, PORTABLE_NAME, SDIST_NAME, WHEEL_NAME
+
 REQUIRED_RELEASE_ASSETS = frozenset(
     {
-        "CalibratePro-1.1.0-Setup.exe",
-        "CalibratePro-1.1.0-win64.zip",
+        INSTALLER_NAME,
+        PORTABLE_NAME,
+        WHEEL_NAME,
+        SDIST_NAME,
         "binary-provenance.json",
         "build-receipt.json",
-        "calibrate_pro-1.1.0-py3-none-any.whl",
-        "calibrate_pro-1.1.0.tar.gz",
         "component-inventory.json",
         "package-receipt.json",
         "pe-manifest-inventory.json",

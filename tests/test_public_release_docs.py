@@ -1,4 +1,4 @@
-"""Public release documentation must describe the 1.1 safety contract.
+"""Public release documentation must describe the shipped safety contract.
 
 Most of what is checked here is that a sentence is present. The last four are a
 different kind of check: they read a number or a list off the code and require
@@ -14,7 +14,14 @@ import json
 import re
 from pathlib import Path
 
+from calibrate_pro import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
+
+#: The release these pages describe. Derived, because a page that names a
+#: version the build no longer has is the drift this module exists to catch.
+VERSION = __version__
+SERIES = ".".join(__version__.split(".")[:2])
 
 #: The heading whose first fenced block a reader runs before anything else.
 TRY_IT_HEADING = "## Try it"
@@ -41,7 +48,7 @@ MEASURED_ACTIONS = frozenset({"calibration.method.measured", "verification.measu
 
 #: Said on a page where a reader will meet the measured mode. The wording differs
 #: per page; this is the part every one of them shares.
-CLOSURE_MARKER = "closed in 1.1"
+CLOSURE_MARKER = f"closed in {SERIES}"
 
 #: Reads as though buying the instrument is what stands between a reader and a
 #: measured result. It is not: both actions are disabled whatever is plugged in.
@@ -102,11 +109,12 @@ def frozen_features() -> dict[str, list[str]]:
 def test_readme_identifies_the_current_release_and_qt_binding() -> None:
     text = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert "version-1.1.0" in text
-    assert "Release:** Calibrate Pro 1.1.0" in text
+    assert f"version-{VERSION}" in text
+    assert f"Release:** Calibrate Pro {VERSION}" in text
     assert "PySide6" in text
     assert "PyQt6" not in text
-    assert 'src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v1.1.0/' in text
+    assert f'src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v{VERSION}/' in text
+    assert f"The {VERSION} Windows artifacts are not Authenticode-signed" in text
     assert "](LICENSE)" not in text
     assert "](USAGE.md)" not in text
 
@@ -143,20 +151,21 @@ def test_readme_names_both_nano_ips_models() -> None:
     assert "LG UltraGear 27GP850-B" in text
 
 
-def test_release_notes_are_for_1_1_and_name_the_evidence_boundary() -> None:
+def test_release_notes_are_for_this_release_and_name_the_evidence_boundary() -> None:
     text = (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
 
-    assert text.startswith("# Calibrate Pro v1.1.0\n")
+    assert text.startswith(f"# Calibrate Pro v{VERSION}\n")
+    assert f"The {VERSION} Windows artifacts are not Authenticode-signed" in text
     assert "Not measured" in text
     assert "PySide6" in text
     assert "PyQt6" not in text
     assert "not Authenticode-signed" in text
 
 
-def test_usage_guide_matches_the_1_1_command_and_privilege_contract() -> None:
+def test_usage_guide_matches_the_shipped_command_and_privilege_contract() -> None:
     text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
 
-    assert "Calibrate Pro 1.1" in text
+    assert f"Calibrate Pro {SERIES}" in text
     assert "calibrate-pro doctor --json" in text
     assert "returns exit code 2 without changing display state" in text
     assert "starts unelevated" in text
@@ -188,7 +197,7 @@ def test_the_usage_guide_lists_exactly_the_names_this_build_declines() -> None:
 def test_enterprise_readiness_describes_the_shipped_boundary() -> None:
     text = (ROOT / "docs" / "ENTERPRISE-READINESS.md").read_text(encoding="utf-8")
 
-    assert "Calibrate Pro 1.1" in text
+    assert f"Calibrate Pro {SERIES}" in text
     assert "FSL-1.1-MIT" in text
     assert "PySide6" in text
     assert "proposal-only" in text
@@ -222,7 +231,7 @@ def test_security_and_changelog_do_not_promise_unshipped_automation() -> None:
     assert "telos.display.calibration" not in changelog
 
 
-def test_public_site_matches_the_1_1_operator_and_evidence_boundaries() -> None:
+def test_public_site_matches_the_shipped_operator_and_evidence_boundaries() -> None:
     text = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
 
     assert "https://github.com/HarperZ9/calibrate-pro/releases" in text
@@ -338,7 +347,9 @@ def test_the_readme_does_not_offer_a_measured_mode_the_manifest_declares_disable
     policies = {policy for action in measured.values() for policy in (action["source_policy"], action["frozen_policy"])}
 
     text = readme()
-    says_closed = "**Measured calibration is closed in 1.1.**" in text and "No surface in 1.1 opens it." in text
+    says_closed = (
+        f"**Measured calibration is closed in {SERIES}.**" in text and f"No surface in {SERIES} opens it." in text
+    )
 
     assert says_closed is (policies == {"disabled"}), (
         f"README says closed={says_closed} while the manifest policies are {sorted(policies)}"

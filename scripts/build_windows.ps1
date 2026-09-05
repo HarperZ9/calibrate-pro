@@ -16,6 +16,12 @@ $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).ProviderP
 $toolchainPath = Join-Path $repoRoot 'packaging\toolchain-win64.json'
 $lockPath = Join-Path $repoRoot 'packaging\requirements-win64-py312.lock'
 $toolchain = Get-Content -Raw -LiteralPath $toolchainPath | ConvertFrom-Json
+# The version is declared once, in calibrate_pro/__init__.py. Read it rather
+# than repeating it, so a bump cannot leave this script naming the old build.
+$versionDeclaration = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'calibrate_pro\__init__.py')
+$versionMatch = [regex]::Match($versionDeclaration, '(?m)^__version__\s*=\s*"([^"]+)"')
+if (-not $versionMatch.Success) { throw 'calibrate_pro/__init__.py declares no __version__' }
+$productVersion = $versionMatch.Groups[1].Value
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
 $hostPython = if ([string]::IsNullOrWhiteSpace($env:CALIBRATE_PRO_RELEASE_PYTHON)) {
     $command = Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1
@@ -175,10 +181,10 @@ try {
         New-Item -ItemType Directory -Path $pythonDistDir | Out-Null
         & $releasePython -m build --sdist --wheel --no-isolation --outdir $pythonDistDir
         if ($LASTEXITCODE -ne 0) { throw 'Calibrate Python distribution build failed' }
-        $wheel = @(Get-ChildItem -LiteralPath $pythonDistDir -Filter 'calibrate_pro-1.1.0-*.whl')
-        $sdist = @(Get-ChildItem -LiteralPath $pythonDistDir -Filter 'calibrate_pro-1.1.0.tar.gz')
-        if ($wheel.Count -ne 1) { throw "Expected one Calibrate Pro 1.1.0 wheel; found $($wheel.Count)" }
-        if ($sdist.Count -ne 1) { throw "Expected one Calibrate Pro 1.1.0 sdist; found $($sdist.Count)" }
+        $wheel = @(Get-ChildItem -LiteralPath $pythonDistDir -Filter "calibrate_pro-$productVersion-*.whl")
+        $sdist = @(Get-ChildItem -LiteralPath $pythonDistDir -Filter "calibrate_pro-$productVersion.tar.gz")
+        if ($wheel.Count -ne 1) { throw "Expected one Calibrate Pro $productVersion wheel; found $($wheel.Count)" }
+        if ($sdist.Count -ne 1) { throw "Expected one Calibrate Pro $productVersion sdist; found $($sdist.Count)" }
         & $releasePython (Join-Path $repoRoot 'scripts\normalize_sdist.py') $sdist[0].FullName `
             --source-date-epoch $toolchain.source_date_epoch
         if ($LASTEXITCODE -ne 0) { throw 'Calibrate source distribution normalization failed' }
@@ -194,7 +200,7 @@ try {
             throw "Installed wheel resolved outside the locked environment: $resolvedFreezePackageRoot"
         }
         $env:CALIBRATE_PRO_FREEZE_PACKAGE_ROOT = $resolvedFreezePackageRoot
-        & $releasePython -I -c "import calibrate_pro; assert calibrate_pro.__version__ == '1.1.0'"
+        & $releasePython -I -c "import calibrate_pro; assert calibrate_pro.__version__ == '$productVersion'"
         if ($LASTEXITCODE -ne 0) { throw 'Isolated installed-wheel smoke failed' }
         if (-not $SkipSourceProvenance) {
             & $releasePython (Join-Path $repoRoot 'scripts\verify_source_provenance.py') `
@@ -269,16 +275,16 @@ try {
         $installer = $null
         if (-not $SkipInstaller) {
             $iscc = Resolve-InnoCompiler
-            & $iscc "/DAppVersion=1.1.0" "/DStagedDir=$stagedDir" "/DReleaseDir=$releaseDir" `
+            & $iscc "/DAppVersion=$productVersion" "/DStagedDir=$stagedDir" "/DReleaseDir=$releaseDir" `
                 (Join-Path $repoRoot 'installer\CalibratePro.iss')
             if ($LASTEXITCODE -ne 0) { throw 'ISCC.exe installer build failed' }
-            $installer = Join-Path $releaseDir 'CalibratePro-1.1.0-Setup.exe'
+            $installer = Join-Path $releaseDir "CalibratePro-$productVersion-Setup.exe"
             Sign-One $installer
         }
 
         [ordered]@{
             schema_version = 1
-            version = '1.1.0'
+            version = $productVersion
             toolchain = $toolchain
             unsigned = [bool]$Unsigned
             installer_skipped = [bool]$SkipInstaller

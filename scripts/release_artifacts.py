@@ -15,9 +15,12 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+try:  # imported as `scripts.release_artifacts` from the test suite
+    from scripts.product_version import PORTABLE_NAME, SDIST_NAME
+except ModuleNotFoundError:  # run as `python scripts/release_artifacts.py`
+    from product_version import PORTABLE_NAME, SDIST_NAME
+
 MAXIMUM_BYTES = 350 * 1024 * 1024
-PRODUCT_VERSION = "1.1.0"
-PORTABLE_NAME = f"CalibratePro-{PRODUCT_VERSION}-win64.zip"
 _NATIVE_SUFFIXES = {".dll", ".exe", ".pyd"}
 _FORBIDDEN_PATH_PARTS = {
     "_internal/ada92cb5d92a588d1b93__mypyc",
@@ -338,8 +341,8 @@ def _component_catalog(
                 raise RuntimeError(f"source provenance missing for component {component_id}: {name}")
             if kind == "binary" and name not in binary_names:
                 raise RuntimeError(f"binary provenance missing for component {component_id}: {name}")
-            if kind == "release_source" and (name != "calibrate_pro-1.1.0.tar.gz" or entry["owner"] != "calibrate-pro"):
-                raise RuntimeError("release_source is restricted to calibrate-pro and calibrate_pro-1.1.0.tar.gz")
+            if kind == "release_source" and (name != SDIST_NAME or entry["owner"] != "calibrate-pro"):
+                raise RuntimeError(f"release_source is restricted to calibrate-pro and {SDIST_NAME}")
             provenance.append({"kind": str(kind), "name": name})
             seen_references.add(key)
         if entry["owner"] == "calibrate-pro" and not any(

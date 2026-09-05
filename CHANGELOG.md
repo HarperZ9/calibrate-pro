@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Made the release version derive from one declaration. `calibrate_pro/__init__.py`
+  declared it and twelve other files repeated it by hand, including a release-workflow
+  gate that compared the pushed tag against the literal `v1.1.0` and would have refused
+  to ship any other version. The build scripts, the asset-set verifier, the workflow and
+  the tests now read the declaration: `scripts/product_version.py` parses it for Python
+  callers and the two PowerShell scripts read it with the same pattern. What cannot
+  derive, which is prose, badge URLs, the component lock and the dispatch default tag,
+  is checked against the declaration by `tests/test_version_pins_name_this_release.py`,
+  so a bump that misses a file fails a test rather than shipping a page that names a
+  release the build did not produce. The derivation was proved against 1.1.0 before the
+  version moved, so a passing gate is not one that matches nothing.
+
 - Removed a calibration-quality claim the repo does not measure. The EDID profiling path
   logged "This provides significantly better calibration than generic sRGB fallback" for
   every display it profiled from EDID, and `create_from_edid` repeated the claim in its

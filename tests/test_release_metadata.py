@@ -29,7 +29,9 @@ def test_pyproject_reads_version_dynamically() -> None:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'dynamic = ["version"]' in text
     assert 'version = {attr = "calibrate_pro.__version__"}' in text
-    assert '\nversion = "1.1.0"' not in text
+    # A static `version` beside `dynamic` breaks the build backend, and the
+    # failure mode is a wheel named after whichever one the tooling read first.
+    assert "version" not in tomllib.loads(text)["project"]
 
 
 def test_no_independent_application_version_assignment() -> None:
