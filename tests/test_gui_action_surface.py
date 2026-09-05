@@ -33,6 +33,34 @@ from tests.fake_acceptance_support import MANIFEST_NAME, PRESET_ID, journal_reco
 CUBE_EXPORT = ".cube (Resolve / dwm_lut)"
 CALIBRATE_ALL = "&Calibrate All"
 
+#: The action behind the live readout the dashboard used to offer.
+LIVE_SENSOR_ACTION = "measurement.live.toggle"
+
+#: Surface prefix the manifest uses for controls that live on the calibrate page.
+CALIBRATE_SURFACE = "calibrate."
+
+#: Declared with a calibrate-page surface and given no control on that page.
+#: The action is conditional, so a session could enable it, and this build
+#: presents nothing that reaches it. The four presets set every field of a
+#: target between them, and a custom correlated colour temperature has no preset
+#: behind it, so a control here would submit a number the page invented rather
+#: than one the session holds. The null is recorded rather than closed by
+#: inventing the control that would make the two sets match.
+DECLARED_WITHOUT_A_CONTROL = frozenset({"calibration.target.custom_cct"})
+
+
+def calibrate_page_actions() -> set[str]:
+    """Every action the manifest places on the calibrate page."""
+    from calibrate_pro.application.actions import ActionRegistry
+
+    surfaces_by_action = ActionRegistry.load_default().surfaces_by_action
+    return {
+        action_id
+        for action_id, surfaces in surfaces_by_action.items()
+        if any(surface.startswith(CALIBRATE_SURFACE) for surface in surfaces)
+    }
+
+
 #: What the bundled fixture display resolves to once the session has adopted it.
 FIXTURE_LABEL = "Display - FAKE-ACCEPTANCE-PANEL"
 FIXTURE_PANEL_KEY = "PG27UCDM"
@@ -252,11 +280,69 @@ def test_the_sensor_row_reports_the_pass_rather_than_opening_the_device(window: 
     Opening the device here to recover a product name would put a second,
     unjournaled instrument read behind a label the session never produced.
     """
-    from calibrate_pro.gui.app import LiveSensorCard, SensorCard
+    from calibrate_pro.gui import app
+    from calibrate_pro.gui.app import SensorCard
 
     assert window.findChild(SensorCard) is not None
-    assert window.findChild(LiveSensorCard) is None
     assert stat_value(window, "_stat_sensor") == "Not detected"
+    assert not hasattr(app, "LiveSensorCard")
+
+
+def test_the_dashboard_offers_no_control_for_a_readout_the_manifest_hides(window: object) -> None:
+    """A hidden action gets no button, whatever a page could do without one.
+
+    A card under the sensor row held a Start button that opened the colorimeter
+    over raw HID and polled it every 800ms, painting each reply as luminance,
+    correlated colour temperature and tristimulus values. It had no evidence
+    kind, no receipt and no journal entry, and the manifest had already declared
+    the action behind it hidden until its workflow is specified.
+
+    The manifest's own policy is read here rather than restated. A build that
+    specifies that workflow and opens the action will fail this test, which is
+    the point at which a control belongs on the page again.
+    """
+    from calibrate_pro.application.actions import ActionDisposition, ActionRegistry
+
+    resolved = window.service.resolve(LIVE_SENSOR_ACTION)
+    assert resolved.disposition is ActionDisposition.HIDDEN
+    assert LIVE_SENSOR_ACTION in ActionRegistry.load_default().action_ids
+    assert not [binding for binding in window._binder.bindings if binding.action_id == LIVE_SENSOR_ACTION]
+
+
+def calibrate_bindings(window: object) -> list[object]:
+    """Every binding the window holds for an action shown on the calibrate page."""
+    declared = calibrate_page_actions()
+    return [binding for binding in window._binder.bindings if binding.action_id in declared]
+
+
+def test_every_calibrate_control_stands_for_a_declared_action(window: object) -> None:
+    """Read in both directions: no control without an action, none left unbound.
+
+    One direction alone lets a page drift. Checking only that each control has
+    an action permits a declared surface to go unbuilt and unnoticed, and
+    checking only that each action has a control invites a control invented to
+    satisfy the count. The exception is written out with its reason instead.
+    """
+    bound = {binding.action_id for binding in calibrate_bindings(window)}
+
+    assert bound == calibrate_page_actions() - DECLARED_WITHOUT_A_CONTROL
+
+
+def test_the_preset_buttons_carry_a_label_for_every_target_the_session_holds(window: object) -> None:
+    """The label table and the target table are two halves of one list.
+
+    A preset in the target table with no label is drawn under its action id. A
+    label with no target is a button that names a preset no session can be set
+    to. HDR10 is the deliberate third case: it is declared and labelled with no
+    target behind it, because the page presents it closed rather than leaving a
+    gap where an operator would look for it.
+    """
+    from calibrate_pro.application.actions import PRESET_TARGETS
+    from calibrate_pro.gui.pages.calibrate import HDR_PRESET_ACTION, PRESET_LABELS
+
+    assert set(PRESET_LABELS) == set(PRESET_TARGETS) | {HDR_PRESET_ACTION}
+    assert HDR_PRESET_ACTION not in PRESET_TARGETS
+    assert set(PRESET_LABELS) <= calibrate_page_actions()
 
 
 def test_the_window_reports_services_the_page_is_not_allowed_to_read(window: object) -> None:

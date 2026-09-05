@@ -70,6 +70,7 @@ from calibrate_pro.application.results import DetectionSummary, HdrStatus
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.gui.action_binding import ActionBinder, refusal_message
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+from calibrate_pro.workflow import CalibrationMethod
 
 APP_NAME = "Calibrate Pro"
 APP_ORG = "Build Universe"
@@ -638,106 +639,6 @@ class SensorCard(Card):
             text = QLabel("No colorimeter detected")
             text.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
         layout.addWidget(text, stretch=1)
-
-
-class LiveSensorCard(Card):
-    """Live colorimeter readout with auto-updating XYZ, luminance, CCT."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(90)
-        self._driver = None
-        self._timer = None
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
-
-        # Header
-        header = QHBoxLayout()
-        self._title = QLabel("Colorimeter -- Live Readout")
-        self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.GREEN_HI};")
-        header.addWidget(self._title)
-        header.addStretch()
-
-        self._toggle_btn = QPushButton("Start")
-        self._toggle_btn.setFixedSize(60, 24)
-        self._toggle_btn.setStyleSheet("font-size: 10px; padding: 2px 8px;")
-        self._toggle_btn.clicked.connect(self._toggle_live)
-        header.addWidget(self._toggle_btn)
-        layout.addLayout(header)
-
-        # Readout row
-        readings = QHBoxLayout()
-        readings.setSpacing(24)
-
-        self._lum_stat = Stat("Luminance", "--", C.TEXT)
-        self._cct_stat = Stat("CCT", "--", C.TEXT)
-        self._xyz_label = QLabel("X -- Y -- Z --")
-        self._xyz_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT2}; font-family: 'Cascadia Code', 'Consolas', monospace;"
-        )
-
-        readings.addWidget(self._lum_stat)
-        readings.addWidget(self._cct_stat)
-        readings.addWidget(self._xyz_label, stretch=1)
-        layout.addLayout(readings)
-
-        self._running = False
-
-    def _toggle_live(self):
-        if self._running:
-            self._stop_live()
-        else:
-            self._start_live()
-
-    def _start_live(self):
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            self._driver = I1D3Driver()
-            if not self._driver.open():
-                self._title.setText("Colorimeter -- Failed to open")
-                self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.RED};")
-                return
-
-            self._running = True
-            self._toggle_btn.setText("Stop")
-            self._title.setText("Colorimeter -- Live")
-
-            self._timer = QTimer()
-            self._timer.timeout.connect(self._take_reading)
-            self._timer.start(800)  # Read every 800ms
-
-        except (ImportError, OSError, RuntimeError) as e:
-            self._title.setText(f"Error: {e}")
-
-    def _stop_live(self):
-        self._running = False
-        if self._timer:
-            self._timer.stop()
-            self._timer = None
-        if self._driver:
-            self._driver.close()
-            self._driver = None
-        self._toggle_btn.setText("Start")
-        self._title.setText("Colorimeter -- Stopped")
-        self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.TEXT2};")
-
-    def _take_reading(self):
-        if not self._driver or not self._running:
-            return
-        try:
-            m = self._driver.measure(integration_time=0.5)
-            if m and (m.X > 0 or m.Y > 0 or m.Z > 0):
-                self._lum_stat.set_value(f"{m.luminance:.1f}", C.TEXT)
-                self._cct_stat.set_value(f"{m.cct:.0f}K" if m.cct > 1000 else "--", C.TEXT)
-                self._xyz_label.setText(f"X {m.X:.2f}   Y {m.Y:.2f}   Z {m.Z:.2f}")
-            else:
-                self._xyz_label.setText("No light detected")
-        except (OSError, RuntimeError):
-            self._xyz_label.setText("Read error")
 
 
 # Add Display Profile Dialog
@@ -1418,14 +1319,18 @@ class DashboardPage(QWidget):
         The pass answers whether a supported sensor was present, not which
         product it was. Opening the device again here to recover a product
         string would put a second, unjournaled instrument read behind a label
-        the session never produced. The live readout is offered only when the
-        pass found a sensor, and it reads the device only when asked to.
+        the session never produced.
+
+        A live readout card used to sit under this one. Its button opened the
+        colorimeter over raw HID and polled it every 800ms, and each reply
+        landed on screen as luminance, correlated colour temperature and
+        tristimulus values with no evidence kind, no receipt and no journal
+        entry. The action behind it, measurement.live.toggle, is declared
+        hidden until its workflow is specified, so this surface offered a
+        measurement the session declines to define, on a path no gate covers.
         """
         available = any(display.capabilities.sensor_available for display in summary.dashboard.displays)
         self._sensor_layout.addWidget(SensorCard(available, "present"))
-        if available:
-            self._live_sensor = LiveSensorCard()
-            self._sensor_layout.addWidget(self._live_sensor)
         self._stat_sensor.set_value(*(("Present", C.GREEN_HI) if available else ("Not detected", C.TEXT3)))
 
     def _populate_panel_count(self) -> None:
@@ -1695,7 +1600,15 @@ class CalibrateProWindow(QMainWindow):
     # --- First-Run Wizard ---
 
     def _check_first_run(self):
-        """Show welcome wizard on first launch."""
+        """Show the welcome dialog once, describing the session's own pass.
+
+        It used to describe a session of its own. Qt was asked for the screens
+        directly, which lists displays the pass turned down, and the USB bus was
+        opened for a colorimeter's product string, which is a second unjournaled
+        instrument read behind a name the session never produced. The dashboard
+        already refuses both, and an operator's first screen is the worst place
+        to answer that question differently from every screen after it.
+        """
         if self.settings.value("first_run_completed", False, type=bool):
             return
 
@@ -1735,43 +1648,28 @@ class CalibrateProWindow(QMainWindow):
         displays_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
         layout.addWidget(displays_heading)
 
-        try:
-            displays = qt_display_snapshots()
-            if displays:
-                for d in displays:
-                    name = d.name
-                    res = f"{d.width}x{d.height} @ {d.refresh_rate}Hz"
-                    row = QHBoxLayout()
-                    dot = StatusDot(C.GREEN, 8)
-                    row.addWidget(dot)
-                    lbl = QLabel(f"{name}  ({res})")
-                    lbl.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-                    row.addWidget(lbl, stretch=1)
-                    layout.addLayout(row)
-            else:
-                no_disp = QLabel("No displays detected")
-                no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-                layout.addWidget(no_disp)
-        except (ImportError, OSError):
-            no_disp = QLabel("Could not enumerate displays")
-            no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-            layout.addWidget(no_disp)
+        observed = self._observed
+        for observation in observed.dashboard.displays if observed else ():
+            resolution = f"{observation.width_px}x{observation.height_px} @ {refresh_text(observation.refresh_millihz)}"
+            row = QHBoxLayout()
+            row.addWidget(StatusDot(C.GREEN, 8))
+            listed = QLabel(f"{observation.safe_label}  ({resolution})")
+            listed.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
+            row.addWidget(listed, stretch=1)
+            layout.addLayout(row)
+        if observed is None or not observed.dashboard.displays:
+            nothing = QLabel(NOTHING_OBSERVED if observed is None else detection_sentence(observed))
+            nothing.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
+            layout.addWidget(nothing)
 
         layout.addSpacing(4)
 
-        # Sensor status
-        sensor_text = "No colorimeter \u2014 sensorless mode available"
-        sensor_color = C.TEXT3
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            devices = I1D3Driver.find_devices()
-            if devices:
-                sensor_name = devices[0].get("product", "i1Display3")
-                sensor_text = f"Colorimeter detected: {sensor_name}"
-                sensor_color = C.GREEN_HI
-        except (ImportError, OSError, RuntimeError):
-            pass
+        # Sensor status, as the pass reported it rather than as the bus answers.
+        available = observed is not None and any(
+            display.capabilities.sensor_available for display in observed.dashboard.displays
+        )
+        sensor_text = "Colorimeter present" if available else "No colorimeter \u2014 sensorless mode available"
+        sensor_color = C.GREEN_HI if available else C.TEXT3
 
         sensor_row = QHBoxLayout()
         sensor_dot = StatusDot(sensor_color, 8)
@@ -1792,6 +1690,9 @@ class CalibrateProWindow(QMainWindow):
         layout.addWidget(get_started)
 
         dialog.exec()
+        # Completing onboarding is a declared action, so the journal carries it
+        # rather than a local setting being the only trace that it happened.
+        self.service.perform_ui("onboarding.complete", lambda: None)
         self.settings.setValue("first_run_completed", True)
 
     # --- Keyboard Shortcuts ---
@@ -1974,8 +1875,17 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.calibrate import CalibratePage
 
-                cal_page = CalibratePage()
-                self.stack.addWidget(cal_page)  # 1
+                self.calibrate_page = CalibratePage()
+                self.calibrate_page.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    select_sensorless=partial(self.service.select_method, CalibrationMethod.SENSORLESS),
+                    set_target=self.service.set_target,
+                    unhandled=self.service.unhandled,
+                    generate=self.service.generate,
+                    preview=self.service.preview,
+                )
+                self.stack.addWidget(self.calibrate_page)  # 1
             except (ImportError, AttributeError) as e:
                 logger.warning("Failed to load CalibratePage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Calibrate"))  # 1
@@ -2171,21 +2081,27 @@ class CalibrateProWindow(QMainWindow):
             self.stack.setCurrentIndex(index)
 
     def _navigate_to_calibrate(self, display_index: int) -> None:
-        """Open the Calibrate page for one display, through the session.
+        """Adopt one display and open the page on it, as two actions in order.
 
         The card that emits this is not a bound control, so a refusal is
-        reported here rather than by the binder.
+        reported here rather than by the binder. The selection is performed
+        before the open rather than inside it. The boundary issues one
+        correlation ID per invocation into one slot per thread, so an action
+        run inside another action's operation releases the identity the outer
+        invocation reads once its operation returns.
+
+        This used to guard on a ``display_combo`` attribute the page has never
+        had, so the display an operator clicked was silently dropped and the
+        page opened on whichever one the session already held.
         """
-        outcome = self.service.perform_ui("navigation.calibrate", lambda: self._open_calibrate(display_index))
+        page = getattr(self, "calibrate_page", None)
+        if page is not None:
+            page.select_display_index(display_index)
+        outcome = self.service.open_calibration()
         if isinstance(outcome, ActionError):
             self.show_toast(refusal_message(outcome), "warning")
-
-    def _open_calibrate(self, display_index: int) -> None:
-        """Switch to the Calibrate page and pre-select the given display."""
+            return
         self._shortcut_switch_page(1)
-        cal_page = self.stack.widget(1)
-        if hasattr(cal_page, "display_combo") and display_index < cal_page.display_combo.count():
-            cal_page.display_combo.setCurrentIndex(display_index)
 
     def _show_window(self) -> None:
         """Bring the window forward from the tray."""
@@ -2215,7 +2131,12 @@ class CalibrateProWindow(QMainWindow):
         """
         outcome = self.service.detect()
         if isinstance(outcome, ActionSuccess):
-            pages = (self.dashboard, getattr(self, "ddc", None), getattr(self, "verify_page", None))
+            pages = (
+                self.dashboard,
+                getattr(self, "calibrate_page", None),
+                getattr(self, "ddc", None),
+                getattr(self, "verify_page", None),
+            )
             for page in pages:
                 if page is not None:
                     page.render_session(outcome.value)

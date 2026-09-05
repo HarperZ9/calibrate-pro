@@ -28,6 +28,13 @@ from PySide6.QtWidgets import (
 from calibrate_pro.gui.theme import COLORS
 from calibrate_pro.workflow import DDC_WRITE_CODES, ApplyPlan, CalibrationMethod
 
+COLORIMETER_CLOSED = (
+    "Measured calibration is closed in this build, so no colorimeter is opened from this page. "
+    "A detect button here used to enumerate devices through ArgyllCMS and report a product name "
+    "as a found instrument. That is an instrument read taken outside the session that decides "
+    "whether a measurement may be taken, gives it a receipt, and records that it happened."
+)
+
 
 class DDCControlPage(QWidget):
     """
@@ -593,29 +600,10 @@ class DDCControlPage(QWidget):
         colorimeter_group = QGroupBox("Measurement Device")
         colorimeter_layout = QVBoxLayout(colorimeter_group)
 
-        self.colorimeter_status = QLabel("No colorimeter detected")
-        self.colorimeter_status.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
+        self.colorimeter_status = QLabel(COLORIMETER_CLOSED)
+        self.colorimeter_status.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 8px;")
+        self.colorimeter_status.setWordWrap(True)
         colorimeter_layout.addWidget(self.colorimeter_status)
-
-        detect_btn_layout = QHBoxLayout()
-        detect_colorimeter_btn = QPushButton("Detect Colorimeter")
-        detect_colorimeter_btn.clicked.connect(self._detect_colorimeter)
-        detect_btn_layout.addWidget(detect_colorimeter_btn)
-
-        self.colorimeter_combo = QComboBox()
-        self.colorimeter_combo.addItems(
-            [
-                "Auto-detect",
-                "i1Display Pro",
-                "Spyder X",
-                "ColorChecker Display",
-                "ArgyllCMS (any device)",
-            ]
-        )
-        detect_btn_layout.addWidget(self.colorimeter_combo)
-        detect_btn_layout.addStretch()
-
-        colorimeter_layout.addLayout(detect_btn_layout)
 
         layout.addWidget(colorimeter_group)
 
@@ -735,37 +723,6 @@ class DDCControlPage(QWidget):
         layout.addWidget(self.auto_results)
 
         self.control_tabs.addTab(auto_widget, "Auto Calibration")
-
-    def _detect_colorimeter(self):
-        """Detect connected colorimeter devices."""
-        self.colorimeter_status.setText("Searching for colorimeters...")
-        self.colorimeter_status.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 8px;")
-        QApplication.processEvents()
-
-        try:
-            # Try ArgyllCMS backend
-            from calibrate_pro.hardware.argyll_backend import ArgyllBackend
-
-            backend = ArgyllBackend()
-            devices = backend.enumerate_devices()
-
-            if devices:
-                device = devices[0]
-                self.colorimeter_status.setText(f"\u2713 Found: {device.name} ({device.manufacturer})")
-                self.colorimeter_status.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-                self._colorimeter = backend
-                return
-
-            # No devices found
-            self.colorimeter_status.setText(
-                "No colorimeter detected. Connect a device and try again.\n"
-                "Supported: i1Display Pro, Spyder X, ColorChecker Display, etc."
-            )
-            self.colorimeter_status.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
-
-        except Exception as e:
-            self.colorimeter_status.setText(f"ArgyllCMS not found. Install from argyllcms.com\nError: {e}")
-            self.colorimeter_status.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
 
     def _start_hardware_calibration(self):
         """Build a measured-calibration preview without display writes."""
