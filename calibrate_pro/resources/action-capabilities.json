@@ -2187,7 +2187,7 @@
       "surfaces": [
         "settings.default_target"
       ],
-      "classification": "local_file_write",
+      "classification": "ui_only",
       "required_stages": [
         "detect",
         "method",
@@ -2196,22 +2196,20 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "journal_ready"
-      ],
-      "source_policy": "conditional",
-      "frozen_policy": "conditional",
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
       "handler": "settings_default_target",
       "required_modules": [
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
-      "receipt_required": true,
+      "receipt_required": false,
       "evidence_modes": [
         "none"
       ],
-      "unavailable_disposition": "disabled",
-      "unavailable_reason": "Default target changes require a valid non-HDR target and a ready journal."
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
     },
     {
       "action_id": "settings.hdr",
@@ -2265,7 +2263,7 @@
       "frozen_policy": "conditional",
       "handler": "settings_lut_size",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.preferences"
       ],
       "required_resources": [],
       "receipt_required": true,
@@ -2355,7 +2353,7 @@
       "frozen_policy": "conditional",
       "handler": "settings_output_directory",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.preferences"
       ],
       "required_resources": [],
       "receipt_required": true,

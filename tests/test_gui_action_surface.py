@@ -671,6 +671,149 @@ def test_a_directory_the_session_refuses_leaves_the_save_closed(
     assert not button.isEnabled()
 
 
+
+#: Surface prefix the manifest uses for controls that live on the settings page.
+SETTINGS_SURFACE = "settings."
+
+
+def settings_page_actions() -> set[str]:
+    """Every action the manifest places on the settings page."""
+    from calibrate_pro.application.actions import ActionRegistry
+
+    surfaces_by_action = ActionRegistry.load_default().surfaces_by_action
+    return {
+        action_id
+        for action_id, surfaces in surfaces_by_action.items()
+        if any(surface.startswith(SETTINGS_SURFACE) for surface in surfaces)
+    }
+
+
+def test_the_settings_page_binds_every_action_the_session_will_answer(window: object) -> None:
+    """Read in both directions, and let the manifest say which ones those are.
+
+    Nine controls on this page were drawn without a binding. Seven of them wrote
+    into the application's configuration store, which nothing read back, so a
+    checkbox could be ticked, survive a restart, and change nothing. The hidden
+    set is computed from the session rather than listed here, so a build that
+    specifies one of those workflows and opens the action fails this test, which
+    is the point at which its control belongs on the page again.
+    """
+    from calibrate_pro.application.actions import ActionDisposition
+
+    declared = settings_page_actions()
+    hidden = {
+        action_id
+        for action_id in declared
+        if window.service.resolve(action_id).disposition is ActionDisposition.HIDDEN
+    }
+    bound = {binding.action_id for binding in window._binder.bindings if binding.action_id in declared}
+
+    assert len(hidden) == 8
+    assert bound == declared - hidden
+
+
+def test_no_control_on_the_settings_page_is_left_for_the_operator_to_press(window: object) -> None:
+    """A drawn control the resolver never sees is the defect this page had.
+
+    Checking the bindings alone would not have caught it, because a control can
+    be built, connected to a handler of its own, and simply never handed over.
+    The page's own widgets are read here instead, so anything interactive has to
+    be accounted for by a binding.
+    """
+    from PySide6.QtWidgets import QCheckBox, QComboBox, QPushButton
+
+    page = window.settings_page
+    bound = {id(binding.control) for binding in window._binder.bindings}
+    interactive = [
+        *page.findChildren(QCheckBox),
+        *page.findChildren(QComboBox),
+        *page.findChildren(QPushButton),
+    ]
+
+    assert len(interactive) == 6
+    assert [widget for widget in interactive if id(widget) not in bound] == []
+
+
+def test_hdr_is_drawn_closed_rather_than_left_off_the_page(window: object) -> None:
+    """Removing the box would read as a build that never had the feature.
+
+    HDR is declared disabled, which is a different statement from hidden: there
+    is a contract behind it that this build does not qualify against. The box
+    stays on the page carrying the session's own sentence, so an operator
+    looking for HDR reads why it is closed.
+    """
+    from calibrate_pro.application.actions import ActionDisposition
+
+    page = window.settings_page
+    resolved = window.service.resolve("settings.hdr")
+
+    assert resolved.disposition is ActionDisposition.DISABLED
+    assert not page._hdr_cb.isHidden()
+    assert not page._hdr_cb.isEnabled()
+    assert not page._hdr_cb.isChecked()
+    assert page._hdr_cb.toolTip() == resolved.reason
+
+
+def test_the_grid_selector_opens_on_what_the_session_holds(window: object) -> None:
+    """The page shows a preference it read, not one it chose for itself.
+
+    A selector that opens on its first item reports a grid nobody picked, and
+    the first generation would then be built on a different one. The value is
+    read at bind time and the signal is blocked while the selector moves, so
+    opening the page asks the session for nothing.
+    """
+    page = window.settings_page
+
+    assert page._lut_combo.currentText() == str(window.service.lut_size)
+    assert page._lut_combo.isEnabled()
+    assert [record["action_id"] for record in journal_records(window.session_root)] == ["display.detect"]
+
+
+def test_choosing_a_grid_reaches_the_session_and_is_journalled(window: object) -> None:
+    """The choice is an action, so it is resolved and recorded like any other.
+
+    What the operator picked is what the next generation uses. The journal is
+    read here rather than the session's own attribute, because a preference
+    that changes an in-memory field and leaves no record is the shape of the
+    defect this replaced.
+    """
+    page = window.settings_page
+    page._lut_combo.setCurrentText("65")
+
+    assert window.service.lut_size == 65
+    assert page._lut_combo.currentText() == "65"
+    assert journal_records(window.session_root)[-1]["action_id"] == "settings.lut_size"
+    assert window.toasts == []
+
+
+def test_a_refused_grid_puts_the_selector_back(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A selector left on a refused value would misreport the next generation.
+
+    The refusal is a real one, taken from the session by asking it for a grid
+    this build does not generate, and then substituted for the page's answer.
+    The substitution is needed because the selector only offers grids the build
+    generates, so its own refusal is unreachable from the page. A refusal from
+    any other cause arrives the same way and the selector has to end on what the
+    session holds either way.
+    """
+    from calibrate_pro.application.outcomes import ActionError
+
+    page = window.settings_page
+    refusal = window.service.set_lut_size(9)
+    assert isinstance(refusal, ActionError)
+    monkeypatch.setattr(page, "_set_lut_size", lambda size: refusal)
+
+    page._lut_combo.setCurrentText("65")
+
+    assert page._lut_combo.currentText() == str(window.service.lut_size) == "33"
+    assert [message for message, level in window.toasts] == [
+        "A 9-point LUT grid is not one this build generates. "
+        "Choose one of the grids this build generates: 17, 33, 65."
+    ]
+
 def answer_save_dialog(monkeypatch: pytest.MonkeyPatch, destination: Path | None) -> None:
     """Answer the diagnostics save dialog with one path, or with a withdrawal."""
     from calibrate_pro.gui.pages import settings_diagnostics

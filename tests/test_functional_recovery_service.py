@@ -30,6 +30,7 @@ from calibrate_pro.application.composition import build_production_service, load
 from calibrate_pro.application.detection import DeniedCapabilityProbe, DisplayDetector
 from calibrate_pro.application.journal import DiagnosticJournal
 from calibrate_pro.application.outcomes import ActionBoundary, ActionError, ActionOutcome, ActionSuccess
+from calibrate_pro.application.preferences import UNSUPPORTED_LUT_SIZE
 from calibrate_pro.application.runner import ACTION_NOT_AVAILABLE, IssuedCorrelationId, SessionActionRunner
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.application.session import SessionState
@@ -268,3 +269,68 @@ def test_the_journal_never_records_the_fake_runtime_for_a_production_session(
     assert {record["runtime_mode"] for record in records} == {"source"}
     assert all(record["apply_phase_flags"] == [] for record in records)
     assert all(record["recovery_guarantee"] is None for record in records)
+
+
+def published_manifest(directory: Path) -> dict:
+    """The bundle description as it was written, read back off disk."""
+    return json.loads((directory / MANIFEST_NAME).read_text(encoding="utf-8"))
+
+
+def test_the_grid_a_session_chooses_is_the_grid_its_bundle_is_built_on(
+    service: FunctionalRecoveryService, tmp_path: Path
+) -> None:
+    """The settings page used to record this where nothing read it back.
+
+    Choosing a grid is only a preference if the work changes, so the claim is
+    checked at the far end: the bundle is generated after the choice and its
+    published description is read off disk rather than from the session.
+    """
+    succeeded(service.detect())
+    assert service.lut_size == 33
+    assert succeeded(service.set_lut_size(65)) == 65
+
+    succeeded(service.select_method(CalibrationMethod.SENSORLESS))
+    succeeded(service.set_target(PRESET_ID))
+    succeeded(service.generate())
+    succeeded(service.preview())
+    succeeded(service.confirm_plan())
+    succeeded(service.verify())
+    directory = tmp_path / "exports"
+    succeeded(service.export(directory))
+
+    assert published_manifest(directory)["lut_size"] == 65
+
+
+def test_a_grid_this_build_does_not_generate_is_refused_and_changes_nothing(
+    service: FunctionalRecoveryService,
+) -> None:
+    """A number the generator cannot build is turned down before it is held.
+
+    Accepting it would move the failure to generation, where the session would
+    report a grid it had already agreed to and then fail on it.
+    """
+    succeeded(service.detect())
+    outcome = service.set_lut_size(9)
+
+    assert refused(outcome).code == UNSUPPORTED_LUT_SIZE
+    assert "17, 33, 65" in refused(outcome).next_action
+    assert service.lut_size == 33
+
+
+def test_a_grid_chosen_later_does_not_restate_a_bundle_already_published(
+    service: FunctionalRecoveryService, tmp_path: Path
+) -> None:
+    """A published bundle keeps the grid it was built with.
+
+    The size is read when a generation runs, and the sealed bundle records it,
+    so a preference changed afterwards describes the next bundle rather than
+    the one on disk.
+    """
+    drive_to_preview(service)
+    succeeded(service.confirm_plan())
+    succeeded(service.verify())
+    directory = tmp_path / "exports"
+    succeeded(service.export(directory))
+
+    assert succeeded(service.set_lut_size(17)) == 17
+    assert published_manifest(directory)["lut_size"] == 33

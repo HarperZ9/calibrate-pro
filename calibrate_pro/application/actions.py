@@ -586,8 +586,6 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         )
     if action_id == "profile.export":
         return context.selected_profile_reparsed and context.journal_ready
-    if action_id == "settings.default_target":
-        return context.target_valid and not context.target_hdr and context.journal_ready
     if action_id in {"settings.lut_size", "settings.output_directory"}:
         return context.journal_ready
     if action_id == "diagnostics.bundle.create":

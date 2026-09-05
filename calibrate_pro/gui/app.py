@@ -1942,6 +1942,9 @@ class CalibrateProWindow(QMainWindow):
                 self.settings_page.bind_actions(
                     self._binder,
                     set_output_directory=self.service.set_export_directory,
+                    set_lut_size=self.service.set_lut_size,
+                    lut_size=self.service.lut_size,
+                    unhandled=self.service.unhandled,
                     diagnostics=self.service,
                 )
                 self.stack.addWidget(self.settings_page)  # 5

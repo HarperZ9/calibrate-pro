@@ -152,6 +152,32 @@ draws the listing, Save bundle asks where the archive goes and writes exactly th
 above it, and Open folder opens the journal directory. A preview goes stale once the
 session records another action, so take a fresh one if a publish is refused.
 
+## Settings
+
+The settings page holds what the session can be asked for, and each control on it goes
+through the same resolver the rest of the window uses.
+
+**LUT size** picks the grid the next generated bundle is built on. This build generates
+17, 33, and 65 point grids. The choice applies at the next generation. A bundle that has
+already been sealed records the grid it was built with in its own manifest, so changing
+this later does not restate anything already published.
+
+**Output directory** is where saved reports and exports are written. Saving a report is
+refused until a directory has been accepted. A folder that cannot be written to is shown
+as the folder that was turned down, rather than cleared, and saving stays closed.
+
+**HDR mode** is drawn and closed, carrying the reason the session gives for closing it.
+Everything this build generates is SDR.
+
+**Diagnostics** holds the three journal actions described above.
+
+Eight controls were removed in this version: Start with Windows, Minimize to tray, OLED
+automation, per-app profile switching, its rules table, the ArgyllCMS path, the panel
+profiles path, and the default target selector. Each wrote a value into the application's
+configuration store that nothing read back, so ticking one reported a preference the
+product did not hold. The action manifest declares all eight hidden, with the reason that
+their product workflow is not specified.
+
 ## Commands this build declines
 
 Most of these are retained so an older script fails safely rather than appearing to

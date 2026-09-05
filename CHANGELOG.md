@@ -17,6 +17,19 @@
   The listing names each member and its digest before anything is written, the save
   button opens only against a live preview, and the token that preview issued is spent by
   the attempt that follows rather than by that attempt succeeding.
+- Made the settings page mean what it draws. It rendered eleven declared surfaces and
+  handed one to the resolver; the rest wrote into the application's configuration store,
+  where nothing read them back, so ticking Start with Windows reported a preference the
+  product did not hold. Those controls are gone, along with the writes behind them.
+- Made LUT size a preference the work uses. Choosing a grid runs as a declared action, is
+  journalled, and is read when the next bundle is generated, which the bundle then records
+  in its own manifest. A grid this build does not generate is refused by name.
+- Withdrew the default-target claim. Its predicate required a target the session had
+  already selected, which is not what a default is, and applying one at startup would
+  pre-select before the Method stage. The manifest now declares it hidden rather than
+  offering a preference that never existed.
+- Kept the HDR checkbox on the page and bound it closed, so it renders disabled carrying
+  the session's own reason. Removing it would read as a build that never had the feature.
 - Gated the action manifest against the code it names. A required module was checked for
   the shape of a dotted name and never imported, so the manifest declared a module that
   did not exist across a green suite. The gate imports what the manifest requires and

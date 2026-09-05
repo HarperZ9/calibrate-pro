@@ -73,7 +73,7 @@ EXPECTED_CONDITIONAL_POLICY_IDS = {
     "calibration.generate", "calibration.preview", "calibration.confirm_plan",
     "calibration.decline_plan", "fake_acceptance.apply", "verification.sensorless", "report.save",
     "export.active.cube", "export.active.3dlut", "export.active.png", "export.active.icc",
-    "export.active.mpv", "export.active.obs", "profile.export", "settings.default_target",
+    "export.active.mpv", "export.active.obs", "profile.export",
     "settings.lut_size", "settings.output_directory", "diagnostics.bundle.create",
 }
 
@@ -93,7 +93,7 @@ EXPECTED_DISABLED_POLICY_IDS = {
 EXPECTED_HIDDEN_POLICY_IDS = {
     "calibration.all", "measurement.live.toggle", "settings.startup", "settings.minimize_to_tray",
     "settings.oled_automation", "settings.per_app.enabled", "settings.per_app.rules",
-    "settings.argyll_path", "settings.panel_profiles_path",
+    "settings.argyll_path", "settings.panel_profiles_path", "settings.default_target",
 }
 
 EXPECTED_SURFACES_BY_ACTION = {
@@ -219,9 +219,9 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 30,
+        "conditional": 29,
         "disabled": 33,
-        "hidden": 9,
+        "hidden": 10,
     }
     assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
     assert sum(len(action_ids) for action_ids in expected_by_policy.values()) == len(EXPECTED_ACTION_IDS)
@@ -588,9 +588,6 @@ def test_every_declared_preset_is_selectable_or_says_why_it_is_not():
             CharacterizationKind.UNKNOWN,
             id="method-characterization",
         ),
-        pytest.param("settings.default_target", {}, "target_valid", False, id="default-target-valid"),
-        pytest.param("settings.default_target", {}, "target_hdr", True, id="default-target-hdr"),
-        pytest.param("settings.default_target", {}, "journal_ready", False, id="default-target-journal"),
         pytest.param("settings.lut_size", {}, "journal_ready", False, id="lut-size-journal"),
         pytest.param("settings.output_directory", {}, "journal_ready", False, id="output-directory-journal"),
     ],

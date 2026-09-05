@@ -20,12 +20,13 @@ from calibrate_pro.application.assets import AssetGenerator, ExportBundle
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.detection import DisplayDetector
 from calibrate_pro.application.diagnostics import DiagnosticsActions
-from calibrate_pro.application.exporting import choose_directory, export_bundle, export_single_format
+from calibrate_pro.application.exporting import export_bundle, export_single_format
 from calibrate_pro.application.generation import generate_bundle
 from calibrate_pro.application.journal import DiagnosticBundleManager
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.planning import target_for
 from calibrate_pro.application.prediction import predict_accuracy
+from calibrate_pro.application.preferences import PreferenceActions
 from calibrate_pro.application.profile_actions import ProfileActions
 from calibrate_pro.application.refusals import (
     no_display_selected,
@@ -35,7 +36,6 @@ from calibrate_pro.application.refusals import (
 from calibrate_pro.application.results import (
     DetectionSummary,
     DisplaySelection,
-    ExportDirectory,
     GenerationResult,
     HdrDisplayState,
     HdrStatus,
@@ -54,7 +54,7 @@ from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
 
 
-class FunctionalRecoveryService(ProfileActions, SurfaceActions, DiagnosticsActions):
+class FunctionalRecoveryService(ProfileActions, SurfaceActions, DiagnosticsActions, PreferenceActions):
     """One calibration session, driven one action at a time."""
 
     def __init__(
@@ -245,11 +245,6 @@ class FunctionalRecoveryService(ProfileActions, SurfaceActions, DiagnosticsActio
         )
 
     # -- export -------------------------------------------------------------
-
-    def set_export_directory(self, directory: str | Path) -> ActionOutcome[ExportDirectory]:
-        return self._runner.run(
-            "settings.output_directory", lambda: choose_directory(self._state, directory)
-        )
 
     def export(self, directory: str | Path | None = None) -> ActionOutcome[ExportBundle]:
         """Publish the sealed bundle, optionally choosing the directory first.

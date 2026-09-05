@@ -20,6 +20,7 @@
     "calibrate_pro.application.outcomes",
     "calibrate_pro.application.planning",
     "calibrate_pro.application.prediction",
+    "calibrate_pro.application.preferences",
     "calibrate_pro.application.profile_actions",
     "calibrate_pro.application.profiles",
     "calibrate_pro.application.refusals",
