@@ -1,16 +1,20 @@
 {
   "schema_version": 1,
   "commands": [
+    "detect",
     "doctor",
+    "generate-profiles",
     "gui",
-    "hdr"
+    "hdr",
+    "profiles",
+    "status",
+    "verify"
   ],
   "developer_only_commands": [
     "auto",
     "calibrate",
     "ddc-calibrate",
     "ddc-info",
-    "detect",
     "disable-startup",
     "enable-startup",
     "export-panel",
@@ -20,15 +24,13 @@
     "list-panels",
     "list-targets",
     "match",
+    "mcp",
     "native-calibrate",
     "patterns",
     "plugins",
-    "profiles-generate",
     "refine",
     "restore",
-    "status",
     "tray",
-    "uniformity",
-    "verify"
+    "uniformity"
   ]
 }

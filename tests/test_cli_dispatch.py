@@ -10,6 +10,11 @@ offered by the parser with nothing behind it raises a lookup error at the moment
 an operator uses it, and a name in two groups at once takes whichever branch is
 written first, which makes the printed policy depend on the order of an if.
 
+The frozen build answers a subset of these names and refuses the rest by saying
+which package they are in. That split is written down in the packaging policy,
+and a name in neither half of it reaches an operator as an unknown command, so
+the two halves are held against what the parser actually offers.
+
 The last test here is about startup rather than behaviour. The parser is built
 without the action layer, so a ``--help`` and a rejected flag do not pay for a
 module they never read. A command that pulled it in at import time would undo
@@ -23,6 +28,7 @@ import json
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -31,6 +37,8 @@ from calibrate_pro.application.actions import ActionRegistry
 from calibrate_pro.application.composition import build_production_service
 from calibrate_pro.commands import session
 from calibrate_pro.commands.catalog import REFERENCE_HEADING
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parser_commands() -> set[str]:
@@ -156,3 +164,19 @@ def test_building_the_parser_loads_neither_the_action_layer_nor_a_driver() -> No
     completed = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
 
     assert json.loads(completed.stdout.strip().splitlines()[-1]) == []
+
+
+def test_the_frozen_build_places_every_name_the_parser_offers_in_one_list() -> None:
+    """A name is either shipped in the binary or refused there as developer-only.
+
+    Neither list is derived from the parser, which is what makes this a check
+    rather than a restatement of one table in another. A name in neither half
+    is answered by the frozen binary as an unknown command, which reads to an
+    operator as a typo rather than as a command that exists elsewhere.
+    """
+    features = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
+    shipped = set(features["commands"])
+    withheld = set(features["developer_only_commands"])
+
+    assert not shipped & withheld
+    assert shipped | withheld == parser_commands()

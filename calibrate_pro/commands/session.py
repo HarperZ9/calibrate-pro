@@ -15,6 +15,7 @@ named on the command line.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from calibrate_pro.application.actions import ActionDisposition
@@ -279,6 +280,19 @@ def run(command: str, args: Any, service: FunctionalRecoveryService | None = Non
         return REFUSED
 
 
+def run_argv(command: str, argv: Sequence[str]) -> int:
+    """Drive one command from a bare argument list, parsing the arguments here.
+
+    The frozen binary chooses the command itself and has no developer parser to
+    route through, so it hands the rest of the line to this. The arguments are
+    read from the table the developer parser is built from, which is what keeps
+    one command meaning the same thing whichever way it was started.
+    """
+    from calibrate_pro.commands.session_args import parse
+
+    return run(command, parse(command, argv))
+
+
 __all__ = [
     "COMMANDS",
     "PRESET_PREFIX",
@@ -287,6 +301,7 @@ __all__ = [
     "Refused",
     "preset_names",
     "run",
+    "run_argv",
     "target_action",
     "value",
 ]

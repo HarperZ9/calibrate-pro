@@ -9,6 +9,8 @@ from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from tests.frozen_closure import (
     PACKAGE,
     blocked_modules,
@@ -36,13 +38,21 @@ EXCLUDED_QT_IMPORTS = {
 
 EXPECTED_FEATURES = {
     "schema_version": 1,
-    "commands": ["doctor", "gui", "hdr"],
+    "commands": [
+        "detect",
+        "doctor",
+        "generate-profiles",
+        "gui",
+        "hdr",
+        "profiles",
+        "status",
+        "verify",
+    ],
     "developer_only_commands": [
         "auto",
         "calibrate",
         "ddc-calibrate",
         "ddc-info",
-        "detect",
         "disable-startup",
         "enable-startup",
         "export-panel",
@@ -52,16 +62,14 @@ EXPECTED_FEATURES = {
         "list-panels",
         "list-targets",
         "match",
+        "mcp",
         "native-calibrate",
         "patterns",
         "plugins",
-        "profiles-generate",
         "refine",
         "restore",
-        "status",
         "tray",
         "uniformity",
-        "verify",
     ],
 }
 
@@ -69,6 +77,22 @@ EXPECTED_FEATURES = {
 def test_frozen_features_are_exact_and_developer_only_commands_are_explicit() -> None:
     data = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
     assert data == EXPECTED_FEATURES
+
+
+def test_the_shipped_command_policy_is_the_dispatcher_the_binary_runs() -> None:
+    """The file the build is gated on has to describe the dispatcher it ships.
+
+    Both halves are read back. A command listed as shipped that the dispatcher
+    does not route reaches an operator as an unknown command, and a name listed
+    as developer-only that the dispatcher never refuses reaches them the same
+    way, with a sentence about a wheel replaced by one about a typo.
+    """
+    from calibrate_pro import frozen_main
+
+    features = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
+
+    assert sorted({*frozen_main._COMMANDS, *frozen_main._SESSION_COMMANDS}) == features["commands"]
+    assert sorted(frozen_main._DEVELOPER_ONLY_COMMANDS) == features["developer_only_commands"]
 
 
 def test_frozen_module_policy_is_literal_and_fail_closed() -> None:
@@ -96,6 +120,8 @@ def test_frozen_module_policy_is_literal_and_fail_closed() -> None:
         "calibrate_pro.commands.doctor",
         "calibrate_pro.commands.gui",
         "calibrate_pro.commands.hdr",
+        "calibrate_pro.commands.session",
+        "calibrate_pro.commands.session_args",
         "calibrate_pro.gui.pages.ddc_control",
         "calibrate_pro.gui.pages.profiles",
         "calibrate_pro.gui.pages.settings",
@@ -131,14 +157,18 @@ def test_approved_first_party_modules_do_not_import_excluded_qt_surfaces() -> No
 
 @cache
 def frozen_closure() -> tuple[frozenset[str], frozenset[str]]:
-    """What the frozen entry points reach, and which of it the build refuses.
+    """What the frozen entry point reaches, and which of it the build refuses.
 
     Read once. Every module in the closure is parsed to answer this, and three
     gates ask about the same two sets.
+
+    The walk starts at the one module the spec hands PyInstaller, which is the
+    whole of what a shipped binary can begin from. Naming the command modules
+    alongside it would read as thorough and measure less: a name that is not a
+    module is not a module the walker can open, so a command whose module the
+    dispatcher no longer reaches would drop out of the closure quietly.
     """
-    features = json.loads((ROOT / "packaging/frozen-features.json").read_text(encoding="utf-8"))
-    entry_points = [f"{PACKAGE}.frozen_main", *(f"{PACKAGE}.commands.{name}" for name in features["commands"])]
-    reachable = reachable_modules(ROOT, entry_points)
+    reachable = reachable_modules(ROOT, [f"{PACKAGE}.frozen_main"])
     return frozenset(reachable), frozenset(blocked_modules(ROOT, reachable, spec_excludes(SPEC)))
 
 
@@ -212,6 +242,44 @@ def test_frozen_dispatcher_imports_only_the_selected_shared_command(monkeypatch)
         ("import", "calibrate_pro.commands.doctor"),
         ("run", ["--json"]),
     ]
+
+
+def test_frozen_dispatcher_hands_a_session_command_the_arguments_it_parsed(monkeypatch) -> None:
+    """The shipped binary reads a session command's flags, not just its name.
+
+    A dispatcher that routed the name and dropped the rest of the line would
+    run the command against defaults, which for a calibration target is a
+    silently different calibration rather than an error.
+    """
+    from calibrate_pro import frozen_main
+    from calibrate_pro.commands import session
+
+    seen: list[tuple[str, object]] = []
+    monkeypatch.setattr(session, "run", lambda command, args, service=None: seen.append((command, args)) or 0)
+
+    code = frozen_main.main(["verify", "--target", "srgb_web"], program="CalibrateProCLI.exe")
+
+    assert code == 0
+    command, arguments = seen[0]
+    assert command == "verify"
+    assert (arguments.target, arguments.display) == ("srgb_web", None)
+
+
+def test_frozen_dispatcher_refuses_a_session_command_that_is_missing_an_argument(monkeypatch) -> None:
+    """The refusal happens at the parser, so nothing is driven on a guess."""
+    from calibrate_pro import frozen_main
+    from calibrate_pro.commands import session
+
+    monkeypatch.setattr(
+        session,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("an unparsed command reached the driver")),
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        frozen_main.main(["verify"], program="CalibrateProCLI.exe")
+
+    assert raised.value.code == 2
 
 
 def test_frozen_dispatcher_rejects_developer_commands_without_importing_them(monkeypatch, capsys) -> None:

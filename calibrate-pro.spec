@@ -21,7 +21,16 @@ MODULE_POLICY_PATH = PROJECT_ROOT / "packaging/frozen-modules.json"
 feature_policy = json.loads(FEATURE_POLICY_PATH.read_text(encoding="utf-8"))
 module_policy = json.loads(MODULE_POLICY_PATH.read_text(encoding="utf-8"))
 
-if feature_policy.get("commands") != ["doctor", "gui", "hdr"]:
+if feature_policy.get("commands") != [
+    "detect",
+    "doctor",
+    "generate-profiles",
+    "gui",
+    "hdr",
+    "profiles",
+    "status",
+    "verify",
+]:
     raise SystemExit("frozen feature policy is not the approved command set")
 if module_policy.get("schema_version") != 1 or module_policy.get("default") != "reject":
     raise SystemExit("frozen module policy must be schema 1 and fail closed")

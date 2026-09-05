@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from types import MappingProxyType
 
 from calibrate_pro import __version__
+from calibrate_pro.commands import session_args
 from calibrate_pro.commands.catalog import banner, list_panels, list_targets, panel_info
 
 #: What a declined command exits with, matching the session driver.
@@ -48,11 +49,10 @@ _UNBUILT_COMMANDS = frozenset({"auto", "match", "uniformity"})
 #: walks to prove none of them is reachable as a tool.
 _CONFIRMATION_COMMANDS = frozenset(_DECLARED_REFUSALS) | _UNBUILT_COMMANDS
 
-#: The names handed to the session driver. They are written out here so the
-#: parser can be built without importing the action layer, which a `--help` and a
-#: rejected flag never read, and a test holds this list against the driver's own
-#: table.
-_SESSION_COMMANDS = frozenset({"detect", "generate-profiles", "profiles", "status", "verify"})
+#: The names handed to the session driver, read from the table the frozen binary
+#: builds its parser from as well. Reaching it costs argparse, which the parser
+#: needs anyway, so a `--help` and a rejected flag still load no action layer.
+_SESSION_COMMANDS = session_args.COMMANDS
 
 _UNTOUCHED = "Nothing was read and no display state was changed."
 
@@ -148,30 +148,6 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     return serve()
 
 
-def _add_session_parsers(subparsers: argparse._SubParsersAction) -> None:
-    """Give every session command the arguments it needs, and nothing spare.
-
-    A target is required rather than defaulted. A default here would be a second
-    copy of a preset name, and the one place a preset name belongs is the table
-    the action layer selects from.
-    """
-    subparsers.add_parser("detect", help="Observe attached displays and report what was read")
-    status = subparsers.add_parser("status", help="Report which actions this session can run")
-    status.add_argument("--closed", action="store_true", help="Show only the actions that are unavailable")
-    for name, summary in (
-        ("verify", "Generate a plan and report its predicted accuracy"),
-        ("generate-profiles", "Write one calibration bundle into a directory"),
-    ):
-        command = subparsers.add_parser(name, help=summary)
-        if name == "generate-profiles":
-            command.add_argument("output", help="Directory the bundle is written into")
-            command.add_argument("--dry-run", action="store_true", help="Stop at the plan and write nothing")
-        command.add_argument("--target", required=True, help="Calibration target; see 'list-targets'")
-        command.add_argument("--display", help="Platform display id; the detected display is used by default")
-    profiles = subparsers.add_parser("profiles", help="List published bundles and check each one's seal")
-    profiles.add_argument("directory", help="Directory holding published bundles")
-
-
 def _build_parser() -> argparse.ArgumentParser:
     """Every command this build answers, built without importing the engine."""
     parser = argparse.ArgumentParser(
@@ -196,7 +172,7 @@ def _build_parser() -> argparse.ArgumentParser:
     plugins = subparsers.add_parser("plugins", help="List discovered plugins")
     plugins.add_argument("--plugin-dir")
     subparsers.add_parser("mcp", help="Serve read-only catalog + doctor over MCP stdio")
-    _add_session_parsers(subparsers)
+    session_args.add_parsers(subparsers)
 
     for command in sorted(_CONFIRMATION_COMMANDS):
         subparsers.add_parser(command, help="Declined; this build does not perform it")

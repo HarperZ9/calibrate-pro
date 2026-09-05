@@ -35,6 +35,8 @@
     "calibrate_pro.commands.doctor",
     "calibrate_pro.commands.gui",
     "calibrate_pro.commands.hdr",
+    "calibrate_pro.commands.session",
+    "calibrate_pro.commands.session_args",
     "calibrate_pro.core",
     "calibrate_pro.core.aces",
     "calibrate_pro.core.calibration_engine",
