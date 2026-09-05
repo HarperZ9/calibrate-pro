@@ -27,9 +27,10 @@ calibrate_pro/
                     canonical DDC/CI, ICC, VCGT, and DWM write boundary
 
   gui/              PySide6 presentation; emits proposals, never raw writes
-  commands/         unelevated desktop/HDR launch and read-only doctor command
-  main.py           read-only CLI dispatch and proposal-only legacy names
-  frozen_main.py    two frozen executable entry points
+  commands/         unelevated desktop/HDR launch, read-only doctor, and the
+                    headless calibration session a terminal drives
+  main.py           developer command dispatch and proposal-only legacy names
+  frozen_main.py    the frozen entry point behind both packaged executables
 ```
 
 Low-level Windows modules still contain native API wrappers. Application code cannot
@@ -85,9 +86,13 @@ become an observation of the attached display.
 ## Entry points
 
 - `CalibratePro.exe` / `calibrate-pro gui`: main PySide6 workflow.
-- `CalibrateProCLI.exe`: frozen `doctor`, `gui`, and `hdr` dispatcher; `hdr` opens the
-  HDR target/proposal workflow.
+- `CalibrateProCLI.exe`: the frozen dispatcher. It answers `doctor`, `gui`, `hdr`,
+  `detect`, `status`, `verify`, `generate-profiles`, and `profiles`, and refuses every
+  other developer name by saying which package it lives in. `hdr` opens the HDR
+  target/proposal workflow.
 - `calibrate-pro doctor [--json]`: deterministic, read-only installation diagnostics.
+- `detect`, `status`, `verify`, `generate-profiles`, and `profiles`: the headless
+  session, running the actions the window runs and writing only where it was told to.
 - `list-targets`, `list-panels`, `info`, `hdr-status`, `patterns`, and `plugins`:
   read-only or visual-inspection utilities.
 - Tray and calibration guard: monitor-and-notify only in 1.1.
@@ -107,5 +112,5 @@ SHA-256 inventory from a hash-locked environment.
 Tests cover the pure color/HDR core, workflow state machine, confirmation and recovery,
 Windows API contracts, native-resource lifecycle, least-privilege boundary, GUI
 truthfulness, Qt selection, frozen module closure, redistribution notices, and release
-artifact construction. Publication additionally requires frozen offscreen smoke tests,
+artifact construction. Publication also requires frozen offscreen smoke tests,
 PE manifest inspection, component/source audits, and a clean install proof.

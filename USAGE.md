@@ -18,8 +18,10 @@ application includes its Python, Build Color, Build UI 2, PySide6/Qt, NumPy, Sci
 hidapi, and approved Windows runtime dependencies. It does not need a separate Python
 installation.
 
-Run `CalibratePro.exe` for the main workflow. Use `CalibrateProCLI.exe doctor --json`
-for packaged diagnostics or `CalibrateProCLI.exe hdr` for HDR target preparation.
+Run `CalibratePro.exe` for the main workflow. `CalibrateProCLI.exe` answers the headless
+commands: `CalibrateProCLI.exe doctor --json` for packaged diagnostics,
+`CalibrateProCLI.exe hdr` for HDR target preparation, and the calibration commands
+described below. Run it with no arguments to see the list it ships.
 
 ### Python package
 
@@ -68,9 +70,10 @@ guard are read-only monitor-and-notify surfaces in 1.1.
 
 ## Read-only commands
 
-The Python package exposes the commands below. The frozen Windows CLI intentionally
-ships only `doctor`, `gui`, and `hdr`; the broader developer command surface is not
-bundled into the desktop package.
+The Python package exposes the commands below. The frozen Windows CLI ships eight of
+them: `detect`, `doctor`, `generate-profiles`, `gui`, `hdr`, `profiles`, `status`, and
+`verify`. Naming any other command there prints that it lives in the developer wheel and
+exits 2, rather than reporting it as a name that does not exist.
 
 | Command | Purpose |
 |---|---|
@@ -90,22 +93,66 @@ bundled into the desktop package.
 The stored values printed by `info` describe the characterization source. For an
 attached unit they remain estimates unless a supported instrument measures that unit.
 
+## Headless calibration commands
+
+These drive the actions the window drives, over the same session, and print what each
+action returned. A refusal is printed in the words the session refused it in. None of
+them changes display state. `generate-profiles` writes the files it names into a
+directory you choose, and nothing else here writes outside its own diagnostics journal.
+
+| Command | Purpose |
+|---|---|
+| `calibrate-pro detect` | Report the displays this machine presents, and where each characterization came from |
+| `calibrate-pro status [--closed]` | Report which actions this session can run, and the reason each closed one is closed |
+| `calibrate-pro verify --target NAME` | Generate a sealed plan and report its predicted accuracy |
+| `calibrate-pro generate-profiles DIR --target NAME [--dry-run]` | Write one calibration bundle into `DIR` |
+| `calibrate-pro profiles DIR` | List the bundles published under a directory and check each one's seal |
+
+`--target` is required rather than defaulted; `calibrate-pro list-targets` prints the
+names it accepts. Pass `--display ID` to `verify` or `generate-profiles` to choose among
+several displays, using the identifier `detect` printed for the one you want.
+
+A worked run:
+
+```powershell
+calibrate-pro detect
+calibrate-pro verify --target srgb_web
+calibrate-pro generate-profiles profiles/srgb --target srgb_web
+calibrate-pro profiles profiles/srgb
+```
+
+`verify` prints a plan digest, the panel and target the plan was built for, and an
+average dE. That figure is **estimated** from the panel characterization: no display was
+measured and no sensor was read, and the command prints that sentence under the figures.
+A display whose panel is not in the characterization database is refused with `Sensorless
+calibration requires a selected characterized display.` rather than estimated from a
+stand-in panel.
+
+`generate-profiles` prints every file it wrote and the SHA-256 of the manifest sealing
+them. `--dry-run` stops at the plan and writes nothing. `profiles` recomputes those
+digests from the bytes on disk, so a bundle whose files changed is reported as `CHANGED`
+and the run exits 1. A path with nothing at it is refused with exit code 2 instead of
+being counted as a directory holding no bundles.
+
 ## Proposal-only legacy commands
 
-The following names are retained so an older script fails safely and explains the new
-workflow:
+These names are retained so an older script fails safely rather than appearing to work:
 
 ```text
 auto                 calibrate             ddc-calibrate
-ddc-info             detect                disable-startup
-enable-startup       export-panel          generate-profiles
-import-panel         match                 native-calibrate
-refine               restore               status
-uniformity           verify
+ddc-info             disable-startup       enable-startup
+export-panel         import-panel          match
+native-calibrate     refine                restore
+uniformity
 ```
 
-Each returns exit code 2 without changing display state and directs the operator to the
-GUI. Command-line flags from 1.0 are not accepted as an unattended actuation path.
+Each returns exit code 2 without changing display state. A name with a declared action
+behind it is declined in the resolver's own words and names that action, so a terminal
+and a window give one answer about what this build does. The rest report that this build
+declares no capability behind them, without inventing an action to cite.
+
+Command-line flags from 1.0 are not accepted as an unattended actuation path. A supported
+display change still requires the window's preview and an explicit confirmation.
 
 ## Evidence labels
 

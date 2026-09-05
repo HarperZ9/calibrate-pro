@@ -34,6 +34,12 @@ Display color is part of the creative pipeline. If the screen is wrong, every de
 
 ## What to test first
 
+The terminal reads and plans, and it writes only files you name. A display change is
+proposed by the window and by nothing else.
+
+- Run `calibrate-pro detect` for the displays this machine presents and the source of each characterization.
+- Run `calibrate-pro status` for the actions this session can run, each closed one carrying the reason it is closed.
+- Run `calibrate-pro verify --target srgb_web` to generate a sealed plan and read its predicted accuracy. The figures are estimated from the panel characterization, and the command prints that beneath them.
 - Launch `calibrate-pro gui`, select a display, and inspect the detected identity and available capabilities.
 - Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
 - Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
@@ -41,7 +47,7 @@ Display color is part of the creative pipeline. If the screen is wrong, every de
 ## Current status
 
 - **Release:** Calibrate Pro 1.1.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
-- **Operator surface:** a PySide6 desktop workflow plus read-only CLI diagnostics, target and panel listings, HDR status, patterns, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the GUI rather than changing display state.
+- **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, patterns, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
 - **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
 - **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
 
@@ -79,7 +85,17 @@ calibrate-pro patterns          # Display visual test patterns
 calibrate-pro gui               # Launch the calibration workflow
 ```
 
-Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, `restore`, and `verify` are proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the GUI.
+The calibration session also runs headless, over the same actions the window calls:
+
+```bash
+calibrate-pro detect                                  # Displays observed, with characterization sources
+calibrate-pro status --closed                         # Actions this session cannot run, and why
+calibrate-pro verify --target srgb_web                # Sealed plan and its predicted accuracy
+calibrate-pro generate-profiles out --target srgb_web # Publish one sealed bundle into 'out'
+calibrate-pro profiles out                            # Re-check the seal on published bundles
+```
+
+`CalibrateProCLI.exe` answers these in the packaged build, so a headless run needs no Python installation. Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, and `restore` remain proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the window.
 
 See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v1.1.0/examples).
 

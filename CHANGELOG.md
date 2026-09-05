@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+- Added the headless calibration session. `detect`, `status`, `verify`,
+  `generate-profiles`, and `profiles` drive the actions the window drives, over one
+  service, and print what each action returned. A refusal arrives in the words the
+  session refused it in rather than a sentence written for the command line.
+- Shipped those five commands in the frozen binary, so a headless run no longer requires
+  installing Python and the developer wheel. `CalibrateProCLI.exe` answers eight commands
+  and refuses the rest by naming the package they live in.
+- Added the one-session application service: read-only detection with default-deny
+  capabilities, deterministic asset generation, and an atomic export bundle sealed by a
+  SHA-256 manifest.
+- Added bundle read-back. `profiles` recomputes each digest from the bytes on disk, so a
+  bundle whose files changed is reported as changed instead of listed as published.
+- Bound the desktop DDC controls, the detection view, and the verification view to the
+  actions they stand for, so the window renders the session's observation rather than
+  reading hardware beneath it.
+- Gated the frozen module closure and the shipped command policy against the dispatcher
+  the binary runs. A command added to one list and not the other now fails a gate.
+- Fixed the tray reporting a startup registry record in place of the detection the
+  running session had performed.
+- Corrected the public documentation. `detect`, `status`, `verify`, `generate-profiles`,
+  and `profiles` were documented as proposal-only names that exit 2, which they no longer
+  are.
+
 ## v1.1.0 (2026-07-11)
 
 - Updated GitHub Actions workflows to current checkout/setup-python majors.

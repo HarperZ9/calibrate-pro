@@ -20,6 +20,13 @@ def test_readme_identifies_the_current_release_and_qt_binding() -> None:
 
 
 def test_readme_documents_proposal_only_legacy_commands_and_unelevated_launch() -> None:
+    """Both ways in are named, and the README keeps them apart.
+
+    These three commands were checked for their absence while they exited 2. They
+    run now, so the same three names are checked for the opposite reason: someone
+    who reads only this file should find the headless run without having to install
+    the package first to discover it exists.
+    """
     text = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "Detect -> Method -> Preview -> Apply -> Verify -> Save/Report" in text
@@ -31,9 +38,9 @@ def test_readme_documents_proposal_only_legacy_commands_and_unelevated_launch() 
     assert "Requests admin" not in text
     assert "not Authenticode-signed" in text
     assert "SHA256SUMS.txt" in text
-    assert "Run `calibrate-pro detect`" not in text
-    assert "Run `calibrate-pro status`" not in text
-    assert "Run `calibrate-pro verify`" not in text
+    assert "Run `calibrate-pro detect`" in text
+    assert "Run `calibrate-pro status`" in text
+    assert "Run `calibrate-pro verify --target srgb_web`" in text
 
 
 def test_readme_names_both_nano_ips_models() -> None:
@@ -67,6 +74,22 @@ def test_usage_guide_matches_the_1_1_command_and_privilege_contract() -> None:
     assert "PyQt6" not in text
     assert "Fully automatic calibration of all displays" not in text
     assert "requests admin rights" not in text
+
+
+def test_the_usage_guide_lists_exactly_the_names_this_build_declines() -> None:
+    """The block of legacy names is read back off the dispatcher that declines them.
+
+    It was a hand-kept list, and it named five commands that run now. A guide that
+    tells an operator a working command exits 2 reads as a reason not to try it,
+    which is the failure this catches rather than a typo in a table.
+    """
+    from calibrate_pro.main import _CONFIRMATION_COMMANDS
+
+    text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
+    section = text.split("## Proposal-only legacy commands", 1)[1]
+    listed = section.split("```text", 1)[1].split("```", 1)[0]
+
+    assert set(listed.split()) == set(_CONFIRMATION_COMMANDS)
 
 
 def test_enterprise_readiness_describes_the_shipped_boundary() -> None:
