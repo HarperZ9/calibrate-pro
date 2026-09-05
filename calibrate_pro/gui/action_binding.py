@@ -19,7 +19,12 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Protocol, runtime_checkable
 
 from calibrate_pro.application.actions import ActionDisposition, ResolvedAction
-from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
+from calibrate_pro.application.outcomes import (
+    ActionError,
+    ActionOutcome,
+    ActionSuccess,
+    refusal_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -250,13 +255,6 @@ class ActionBinder:
             binding.on_refusal(error)
             return
         self._report(refusal_message(error), "warning")
-
-
-def refusal_message(error: ActionError) -> str:
-    """Read a refusal as one line an operator can act on."""
-    if error.next_action:
-        return f"{error.summary} {error.next_action}"
-    return error.summary
 
 
 def _trigger_signal(control: Control) -> Any:

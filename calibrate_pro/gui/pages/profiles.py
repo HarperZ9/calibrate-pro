@@ -49,6 +49,10 @@ NOT_READ = "No profile listing has been read in this session."
 #: is a different answer from an empty folder and is worded as one.
 NOWHERE_TO_LOOK = "No export directory is set in this session, so there is nowhere to read profiles from."
 
+#: When a directory was named and there was nothing at that path to read. A
+#: folder that has been moved or deleted since the export is not an empty one.
+NOT_THERE = "Nothing is at {directory}, so no profiles were read."
+
 #: When a directory was read and held no bundle this build can describe.
 NONE_FOUND = "No published bundle under {directory}."
 
@@ -71,6 +75,8 @@ def _item_text(record: ProfileRecord) -> str:
 def _where_text(listing: ProfileListing) -> str:
     if not listing.searched:
         return NOWHERE_TO_LOOK
+    if not listing.existed:
+        return NOT_THERE.format(directory=listing.directory)
     if not listing.profiles:
         return NONE_FOUND.format(directory=listing.directory)
     return FOUND.format(count=len(listing.profiles), directory=listing.directory)
@@ -286,6 +292,7 @@ __all__ = [
     "FOUND",
     "NONE_FOUND",
     "NOT_READ",
+    "NOT_THERE",
     "NOWHERE_TO_LOOK",
     "UNREADABLE",
     "ProfilesPage",

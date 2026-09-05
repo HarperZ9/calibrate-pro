@@ -166,6 +166,21 @@ class VerificationResult:
         return len(self.patches)
 
 
+def verification_note(result: VerificationResult) -> str:
+    """One sentence saying what produced these figures, for any surface.
+
+    A figure carries its limitation when the result records one. Otherwise the
+    sentence names the model and says plainly that nothing was measured, which
+    is the statement that has to sit beside a predicted number wherever it is
+    rendered. Keeping it here is what stops a window and a terminal from
+    wording the same disclosure two ways.
+    """
+    if result.limitation:
+        return result.limitation
+    model = result.average_delta_e.source or "an unnamed model"
+    return f"Predicted by {model} from the plan this session generated. No display was measured and no sensor was read."
+
+
 @dataclass(frozen=True)
 class ExportDirectory:
     """The directory later exports will publish into."""
@@ -224,4 +239,5 @@ __all__ = [
     "PredictedPatch",
     "TargetSelection",
     "VerificationResult",
+    "verification_note",
 ]

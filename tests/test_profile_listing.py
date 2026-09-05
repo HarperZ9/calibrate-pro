@@ -151,6 +151,27 @@ def test_nowhere_to_look_reads_differently_from_an_empty_directory(tmp_path: Pat
     assert empty.profiles == ()
 
 
+def test_a_path_with_nothing_at_it_reads_differently_from_a_directory_that_was_read(tmp_path: Path) -> None:
+    """Three answers end in no profiles, and the listing keeps all three apart.
+
+    A directory that was read and held none is a fact about the bundles. A path
+    with nothing at it is a fact about the path, and reporting it as a zero tells
+    an operator their bundles are gone from a folder nobody ever opened. The
+    directory an export wrote to can stop being there between the export and the
+    next reading, so this is the answer a stale export directory gives.
+    """
+    absent = tmp_path / "gone"
+
+    listing = discover_profiles(absent)
+
+    assert listing.searched
+    assert listing.directory == str(absent)
+    assert not listing.existed
+    assert listing.profiles == ()
+    assert discover_profiles(tmp_path).existed
+    assert not discover_profiles(None).existed
+
+
 def test_a_bundle_is_found_at_the_chosen_directory_and_one_level_below(tmp_path: Path) -> None:
     """Both depths are depths this application publishes at.
 

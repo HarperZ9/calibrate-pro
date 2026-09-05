@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 from calibrate_pro.application.assets import ExportBundle
 from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.prediction import DELTA_E_UNIT
-from calibrate_pro.application.results import DetectionSummary, VerificationResult
+from calibrate_pro.application.results import DetectionSummary, VerificationResult, verification_note
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
 from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat
 from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
@@ -851,16 +851,7 @@ class VerifyPage(QWidget):
         self._stat_avg_de.set_value(average.display_text(), _metric_colour(average))
         self._stat_max_de.set_value(maximum.display_text(), _metric_colour(maximum))
         self._stat_evidence.set_value(average.source or "Not measured", C.TEXT)
-        self._method_label.setText(result.limitation or self._predicted_note(result))
-
-    @staticmethod
-    def _predicted_note(result: VerificationResult) -> str:
-        """State what produced the figures, by name, next to the figures."""
-        model = result.average_delta_e.source or "an unnamed model"
-        return (
-            f"Predicted by {model} from the plan this session generated. "
-            f"No display was measured and no sensor was read."
-        )
+        self._method_label.setText(verification_note(result))
 
     def _render_export(self, bundle: ExportBundle) -> None:
         """Name what the export wrote, taken from the manifest sealing it."""

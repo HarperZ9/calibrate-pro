@@ -17,6 +17,7 @@ that answer stops holding.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,14 @@ import pytest
 from calibrate_pro.application.assets import MANIFEST_FILENAME
 from calibrate_pro.application.outcomes import ActionSuccess
 from calibrate_pro.gui.pages.profile_detail import NO_SELECTION, SEALED
-from calibrate_pro.gui.pages.profiles import FOUND, NOT_READ, NOWHERE_TO_LOOK, UNREADABLE
+from calibrate_pro.gui.pages.profiles import (
+    FOUND,
+    NONE_FOUND,
+    NOT_READ,
+    NOT_THERE,
+    NOWHERE_TO_LOOK,
+    UNREADABLE,
+)
 from tests.fake_acceptance_support import MANIFEST_NAME
 from tests.profile_support import CUBE, manifest_of, publish
 from tests.test_gui_action_surface import CUBE_EXPORT, drive_to_save_report, entries
@@ -117,6 +125,27 @@ def test_a_refresh_with_nowhere_to_look_says_so(window: object) -> None:
     profiles = refreshed(window)
 
     assert profiles._where.text() == NOWHERE_TO_LOOK
+    assert listed(profiles) == []
+
+
+def test_a_directory_that_stopped_being_there_is_not_redrawn_as_an_empty_one(
+    window: object,
+    tmp_path: Path,
+) -> None:
+    """The folder an export wrote to can be moved or deleted after the export.
+
+    Refreshing then reads a path with nothing at it. Saying nothing was found
+    under a directory it never opened is the reading that matters here, because
+    the operator has bundles and is being told the folder holding them is empty.
+    """
+    directory = stocked(window, tmp_path / "exports")
+    assert refreshed(window)._where.text() == FOUND.format(count=1, directory=directory)
+
+    shutil.rmtree(directory)
+    profiles = refreshed(window)
+
+    assert profiles._where.text() == NOT_THERE.format(directory=directory)
+    assert profiles._where.text() != NONE_FOUND.format(directory=directory)
     assert listed(profiles) == []
 
 

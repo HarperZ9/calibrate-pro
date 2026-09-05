@@ -130,6 +130,10 @@ class SessionActionRunner:
         """
         return self._registry.resolve(action_id, self._state.to_context())
 
+    def action_ids(self) -> frozenset[str]:
+        """Every action the manifest declares, for a surface that enumerates."""
+        return self._registry.action_ids
+
     def classification(self, action_id: str) -> ActionClassification | None:
         """Report what kind of effect one action has, for a surface's own rule."""
         return self._registry.classification_of(action_id)

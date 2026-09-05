@@ -92,15 +92,18 @@ class UnreadableProfile:
 class ProfileListing:
     """Every bundle found under one directory, readable or not.
 
-    ``directory`` is ``None`` when the session has nowhere to look. That is a
-    different answer from an empty directory, and a surface reporting them the
-    same way tells an operator their bundles are gone when nobody ever said
-    where the bundles were.
+    Three answers end in no profiles and they are not the same answer.
+    ``directory`` is ``None`` when the session has nowhere to look, so nobody
+    ever said where the bundles were. ``existed`` is false when a directory was
+    named and there was nothing at that path to read. Both differ from a
+    directory that was read and held none, and a surface reporting them alike
+    tells an operator their bundles are gone.
     """
 
     directory: str | None
     profiles: tuple[ProfileRecord, ...]
     unreadable: tuple[UnreadableProfile, ...]
+    existed: bool
 
     @property
     def searched(self) -> bool:
@@ -181,8 +184,9 @@ def discover_profiles(directory: str | Path | None) -> ProfileListing:
     application did not produce and cannot describe.
     """
     if directory is None:
-        return ProfileListing(directory=None, profiles=(), unreadable=())
+        return ProfileListing(directory=None, profiles=(), unreadable=(), existed=False)
     root = Path(directory)
+    existed = root.is_dir()
     found: list[ProfileRecord] = []
     unreadable: list[UnreadableProfile] = []
     for candidate in _bundle_directories(root):
@@ -192,7 +196,7 @@ def discover_profiles(directory: str | Path | None) -> ProfileListing:
             unreadable.append(UnreadableProfile(name=candidate.name, directory=str(candidate), reason=str(exc)))
     found.sort(key=lambda record: record.directory)
     unreadable.sort(key=lambda entry: entry.directory)
-    return ProfileListing(directory=str(root), profiles=tuple(found), unreadable=tuple(unreadable))
+    return ProfileListing(directory=str(root), profiles=tuple(found), unreadable=tuple(unreadable), existed=existed)
 
 
 def reparse_profile(record: ProfileRecord) -> ProfileInspection:

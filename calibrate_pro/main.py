@@ -1,200 +1,95 @@
-"""Calibrate Pro's least-privilege developer command entry point.
+"""Calibrate Pro's developer command line.
 
-Display changes are never performed directly by this module. Commands that
-can change ICC associations, gamma ramps, DDC/CI values, or compositor LUTs
-route the operator to the interactive preview/confirmation workflow.
+Three kinds of command are dispatched here. The catalogue commands read stored
+data, the session commands drive the same actions a window drives, and the rest
+are names from an earlier release that this build does not perform.
+
+A refused name is refused in the resolver's own words rather than in a sentence
+written here, so a terminal and a window give one answer about what this build
+does and there is one place for that answer to change. Nothing in this module
+changes display state. The session it builds holds no display adapter, and
+confirming a plan acknowledges it rather than writing one.
 """
 
 from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from types import MappingProxyType
 
 from calibrate_pro import __version__
+from calibrate_pro.commands.catalog import banner, list_panels, list_targets, panel_info
 
-_CONFIRMATION_COMMANDS = frozenset(
+#: What a declined command exits with, matching the session driver.
+REFUSED = 2
+
+#: Legacy names whose work is one declared action this build has not qualified.
+#: Pairing them is what lets a refusal cite the resolver rather than restate a
+#: policy, which would give the same decision two places to drift from.
+_DECLARED_REFUSALS = MappingProxyType(
     {
-        "auto",
-        "calibrate",
-        "ddc-calibrate",
-        "ddc-info",
-        "detect",
-        "disable-startup",
-        "enable-startup",
-        "export-panel",
-        "generate-profiles",
-        "import-panel",
-        "match",
-        "native-calibrate",
-        "refine",
-        "restore",
-        "status",
-        "uniformity",
-        "verify",
+        "calibrate": "calibration.all",
+        "ddc-calibrate": "ddc.apply",
+        "ddc-info": "ddc.read_current",
+        "disable-startup": "settings.startup",
+        "enable-startup": "settings.startup",
+        "export-panel": "panel_profile.edid.create",
+        "import-panel": "panel_profile.import",
+        "native-calibrate": "calibration.method.measured",
+        "refine": "calibration.method.measured",
+        "restore": "display.restore_defaults",
     }
 )
 
+#: Legacy names with no declared action behind them anywhere in this build.
+_UNBUILT_COMMANDS = frozenset({"auto", "match", "uniformity"})
 
-def _banner() -> str:
-    return f"Calibrate Pro v{__version__}"
+#: Every legacy name this build declines, which is what the MCP boundary gate
+#: walks to prove none of them is reachable as a tool.
+_CONFIRMATION_COMMANDS = frozenset(_DECLARED_REFUSALS) | _UNBUILT_COMMANDS
 
+#: The names handed to the session driver. They are written out here so the
+#: parser can be built without importing the action layer, which a `--help` and a
+#: rejected flag never read, and a test holds this list against the driver's own
+#: table.
+_SESSION_COMMANDS = frozenset({"detect", "generate-profiles", "profiles", "status", "verify"})
 
-def _requires_confirmation(command: str) -> int:
-    """Refuse legacy direct actuation and point to the confirmed workflow."""
-    print(_banner())
-    print(f"\n'{command}' is proposal-only in Calibrate Pro 1.1.")
-    print("Open the GUI to Detect, choose a Method, Preview the exact plan,")
-    print("and explicitly confirm Apply. No display state was changed.")
-    return 2
-
-
-def cmd_detect(args: argparse.Namespace) -> int:
-    """Keep device probing out of the non-interactive command surface."""
-    return _requires_confirmation("detect")
+_UNTOUCHED = "Nothing was read and no display state was changed."
 
 
-def cmd_calibrate(args: argparse.Namespace) -> int:
-    """Require the interactive preview and one-use confirmation workflow."""
-    return _requires_confirmation("calibrate")
+def _declared_refusal(command: str, action_id: str) -> int:
+    """Decline a legacy name, quoting the resolver on the action behind it."""
+    from calibrate_pro.application.composition import build_production_service
+
+    resolved = build_production_service().resolve(action_id)
+    print(banner())
+    print(f"\n'{command}' depends on {action_id}, which this build does not perform.")
+    print(f"  {resolved.disposition.value}: {resolved.reason}")
+    print(f"\n{_UNTOUCHED}")
+    return REFUSED
 
 
-def cmd_verify(args: argparse.Namespace) -> int:
-    """Require an explicit measured or characterized evidence workflow."""
-    return _requires_confirmation("verify")
+def _unbuilt(command: str) -> int:
+    """Decline a legacy name that this build declares no capability for."""
+    print(banner())
+    print(f"\n'{command}' is a name from an earlier release. This build declares no")
+    print("capability behind it, so there is nothing to run and nothing to qualify.")
+    print(f"\n{_UNTOUCHED}")
+    return REFUSED
 
 
-def cmd_enable_startup(args: argparse.Namespace) -> int:
-    """Refuse direct registry mutation from the developer CLI."""
-    return _requires_confirmation("enable-startup")
+def _session(command: str, args: argparse.Namespace) -> int:
+    """Hand one command to the driver a terminal and a window share."""
+    from calibrate_pro.commands import session
 
-
-def cmd_disable_startup(args: argparse.Namespace) -> int:
-    """Refuse direct registry mutation from the developer CLI."""
-    return _requires_confirmation("disable-startup")
-
-
-def cmd_generate_profiles(args: argparse.Namespace) -> int:
-    """Require a selected display and confirmed Save/Report stage."""
-    return _requires_confirmation("generate-profiles")
-
-
-def cmd_restore(args: argparse.Namespace) -> int:
-    """Require a captured restoration plan and explicit confirmation."""
-    return _requires_confirmation("restore")
-
-
-def cmd_native_calibrate(args: argparse.Namespace) -> int:
-    """Require the interactive measured-calibration workflow."""
-    return _requires_confirmation("native-calibrate")
-
-
-def cmd_ddc_info(args: argparse.Namespace) -> int:
-    """Keep DDC handles out of the application command surface."""
-    return _requires_confirmation("ddc-info")
-
-
-def cmd_ddc_calibrate(args: argparse.Namespace) -> int:
-    """Require a bounded ApplyPlan and one-use confirmation."""
-    return _requires_confirmation("ddc-calibrate")
-
-
-def cmd_match(args: argparse.Namespace) -> int:
-    """Require displays selected through the read-only GUI detection stage."""
-    return _requires_confirmation("match")
-
-
-def cmd_refine(args: argparse.Namespace) -> int:
-    """Require the interactive measured-calibration workflow."""
-    return _requires_confirmation("refine")
-
-
-def cmd_auto(args: argparse.Namespace) -> int:
-    """Refuse unattended calibration or startup persistence."""
-    return _requires_confirmation("auto")
-
-
-def cmd_status(args: argparse.Namespace) -> int:
-    """Require the read-only GUI monitor rather than low-level imports."""
-    return _requires_confirmation("status")
-
-
-def cmd_list_targets(args: argparse.Namespace) -> int:
-    """List pure calibration target presets without probing hardware."""
-    from calibrate_pro.targets import (
-        get_gamma_presets,
-        get_gamut_presets,
-        get_luminance_presets,
-        get_profile_presets,
-        get_whitepoint_presets,
-    )
-
-    print(f"\n{_banner()}")
-    print("=" * 50)
-    print("\nCalibration Profiles")
-    for profile in get_profile_presets():
-        label = " [HDR]" if profile.is_hdr() else ""
-        print(f"  {profile.name:25s} - {profile.description}{label}")
-    print("\nWhite Points")
-    for whitepoint in get_whitepoint_presets():
-        print(f"  {whitepoint.preset.value:15s} ({whitepoint.get_cct():.0f}K)")
-    print("\nLuminance")
-    for luminance in get_luminance_presets():
-        label = " [HDR]" if luminance.is_hdr() else " [SDR]"
-        print(f"  {luminance.standard.value:20s} - {luminance.get_peak_luminance():.0f} cd/m2{label}")
-    print("\nGamma / EOTF")
-    for gamma in get_gamma_presets():
-        label = " [HDR]" if gamma.is_hdr() else ""
-        print(f"  {gamma.preset.value:15s}{label}")
-    print("\nGamuts")
-    for gamut in get_gamut_presets():
-        label = " [Wide Gamut]" if gamut.is_wide_gamut() else ""
-        print(f"  {gamut.preset.value:15s}{label}")
-    return 0
-
-
-def cmd_list_panels(args: argparse.Namespace) -> int:
-    """List characterized panels without enumerating attached displays."""
-    from calibrate_pro.panels.database import PanelDatabase
-
-    database = PanelDatabase()
-    keys = sorted(database.list_panels())
-    print(f"\n{_banner()}\n" + "=" * 50)
-    print("\nCharacterized Panel Profiles\n")
-    for key in keys:
-        panel = database.get_panel(key)
-        if panel is not None:
-            print(f"  {key:24s} {panel.name:40s} {panel.panel_type}")
-    print(f"\nTotal: {len(keys)} profiles")
-    return 0
-
-
-def cmd_info(args: argparse.Namespace) -> int:
-    """Show stored characterization facts for one panel key."""
-    from calibrate_pro.panels.database import PanelDatabase
-
-    database = PanelDatabase()
-    panel = database.get_panel(args.panel) or database.find_panel(args.panel)
-    if panel is None:
-        print(f"Panel '{args.panel}' was not found. Use 'list-panels' for keys.")
-        return 1
-    primaries = panel.native_primaries
-    print(f"\n{_banner()}\n" + "=" * 50)
-    print(f"\nPanel: {panel.name}")
-    print(f"  Manufacturer: {panel.manufacturer}")
-    print(f"  Type: {panel.panel_type}")
-    print("  Characterized primaries (estimated for an attached unit):")
-    print(f"    Red:   ({primaries.red.x:.4f}, {primaries.red.y:.4f})")
-    print(f"    Green: ({primaries.green.x:.4f}, {primaries.green.y:.4f})")
-    print(f"    Blue:  ({primaries.blue.x:.4f}, {primaries.blue.y:.4f})")
-    print(f"    White: ({primaries.white.x:.4f}, {primaries.white.y:.4f})")
-    return 0
+    return session.run(command, args)
 
 
 def cmd_hdr_status(args: argparse.Namespace) -> int:
     """Report OS HDR state through the read-only HDR query surface."""
     from calibrate_pro.display.hdr_detect import print_hdr_status
 
-    print(f"\n{_banner()} - HDR Status\n" + "=" * 50)
+    print(f"\n{banner()} - HDR Status\n" + "=" * 50)
     print_hdr_status()
     return 0
 
@@ -209,14 +104,14 @@ def cmd_plugins(args: argparse.Namespace) -> int:
 
 
 def cmd_gui(args: argparse.Namespace) -> int:
-    """Launch the unelevated six-stage GUI."""
+    """Launch the unelevated calibration window."""
     from calibrate_pro.commands.gui import run
 
     return run([])
 
 
 def cmd_hdr(args: argparse.Namespace) -> int:
-    """Launch the unelevated HDR target/proposal GUI."""
+    """Launch the unelevated HDR target and proposal window."""
     from calibrate_pro.commands.hdr import run
 
     return run([])
@@ -253,17 +148,42 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     return serve()
 
 
+def _add_session_parsers(subparsers: argparse._SubParsersAction) -> None:
+    """Give every session command the arguments it needs, and nothing spare.
+
+    A target is required rather than defaulted. A default here would be a second
+    copy of a preset name, and the one place a preset name belongs is the table
+    the action layer selects from.
+    """
+    subparsers.add_parser("detect", help="Observe attached displays and report what was read")
+    status = subparsers.add_parser("status", help="Report which actions this session can run")
+    status.add_argument("--closed", action="store_true", help="Show only the actions that are unavailable")
+    for name, summary in (
+        ("verify", "Generate a plan and report its predicted accuracy"),
+        ("generate-profiles", "Write one calibration bundle into a directory"),
+    ):
+        command = subparsers.add_parser(name, help=summary)
+        if name == "generate-profiles":
+            command.add_argument("output", help="Directory the bundle is written into")
+            command.add_argument("--dry-run", action="store_true", help="Stop at the plan and write nothing")
+        command.add_argument("--target", required=True, help="Calibration target; see 'list-targets'")
+        command.add_argument("--display", help="Platform display id; the detected display is used by default")
+    profiles = subparsers.add_parser("profiles", help="List published bundles and check each one's seal")
+    profiles.add_argument("directory", help="Directory holding published bundles")
+
+
 def _build_parser() -> argparse.ArgumentParser:
+    """Every command this build answers, built without importing the engine."""
     parser = argparse.ArgumentParser(
         description="Calibrate Pro - least-privilege display calibration",
-        epilog="Display changes require GUI preview and explicit confirmation.",
+        epilog="A display change requires the window's preview and an explicit confirmation.",
     )
     parser.add_argument("--version", "-V", action="version", version=f"Calibrate Pro v{__version__}")
     subparsers = parser.add_subparsers(dest="command")
 
     doctor = subparsers.add_parser("doctor", help="Run read-only installation diagnostics")
     doctor.add_argument("--json", action="store_true", help="Emit schema-1 JSON")
-    subparsers.add_parser("list-targets", help="List calibration target presets")
+    subparsers.add_parser("list-targets", help="List calibration targets and the reference catalogue")
     subparsers.add_parser("list-panels", help="List characterized panel profiles")
     info = subparsers.add_parser("info", help="Show stored panel characterization")
     info.add_argument("panel")
@@ -276,38 +196,50 @@ def _build_parser() -> argparse.ArgumentParser:
     plugins = subparsers.add_parser("plugins", help="List discovered plugins")
     plugins.add_argument("--plugin-dir")
     subparsers.add_parser("mcp", help="Serve read-only catalog + doctor over MCP stdio")
+    _add_session_parsers(subparsers)
 
     for command in sorted(_CONFIRMATION_COMMANDS):
-        command_parser = subparsers.add_parser(command, help="Requires GUI preview and confirmation")
-        command_parser.set_defaults(confirmation_command=command)
+        subparsers.add_parser(command, help="Declined; this build does not perform it")
     return parser
 
 
+_HANDLERS = {
+    "doctor": cmd_doctor,
+    "gui": cmd_gui,
+    "hdr": cmd_hdr,
+    "hdr-status": cmd_hdr_status,
+    "info": panel_info,
+    "list-panels": list_panels,
+    "list-targets": list_targets,
+    "mcp": cmd_mcp,
+    "patterns": cmd_patterns,
+    "plugins": cmd_plugins,
+    "tray": cmd_tray,
+}
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch a read-only command or an explicit interactive GUI."""
+    """Dispatch one command, or print the help when none was named.
+
+    Unrecognized arguments are rejected before anything is dispatched. Checking
+    afterwards let a declined command accept flags it never read, which reads as
+    though the flag had been understood and then refused.
+    """
     parser = _build_parser()
     args, unknown = parser.parse_known_args(argv)
     if args.command is None:
         parser.print_help()
         return 0
-    if getattr(args, "confirmation_command", None):
-        return _requires_confirmation(args.confirmation_command)
     if unknown:
         parser.error("unrecognized arguments: " + " ".join(unknown))
-    handlers = {
-        "doctor": cmd_doctor,
-        "gui": cmd_gui,
-        "hdr": cmd_hdr,
-        "hdr-status": cmd_hdr_status,
-        "info": cmd_info,
-        "list-panels": cmd_list_panels,
-        "list-targets": cmd_list_targets,
-        "mcp": cmd_mcp,
-        "patterns": cmd_patterns,
-        "plugins": cmd_plugins,
-        "tray": cmd_tray,
-    }
-    return handlers[args.command](args)
+    if args.command in _SESSION_COMMANDS:
+        return _session(args.command, args)
+    action_id = _DECLARED_REFUSALS.get(args.command)
+    if action_id is not None:
+        return _declared_refusal(args.command, action_id)
+    if args.command in _UNBUILT_COMMANDS:
+        return _unbuilt(args.command)
+    return _HANDLERS[args.command](args)
 
 
 if __name__ == "__main__":

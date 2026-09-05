@@ -65,6 +65,18 @@ class ActionError:
 ActionOutcome: TypeAlias = ActionSuccess[T] | ActionError
 
 
+def refusal_message(error: ActionError) -> str:
+    """Read a refusal as one line an operator can act on.
+
+    Every surface renders a refusal the same way, so the sentence a window puts
+    in a toast is the sentence a terminal prints. Keeping it beside the type it
+    reads is what lets a headless surface use it without importing a window.
+    """
+    if error.next_action:
+        return f"{error.summary} {error.next_action}"
+    return error.summary
+
+
 class CorrelationIdFactory(Protocol):
     def __call__(self) -> str: ...
 
@@ -725,9 +737,7 @@ def _bounded_phase_flags(
     if not _is_phase_flags(value) or len(value) > _BOUNDARY_PHASE_FLAG_MAX_COUNT:
         return ()
     if any(
-        not _is_bounded_utf8_text(name, _BOUNDARY_PHASE_KEY_MAX_BYTES)
-        or type(flag) is not bool
-        for name, flag in value
+        not _is_bounded_utf8_text(name, _BOUNDARY_PHASE_KEY_MAX_BYTES) or type(flag) is not bool for name, flag in value
     ):
         return ()
     return value
@@ -784,4 +794,5 @@ __all__ = [
     "ActionOutcome",
     "ActionSuccess",
     "CorrelationIdFactory",
+    "refusal_message",
 ]

@@ -29,6 +29,15 @@ class SurfaceActions:
         """Report what one action is right now, for rendering a control."""
         return self._runner.resolve(action_id)
 
+    def action_ids(self) -> frozenset[str]:
+        """Every action this build declares, for a surface that lists them.
+
+        A window binds the controls it was written with. A report over the whole
+        manifest has to ask what the manifest holds, and asking here keeps it
+        from loading a second copy that could answer differently.
+        """
+        return self._runner.action_ids()
+
     def classification(self, action_id: str) -> ActionClassification | None:
         """Report what kind of effect one action has, or None if unknown."""
         return self._runner.classification(action_id)

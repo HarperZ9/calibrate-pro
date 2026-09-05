@@ -6,7 +6,7 @@ import json
 import pytest
 
 from calibrate_pro import __version__
-from calibrate_pro.main import _CONFIRMATION_COMMANDS
+from calibrate_pro.main import _CONFIRMATION_COMMANDS, _SESSION_COMMANDS
 from calibrate_pro.mcp import (
     MCP_PROTOCOL_VERSION,
     _tool_defs,
@@ -99,23 +99,27 @@ def test_unknown_tool_is_a_param_error():
     assert res["error"]["code"] == -32602
 
 
-# --- the actuation boundary: no confirmation command is reachable over MCP ---
+# --- the boundary: nothing that drives a session or actuates is reachable over MCP ---
 
-def test_no_actuation_command_is_exposed_as_a_tool():
+def test_no_command_that_drives_a_session_is_exposed_as_a_tool():
     tool_names = {t["name"] for t in _tool_defs()}
     read_only = {"calibrate-pro.status", "calibrate-pro.doctor",
                  "calibrate-pro.list-targets", "calibrate-pro.list-panels",
                  "calibrate-pro.panel-info"}
     assert tool_names == read_only  # the server exposes ONLY these read-only tools
-    for command in _CONFIRMATION_COMMANDS:
-        # The CLI's confirmation commands actuate a display and route to GUI preview.
-        # None are wired here. ("status" collides by name with the read-only health
-        # probe -- a liveness report, not the CLI's GUI-monitor command.)
-        if f"calibrate-pro.{command}" in read_only:
-            continue
-        assert command not in tool_names
+    # Two kinds of command are held out. A confirmation command actuates a display,
+    # and a session command drives one calibration, which reaches the filesystem
+    # when it publishes a bundle. This walks both lists rather than a copy of them,
+    # so a command added to either is held out here without anyone remembering to.
+    withheld = {f"calibrate-pro.{name}" for name in _CONFIRMATION_COMMANDS | _SESSION_COMMANDS}
+    # One name is in both lists. The tool reports whether the server is alive; the
+    # command reports which actions a session can run. Naming the collision is what
+    # keeps a second one from being skipped quietly.
+    assert withheld & read_only == {"calibrate-pro.status"}
+    for name in sorted(withheld - read_only):
+        assert name not in tool_names
         with pytest.raises(ValueError):
-            call_tool(f"calibrate-pro.{command}", {})
+            call_tool(name, {})
 
 
 # --- the stdio loop frames one JSON object per line ---
