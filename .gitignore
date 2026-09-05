@@ -11,6 +11,9 @@ Thumbs.db
 *.obj
 .env
 .env.*
+!.env.example
+.envrc
+.envrc.local
 .warden-safe-cache/
 .eggs/
 htmlcov/
