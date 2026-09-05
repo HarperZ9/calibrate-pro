@@ -149,6 +149,13 @@ def export_panel(panel: PanelCharacterization, output_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
+def _required_gamma(gamma: dict, channel: str, json_path: Path) -> float:
+    """Read one channel's gamma, or say which channel the file is missing."""
+    if channel not in gamma:
+        raise ValueError(f"Community panel {json_path} carries no {channel} gamma")
+    return float(gamma[channel])
+
+
 def import_panel(json_path: Path) -> PanelCharacterization:
     """
     Import a panel from a community JSON file.
@@ -195,14 +202,24 @@ def import_panel(json_path: Path) -> PanelCharacterization:
             blue=ChromaticityCoord(prims["blue"]["x"], prims["blue"]["y"]),
             white=ChromaticityCoord(prims["white"]["x"], prims["white"]["y"]),
         ),
-        gamma_red=GammaCurve(gamma=gamma.get("red", 2.2)),
-        gamma_green=GammaCurve(gamma=gamma.get("green", 2.2)),
-        gamma_blue=GammaCurve(gamma=gamma.get("blue", 2.2)),
+        # A missing gamma raises rather than defaulting. The three curves drive
+        # the correction LUT, so 2.2 in place of a channel the file does not
+        # carry is a tone response nobody measured reaching the panel, the same
+        # way a missing primary already raises on the lookup above.
+        gamma_red=GammaCurve(gamma=_required_gamma(gamma, "red", json_path)),
+        gamma_green=GammaCurve(gamma=_required_gamma(gamma, "green", json_path)),
+        gamma_blue=GammaCurve(gamma=_required_gamma(gamma, "blue", json_path)),
         capabilities=PanelCapabilities(
-            max_luminance_sdr=caps.get("max_sdr", 100.0),
-            max_luminance_hdr=caps.get("max_hdr", 400.0),
-            min_luminance=caps.get("min_luminance", 0.0001),
-            bit_depth=caps.get("bit_depth", 10),
+            # Zero means not known, which is how the panel layer reports a field
+            # it has no evidence for. These used to read 100, 400 and 0.0001 for
+            # any file that left them out, and the submission CLI never asked for
+            # a black level, so every file it wrote took the 0.0001. That is under
+            # the 0.01 threshold the DDC/CI path treats as an emissive panel, so
+            # an IPS monitor submitted by hand was sent OLED black level bytes.
+            max_luminance_sdr=caps.get("max_sdr", 0.0),
+            max_luminance_hdr=caps.get("max_hdr", 0.0),
+            min_luminance=caps.get("min_luminance", 0.0),
+            bit_depth=caps.get("bit_depth", 0),
             hdr_capable=caps.get("hdr", False),
             wide_gamut=caps.get("wide_gamut", False),
             vrr_capable=caps.get("vrr", False),
@@ -216,6 +233,20 @@ def import_panel(json_path: Path) -> PanelCharacterization:
 # ---------------------------------------------------------------------------
 # Interactive submission helper
 # ---------------------------------------------------------------------------
+
+
+def _read_optional_float(target: dict, key: str, prompt: str) -> None:
+    """Store the answer under ``key``, or leave the key out when it is blank."""
+    answer = input(prompt).strip()
+    if answer:
+        target[key] = float(answer)
+
+
+def _read_optional_int(target: dict, key: str, prompt: str) -> None:
+    """Store the answer under ``key``, or leave the key out when it is blank."""
+    answer = input(prompt).strip()
+    if answer:
+        target[key] = int(answer)
 
 
 def submit_panel_cli():
@@ -247,14 +278,18 @@ def submit_panel_cli():
         "blue": float(input("  Blue gamma: ").strip()),
     }
 
-    print("\nCapabilities:")
+    # A blank answer leaves the field out of the file. The submission is
+    # written under a name and a measurement device, so a number nobody read off
+    # an instrument would arrive at the next person as a measurement.
+    print("\nCapabilities (leave blank for anything you did not measure):")
     capabilities: dict = {}
-    capabilities["max_sdr"] = float(input("  SDR peak (cd/m2): ").strip() or "100")
-    capabilities["max_hdr"] = float(input("  HDR peak (cd/m2): ").strip() or "400")
+    _read_optional_float(capabilities, "max_sdr", "  SDR peak (cd/m2): ")
+    _read_optional_float(capabilities, "max_hdr", "  HDR peak (cd/m2): ")
+    _read_optional_float(capabilities, "min_luminance", "  Black level (cd/m2): ")
     capabilities["hdr"] = input("  HDR capable? (y/n): ").strip().lower() == "y"
     capabilities["wide_gamut"] = input("  Wide gamut? (y/n): ").strip().lower() == "y"
     capabilities["vrr"] = input("  VRR capable? (y/n): ").strip().lower() == "y"
-    capabilities["bit_depth"] = int(input("  Bit depth (8/10/12): ").strip() or "10")
+    _read_optional_int(capabilities, "bit_depth", "  Bit depth (8/10/12): ")
 
     measured_by = input("\nYour name: ").strip()
     measurement_device = input("Measurement device (e.g., i1Display Pro): ").strip()

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Stopped a community panel file reporting photometry nobody submitted. `import_panel` filled
+  every absent capability: a 100 cd/m2 SDR peak, a 400 cd/m2 HDR peak, a 0.0001 cd/m2 black,
+  10-bit colour, and 2.2 for a missing gamma channel. A community file is written under a
+  submitter name, a measurement date and a measurement device, so every number in it reads as an
+  instrument observation to whoever imports it next. The submission CLI made the same
+  substitution one step earlier, writing 100 and 400 into the file when the submitter pressed
+  enter at the brightness prompts, and it never asked for a black level at all, so every
+  hand-written submission carried the importer's 0.0001. That black level is not inert. It sits
+  below the 0.01 cd/m2 threshold the DDC/CI path reads as an emissive panel, so an IPS monitor
+  submitted by hand was sent OLED contrast bytes over the bus, and the SDR peak divides the
+  target luminance to produce the brightness byte written beside them. An imported panel is not
+  a curiosity either: `cmd_import_panel` writes it into the panel database profiles directory,
+  and `PanelDatabase` globs that directory at construction, so it comes back out of `find_panel`
+  looking like a measured builtin. Absent photometry now imports as zero, which the consumers
+  already read as not known, a blank CLI answer writes no key at all, the CLI asks for a black
+  level, and a missing gamma channel raises and names the channel the way a missing primary
+  already did.
 - Stopped an EDID-built panel reporting photometry that EDID does not carry. `create_from_edid` is
   the fallback for a display the panel database does not hold, and it wrote the same four numbers
   for every one: a 250 cd/m2 SDR peak, a 400 cd/m2 HDR peak, a 0.1 cd/m2 black and a contrast
