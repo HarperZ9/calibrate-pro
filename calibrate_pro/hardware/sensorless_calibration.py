@@ -1695,6 +1695,7 @@ def detect_displays() -> list[DisplayInfo]:
     """
     from calibrate_pro.hardware.ddc_ci import DDCCIController
     from calibrate_pro.panels.database import get_database
+    from calibrate_pro.panels.detection import parse_edid
 
     displays = []
     ddc = DDCCIController()
@@ -1714,8 +1715,14 @@ def detect_displays() -> list[DisplayInfo]:
         monitor = monitors[i]
         name = monitor.get("name", f"Display {i}") if isinstance(monitor, dict) else f"Display {i}"
 
-        # Look up panel profile
-        panel = db.find_panel("PG27UCDM")  # TODO: Match by EDID
+        # Look up the panel profile for this display, not for a fixed model.
+        # EDID carries the model string the database patterns are written
+        # against, and the DDC name is what is left when EDID is unreadable. A
+        # display neither one matches stays unmatched, because naming another
+        # panel here would report that panel's primaries, its type, and its
+        # manufacturer as this display's own.
+        model_string = parse_edid(edid).get("monitor_name", "") if edid else ""
+        panel = db.find_panel(model_string or name)
 
         if colorimetry:
             native_xy = (colorimetry["white"][0], colorimetry["white"][1])

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Stopped detection reporting one monitor's characterization for every display. The panel
+  lookup was written against a fixed model string, so each display a session detected came
+  back as that monitor: its panel type, its manufacturer, and, wherever EDID colorimetry was
+  unreadable, its primaries. A display the bundled database has never heard of reported a
+  panel profile it does not have. Each display now resolves against the model string its own
+  EDID carries, with the name the bus reports as the fallback, and a display that neither one
+  matches is reported as unmatched rather than borrowing another monitor's answer.
 - Made a suite that passes exit as one. The Windows run finished every assertion and then
   died with an access violation raised inside a garbage collection during interpreter
   shutdown, in three of five observed runs, and the process exit status is what a runner
