@@ -20,6 +20,7 @@ USB HID Protocol Summary:
 - Response: 64 bytes, byte 0 = status, bytes 1+ = data
 """
 
+import math
 import struct
 import time
 from dataclasses import dataclass
@@ -68,6 +69,15 @@ UNLOCK_KEYS = {
     "ColorMunki": bytes.fromhex("47 52 45 54 41 4D 61 63 62 65 74 68 00 00 00 00"),
 }
 
+# Challenge-response keys used by i1Display3 retail and OEM variants.  The
+# connected 0765:5020 unit identifies with the NEC SpectraSensor key.
+CHALLENGE_UNLOCK_KEYS = (
+    (0xE9622E9F, 0x8D63E133, "retail_i1display3"),
+    (0xA9119479, 0x5B168761, "nec_spectrasensor"),
+    (0xCAA62B2C, 0x30815B61, "oem_generic"),
+    (0xE01E6E0A, 0x257462DE, "colormunki_display"),
+)
+
 
 @dataclass
 class I1D3Info:
@@ -112,8 +122,9 @@ class I1D3Driver:
             driver.close()
     """
 
-    def __init__(self):
-        self._device = None
+    def __init__(self, transport=None):
+        self._device = transport
+        self._owns_device = transport is None
         self._info: I1D3Info | None = None
         self._cal_matrix = None  # 3x3 calibration matrix (per-unit from EEPROM)
         self._cal_source = "none"  # "device_eeprom", "fallback_approximate", or "none"
@@ -192,6 +203,15 @@ class I1D3Driver:
     def get_info(self) -> I1D3Info | None:
         """Get device information."""
         return self._info
+
+    def unlock(self) -> bool:
+        """Run the verified challenge-response exchange for known variants."""
+        if self._device is None:
+            return False
+        for key0, key1, _name in CHALLENGE_UNLOCK_KEYS:
+            if self._unlock_with_key(key0, key1):
+                return True
+        return False
 
     def measure(self, integration_time: float = None) -> I1D3Measurement | None:
         """
@@ -295,22 +315,72 @@ class I1D3Driver:
             is_locked=is_locked,
         )
 
-    def _unlock(self):
-        """Unlock the device for measurement."""
-        # Send unlock key
-        key = UNLOCK_KEYS.get("i1Display3", b"\x00" * 16)
+    def _unlock(self) -> bool:
+        """Compatibility wrapper for the challenge-response unlock."""
+        return self.unlock()
 
-        cmd = bytearray(REPORT_SIZE)
-        cmd[0] = 0x00  # Report ID
-        cmd[1] = 0x00
-        cmd[2] = 0x00
-        for i, b in enumerate(key):
-            if i + 3 < REPORT_SIZE:
-                cmd[i + 3] = b
+    def _unlock_with_key(self, key0: int, key1: int) -> bool:
+        command = bytearray(REPORT_SIZE + 1)
+        command[1] = 0x99
+        self._device.write(command)
+        time.sleep(0.2)
+        challenge = bytes(self._device.read(REPORT_SIZE, timeout_ms=3000) or [])
+        if len(challenge) < REPORT_SIZE:
+            return False
 
-        self._device.write(cmd)
-        time.sleep(0.1)
-        self._device.read(REPORT_SIZE, timeout_ms=2000)
+        scrambled = bytearray(challenge[3] ^ challenge[35 + index] for index in range(8))
+        ci0 = (
+            (scrambled[3] << 24)
+            + (scrambled[0] << 16)
+            + (scrambled[4] << 8)
+            + scrambled[6]
+        )
+        ci1 = (
+            (scrambled[1] << 24)
+            + (scrambled[7] << 16)
+            + (scrambled[2] << 8)
+            + scrambled[5]
+        )
+        mask = 0xFFFFFFFF
+        negative0 = (-key0) & mask
+        negative1 = (-key1) & mask
+        computed = (
+            (negative0 - ci1) & mask,
+            (negative1 - ci0) & mask,
+            (ci1 * negative0) & mask,
+            (ci0 * negative1) & mask,
+        )
+        checksum = sum(scrambled)
+        for shift in (0, 8, 16, 24):
+            checksum += (negative0 >> shift) & 0xFF
+            checksum += (negative1 >> shift) & 0xFF
+        sum0, sum1 = checksum & 0xFF, (checksum >> 8) & 0xFF
+        response_key = bytearray(16)
+        response_key[0] = (((computed[0] >> 16) & 0xFF) + sum0) & 0xFF
+        response_key[1] = (((computed[2] >> 8) & 0xFF) - sum1) & 0xFF
+        response_key[2] = ((computed[3] & 0xFF) + sum1) & 0xFF
+        response_key[3] = (((computed[1] >> 16) & 0xFF) + sum0) & 0xFF
+        response_key[4] = (((computed[2] >> 16) & 0xFF) - sum1) & 0xFF
+        response_key[5] = (((computed[3] >> 16) & 0xFF) - sum0) & 0xFF
+        response_key[6] = (((computed[1] >> 24) & 0xFF) - sum0) & 0xFF
+        response_key[7] = ((computed[0] & 0xFF) - sum1) & 0xFF
+        response_key[8] = (((computed[3] >> 8) & 0xFF) + sum0) & 0xFF
+        response_key[9] = (((computed[2] >> 24) & 0xFF) - sum1) & 0xFF
+        response_key[10] = (((computed[0] >> 8) & 0xFF) + sum0) & 0xFF
+        response_key[11] = (((computed[1] >> 8) & 0xFF) - sum1) & 0xFF
+        response_key[12] = ((computed[1] & 0xFF) + sum1) & 0xFF
+        response_key[13] = (((computed[3] >> 24) & 0xFF) + sum1) & 0xFF
+        response_key[14] = ((computed[2] & 0xFF) + sum0) & 0xFF
+        response_key[15] = (((computed[0] >> 24) & 0xFF) - sum0) & 0xFF
+
+        response_report = bytearray(REPORT_SIZE + 1)
+        response_report[1] = 0x9A
+        for index, value in enumerate(response_key):
+            response_report[25 + index] = challenge[2] ^ value
+        self._device.write(response_report)
+        time.sleep(0.3)
+        result = self._device.read(REPORT_SIZE, timeout_ms=3000)
+        return bool(result and len(result) > 2 and result[2] == 0x77)
 
     def _read_eeprom(self, offset: int, length: int) -> bytes | None:
         """
@@ -449,52 +519,44 @@ class I1D3Driver:
         """Set the sensor integration time."""
         self._integration_time = max(0.01, min(5.0, seconds))
 
-        # Convert to device units (microseconds as 32-bit int)
-        us = int(seconds * 1000000)
-        data = struct.pack(">I", us)
-
-        self._send_command(CMD_SET_INTTIME, data)
-
     def _trigger_measurement(self) -> tuple[float, float, float] | None:
         """
         Trigger a measurement and return raw sensor counts.
 
         Returns (red, green, blue) raw counts, or None on failure.
         """
-        # Use unlocked measurement command
-        # Integration time in the command payload
-        us = int(self._integration_time * 1000000)
-        data = struct.pack(">I", us)
-
-        resp = self._send_command(CMD_MEASURE2, data)
-        if resp is None:
-            # Try locked measurement command
-            resp = self._send_command(CMD_MEASURE1, data)
-
-        if resp is None or len(resp) < 20:
+        if self._device is None:
             return None
 
-        # Parse raw sensor counts from response
-        # Response format varies by firmware, but typically:
-        # Bytes 2-5: Red count (32-bit BE float or int)
-        # Bytes 6-9: Green count
-        # Bytes 10-13: Blue count
+        # The verified i1Display3 measurement report uses a 12 MHz integration
+        # clock. HID writes include the report ID plus the 64-byte payload.
+        integration_clocks = int(self._integration_time * 12_000_000)
+        report = bytearray(REPORT_SIZE + 1)
+        report[0] = 0x00
+        report[1] = 0x01
+        struct.pack_into("<I", report, 2, integration_clocks)
+
         try:
-            # Try as big-endian 32-bit unsigned integers
-            r_raw = struct.unpack(">I", resp[2:6])[0]
-            g_raw = struct.unpack(">I", resp[6:10])[0]
-            b_raw = struct.unpack(">I", resp[10:14])[0]
+            self._device.write(report)
+            response = self._device.read(
+                REPORT_SIZE,
+                timeout_ms=int((self._integration_time + 3.0) * 1000),
+            )
+            if not response or len(response) < 14:
+                return None
+            resp = bytes(response)
+            if resp[0] != STATUS_OK or resp[1] != 0x01:
+                return None
 
-            # Normalize by integration time
-            t = self._integration_time
-            if t > 0:
-                return (r_raw / t, g_raw / t, b_raw / t)
-            return (float(r_raw), float(g_raw), float(b_raw))
-
-        except (struct.error, ValueError):
+            r_raw, g_raw, b_raw = struct.unpack("<III", resp[2:14])
+            seconds = integration_clocks / 12_000_000.0
+            if seconds <= 0:
+                return None
+            return tuple(0.5 * (count + 0.5) / seconds for count in (r_raw, g_raw, b_raw))
+        except (OSError, struct.error, TypeError, ValueError):
             return None
 
-    def _apply_calibration(self, raw: tuple[float, float, float]) -> I1D3Measurement:
+    def _apply_calibration(self, raw: tuple[float, float, float]) -> I1D3Measurement | None:
         """Apply calibration matrix to convert raw counts to XYZ."""
         r, g, b = raw
 
@@ -509,10 +571,12 @@ class I1D3Driver:
         Y = M[1][0] * r + M[1][1] * g + M[1][2] * b
         Z = M[2][0] * r + M[2][1] * g + M[2][2] * b
 
-        # Ensure non-negative
-        X = max(0.0, X)
-        Y = max(0.0, Y)
-        Z = max(0.0, Z)
+        if not all(math.isfinite(value) for value in (r, g, b, X, Y, Z)):
+            return None
+        if any(value < 0.0 for value in (X, Y, Z)):
+            return None
+        if not 0.0 < Y <= 100_000.0:
+            return None
 
         # Compute CCT from xy chromaticity
         cct = 0.0
@@ -523,6 +587,8 @@ class I1D3Driver:
             if y > 0:
                 n = (x - 0.3320) / (0.1858 - y)
                 cct = 449 * n**3 + 3525 * n**2 + 6823.3 * n + 5520.33
+                if not math.isfinite(cct):
+                    cct = 0.0
 
         return I1D3Measurement(
             red_count=raw[0],
