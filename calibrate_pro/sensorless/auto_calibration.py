@@ -782,7 +782,8 @@ class AutoCalibrationEngine:
             except (ImportError, OSError):
                 pass
 
-        # Method 4: Build from EDID chromaticity (much better than generic sRGB)
+        # Method 4: Build from EDID chromaticity, the primaries the
+        # manufacturer declared for the panel. EDID carries no photometry.
         if panel is None:
             try:
                 from calibrate_pro.panels.detection import get_edid_from_registry, parse_edid
@@ -812,7 +813,7 @@ class AutoCalibrationEngine:
                             "EDID-based profiling used for '%s' (not in panel database). "
                             "Primaries: R(%.4f,%.4f) G(%.4f,%.4f) B(%.4f,%.4f), "
                             "White(%.4f,%.4f), Gamma=%s. "
-                            "This provides significantly better calibration than generic sRGB fallback.",
+                            "These values are the manufacturer's EDID declaration, which carries no photometry.",
                             name or "Unknown",
                             edid_chromaticity["red"][0],
                             edid_chromaticity["red"][1],

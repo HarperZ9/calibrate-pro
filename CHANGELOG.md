@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Removed a calibration-quality claim the repo does not measure. The EDID profiling path
+  logged "This provides significantly better calibration than generic sRGB fallback" for
+  every display it profiled from EDID, and `create_from_edid` repeated the claim in its
+  docstring. No measurement here compares EDID-derived primaries against the sRGB fallback,
+  so the line stated a result nobody produced. The log line now names what EDID does not
+  carry, which is photometry, and the docstring records the comparison as unmeasured.
+
 - Stopped an EDID that states no gamma reporting one. EDID byte 23 holds gamma, and the value
   0xFF means the gamma sits in an extension block, so `parse_edid` leaves the field at 0.0 and
   `update_from_edid` only copies it when it is above zero. `_match_panel` read

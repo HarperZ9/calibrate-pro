@@ -149,3 +149,20 @@ class TestTheProfilingLogNamesTheSource:
 
         assert "R(0.6800,0.3200)" in text
         assert "White(0.3127,0.3290)" in text
+
+    def test_the_line_claims_no_advantage_nobody_measured(self, engine, monkeypatch, caplog):
+        """The line used to end 'significantly better calibration than generic
+        sRGB fallback'. Nothing in this repo measures EDID-derived primaries
+        against the sRGB fallback, so the line stated a result it did not have.
+        """
+        _, text = self._run(engine, monkeypatch, caplog, 2.4)
+
+        lowered = text.lower()
+        for phrase in ("significantly better", "much better", "far better", "better calibration"):
+            assert phrase not in lowered, f"the profiling log claims {phrase!r} with no measurement behind it"
+
+    def test_the_line_states_what_edid_does_not_carry(self, engine, monkeypatch, caplog):
+        """What replaced the claim has to be worth the space it took."""
+        _, text = self._run(engine, monkeypatch, caplog, 2.4)
+
+        assert "carries no photometry" in text

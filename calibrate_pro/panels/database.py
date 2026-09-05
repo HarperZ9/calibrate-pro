@@ -208,11 +208,12 @@ def create_from_edid(
     """
     Create a PanelCharacterization from EDID chromaticity data.
 
-    This is the critical fallback for monitors not in the built-in database.
-    EDID reports native primaries and white point, giving us accurate gamut
-    information even for unknown panels. Combined with a reasonable gamma
-    assumption, this produces significantly better calibration than the
-    generic sRGB fallback.
+    This is the fallback for monitors not in the built-in database. EDID
+    reports the primaries and white point the manufacturer declared for the
+    panel, so the gamut in the returned characterization is that declaration.
+    No measurement in this repo compares it against the generic sRGB fallback.
+    EDID carries no photometry, so luminance, contrast and HDR support stay
+    unknown.
 
     Args:
         edid_chromaticity: Dict with 'red', 'green', 'blue', 'white' as (x, y) tuples
