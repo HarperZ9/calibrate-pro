@@ -451,12 +451,13 @@ class PerDisplayCalibrationManager:
 
     def _gamut_map(self, rgb: np.ndarray, source_primaries: dict, target_primaries: dict) -> np.ndarray:
         """
-        Map colors from source gamut to target gamut.
+        Clip colors into the unit cube.
 
-        Simple relative colorimetric mapping.
+        This is not a gamut mapping and neither primaries argument is read. A
+        relative colorimetric mapping would adapt the source white to the target
+        white and then map out-of-gamut colors, so calling the clip by that name
+        described an accuracy the values do not have.
         """
-        # For now, use simple clipping
-        # Full implementation would use Bradford adaptation
         return np.clip(rgb, 0, 1)
 
     def _save_lut(self, display_id: int, lut_data: np.ndarray) -> Path | None:
