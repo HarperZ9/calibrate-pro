@@ -2055,7 +2055,15 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.verify import VerifyPage
 
-                self.stack.addWidget(VerifyPage())  # 2
+                self.verify_page = VerifyPage()
+                self.verify_page.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    run_sensorless=self.service.verify,
+                    run_measured=partial(self.service.unhandled, "verification.measured"),
+                    save_report=self.service.export,
+                )
+                self.stack.addWidget(self.verify_page)  # 2
             except (ImportError, TypeError) as e:
                 logger.warning("Failed to load VerifyPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Verify"))  # 2
@@ -2083,7 +2091,12 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.settings import SettingsPage
 
-                self.stack.addWidget(SettingsPage())  # 5
+                self.settings_page = SettingsPage()
+                self.settings_page.bind_actions(
+                    self._binder,
+                    set_output_directory=self.service.set_export_directory,
+                )
+                self.stack.addWidget(self.settings_page)  # 5
             except (ImportError, OSError) as e:
                 logger.warning("Failed to load SettingsPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Settings"))  # 5
@@ -2344,7 +2357,8 @@ class CalibrateProWindow(QMainWindow):
         """
         outcome = self.service.detect()
         if isinstance(outcome, ActionSuccess):
-            for page in (self.dashboard, getattr(self, "ddc", None)):
+            pages = (self.dashboard, getattr(self, "ddc", None), getattr(self, "verify_page", None))
+            for page in pages:
                 if page is not None:
                     page.render_session(outcome.value)
         return outcome

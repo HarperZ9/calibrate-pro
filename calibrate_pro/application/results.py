@@ -120,6 +120,23 @@ class FakeApplyResult:
 
 
 @dataclass(frozen=True)
+class PredictedPatch:
+    """One reference patch as the accuracy model simulated it.
+
+    ``reference_srgb`` is the ColorChecker swatch, ``displayed_lab`` is where
+    the simulated correction chain landed, and ``delta_e`` is the difference the
+    model reported between them. The delta is carried rather than derived
+    because a surface that recomputed it would be showing its own arithmetic
+    under the model's name.
+    """
+
+    name: str
+    reference_srgb: tuple[float, float, float]
+    displayed_lab: tuple[float, float, float]
+    delta_e: MetricValue
+
+
+@dataclass(frozen=True)
 class VerificationResult:
     """Accuracy figures and the plain statement of where they came from.
 
@@ -127,18 +144,26 @@ class VerificationResult:
     display, so the value is the generated plan and the numbers are model
     output. A target the model does not cover reports no number at all rather
     than a number carrying a caveat.
+
+    ``patches`` carries what the model produced per patch. A surface that shows
+    a patch grid draws it from here, which is what keeps the grid describing
+    this result instead of a second simulation the surface ran on its own.
     """
 
     source: str
     evidence: EvidenceKind
     average_delta_e: MetricValue
     maximum_delta_e: MetricValue
-    patch_count: int
+    patches: tuple[PredictedPatch, ...]
     limitation: str | None = None
 
     @property
     def covered(self) -> bool:
         return self.evidence is not EvidenceKind.NOT_MEASURED
+
+    @property
+    def patch_count(self) -> int:
+        return len(self.patches)
 
 
 @dataclass(frozen=True)
@@ -196,6 +221,7 @@ __all__ = [
     "MethodSelection",
     "PlanDecision",
     "PlanPreview",
+    "PredictedPatch",
     "TargetSelection",
     "VerificationResult",
 ]

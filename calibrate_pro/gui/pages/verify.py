@@ -1,26 +1,30 @@
+"""Verification results, drawn from what the session answered.
+
+The page shows one predicted verification and says on its face that it is
+predicted. It reads no display, opens no sensor, runs no thread of its own and
+writes no file. Each of those was here: the page enumerated displays on a timer
+300ms after it was built, ran the accuracy model in a ``QThread``, opened a raw
+USB device with a vendor unlock key, and wrote a report straight to a path from
+a file dialog with no action behind the write.
+
+What is left is drawing. The reference ColorChecker is on screen from the start
+so the grid is never blank, figures appear only once an action produced them,
+and every figure carries the evidence label the session attached to it.
 """
-Verify Page -- Calibration verification with ColorChecker grid and stats.
 
-Shows a 6x4 ColorChecker grid, evidence-labelled Delta E statistics, and
-gamut coverage. Runs verification in a QThread.
-"""
+from __future__ import annotations
 
-import hashlib
-import traceback
-from html import escape
-from pathlib import Path
+from collections.abc import Callable
+from typing import Any
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QComboBox,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
-    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -28,9 +32,27 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat, qt_display_snapshots
+from calibrate_pro.application.assets import ExportBundle
+from calibrate_pro.application.outcomes import ActionOutcome
+from calibrate_pro.application.prediction import DELTA_E_UNIT
+from calibrate_pro.application.results import DetectionSummary, VerificationResult
+from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
+from calibrate_pro.gui.app import C, Card, GamutBar, Heading, Stat
 from calibrate_pro.gui.widgets.cie_diagram import CIEDiagramWidget
+from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+
+#: Offered in the selector when the last detection pass observed no display.
+NO_DISPLAY_ITEM = "No display in this session"
+
+#: Under the grid until an action has produced a result.
+NOT_RUN_NOTE = "No verification has been run in this session."
+
+#: Beside the chromaticity plot, which draws reference gamuts and nothing else.
+CIE_NOTE = "Reference gamuts. This build measures no display primaries."
+
+#: Beside the coverage bars, which no action in this build fills in.
+GAMUT_NOTE = "No action in this build reports gamut coverage."
 
 
 def _not_measured(unit: str) -> MetricValue:
@@ -41,226 +63,14 @@ def _metric_or_not_measured(value: object, unit: str) -> MetricValue:
     return value if isinstance(value, MetricValue) else _not_measured(unit)
 
 
-def _estimated_metric(value: object, unit: str, source: str) -> MetricValue:
-    if isinstance(value, MetricValue):
-        return value
-    if type(value) in {int, float}:
-        return MetricValue(float(value), unit, EvidenceKind.ESTIMATED, source)
-    return _not_measured(unit)
+def _metric_colour(metric: MetricValue) -> str:
+    """Colour a figure by whether there is one, not by how good it is.
 
-
-# Worker Thread
-
-
-class VerifyWorker(QThread):
-    """Runs SensorlessEngine.verify_calibration() off the main thread."""
-
-    finished = Signal(bool, object)  # success, results dict or error string
-    progress = Signal(int, int)  # current patch index, total patches
-
-    def __init__(self, display_index: int = 0, display_name: str = "Generic Display", parent=None):
-        super().__init__(parent)
-        self.display_index = display_index
-        self.display_name = display_name
-
-    def run(self):
-        try:
-            from calibrate_pro.panels.database import PanelDatabase
-            from calibrate_pro.sensorless.neuralux import SensorlessEngine
-
-            self.progress.emit(0, 24)
-
-            db = PanelDatabase()
-            panel = db.find_panel(self.display_name) or db.get_fallback()
-
-            self.progress.emit(2, 24)
-
-            engine = SensorlessEngine()
-            engine.current_panel = panel
-
-            # Inject a progress callback if the engine supports it
-            original_verify = engine.verify_calibration
-            _self = self
-
-            def verify_with_progress(panel_arg):
-                result = original_verify(panel_arg)
-                # Emit progress for each patch as they complete
-                patches = result.get("patches", [])
-                for i in range(len(patches)):
-                    _self.progress.emit(i + 1, max(len(patches), 24))
-                return result
-
-            results = verify_with_progress(panel)
-            receipt = hashlib.sha256(repr(panel).encode("utf-8")).hexdigest()
-            source = f"panel-characterization:{panel.name}:{receipt}"
-            for key in ("delta_e_avg", "delta_e_max", "cam16_delta_e_avg", "cam16_delta_e_max"):
-                results[key] = _estimated_metric(results.get(key), "dE2000", source)
-            for patch in results.get("patches", []):
-                if isinstance(patch, dict):
-                    patch["delta_e"] = _estimated_metric(patch.get("delta_e"), "dE2000", source)
-                    patch["cam16_delta_e"] = _estimated_metric(patch.get("cam16_delta_e"), "CAM16-UCS dE", source)
-            gamut = results.get("gamut_coverage")
-            if isinstance(gamut, dict):
-                for key in ("srgb_pct", "dci_p3_pct", "bt2020_pct"):
-                    gamut[key] = _estimated_metric(gamut.get(key), "%", source)
-            results.pop("grade", None)
-            results["evidence_source"] = source
-            results["accuracy_note"] = "Estimated from panel characterization; not instrument measured."
-
-            # Attach panel primaries so the GUI can populate the CIE diagram
-            try:
-                prims = panel.native_primaries
-                results["display_primaries"] = {
-                    "R": (prims.red.x, prims.red.y),
-                    "G": (prims.green.x, prims.green.y),
-                    "B": (prims.blue.x, prims.blue.y),
-                    "W": (prims.white.x, prims.white.y),
-                }
-            except Exception:
-                pass
-
-            self.progress.emit(24, 24)
-            self.finished.emit(True, results)
-
-        except Exception as exc:
-            tb = traceback.format_exc()
-            self.finished.emit(False, f"{exc}\n{tb}")
-
-
-class NativeVerifyWorker(QThread):
-    """Runs native ColorChecker verification using i1Display3 USB HID."""
-
-    finished = Signal(bool, object)
-    log_line = Signal(str)
-    progress = Signal(str, float)
-
-    def __init__(self, display_index: int = 0, parent=None):
-        super().__init__(parent)
-        self.display_index = display_index
-
-    def run(self):
-        try:
-            import struct
-            import time
-
-            import hid
-            import numpy as np
-
-            OLED_MATRIX = np.array(
-                [
-                    [0.03836831, -0.02175997, 0.01696057],
-                    [0.01449629, 0.01611903, 0.00057150],
-                    [-0.00004481, 0.00035042, 0.08032401],
-                ]
-            )
-
-            M_MASK = 0xFFFFFFFF
-
-            # Open and unlock sensor
-            self.log_line.emit("Opening i1Display3...")
-            device = hid.device()
-            device.open(0x0765, 0x5020)
-
-            # Unlock (NEC OEM key)
-            k0, k1 = 0xA9119479, 0x5B168761
-            cmd = bytearray(65)
-            cmd[0] = 0
-            cmd[1] = 0x99
-            device.write(cmd)
-            time.sleep(0.2)
-            c = bytes(device.read(64, timeout_ms=3000))
-            sc = bytearray(8)
-            for i in range(8):
-                sc[i] = c[3] ^ c[35 + i]
-            ci0 = (sc[3] << 24) + (sc[0] << 16) + (sc[4] << 8) + sc[6]
-            ci1 = (sc[1] << 24) + (sc[7] << 16) + (sc[2] << 8) + sc[5]
-            nk0, nk1 = (-k0) & M_MASK, (-k1) & M_MASK
-            co = [(nk0 - ci1) & M_MASK, (nk1 - ci0) & M_MASK, (ci1 * nk0) & M_MASK, (ci0 * nk1) & M_MASK]
-            s = sum(sc)
-            for sh in [0, 8, 16, 24]:
-                s += (nk0 >> sh) & 0xFF
-                s += (nk1 >> sh) & 0xFF
-            s0, s1 = s & 0xFF, (s >> 8) & 0xFF
-            sr = bytearray(16)
-            sr[0] = (((co[0] >> 16) & 0xFF) + s0) & 0xFF
-            sr[1] = (((co[2] >> 8) & 0xFF) - s1) & 0xFF
-            sr[2] = ((co[3] & 0xFF) + s1) & 0xFF
-            sr[3] = (((co[1] >> 16) & 0xFF) + s0) & 0xFF
-            sr[4] = (((co[2] >> 16) & 0xFF) - s1) & 0xFF
-            sr[5] = (((co[3] >> 16) & 0xFF) - s0) & 0xFF
-            sr[6] = (((co[1] >> 24) & 0xFF) - s0) & 0xFF
-            sr[7] = ((co[0] & 0xFF) - s1) & 0xFF
-            sr[8] = (((co[3] >> 8) & 0xFF) + s0) & 0xFF
-            sr[9] = (((co[2] >> 24) & 0xFF) - s1) & 0xFF
-            sr[10] = (((co[0] >> 8) & 0xFF) + s0) & 0xFF
-            sr[11] = (((co[1] >> 8) & 0xFF) - s1) & 0xFF
-            sr[12] = ((co[1] & 0xFF) + s1) & 0xFF
-            sr[13] = (((co[3] >> 24) & 0xFF) + s1) & 0xFF
-            sr[14] = ((co[2] & 0xFF) + s0) & 0xFF
-            sr[15] = (((co[0] >> 24) & 0xFF) - s0) & 0xFF
-            rb = bytearray(65)
-            rb[0] = 0
-            rb[1] = 0x9A
-            for i in range(16):
-                rb[25 + i] = c[2] ^ sr[i]
-            device.write(rb)
-            time.sleep(0.3)
-            device.read(64, timeout_ms=3000)
-
-            self.log_line.emit("Sensor unlocked. Place sensor against display.")
-            self.log_line.emit("Measurement requires a fullscreen patch window.")
-            self.log_line.emit("Using CLI: calibrate-pro native-calibrate --verify")
-
-            # Measure white for normalization
-            self.progress.emit("Measuring white reference...", 0.0)
-            intclks = int(1.0 * 12000000)
-            cmd2 = bytearray(65)
-            cmd2[0] = 0x00
-            cmd2[1] = 0x01
-            struct.pack_into("<I", cmd2, 2, intclks)
-            device.write(cmd2)
-            resp = device.read(64, timeout_ms=4000)
-            if resp and resp[0] == 0x00 and resp[1] == 0x01:
-                rv = struct.unpack("<I", bytes(resp[2:6]))[0]
-                gv = struct.unpack("<I", bytes(resp[6:10]))[0]
-                bv = struct.unpack("<I", bytes(resp[10:14]))[0]
-                t = intclks / 12000000.0
-                freq = np.array([0.5 * (rv + 0.5) / t, 0.5 * (gv + 0.5) / t, 0.5 * (bv + 0.5) / t])
-                white_xyz = OLED_MATRIX @ freq
-                white_Y = white_xyz[1]
-            else:
-                device.close()
-                self.finished.emit(False, "Failed to measure white reference")
-                return
-
-            self.log_line.emit(f"White Y = {white_Y:.1f} cd/m2")
-
-            receipt = hashlib.sha256(bytes(resp) + white_xyz.tobytes()).hexdigest()
-            source = f"instrument:i1display3:{receipt}"
-
-            # A white reading is not a ColorChecker verification. Keep Delta E
-            # explicitly unmeasured while retaining the observed luminance.
-            results = {
-                "patches": [],
-                "delta_e_avg": _not_measured("dE2000"),
-                "delta_e_max": _not_measured("dE2000"),
-                "method": "native_measured",
-                "white_luminance": MetricValue(white_Y, "cd/m²", EvidenceKind.MEASURED, source),
-                "evidence_source": source,
-            }
-
-            # Note: full patch measurement needs fullscreen window
-            # For now, report the white measurement and sensor status
-            self.log_line.emit("Sensor connected and measuring.")
-            self.log_line.emit(f"White luminance: {white_Y:.1f} cd/m2")
-            self.log_line.emit(f"White xy: ({white_xyz[0] / sum(white_xyz):.4f}, {white_xyz[1] / sum(white_xyz):.4f})")
-
-            device.close()
-            self.finished.emit(True, results)
-
-        except Exception as exc:
-            tb = traceback.format_exc()
-            self.finished.emit(False, f"Native verify error: {exc}\n{tb}")
+    A verification that reported nothing reads in the same muted colour as the
+    label beneath it. Grading the number by threshold here would put a pass or
+    fail judgement on the screen that no action in this build makes.
+    """
+    return C.ACCENT_TX if metric.value is not None else C.TEXT3
 
 
 # ColorChecker Patch Widget
@@ -689,19 +499,28 @@ class GamutCoverageSection(QWidget):
 
 
 class VerifyPage(QWidget):
-    """Verification results page with ColorChecker grid, stats, and gamut bars."""
+    """Verification results, rendered from what the session performed.
+
+    Nothing here decides what is available. The selector, both run buttons and
+    the export button each stand for a declared action, and the resolver
+    supplies whether each is offered and the sentence a refused one shows. The
+    page used to write that sentence itself, and one of the things it wrote was
+    that measured verification was available whenever a sensor was plugged in,
+    which the session refuses in every state.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._worker: VerifyWorker | None = None
-        self._last_results: dict | None = None
-        self._displays = []
+        self._displays: list[tuple[str, str]] = []
+        self._binder: ActionBinder | None = None
+        self._display_binding: SurfaceBinding | None = None
+        self._select_display: Callable[[str], ActionOutcome[Any]] | None = None
         self._build()
-        QTimer.singleShot(300, self._detect_displays)
+        self.render_reference_grid()
 
-    # Build UI
+    # -- construction -------------------------------------------------------
 
-    def _build(self):
+    def _build(self) -> None:
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
@@ -715,14 +534,32 @@ class VerifyPage(QWidget):
         self._layout.setContentsMargins(32, 28, 32, 28)
         self._layout.setSpacing(20)
 
-        # --- Header ---
         self._layout.addWidget(Heading("Verification"))
+        self._layout.addWidget(self._build_display_card())
 
-        # --- Display selector ---
-        disp_card, disp_lay = Card.with_layout(QHBoxLayout, margins=(16, 12, 16, 12))
-        disp_label = QLabel("Display")
-        disp_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
-        disp_lay.addWidget(disp_label)
+        body_row = QHBoxLayout()
+        body_row.setSpacing(24)
+        body_row.addLayout(self._build_grid_column(), stretch=3)
+        body_row.addWidget(self._build_evidence_card(), stretch=0)
+        self._layout.addLayout(body_row)
+
+        self._layout.addWidget(Heading("Grayscale Tracking", level=2))
+        self._layout.addWidget(self._build_grayscale_card())
+        self._layout.addLayout(self._build_button_row())
+
+        self._export_label = QLabel("")
+        self._export_label.setWordWrap(True)
+        self._export_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT3};")
+        self._layout.addWidget(self._export_label)
+
+        self._layout.addStretch()
+        scroll.setWidget(content)
+
+    def _build_display_card(self) -> QWidget:
+        card, layout = Card.with_layout(QHBoxLayout, margins=(16, 12, 16, 12))
+        label = QLabel("Display")
+        label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
+        layout.addWidget(label)
 
         self._display_combo = QComboBox()
         self._display_combo.setMinimumWidth(280)
@@ -746,528 +583,294 @@ class VerifyPage(QWidget):
                 selection-background-color: {C.ACCENT};
             }}
         """)
-        disp_lay.addWidget(self._display_combo, stretch=1)
-        self._layout.addWidget(disp_card)
+        self._display_combo.currentIndexChanged.connect(self._on_display_changed)
+        layout.addWidget(self._display_combo, stretch=1)
+        return card
 
-        # --- Main content: grid on left, stats on right ---
-        body_row = QHBoxLayout()
-        body_row.setSpacing(24)
+    def _build_grid_column(self) -> QVBoxLayout:
+        column = QVBoxLayout()
+        column.setSpacing(12)
 
-        # Left: ColorChecker grid
-        left_col = QVBoxLayout()
-        left_col.setSpacing(12)
+        heading = QLabel("ColorChecker Classic")
+        heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
+        column.addWidget(heading)
 
-        grid_heading = QLabel("ColorChecker Classic")
-        grid_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
-        left_col.addWidget(grid_heading)
-
-        grid_desc = QLabel("Top: reference  |  Bottom: observed/estimated  |  Center: evidence-labelled Delta E")
-        grid_desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT3};")
-        left_col.addWidget(grid_desc)
+        description = QLabel("Top: reference  |  Bottom: predicted  |  Center: evidence-labelled Delta E")
+        description.setStyleSheet(f"font-size: 11px; color: {C.TEXT3};")
+        column.addWidget(description)
 
         self._checker_grid = ColorCheckerGrid()
-        left_col.addWidget(self._checker_grid)
+        column.addWidget(self._checker_grid)
 
-        # Prediction label
-        self._method_label = QLabel("Evidence: Not measured")
+        self._method_label = QLabel(NOT_RUN_NOTE)
+        self._method_label.setWordWrap(True)
         self._method_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT3}; font-style: italic;")
-        left_col.addWidget(self._method_label)
+        column.addWidget(self._method_label)
 
-        left_col.addStretch()
-        body_row.addLayout(left_col, stretch=3)
+        column.addStretch()
+        return column
 
-        # Right: Stats panel
-        right_card, right_lay = Card.with_layout(QVBoxLayout, margins=(20, 16, 20, 16), spacing=16)
-        right_card.setMinimumWidth(260)
-        right_card.setMaximumWidth(360)
-        right_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+    def _build_evidence_card(self) -> QWidget:
+        card, layout = Card.with_layout(QVBoxLayout, margins=(20, 16, 20, 16), spacing=16)
+        card.setMinimumWidth(260)
+        card.setMaximumWidth(360)
+        card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
 
-        stats_heading = QLabel("Evidence")
-        stats_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
-        right_lay.addWidget(stats_heading)
+        heading = QLabel("Evidence")
+        heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
+        layout.addWidget(heading)
 
         self._stat_avg_de = Stat("Average Delta E", "Not measured")
-        right_lay.addWidget(self._stat_avg_de)
-
+        layout.addWidget(self._stat_avg_de)
         self._stat_max_de = Stat("Maximum Delta E", "Not measured")
-        right_lay.addWidget(self._stat_max_de)
-
+        layout.addWidget(self._stat_max_de)
         self._stat_evidence = Stat("Evidence source", "Not measured")
-        right_lay.addWidget(self._stat_evidence)
+        layout.addWidget(self._stat_evidence)
 
-        # Separator
-        sep = QFrame()
-        sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background: {C.BORDER};")
-        right_lay.addWidget(sep)
-
-        # Gamut coverage
+        layout.addWidget(self._separator())
         self._gamut_section = GamutCoverageSection()
-        right_lay.addWidget(self._gamut_section)
+        layout.addWidget(self._gamut_section)
+        layout.addWidget(self._note(GAMUT_NOTE))
 
-        # CIE 1931 Chromaticity Diagram
-        sep2 = QFrame()
-        sep2.setFixedHeight(1)
-        sep2.setStyleSheet(f"background: {C.BORDER};")
-        right_lay.addWidget(sep2)
-
+        layout.addWidget(self._separator())
         cie_heading = QLabel("CIE 1931 Chromaticity")
         cie_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.TEXT};")
-        right_lay.addWidget(cie_heading)
+        layout.addWidget(cie_heading)
 
         self._cie_diagram = CIEDiagramWidget()
         self._cie_diagram.setMinimumSize(240, 240)
         self._cie_diagram.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        right_lay.addWidget(self._cie_diagram, stretch=1)
+        layout.addWidget(self._cie_diagram, stretch=1)
+        layout.addWidget(self._note(CIE_NOTE))
 
-        right_lay.addStretch()
-        body_row.addWidget(right_card, stretch=0)
+        layout.addStretch()
+        return card
 
-        self._layout.addLayout(body_row)
-
-        # --- Grayscale Tracking Chart ---
-        self._layout.addWidget(Heading("Grayscale Tracking", level=2))
-
-        gs_card, gs_lay = Card.with_layout(QVBoxLayout, margins=(16, 12, 16, 12), spacing=8)
+    def _build_grayscale_card(self) -> QWidget:
+        card, layout = Card.with_layout(QVBoxLayout, margins=(16, 12, 16, 12), spacing=8)
         self._gs_chart = GrayscaleTrackingChart()
         self._gs_chart.setMinimumHeight(280)
-        gs_lay.addWidget(self._gs_chart)
+        layout.addWidget(self._gs_chart)
 
-        # Stats row below the chart
-        gs_stats_row = QHBoxLayout()
-        gs_stats_row.setSpacing(24)
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(24)
+        self._gs_avg_label = QLabel("Avg grayscale dE: Not measured")
+        self._gs_max_label = QLabel("Max grayscale dE: Not measured")
+        for label in (self._gs_avg_label, self._gs_max_label):
+            label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
+            stats_row.addWidget(label)
+        stats_row.addStretch()
+        layout.addLayout(stats_row)
+        return card
 
-        self._gs_avg_label = QLabel("Avg grayscale dE: --")
-        self._gs_avg_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
-        gs_stats_row.addWidget(self._gs_avg_label)
+    def _build_button_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.addStretch()
+        self._btn_verify = self._button("Run Verification", 200, primary=True)
+        self._btn_measured = self._button("Run Measured Verification", 240)
+        self._btn_export = self._button("Export Report", 160)
+        for button in (self._btn_verify, self._btn_measured, self._btn_export):
+            row.addWidget(button)
+        row.addStretch()
+        return row
 
-        self._gs_max_label = QLabel("Max grayscale dE: --")
-        self._gs_max_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT2}; font-weight: 500;")
-        gs_stats_row.addWidget(self._gs_max_label)
+    def _button(self, text: str, width: int, *, primary: bool = False) -> QPushButton:
+        """Build one action button, disabled until the binder renders it.
 
-        gs_stats_row.addStretch()
-        gs_lay.addLayout(gs_stats_row)
-
-        self._layout.addWidget(gs_card)
-
-        # --- Buttons row ---
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        self._btn_verify = QPushButton("Run Verification")
-        self._btn_verify.setProperty("primary", True)
-        self._btn_verify.setFixedHeight(40)
-        self._btn_verify.setFixedWidth(200)
-        self._btn_verify.setStyleSheet(f"""
+        Every button here waits for the resolver. Starting enabled would offer
+        an action for the moment between construction and the first refresh,
+        which is long enough for a click.
+        """
+        button = QPushButton(text)
+        button.setProperty("primary", primary)
+        button.setFixedHeight(40)
+        button.setFixedWidth(width)
+        background = C.GREEN if primary else C.SURFACE
+        border = C.GREEN_HI if primary else C.BORDER
+        hover = f"background: {C.GREEN_HI};" if primary else f"border-color: {C.ACCENT}; background: {C.SURFACE2};"
+        button.setStyleSheet(f"""
             QPushButton {{
-                background: {C.GREEN};
-                border: 1px solid {C.GREEN_HI};
+                background: {background};
+                border: 1px solid {border};
                 border-radius: 8px;
                 color: {C.TEXT};
                 font-size: 14px;
-                font-weight: 600;
+                font-weight: {"600" if primary else "500"};
             }}
-            QPushButton:hover {{
-                background: {C.GREEN_HI};
-            }}
+            QPushButton:hover {{ {hover} }}
             QPushButton:disabled {{
                 background: {C.SURFACE2};
                 border-color: {C.BORDER};
                 color: {C.TEXT3};
             }}
         """)
-        self._btn_verify.clicked.connect(self._run_verification)
-        btn_row.addWidget(self._btn_verify)
+        button.setEnabled(False)
+        return button
 
-        self._btn_export = QPushButton("Export Report")
-        self._btn_export.setFixedHeight(40)
-        self._btn_export.setFixedWidth(160)
-        self._btn_export.setStyleSheet(f"""
-            QPushButton {{
-                background: {C.SURFACE};
-                border: 1px solid {C.BORDER};
-                border-radius: 8px;
-                color: {C.TEXT};
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                border-color: {C.ACCENT};
-                background: {C.SURFACE2};
-            }}
-            QPushButton:disabled {{
-                background: {C.SURFACE2};
-                border-color: {C.BORDER};
-                color: {C.TEXT3};
-            }}
-        """)
-        self._btn_export.setEnabled(False)
-        self._btn_export.clicked.connect(self._export_report)
-        btn_row.addWidget(self._btn_export)
+    @staticmethod
+    def _separator() -> QFrame:
+        line = QFrame()
+        line.setFixedHeight(1)
+        line.setStyleSheet(f"background: {C.BORDER};")
+        return line
 
-        btn_row.addStretch()
-        self._layout.addLayout(btn_row)
+    @staticmethod
+    def _note(text: str) -> QLabel:
+        label = QLabel(text)
+        label.setWordWrap(True)
+        label.setStyleSheet(f"font-size: 10px; color: {C.TEXT3};")
+        return label
 
-        # --- Progress section (hidden until verifying) ---
-        self._progress_card = Card()
-        prog_lay = QVBoxLayout(self._progress_card)
-        prog_lay.setContentsMargins(20, 16, 20, 16)
-        prog_lay.setSpacing(10)
+    # -- binding ------------------------------------------------------------
 
-        self._step_label = QLabel("Ready")
-        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};")
-        prog_lay.addWidget(self._step_label)
+    def bind_actions(
+        self,
+        binder: ActionBinder,
+        *,
+        select_display: Callable[[str], ActionOutcome[Any]],
+        run_sensorless: Operation,
+        run_measured: Operation,
+        save_report: Operation,
+    ) -> None:
+        """Hand every control here to the action it stands for.
 
-        self._progress_bar = QProgressBar()
-        self._progress_bar.setRange(0, 24)
-        self._progress_bar.setValue(0)
-        self._progress_bar.setFixedHeight(8)
-        self._progress_bar.setTextVisible(False)
-        self._progress_bar.setStyleSheet(f"""
-            QProgressBar {{
-                background: {C.SURFACE2};
-                border: none;
-                border-radius: 4px;
-            }}
-            QProgressBar::chunk {{
-                background: {C.GREEN};
-                border-radius: 4px;
-            }}
-        """)
-        prog_lay.addWidget(self._progress_bar)
+        The measured button is bound to an action this build has no handler
+        for. That is the point: what appears on it is the manifest's reason for
+        holding measured verification closed, in place of the availability
+        claim the page used to make after finding a sensor on the bus.
 
-        self._progress_card.setVisible(False)
-        self._layout.addWidget(self._progress_card)
+        The save button opens no dialog. Saving requires an output directory
+        that has already been configured and checked, which is a separate
+        action with its own record, so a save here writes only where the
+        session has already accepted. Until one is configured the button
+        carries the resolver's sentence saying so.
+        """
+        self._binder = binder
+        self._select_display = select_display
+        self._display_binding = binder.bind(
+            "workflow.select_display",
+            self._display_combo,
+            self._selected_display,
+            hides=False,
+            connect=False,
+        )
+        binder.bind(
+            "verification.sensorless",
+            self._btn_verify,
+            run_sensorless,
+            on_success=self.render_verification,
+            hides=False,
+        )
+        binder.bind("verification.measured", self._btn_measured, run_measured, hides=False)
+        binder.bind(
+            "report.save",
+            self._btn_export,
+            save_report,
+            on_success=self._render_export,
+            hides=False,
+        )
 
-        # --- Error label ---
-        self._error_label = QLabel("")
-        self._error_label.setWordWrap(True)
-        self._error_label.setStyleSheet(f"color: {C.RED}; font-size: 12px;")
-        self._error_label.setVisible(False)
-        self._layout.addWidget(self._error_label)
+    def _selected_display(self) -> ActionOutcome[Any] | None:
+        """Adopt whichever display the selector is on, if it is on one."""
+        select = self._select_display
+        index = self._display_combo.currentIndex()
+        if select is None or not (0 <= index < len(self._displays)):
+            return None
+        return select(self._displays[index][1])
 
-        self._layout.addStretch()
-        scroll.setWidget(content)
+    def _on_display_changed(self, index: int) -> None:
+        """Ask the session to adopt the display the operator picked."""
+        _ = index
+        binder, binding = self._binder, self._display_binding
+        if binder is not None and binding is not None:
+            binder.invoke(binding)
 
-        # Seed the grid with default ColorChecker patches (no delta E yet)
-        self._seed_default_grid()
+    # -- rendering ----------------------------------------------------------
 
-    # Seed default grid
+    def render_session(self, summary: DetectionSummary) -> None:
+        """List the displays one detection pass observed, and only those.
 
-    def _seed_default_grid(self):
-        """Show the ColorChecker with reference colors and dashes before verification."""
+        Repopulating moves the current index, so the signal is blocked while it
+        happens. Without that, redrawing this page after a detection pass would
+        re-select a display, and selecting one drops everything downstream of
+        it, including a plan the operator had already generated.
+        """
+        combo = self._display_combo
+        blocked = combo.blockSignals(True)
         try:
-            from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
+            combo.clear()
+            self._displays = [
+                (display.safe_label, display.platform_display_id) for display in summary.dashboard.displays
+            ]
+            if not self._displays:
+                combo.addItem(NO_DISPLAY_ITEM)
+                return
+            for label, _display_id in self._displays:
+                combo.addItem(label)
+        finally:
+            combo.blockSignals(blocked)
 
-            patches = []
-            for cp in COLORCHECKER_CLASSIC:
-                patches.append(
-                    {
-                        "name": cp.name,
-                        "ref_srgb": cp.srgb,
-                        "ref_lab": cp.lab_d50,
-                        "delta_e": _not_measured("dE2000"),
-                    }
-                )
-            self._checker_grid.set_results(patches)
-        except Exception:
-            pass
+    def render_reference_grid(self) -> None:
+        """Show the ColorChecker references with no delta against them.
 
+        These are the targets the model compares to, so the grid is populated
+        before anything has been run and carries no figure while it is. That is
+        the state the page opens in and returns to when a verification reports
+        that it covered nothing.
+        """
+        self._checker_grid.set_results(
+            [
+                {
+                    "name": patch.name,
+                    "ref_srgb": patch.srgb,
+                    "delta_e": _not_measured(DELTA_E_UNIT),
+                }
+                for patch in COLORCHECKER_CLASSIC
+            ]
+        )
         self._show_unmeasured_grayscale()
 
-    def _show_unmeasured_grayscale(self):
+    def render_verification(self, result: VerificationResult) -> None:
+        """Show one session verification, including what it did not cover."""
+        if result.patches:
+            self._checker_grid.set_results(
+                [
+                    {
+                        "name": patch.name,
+                        "ref_srgb": patch.reference_srgb,
+                        "displayed_lab": patch.displayed_lab,
+                        "delta_e": patch.delta_e,
+                    }
+                    for patch in result.patches
+                ]
+            )
+        else:
+            self.render_reference_grid()
+
+        average, maximum = result.average_delta_e, result.maximum_delta_e
+        self._stat_avg_de.set_value(average.display_text(), _metric_colour(average))
+        self._stat_max_de.set_value(maximum.display_text(), _metric_colour(maximum))
+        self._stat_evidence.set_value(average.source or "Not measured", C.TEXT)
+        self._method_label.setText(result.limitation or self._predicted_note(result))
+
+    @staticmethod
+    def _predicted_note(result: VerificationResult) -> str:
+        """State what produced the figures, by name, next to the figures."""
+        model = result.average_delta_e.source or "an unnamed model"
+        return (
+            f"Predicted by {model} from the plan this session generated. "
+            f"No display was measured and no sensor was read."
+        )
+
+    def _render_export(self, bundle: ExportBundle) -> None:
+        """Name what the export wrote, taken from the manifest sealing it."""
+        self._export_label.setText(
+            f"Wrote {len(bundle.assets)} file(s) to {bundle.directory}, sealed by {bundle.manifest_filename}."
+        )
+
+    def _show_unmeasured_grayscale(self) -> None:
         """Show only the requested target curve before evidence exists."""
         steps = [i / 10.0 for i in range(11)]
         self._gs_chart.set_data(steps, 2.2, [])
         self._gs_avg_label.setText("Avg grayscale dE: Not measured")
         self._gs_max_label.setText("Max grayscale dE: Not measured")
-
-    # Display Detection
-
-    def _detect_displays(self):
-        self._display_combo.clear()
-        try:
-            self._displays = qt_display_snapshots()
-            for i, d in enumerate(self._displays):
-                name = d.name
-                res = f"{d.width}x{d.height}"
-                self._display_combo.addItem(f"{i + 1}. {name}  ({res})")
-        except Exception as exc:
-            self._display_combo.addItem("Display detection unavailable")
-            self._show_error(f"Could not detect displays: {exc}")
-
-        # Detect sensor
-        self._sensor_detected = False
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            devices = I1D3Driver.find_devices()
-            self._sensor_detected = bool(devices)
-        except Exception:
-            pass
-
-        if self._sensor_detected:
-            self._method_label.setText("Sensor detected - measured verification available")
-            self._method_label.setStyleSheet(f"font-size: 11px; color: {C.GREEN_HI}; font-style: italic;")
-
-    # Verification
-
-    def _run_verification(self):
-        if self._worker is not None and self._worker.isRunning():
-            return
-
-        self._hide_error()
-        self._btn_verify.setText("Verifying...")
-        self._btn_verify.setEnabled(False)
-        self._btn_export.setEnabled(False)
-        self._progress_card.setVisible(True)
-        self._progress_bar.setValue(0)
-        self._step_label.setText("Starting verification...")
-        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.ACCENT_TX};")
-
-        display_index = max(0, self._display_combo.currentIndex())
-        display_name = (
-            self._displays[display_index].name
-            if hasattr(self, "_displays") and display_index < len(self._displays)
-            else "Generic Display"
-        )
-        self._worker = VerifyWorker(display_index, display_name)
-        self._worker.progress.connect(self._on_progress)
-        self._worker.finished.connect(self._on_finished)
-        self._worker.start()
-
-    def _on_progress(self, current: int, total: int):
-        self._progress_bar.setMaximum(total)
-        self._progress_bar.setValue(current)
-        self._step_label.setText(f"Verifying patch {current}/{total}...")
-
-    def _on_finished(self, success: bool, data):
-        self._btn_verify.setEnabled(True)
-        self._btn_verify.setText("Run Verification")
-
-        if not success:
-            self._show_error(str(data))
-            self._progress_card.setVisible(False)
-            self._worker = None
-            return
-
-        # Show completed progress
-        self._step_label.setText("Verification complete")
-        self._step_label.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
-        self._progress_bar.setValue(self._progress_bar.maximum())
-
-        results = data
-        self._last_results = results
-        self._btn_export.setEnabled(True)
-        try:
-            self._populate_results(results)
-        except Exception as exc:
-            self._show_error(f"Error displaying results: {exc}")
-
-        self._worker = None
-
-    def _populate_results(self, results: dict):
-        """Fill the UI with verification data."""
-        patches = results.get("patches", [])
-
-        # Populate the ColorChecker grid
-        self._checker_grid.set_results(patches)
-
-        avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
-        max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
-        avg_color = C.ACCENT_TX if avg_de.value is not None else C.TEXT3
-        max_color = C.ACCENT_TX if max_de.value is not None else C.TEXT3
-        self._stat_avg_de.set_value(avg_de.display_text(), avg_color)
-        self._stat_max_de.set_value(max_de.display_text(), max_color)
-        source = avg_de.source or max_de.source or results.get("evidence_source")
-        self._stat_evidence.set_value(str(source or "Not measured"), C.TEXT3)
-
-        method = results.get("method", "")
-        if avg_de.evidence is EvidenceKind.MEASURED or method == "native_measured":
-            sensor_name = results.get("sensor_name", "i1Display3")
-            method_text = f"Measured ({sensor_name})"
-        elif avg_de.evidence is EvidenceKind.ESTIMATED:
-            method_text = "Estimated (panel characterization)"
-        else:
-            method_text = "Not measured"
-        self._method_label.setText(f"{method_text} \u2014 {avg_de.display_text()}; source: {source or 'Not measured'}")
-        self._method_label.setStyleSheet(f"font-size: 11px; color: {avg_color}; font-style: italic;")
-
-        # Gamut coverage
-        gamut = results.get("gamut_coverage", {})
-        srgb_pct = _metric_or_not_measured(gamut.get("srgb_pct") if isinstance(gamut, dict) else None, "%")
-        p3_pct = _metric_or_not_measured(gamut.get("dci_p3_pct") if isinstance(gamut, dict) else None, "%")
-        bt2020_pct = _metric_or_not_measured(gamut.get("bt2020_pct") if isinstance(gamut, dict) else None, "%")
-        self._gamut_section.set_values(srgb_pct, p3_pct, bt2020_pct)
-
-        # CIE 1931 chromaticity diagram -- populate with display primaries
-        dp = results.get("display_primaries")
-        if dp:
-            self._cie_diagram.set_display_gamut(dp["R"], dp["G"], dp["B"], dp.get("W"))
-
-        gs_data = results.get("grayscale")
-        if isinstance(gs_data, dict) and source:
-            gs_des = [
-                metric
-                for raw in gs_data.get("delta_es", [])
-                if (metric := _metric_or_not_measured(raw, "dE2000")).value is not None
-            ]
-            self._gs_chart.set_data(
-                gs_data.get("steps", []),
-                gs_data.get("target_gamma", 2.2),
-                gs_data.get("measured", []),
-                per_channel=gs_data.get("per_channel"),
-                delta_es=gs_des,
-                evidence_source=str(source),
-            )
-        else:
-            self._show_unmeasured_grayscale()
-            gs_des = []
-
-        if gs_des:
-            values = [metric.value for metric in gs_des if metric.value is not None]
-            evidence = gs_des[0].evidence
-            gs_avg = MetricValue(sum(values) / len(values), "dE2000", evidence, str(source))
-            gs_max = MetricValue(max(values), "dE2000", evidence, str(source))
-            self._gs_avg_label.setText(f"Avg grayscale dE: {gs_avg.display_text()}")
-            self._gs_max_label.setText(f"Max grayscale dE: {gs_max.display_text()}")
-
-    # Export Report
-
-    def _build_html_report(self, results: dict) -> str:
-        """Build a self-contained HTML report string from verification results."""
-        avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
-        max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
-        method = str(results.get("method") or "Not measured")
-        patches = results.get("patches", [])
-        evidence_source = avg_de.source or max_de.source or results.get("evidence_source")
-
-        lines = [
-            "<!DOCTYPE html><html><head>",
-            "<meta charset='utf-8'>",
-            "<title>Calibrate Pro - Verification Report</title>",
-            "<style>",
-            "  body { font-family: 'Segoe UI', sans-serif; margin: 40px; "
-            "         background: #fdf9f5; color: #443933; }",
-            "  h1 { color: #b07878; }",
-            "  table { border-collapse: collapse; margin-top: 16px; }",
-            "  th, td { border: 1px solid #ede4da; padding: 6px 14px;             text-align: left; }",
-            "  th { background: #faf5f0; }",
-            "  @media print { body { background: white; } }",
-            "</style></head><body>",
-            "<h1>Calibrate Pro - Verification Report</h1>",
-            f"<p><strong>Method:</strong> {escape(method)}</p>",
-            f"<p><strong>Average Delta E:</strong> {escape(avg_de.display_text())}</p>",
-            f"<p><strong>Maximum Delta E:</strong> {escape(max_de.display_text())}</p>",
-            f"<p><strong>Evidence source:</strong> {escape(str(evidence_source or 'Not measured'))}</p>",
-            "<p>No quality grade is assigned without an approved rubric.</p>",
-        ]
-        if patches:
-            lines.append("<h2>Patch Results</h2>")
-            lines.append("<table><tr><th>Patch</th><th>Delta E</th><th>Evidence source</th></tr>")
-            for p in patches:
-                if not isinstance(p, dict):
-                    continue
-                de = _metric_or_not_measured(p.get("delta_e"), "dE2000")
-                name = escape(str(p.get("name") or "Unnamed patch"))
-                source = escape(str(de.source or "Not measured"))
-                lines.append(f"<tr><td>{name}</td><td>{escape(de.display_text())}</td><td>{source}</td></tr>")
-            lines.append("</table>")
-        lines.append("</body></html>")
-        return "\n".join(lines)
-
-    def _export_report(self):
-        """Export verification results as HTML, PDF, or text report."""
-        if not self._last_results:
-            return
-
-        path, selected_filter = QFileDialog.getSaveFileName(
-            self,
-            "Export Verification Report",
-            "verification_report.html",
-            "HTML Report (*.html);;PDF Report (*.pdf);;Text Report (*.txt)",
-        )
-        if not path:
-            return
-
-        results = self._last_results
-
-        try:
-            is_pdf = path.lower().endswith(".pdf")
-
-            if is_pdf:
-                # Build HTML content, then convert to PDF
-                html_content = self._build_html_report(results)
-
-                from calibrate_pro.verification.pdf_export import export_report_pdf
-
-                success = export_report_pdf(html_content, path)
-
-                if success:
-                    # Check if the PDF was actually created (WebEngine path)
-                    # or if we fell back to browser
-                    if Path(path).exists():
-                        QMessageBox.information(self, "Report Exported", f"PDF report saved to:\n{path}")
-                    else:
-                        html_fallback = Path(path).with_suffix(".html")
-                        QMessageBox.information(
-                            self,
-                            "Report Exported",
-                            f"PDF export requires a browser.\n\n"
-                            f"The HTML report has been opened in your browser.\n"
-                            f"Use your browser's Print > Save as PDF to create "
-                            f"the PDF.\n\n"
-                            f"HTML saved at:\n{html_fallback}",
-                        )
-                else:
-                    QMessageBox.warning(self, "Export Error", "Could not export PDF. Please try HTML format instead.")
-                return
-
-            # Non-PDF export uses the same evidence-aware rendering as the UI.
-            if path.endswith(".html"):
-                content = self._build_html_report(results)
-            else:
-                avg_de = _metric_or_not_measured(results.get("delta_e_avg"), "dE2000")
-                max_de = _metric_or_not_measured(results.get("delta_e_max"), "dE2000")
-                method = str(results.get("method") or "Not measured")
-                patches = results.get("patches", [])
-                evidence_source = avg_de.source or max_de.source or results.get("evidence_source")
-
-                lines = [
-                    "Calibrate Pro - Verification Report",
-                    "=" * 40,
-                    f"Method:          {method}",
-                    f"Average Delta E: {avg_de.display_text()}",
-                    f"Maximum Delta E: {max_de.display_text()}",
-                    f"Evidence source: {evidence_source or 'Not measured'}",
-                    "Quality grade:   Not assigned (no approved rubric)",
-                    "",
-                ]
-                if patches:
-                    lines.append("Patch Results:")
-                    lines.append("-" * 30)
-                    for p in patches:
-                        if not isinstance(p, dict):
-                            continue
-                        name = str(p.get("name") or "Unnamed patch")
-                        de = _metric_or_not_measured(p.get("delta_e"), "dE2000")
-                        lines.append(f"  {name:20s}  {de.display_text()}  source: {de.source or 'Not measured'}")
-                content = "\n".join(lines)
-
-            Path(path).write_text(content, encoding="utf-8")
-
-        except Exception as exc:
-            QMessageBox.warning(self, "Export Error", str(exc))
-            return
-
-        if not path.lower().endswith(".pdf"):
-            QMessageBox.information(self, "Report Exported", f"Verification report saved to:\n{path}")
-
-    # Helpers
-
-    def _show_error(self, msg: str):
-        self._error_label.setText(msg)
-        self._error_label.setVisible(True)
-
-    def _hide_error(self):
-        self._error_label.setText("")
-        self._error_label.setVisible(False)

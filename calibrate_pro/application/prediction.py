@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from calibrate_pro.application.actions import PRESET_TARGETS
-from calibrate_pro.application.results import VerificationResult
+from calibrate_pro.application.results import PredictedPatch, VerificationResult
 from calibrate_pro.panels.panel_types import PanelCharacterization
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
@@ -60,6 +60,42 @@ def _finite_float(report: dict[str, Any], key: str) -> float:
     return value
 
 
+def _colour(patch: dict[str, Any], key: str) -> tuple[float, float, float]:
+    """Read one three-component colour, refusing anything else."""
+    value = patch.get(key)
+    if not isinstance(value, (tuple, list)) or len(value) != 3:
+        raise ValueError(f"accuracy model returned no {key} for a patch")
+    return (float(value[0]), float(value[1]), float(value[2]))
+
+
+def _predicted_patch(patch: object) -> PredictedPatch:
+    """Restate one simulated patch, refusing a shape a surface cannot render.
+
+    The check is here rather than in the surface because a missing field means
+    the model changed, and a grid that quietly drew a placeholder for it would
+    show an operator a patch that was never simulated.
+    """
+    if not isinstance(patch, dict):
+        raise ValueError("accuracy model returned an unexpected patch type")
+    name = patch.get("name")
+    if not isinstance(name, str) or not name:
+        raise ValueError("accuracy model returned a patch with no name")
+    delta_e = patch.get("delta_e")
+    if type(delta_e) is not float:
+        raise ValueError(f"accuracy model returned no delta_e for {name}")
+    return PredictedPatch(
+        name=name,
+        reference_srgb=_colour(patch, "ref_srgb"),
+        displayed_lab=_colour(patch, "displayed_lab"),
+        delta_e=MetricValue(
+            value=delta_e,
+            unit=DELTA_E_UNIT,
+            evidence=EvidenceKind.ESTIMATED,
+            source=MODEL_NAME,
+        ),
+    )
+
+
 def uncovered_result(preset_id: str) -> VerificationResult:
     """Answer for a target the model does not cover, carrying no figure."""
     _ = preset_id
@@ -68,7 +104,7 @@ def uncovered_result(preset_id: str) -> VerificationResult:
         evidence=EvidenceKind.NOT_MEASURED,
         average_delta_e=_UNCOVERED_METRIC,
         maximum_delta_e=_UNCOVERED_METRIC,
-        patch_count=0,
+        patches=(),
         limitation=_UNCOVERED_LIMITATION,
     )
 
@@ -87,7 +123,8 @@ def predict_accuracy(
     average = _finite_float(report, "delta_e_avg")
     maximum = _finite_float(report, "delta_e_max")
     patches = report.get("patches")
-    patch_count = len(patches) if isinstance(patches, list) else 0
+    if not isinstance(patches, list) or not patches:
+        raise ValueError("accuracy model returned no patches")
     return VerificationResult(
         source=VERIFICATION_SOURCE,
         evidence=EvidenceKind.ESTIMATED,
@@ -103,7 +140,7 @@ def predict_accuracy(
             evidence=EvidenceKind.ESTIMATED,
             source=MODEL_NAME,
         ),
-        patch_count=patch_count,
+        patches=tuple(_predicted_patch(patch) for patch in patches),
         limitation=None,
     )
 

@@ -51,6 +51,29 @@ DEFAULT_APP_RULES = [
 PROFILE_CHOICES = ["sRGB", "Native", "Display P3"]
 ACTION_CHOICES = ["Apply", "Disable"]
 
+#: What the output field says before the session has accepted a directory. The
+#: field used to open on a default path, which read as a configured folder while
+#: the session held none and refused every export.
+OUTPUT_UNSET = "No output folder chosen in this session"
+
+OUTPUT_UNSET_NOTE = "Saving a report needs an output folder. Choose one here."
+
+OUTPUT_NOTE = "Saved reports and exports are written here."
+
+OUTPUT_REJECTED = "This location cannot be written to, so report saving stays closed."
+
+_FIELD_STYLE = (
+    f"QLineEdit {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
+    f"border-radius: 8px; padding: 7px 12px; font-size: 12px; }}"
+    f"QLineEdit:focus {{ border-color: {C.ACCENT}; }}"
+)
+
+_BROWSE_STYLE = (
+    f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
+    f"border-radius: 10px; font-size: 11px; padding: 4px 12px; }}"
+    f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
+)
+
 
 # Helpers
 
@@ -91,21 +114,13 @@ def _make_browse_row(
 
     field = QLineEdit()
     field.setText(settings.value(key, default))
-    field.setStyleSheet(
-        f"QLineEdit {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-        f"border-radius: 8px; padding: 7px 12px; font-size: 12px; }}"
-        f"QLineEdit:focus {{ border-color: {C.ACCENT}; }}"
-    )
+    field.setStyleSheet(_FIELD_STYLE)
     row.addWidget(field, stretch=1)
 
     browse = QPushButton("Browse")
     browse.setFixedHeight(32)
     browse.setFixedWidth(80)
-    browse.setStyleSheet(
-        f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-        f"border-radius: 10px; font-size: 11px; padding: 4px 12px; }}"
-        f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-    )
+    browse.setStyleSheet(_BROWSE_STYLE)
 
     def _browse():
         if is_directory:
@@ -135,6 +150,69 @@ class SettingsPage(QWidget):
         super().__init__(parent)
         self._settings = QSettings(APP_ORG, APP_NAME)
         self._build()
+
+    def _build_output_row(self) -> QWidget:
+        """Build the output-directory row the session owns.
+
+        The field is not typed into and the button opens no dialog on its own.
+        Both stand for one declared action, so what the field shows is the
+        directory the session recorded and checked rather than a path this page
+        remembered. Neither is offered until the binder has resolved the action.
+        """
+        container = QWidget()
+        row = QHBoxLayout(container)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+
+        self._output_field = QLineEdit(OUTPUT_UNSET)
+        self._output_field.setReadOnly(True)
+        self._output_field.setStyleSheet(_FIELD_STYLE)
+        row.addWidget(self._output_field, stretch=1)
+
+        self._output_browse = QPushButton("Browse")
+        self._output_browse.setFixedHeight(32)
+        self._output_browse.setFixedWidth(80)
+        self._output_browse.setStyleSheet(_BROWSE_STYLE)
+        self._output_browse.setEnabled(False)
+        row.addWidget(self._output_browse)
+        return container
+
+    def bind_actions(self, binder, *, set_output_directory) -> None:
+        """Hand the output-directory control to the action it stands for."""
+        self._set_output_directory = set_output_directory
+        binder.bind(
+            "settings.output_directory",
+            self._output_browse,
+            self._choose_output_directory,
+            on_success=self.render_output_directory,
+            hides=False,
+        )
+
+    def _choose_output_directory(self):
+        """Ask for a directory, then let the session decide about it.
+
+        Closing the dialog reports nothing, so a withdrawn choice never reaches
+        the journal and never changes what the field says.
+        """
+        start = self._settings.value("paths/output_dir", "") or DEFAULT_OUTPUT_DIR
+        directory = QFileDialog.getExistingDirectory(self, "Select Output Directory", start)
+        if not directory:
+            return None
+        return self._set_output_directory(directory)
+
+    def render_output_directory(self, chosen) -> None:
+        """Show the directory as the session recorded it, valid or not.
+
+        A rejected directory is still displayed. Clearing the field would hide
+        which path was turned down, and the operator would be left with a
+        refusal naming a folder they could no longer see.
+        """
+        self._output_field.setText(chosen.directory)
+        if not chosen.valid:
+            self._output_note.setText(OUTPUT_REJECTED)
+            return
+        self._output_note.setText(OUTPUT_NOTE)
+        self._settings.setValue("paths/output_dir", chosen.directory)
 
     def _build(self):
         outer = QVBoxLayout(self)
@@ -353,16 +431,11 @@ class SettingsPage(QWidget):
         # Output directory
         out_label = QLabel("Output directory")
         out_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        out_row, self._output_field = _make_browse_row(
-            self._settings,
-            "paths/output_dir",
-            DEFAULT_OUTPUT_DIR,
-            "Select Output Directory",
-            is_directory=True,
-        )
-        out_container = QWidget()
-        out_container.setLayout(out_row)
-        form_paths.addRow(out_label, out_container)
+        form_paths.addRow(out_label, self._build_output_row())
+        self._output_note = QLabel(OUTPUT_UNSET_NOTE)
+        self._output_note.setStyleSheet(f"font-size: 10px; color: {C.TEXT3};")
+        self._output_note.setWordWrap(True)
+        form_paths.addRow("", self._output_note)
 
         # ArgyllCMS path
         argyll_label = QLabel("ArgyllCMS path")

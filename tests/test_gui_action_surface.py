@@ -6,10 +6,11 @@ the window is built and used, so these tests construct the real one against the
 fake-acceptance composition: it reads a bundled fixture, writes only inside the
 directory it is given, and reaches no display and no operator journal.
 
-Four properties are being held down. A control offers what the session would
+Five properties are being held down. A control offers what the session would
 actually perform, the status line names files that exist, every card describes
 the display the session observed rather than one the page looked up for itself,
-and no page keeps its own answer about what it is permitted to do.
+no page keeps its own answer about what it is permitted to do, and no page runs
+the work it is supposed to be showing.
 """
 
 from __future__ import annotations
@@ -18,9 +19,15 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QSettings
 
 from calibrate_pro.application.outcomes import ActionError, ActionSuccess
+from calibrate_pro.application.prediction import MODEL_NAME
 from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
+from calibrate_pro.gui.pages.settings import OUTPUT_REJECTED, OUTPUT_UNSET
+from calibrate_pro.gui.pages.verify import NOT_RUN_NOTE
+from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
+from calibrate_pro.verification.provenance import EvidenceKind
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
 from tests.fake_acceptance_support import MANIFEST_NAME, PRESET_ID, journal_records
 
@@ -80,8 +87,8 @@ def entries(window: object) -> dict[str, object]:
     return {action.text(): action for action in window.findChildren(QAction)}
 
 
-def drive_to_save_report(service: object) -> None:
-    """Walk the session to the stage where there is something to publish."""
+def drive_to_verify(service: object) -> None:
+    """Walk the session to the stage where a verification can be run."""
     steps = (
         service.detect,
         lambda: service.select_method(CalibrationMethod.SENSORLESS),
@@ -90,11 +97,17 @@ def drive_to_save_report(service: object) -> None:
         service.preview,
         service.confirm_plan,
         service.apply_confirmed_plan,
-        service.verify,
     )
     for step in steps:
         outcome = step()
         assert isinstance(outcome, ActionSuccess), f"the session stopped at {outcome}"
+
+
+def drive_to_save_report(service: object) -> None:
+    """Walk the session to the stage where there is something to publish."""
+    drive_to_verify(service)
+    outcome = service.verify()
+    assert isinstance(outcome, ActionSuccess), f"the session stopped at {outcome}"
     assert service.stage is WorkflowStage.SAVE_REPORT
 
 
@@ -412,3 +425,201 @@ def test_the_ddc_page_stages_nothing_of_its_own(window: object) -> None:
     before = page._status_label.text()
     page._brightness_slider.setValue(page._brightness_slider.value() + 1)
     assert page._status_label.text() == before
+
+
+def verify_controls(window: object) -> dict[str, object]:
+    """Every binding on the verify page, keyed by the action it stands for.
+
+    Keying by action would collide across pages, since more than one page binds
+    the display selector. The controls are looked up by identity instead, which
+    also means a control the page stopped binding disappears from this map
+    rather than being answered by another page's binding.
+    """
+    page = window.verify_page
+    owned = {id(page._display_combo), id(page._btn_verify), id(page._btn_measured), id(page._btn_export)}
+    return {binding.action_id: binding for binding in window._binder.bindings if id(binding.control) in owned}
+
+
+def test_the_verify_page_opens_with_references_and_no_figures(window: object) -> None:
+    """An empty grid and a grid full of numbers would both be wrong here.
+
+    The references are the target the model compares against, so they are drawn
+    before anything has run, and every delta beside them says it was not
+    measured until an action produces one.
+    """
+    page = window.verify_page
+    patches = page._checker_grid._patches
+
+    assert len(patches) == len(COLORCHECKER_CLASSIC)
+    assert {patch._de.evidence for patch in patches} == {EvidenceKind.NOT_MEASURED}
+    assert page._method_label.text() == NOT_RUN_NOTE
+    assert page._stat_avg_de._value_label.text() == "Not measured"
+
+
+def test_the_verify_page_lists_the_display_the_session_observed(window: object) -> None:
+    """The selector names one detection pass rather than a lookup of its own.
+
+    Every display enumerator is wired to raise in this fixture, so a page that
+    read hardware on a timer would fail here instead of filling the list. What
+    is in it arrived through the session and carries the label the session
+    published for that display.
+    """
+    combo = window.verify_page._display_combo
+
+    assert [combo.itemText(index) for index in range(combo.count())] == [FIXTURE_LABEL]
+
+
+def test_measured_verification_states_why_it_is_closed_rather_than_offering_it(window: object) -> None:
+    """The page used to announce measured verification when a sensor answered.
+
+    The session refuses it in every state, by manifest instruction, so that
+    line said the opposite of what the build does. Reaching past the disabled
+    button is deliberate: a disabled control emits nothing, so invoking its
+    binding is the only way to see what a click would have done.
+    """
+    binding = verify_controls(window)["verification.measured"]
+    reason = window.service.resolve("verification.measured").reason
+    assert reason
+
+    assert not binding.control.isEnabled()
+    assert binding.control.toolTip() == reason
+
+    outcome = window._binder.invoke(binding)
+    assert isinstance(outcome, ActionError)
+    assert outcome.summary == reason
+    assert outcome.effect_state == "none"
+
+
+def test_running_verification_draws_the_result_the_session_produced(window: object) -> None:
+    """Every figure on the page belongs to the result the session returned.
+
+    The page used to build a worker and run the accuracy model in a thread of
+    its own, so what appeared here was a second computation nothing recorded.
+    The deltas now come from the session's own patches, the model that produced
+    them is named on the page, and each one carries the evidence label the
+    session attached rather than one the page chose.
+    """
+    page = window.verify_page
+    binding = verify_controls(window)["verification.sensorless"]
+    assert not binding.control.isEnabled()
+
+    drive_to_verify(window.service)
+    window._binder.refresh()
+    assert binding.control.isEnabled()
+
+    binding.control.click()
+
+    patches = page._checker_grid._patches
+    assert len(patches) == len(COLORCHECKER_CLASSIC)
+    assert {patch._de.evidence for patch in patches} == {EvidenceKind.ESTIMATED}
+    assert {patch._de.source for patch in patches} == {MODEL_NAME}
+    assert page._stat_evidence._value_label.text() == MODEL_NAME
+    assert MODEL_NAME in page._method_label.text()
+    assert page._stat_avg_de._value_label.text().endswith("(estimated)")
+    assert window.toasts == []
+
+
+def test_redrawing_the_verify_page_does_not_discard_the_generated_plan(window: object) -> None:
+    """Repainting the page is not an operator choosing a display.
+
+    Repopulating the selector moves its current index, and adopting a display
+    drops everything downstream of it. Unguarded, a detection pass after a plan
+    was generated would throw the plan away, and the page would look no
+    different while it happened. Either failure is visible here: the stage
+    would move, or the selection would be refused and explained in a toast.
+    """
+    observed = window.service.detect()
+    assert isinstance(observed, ActionSuccess)
+    drive_to_save_report(window.service)
+    stage = window.service.stage
+
+    window.verify_page.render_session(observed.value)
+
+    assert window.service.stage is stage
+    assert window.toasts == []
+    combo = window.verify_page._display_combo
+    assert [combo.itemText(index) for index in range(combo.count())] == [FIXTURE_LABEL]
+
+
+def local_settings(page: object, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Point the settings page at a file, so a test writes no user settings."""
+    store = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    monkeypatch.setattr(page, "_settings", store)
+
+
+def answer_directory_dialog(monkeypatch: pytest.MonkeyPatch, directory: Path) -> None:
+    """Answer the settings page's folder dialog with one path."""
+    from calibrate_pro.gui.pages import settings as settings_page
+
+    monkeypatch.setattr(
+        settings_page.QFileDialog,
+        "getExistingDirectory",
+        staticmethod(lambda *args, **kwargs: str(directory)),
+    )
+
+
+def test_saving_the_report_writes_the_files_the_page_names(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A reported save is a save that ran, read back off disk.
+
+    The verify page used to write a file itself, straight from a save dialog,
+    with nothing gating the write and nothing recording it. Saving is a
+    declared action now and it stays closed until an output directory has been
+    accepted, which is a second action on another page. Both surfaces are
+    driven here because the pair is the product path: what the settings page
+    accepts is what decides whether the save button can be used at all.
+    """
+    page = window.settings_page
+    button = verify_controls(window)["report.save"].control
+    drive_to_save_report(window.service)
+    window._binder.refresh()
+
+    assert not button.isEnabled()
+    assert "output directory" in button.toolTip()
+    assert page._output_field.text() == OUTPUT_UNSET
+
+    destination = tmp_path / "report"
+    local_settings(page, monkeypatch, tmp_path)
+    answer_directory_dialog(monkeypatch, destination)
+    assert page._output_browse.isEnabled()
+    page._output_browse.click()
+
+    assert page._output_field.text() == str(destination)
+    assert button.isEnabled()
+    button.click()
+
+    assert MANIFEST_NAME in sorted(path.name for path in destination.iterdir())
+    line = window.verify_page._export_label.text()
+    assert str(destination) in line
+    assert MANIFEST_NAME in line
+    assert window.toasts == []
+
+
+def test_a_directory_the_session_refuses_leaves_the_save_closed(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Choosing a folder is not the same as the session accepting one.
+
+    A path that cannot be written to is recorded as chosen and invalid. The
+    page shows which path was turned down, says why saving stays closed, and
+    does not remember it, so the next dialog does not open on a folder the
+    session already rejected.
+    """
+    page = window.settings_page
+    button = verify_controls(window)["report.save"].control
+    drive_to_save_report(window.service)
+
+    local_settings(page, monkeypatch, tmp_path)
+    unusable = tmp_path / "missing" / "deeper"
+    answer_directory_dialog(monkeypatch, unusable)
+    page._output_browse.click()
+
+    assert page._output_field.text() == str(unusable)
+    assert page._output_note.text() == OUTPUT_REJECTED
+    assert page._settings.value("paths/output_dir", "") == ""
+    assert not button.isEnabled()
