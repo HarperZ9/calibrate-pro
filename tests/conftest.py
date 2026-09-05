@@ -5,6 +5,7 @@ real window, and a second copy of the hardware stubbing would be a second
 place for a test to reach a display from.
 """
 
+import gc
 import os
 import sys
 from collections.abc import Iterator
@@ -21,6 +22,60 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from calibrate_pro.panels.database import PanelDatabase
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Destroy the Qt objects a run built, while the application still exists.
+
+    A suite that passed every assertion was exiting with an access violation
+    raised inside a garbage collection during interpreter shutdown, and a runner
+    reads that exit status as a failed suite. What is being collected there is
+    Qt. Closing a window hides it and leaves the C++ object owned by a Python
+    wrapper inside a reference cycle, so nothing destroys it until a collection
+    that may not run before the interpreter has started taking PySide6 apart. By
+    then the application those objects reach for on the way out is gone.
+
+    This runs after the last test, so they go first and the application that
+    owns their platform resources is still there to take them.
+    """
+    widgets = sys.modules.get("PySide6.QtWidgets")
+    if widgets is None:
+        return
+    app = widgets.QApplication.instance()
+    if app is None:
+        return
+    _close_open_windows(widgets, app)
+    _destroy_objects_a_window_does_not_own(app)
+
+
+def _close_open_windows(widgets: object, app: object) -> None:
+    """Ask Qt to destroy every window a test left open."""
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    for widget in tuple(widgets.QApplication.topLevelWidgets()):
+        widget.close()
+        widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+    gc.collect()
+
+
+def _destroy_objects_a_window_does_not_own(app: object) -> None:
+    """Destroy what closing a window leaves behind.
+
+    A timer, a settings store, or an animation that a page holds as an attribute
+    and gives no parent is not part of any widget tree, so destroying the window
+    does not destroy it. Those are the objects whose destructors were running
+    against a half dismantled application. Measured on this suite: twenty
+    timers, six settings stores, and three animations survived every window.
+    """
+    import shiboken6
+    from PySide6.QtCore import QObject
+
+    survivors = [obj for obj in gc.get_objects() if isinstance(obj, QObject) and obj is not app]
+    for obj in survivors:
+        if shiboken6.isValid(obj):
+            shiboken6.delete(obj)
 
 
 @pytest.fixture(scope="session")

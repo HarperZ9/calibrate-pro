@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Made a suite that passes exit as one. The Windows run finished every assertion and then
+  died with an access violation raised inside a garbage collection during interpreter
+  shutdown, in three of five observed runs, and the process exit status is what a runner
+  reads. What was being collected was Qt. Closing a window hides it, and the C++ object
+  stays alive inside a Python reference cycle until a collection that may not happen before
+  PySide6 is already being taken apart. A timer or a settings store that a page holds as an
+  attribute and gives no parent belongs to no widget tree, so destroying the window does not
+  reach it either. Twenty timers were surviving that way, alongside six settings stores and
+  three animations. The suite now destroys them after the last test, while the application
+  their destructors reach for on the way out is still there. Three consecutive runs of the
+  full suite then passed all 2,234 tests and exited zero.
 - Turned the two lint gates green. `ruff check .` was reporting an unsorted import block and
   an assignment whose value is never read in the measured calibration script, and a loop in
   the i1d3 driver that reads as `any(...)`. The unread assignment stays as a call, because
