@@ -388,6 +388,13 @@ class CalibrationEngine:
                 "No colorimeter connected. Call set_colorimeter() or connect a device before hardware calibration."
             )
 
+        if display_callback is None:
+            raise ValueError(
+                "Hardware calibration needs a display_callback that puts each patch on "
+                "screen. Without one the colorimeter reads whatever the display already "
+                "shows, once per patch, and every reading is filed under a different RGB."
+            )
+
         self._report_progress("Starting hardware calibration...", 0.05)
 
         # Detect panel for reference
@@ -571,17 +578,29 @@ class CalibrationEngine:
 
         Args:
             rgb: RGB values (0-1)
-            display_callback: Function to display the patch
+            display_callback: Puts the patch on screen. Required. Without it the
+                colorimeter reads whatever the display already held, and the
+                reading is filed under the RGB that was asked for, so a sweep
+                returns one measurement of one unchanged image under as many
+                different labels as it has patches.
 
         Returns:
-            Measurement data dictionary
+            Measurement data dictionary, or None when no patch could be shown
+            and when the instrument returned nothing.
         """
-        if display_callback:
-            from calibrate_pro.hardware.colorimeter_base import CalibrationPatch
+        if display_callback is None:
+            self._report_progress(
+                f"No patch display, so RGB {rgb} cannot be put on screen and a reading "
+                "would not be of the patch it is filed under.",
+                0.0,
+            )
+            return None
 
-            patch = CalibrationPatch(r=rgb[0], g=rgb[1], b=rgb[2])
-            display_callback(patch)
-            time.sleep(0.5)  # Wait for display to settle
+        from calibrate_pro.hardware.colorimeter_base import CalibrationPatch
+
+        patch = CalibrationPatch(r=rgb[0], g=rgb[1], b=rgb[2])
+        display_callback(patch)
+        time.sleep(0.5)  # Wait for display to settle
 
         if self.colorimeter is None:
             raise RuntimeError("No colorimeter connected. Call set_colorimeter() before measuring.")
@@ -649,18 +668,36 @@ class CalibrationEngine:
         return results
 
     def _create_icc_from_measurements(self, cal_data: dict, panel: PanelCharacterization) -> ICCProfile:
-        """Create ICC profile from measurement data."""
-        # Extract measured primaries
+        """Create an ICC profile from measurement data.
+
+        Every primary and the white point come from the sweep. The defaults that
+        used to stand in for a missing measurement were the Rec.709 primaries and
+        D65, which describe a standard rather than this display, and the profile
+        they went into is written to a file named for a measured run and carries
+        a description ending "(Measured)". Colour managed applications on the
+        machine then trust it. A missing measurement raises instead.
+
+        Raises:
+            ValueError: when a primary, the white point, or the grayscale ramp is
+                missing from ``cal_data``.
+        """
         primaries = cal_data.get("primaries", {})
 
-        red_xy = primaries.get("red", {}).get("xy", (0.64, 0.33))
-        green_xy = primaries.get("green", {}).get("xy", (0.30, 0.60))
-        blue_xy = primaries.get("blue", {}).get("xy", (0.15, 0.06))
-        white_xy = primaries.get("white", {}).get("xy", (0.3127, 0.3290))
+        missing = [name for name in ("red", "green", "blue", "white") if "xy" not in primaries.get(name, {})]
+        if missing:
+            raise ValueError(
+                f"Cannot build a measured ICC profile: no chromaticity was measured for "
+                f"{', '.join(missing)}. Every primary and the white point have to come "
+                f"from the sweep, because a standard illuminant substituted for one would "
+                f"be published as this display's measured characterization."
+            )
 
-        # Calculate gamma from grayscale
-        grayscale = cal_data.get("grayscale", [])
-        gamma = self._calculate_gamma_from_grayscale(grayscale)
+        red_xy = primaries["red"]["xy"]
+        green_xy = primaries["green"]["xy"]
+        blue_xy = primaries["blue"]["xy"]
+        white_xy = primaries["white"]["xy"]
+
+        gamma = self._calculate_gamma_from_grayscale(cal_data.get("grayscale", []))
 
         # Create profile
         profile = create_display_profile(
@@ -675,20 +712,52 @@ class CalibrationEngine:
         return profile
 
     def _calculate_gamma_from_grayscale(self, grayscale: list[dict]) -> float:
-        """Calculate effective gamma from grayscale measurements."""
+        """Fit the effective gamma to the grayscale measurements.
+
+        The fit used to fall back to 2.2 when it could not run, and that number
+        went into a profile described as measured, so an assumed tone response
+        was published as this display's. Too few usable points now raises.
+
+        Raises:
+            ValueError: when fewer than three measured points reach the fit, when
+                a point carries no luminance, when the ramp has no measured range
+                to normalize against, or when the fitted exponent lands outside
+                the range a display can produce.
+        """
         if len(grayscale) < 3:
-            return 2.2  # Default
+            raise ValueError(
+                f"Cannot fit a gamma to {len(grayscale)} measured grayscale points. "
+                f"At least three are needed, and a default substituted here would be "
+                f"published as the measured tone response of the display."
+            )
 
         # Use least squares fit for gamma
         levels = []
         luminances = []
 
-        white_lum = grayscale[-1].get("luminance", 100)
-        black_lum = grayscale[0].get("luminance", 0)
+        unmeasured = [i for i, point in enumerate(grayscale) if point.get("luminance") is None]
+        if unmeasured:
+            raise ValueError(
+                f"Cannot fit a gamma: grayscale points {unmeasured} carry no luminance. "
+                f"The fit used to read a missing white as 100 and a missing black as 0, "
+                f"and those assumed endpoints set the normalization every other point is "
+                f"fitted against."
+            )
+
+        white_lum = grayscale[-1]["luminance"]
+        black_lum = grayscale[0]["luminance"]
+
+        if white_lum <= black_lum:
+            raise ValueError(
+                f"Cannot fit a gamma: the ramp measured {white_lum} at the top and "
+                f"{black_lum} at the bottom, so there is no measured range to normalize "
+                f"against. A display was either off, saturated, or read through a "
+                f"shuttered instrument."
+            )
 
         for point in grayscale:
             level = point.get("level", 0)
-            lum = point.get("luminance", 0)
+            lum = point["luminance"]
 
             if level > 0.05 and level < 0.95:
                 # Normalize luminance
@@ -698,38 +767,94 @@ class CalibrationEngine:
                     luminances.append(np.log(norm_lum))
 
         if len(levels) < 3:
-            return 2.2
+            raise ValueError(
+                f"Cannot fit a gamma: {len(levels)} of {len(grayscale)} measured grayscale "
+                f"points are usable, after dropping the ones at or beyond the ends of the "
+                f"ramp and any that normalized to zero or below. At least three are needed."
+            )
 
         # Linear regression for gamma
         A = np.vstack([levels, np.ones(len(levels))]).T
         gamma, _ = np.linalg.lstsq(A, luminances, rcond=None)[0]
 
-        return max(1.8, min(3.0, gamma))
+        # The result used to be clamped into 1.8 to 3.0. A ramp that fits outside
+        # that range is not a power law, and the clamp replaced the fit with the
+        # nearest plausible number, which was then written into a profile
+        # described as measured.
+        if not 1.8 <= gamma <= 3.0:
+            raise ValueError(
+                f"The grayscale ramp fits an exponent of {gamma:.3f}, outside the 1.8 to "
+                f"3.0 a display produces. The ramp is not a power law, so no single gamma "
+                f"describes it, and the nearest in-range number substituted here would be "
+                f"published as the measured tone response."
+            )
+
+        return float(gamma)
 
     def _create_lut_from_measurements(self, cal_data: dict, panel: PanelCharacterization, size: int = 33) -> LUT3D:
-        """Create 3D LUT from measurement data."""
-        # Build correction LUT based on measurements
-        generator = LUTGenerator(size=size)
-        primaries = panel.native_primaries
+        """Build a 3D LUT from the measurements in ``cal_data``.
 
-        # Apply measurement-based corrections
-        lut = generator.create_calibration_lut(
+        The method used to read ``panel``, not ``cal_data``: the primaries and the
+        three gammas came from the panel database entry for the model string, so a
+        run with an instrument attached discarded every reading and wrote the
+        database characterization to a file named for a measured run. Two displays
+        of the same model got identical LUTs.
+
+        The grayscale sweep measures one neutral ramp, so the gamma fitted to it is
+        applied to all three channels. Per-channel ramps are not measured, and a
+        per-channel figure taken from the database would be a modelled value inside
+        a measured artifact.
+
+        Args:
+            cal_data: Measurements from the sweep.
+            panel: Panel characterization, used for the LUT title only.
+            size: Cube size per axis.
+
+        Raises:
+            ValueError: when a primary, the white point, or the grayscale ramp is
+                missing from ``cal_data``.
+        """
+        primaries = cal_data.get("primaries", {})
+
+        missing = [name for name in ("red", "green", "blue", "white") if "xy" not in primaries.get(name, {})]
+        if missing:
+            raise ValueError(
+                f"Cannot build a measured LUT: no chromaticity was measured for "
+                f"{', '.join(missing)}. The panel database entry substituted here would "
+                f"be written to a file named for a measured run."
+            )
+
+        gamma = self._calculate_gamma_from_grayscale(cal_data.get("grayscale", []))
+
+        generator = LUTGenerator(size=size)
+        return generator.create_calibration_lut(
             panel_primaries=(
-                primaries.red.as_tuple(),
-                primaries.green.as_tuple(),
-                primaries.blue.as_tuple(),
+                primaries["red"]["xy"],
+                primaries["green"]["xy"],
+                primaries["blue"]["xy"],
             ),
-            panel_white=primaries.white.as_tuple(),
-            gamma_red=panel.gamma_red.gamma,
-            gamma_green=panel.gamma_green.gamma,
-            gamma_blue=panel.gamma_blue.gamma,
+            panel_white=primaries["white"]["xy"],
+            gamma_red=gamma,
+            gamma_green=gamma,
+            gamma_blue=gamma,
             target_gamma=self.target.gamma_value,
+            title=f"{panel.manufacturer} {panel.model_pattern.split('|')[0]} (Measured)",
         )
 
-        return lut
-
     def _verify_hardware(self, display_callback: Callable | None = None) -> dict:
-        """Verify calibration with hardware measurements."""
+        """Verify the calibration by measuring the verification patch set.
+
+        Args:
+            display_callback: Puts each patch on screen. Required, because a
+                reading taken with nothing shown belongs to whatever the display
+                already held.
+
+        Raises:
+            RuntimeError: when no patch was measured. The averages used to come
+                back as 0.0, and the caller publishes them as measured evidence
+                with a passing grade, so a display nothing was read from scored
+                the best number the tool can produce.
+        """
         from calibrate_pro.hardware.colorimeter_base import generate_verification_patches
 
         patches = generate_verification_patches()
@@ -764,11 +889,15 @@ class CalibrationEngine:
                 )
 
         # Calculate statistics
-        if delta_es:
-            avg_de = np.mean(delta_es)  # type: ignore[arg-type]  # numpy/dynamic
-            max_de = np.max(delta_es)  # type: ignore[arg-type,var-annotated]  # numpy/dynamic
-        else:
-            avg_de = max_de = 0  # type: ignore[assignment]  # numpy/dynamic
+        if not delta_es:
+            raise RuntimeError(
+                f"Verification measured none of the {len(patches)} patches. The result used "
+                f"to be a Delta E of 0.0 published as a measured value with a passing grade, "
+                f"which is the best possible number for a display nothing was read from."
+            )
+
+        avg_de = np.mean(delta_es)  # type: ignore[arg-type]  # numpy/dynamic
+        max_de = np.max(delta_es)  # type: ignore[arg-type,var-annotated]  # numpy/dynamic
 
         # Determine grade
         if avg_de < 1.0:
