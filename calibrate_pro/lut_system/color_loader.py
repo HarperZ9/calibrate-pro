@@ -613,11 +613,17 @@ class ColorLoader:
                     return curve
 
             elif type_sig == b"para":
-                # Parametric curve
-                struct.unpack(">H", trc_data[8:10])[0]
-                gamma = struct.unpack(">I", trc_data[12:16])[0] / 65536.0
+                # Parametric curve. The function type selects the formula and the
+                # number of parameters that follow. Only type 0 is a pure gamma;
+                # the rest carry a linear segment near black, and rendering them
+                # as X**g moves the shadow end of the tone curve. That curve goes
+                # on to drive the LUT, so the wrong one is applied to the display
+                # rather than reported. Return None and let the caller fall back.
+                function_type = struct.unpack(">H", trc_data[8:10])[0]
+                if function_type != 0:
+                    return None
 
-                # Simple gamma for now
+                gamma = struct.unpack(">I", trc_data[12:16])[0] / 65536.0
                 return np.array([int((i / 255.0) ** gamma * 65535) for i in range(256)], dtype=np.uint16)
 
             return None

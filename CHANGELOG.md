@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Stopped the ICC tone curve parser applying the wrong curve to the display. A `para` tag names
+  the formula in a function type field, and `_parse_trc` read every type as the type 0 pure gamma
+  `X ** g`. Types 1 through 4 carry a linear segment near black, so the curve the parser produced
+  moved the shadow end of the tone response. That curve drives the gamma ramp, which means the
+  wrong curve reached the panel rather than being misreported in a readout. Only type 0 is decoded
+  now, and the rest return None so the caller falls back.
 - Made the hardware calibration sweep show each patch it reads. `_measure_with_display` took the
   patch display callback as optional, and with none given it skipped straight to the colorimeter
   and filed the reading under the RGB it had been asked for. A sweep run that way reads one
