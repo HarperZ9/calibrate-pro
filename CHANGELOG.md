@@ -7,8 +7,22 @@
   service, and print what each action returned. A refusal arrives in the words the
   session refused it in rather than a sentence written for the command line.
 - Shipped those five commands in the frozen binary, so a headless run no longer requires
-  installing Python and the developer wheel. `CalibrateProCLI.exe` answers eight commands
+  installing Python and the developer wheel. `CalibrateProCLI.exe` answers nine commands
   and refuses the rest by naming the package they live in.
+- Added `diagnostics`, which reads back the redacted journal every action writes to. It
+  lists each file a support bundle would carry with its digest, publishes exactly those
+  bytes when `--bundle PATH` is given, and opens the folder with `--open`. The three
+  actions behind it were declared in the manifest and reachable from no surface.
+- Built the same three actions into the window, under Diagnostics on the settings page.
+  The listing names each member and its digest before anything is written, the save
+  button opens only against a live preview, and the token that preview issued is spent by
+  the attempt that follows rather than by that attempt succeeding.
+- Gated the action manifest against the code it names. A required module was checked for
+  the shape of a dotted name and never imported, so the manifest declared a module that
+  did not exist across a green suite. The gate imports what the manifest requires and
+  reads the frozen policy back against it.
+- Gated the headless command table in the usage guide against the parsers the commands
+  are built from, so a command that runs but has no row fails a gate.
 - Added the one-session application service: read-only detection with default-deny
   capabilities, deterministic asset generation, and an atomic export bundle sealed by a
   SHA-256 manifest.

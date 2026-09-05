@@ -1,6 +1,6 @@
 """The arguments a session command takes, written once for two entry points.
 
-The developer command line offers all five of these as subcommands of one
+The developer command line offers every one of these as a subcommand of one
 parser. The frozen binary chooses a single command per run and has no developer
 parser to route through, so it reads this same table for that one command. A
 flag added for either entry point arrives at the other, rather than being
@@ -17,7 +17,7 @@ import argparse
 from collections.abc import Sequence
 
 #: Every command the session driver answers to, named for a parser to offer.
-COMMANDS = frozenset({"detect", "generate-profiles", "profiles", "status", "verify"})
+COMMANDS = frozenset({"detect", "diagnostics", "generate-profiles", "profiles", "status", "verify"})
 
 
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
@@ -42,6 +42,9 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
         command.add_argument("--display", help="Platform display id; the detected display is used by default")
     profiles = subparsers.add_parser("profiles", help="List published bundles and check each one's seal")
     profiles.add_argument("directory", help="Directory holding published bundles")
+    bundle = subparsers.add_parser("diagnostics", help="List the session journal and publish it for support")
+    bundle.add_argument("--bundle", help="File path to publish the diagnostic bundle at")
+    bundle.add_argument("--open", action="store_true", help="Open the folder the journal is kept in")
 
 
 def parse(command: str, argv: Sequence[str]) -> argparse.Namespace:

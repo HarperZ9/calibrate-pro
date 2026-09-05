@@ -29,8 +29,9 @@ from calibrate_pro.application.detection import (
     read_hdr_states,
     windows_read_only_probe,
 )
+from calibrate_pro.application.diagnostics import windows_folder_opener
 from calibrate_pro.application.fake_acceptance import FakeAcceptanceService, RecordingFakeAdapter
-from calibrate_pro.application.journal import DiagnosticJournal
+from calibrate_pro.application.journal import DiagnosticBundleManager, DiagnosticJournal
 from calibrate_pro.application.outcomes import ActionBoundary
 from calibrate_pro.application.runner import IssuedCorrelationId, SessionActionRunner
 from calibrate_pro.application.service import FunctionalRecoveryService
@@ -110,6 +111,16 @@ def _correlation_id() -> str:
     return uuid4().hex
 
 
+def _bundles(journal: DiagnosticJournal) -> DiagnosticBundleManager:
+    """Give the session the one manager that reads the journal it writes.
+
+    Both are built from the same instance, so a bundle can only ever hold
+    records this session put there. A platform with no way to open a folder
+    gets no opener, and the folder action refuses instead of pretending.
+    """
+    return DiagnosticBundleManager(journal, folder_opener=windows_folder_opener())
+
+
 def _engine_and_generator(database: PanelDatabase) -> tuple[SensorlessEngine, AssetGenerator]:
     """Share one engine between generation and prediction.
 
@@ -135,6 +146,7 @@ def build_production_service() -> FunctionalRecoveryService:
     return FunctionalRecoveryService(
         state=state,
         runner=_runner(state, journal),
+        bundles=_bundles(journal),
         detector=detector,
         generator=generator,
         engine=engine,
@@ -163,6 +175,7 @@ def build_fake_acceptance_service(output_root: Path) -> FakeAcceptanceService:
         adapter=RecordingFakeAdapter(),
         state=state,
         runner=_runner(state, journal),
+        bundles=_bundles(journal),
         detector=detector,
         generator=generator,
         engine=engine,

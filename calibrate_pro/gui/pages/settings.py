@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 
 from calibrate_pro import __version__ as APP_VERSION
 from calibrate_pro.gui.app import C, Card, Heading
+from calibrate_pro.gui.pages.settings_diagnostics import DiagnosticsSection
 
 # Constants
 
@@ -177,8 +178,12 @@ class SettingsPage(QWidget):
         row.addWidget(self._output_browse)
         return container
 
-    def bind_actions(self, binder, *, set_output_directory) -> None:
-        """Hand the output-directory control to the action it stands for."""
+    def bind_actions(self, binder, *, set_output_directory, diagnostics) -> None:
+        """Hand every control on this page to the action it stands for.
+
+        The diagnostics section binds its own three controls, because the token a
+        preview issues has to be held next to the button that spends it.
+        """
         self._set_output_directory = set_output_directory
         binder.bind(
             "settings.output_directory",
@@ -187,6 +192,7 @@ class SettingsPage(QWidget):
             on_success=self.render_output_directory,
             hides=False,
         )
+        self._diagnostics_section.bind_actions(binder, diagnostics)
 
     def _choose_output_directory(self):
         """Ask for a directory, then let the session decide about it.
@@ -489,6 +495,14 @@ class SettingsPage(QWidget):
 
         paths_layout.addLayout(form_paths)
         layout.addWidget(paths_card)
+
+        # Diagnostics section
+        layout.addWidget(_make_section_heading("Diagnostics"))
+
+        diagnostics_card, diagnostics_layout = Card.with_layout(spacing=10)
+        self._diagnostics_section = DiagnosticsSection()
+        diagnostics_layout.addWidget(self._diagnostics_section)
+        layout.addWidget(diagnostics_card)
 
         # About section
         layout.addWidget(_make_section_heading("About"))

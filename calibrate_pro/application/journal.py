@@ -1656,6 +1656,16 @@ class DiagnosticBundleManager:
         self._process_is_alive = process_is_alive
         self._grant: _DiagnosticBundleGrant | None = None
 
+    @property
+    def folder(self) -> Path:
+        """Where the journal this manager reads is kept.
+
+        Naming the folder is not reaching into it. A surface prints this so an
+        operator whose platform cannot open a window still knows where to look,
+        and the three declared actions remain the only way anything is read.
+        """
+        return self._journal._root
+
     def preview(self) -> BundlePreview:
         with _JOURNAL_LOCK:
             self._grant = None

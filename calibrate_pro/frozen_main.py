@@ -59,6 +59,8 @@ _USAGE_LINES = (
     "  generate-profiles DIR --target NAME",
     "                         Write one calibration bundle into a directory",
     "  profiles DIR           List published bundles and check each one's seal",
+    "  diagnostics [--bundle PATH] [--open]",
+    "                         List the session journal and publish it for support",
     "",
     "Add --help to any of these for the arguments it takes.",
 )

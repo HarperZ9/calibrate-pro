@@ -71,9 +71,9 @@ guard are read-only monitor-and-notify surfaces in 1.1.
 
 ## Read-only commands
 
-The Python package exposes the commands below. The frozen Windows CLI ships eight of
-them: `detect`, `doctor`, `generate-profiles`, `gui`, `hdr`, `profiles`, `status`, and
-`verify`. Naming any other command there prints that it lives in the developer wheel and
+The Python package exposes the commands below. The frozen Windows CLI ships nine of
+them: `detect`, `diagnostics`, `doctor`, `generate-profiles`, `gui`, `hdr`, `profiles`,
+`status`, and `verify`. Naming any other command there prints that it lives in the developer wheel and
 exits 2, rather than reporting it as a name that does not exist.
 
 | Command | Purpose |
@@ -101,8 +101,9 @@ attached unit they remain estimates unless a supported instrument measures that 
 
 These drive the actions the window drives, over the same session, and print what each
 action returned. A refusal is printed in the words the session refused it in. None of
-them changes display state. `generate-profiles` writes the files it names into a
-directory you choose, and nothing else here writes outside its own diagnostics journal.
+them changes display state. Two of them write, both to a path you name:
+`generate-profiles` writes a calibration bundle into a directory, and `diagnostics
+--bundle` writes a support bundle at a file path.
 
 | Command | Purpose |
 |---|---|
@@ -111,6 +112,7 @@ directory you choose, and nothing else here writes outside its own diagnostics j
 | `calibrate-pro verify --target NAME` | Generate a sealed plan and report its predicted accuracy |
 | `calibrate-pro generate-profiles DIR --target NAME [--dry-run]` | Write one calibration bundle into `DIR` |
 | `calibrate-pro profiles DIR` | List the bundles published under a directory and check each one's seal |
+| `calibrate-pro diagnostics [--bundle PATH] [--open]` | List the session journal, and publish it for support |
 
 `--target` is required rather than defaulted; `calibrate-pro list-targets` prints the
 names it accepts. Pass `--display ID` to `verify` or `generate-profiles` to choose among
@@ -137,6 +139,18 @@ them. `--dry-run` stops at the plan and writes nothing. `profiles` recomputes th
 digests from the bytes on disk, so a bundle whose files changed is reported as `CHANGED`
 and the run exits 1. A path with nothing at it is refused with exit code 2 instead of
 being counted as a directory holding no bundles.
+
+`diagnostics` reads back the redacted journal every action writes to. With no arguments
+it lists each file a support bundle would carry, its byte length, and its SHA-256, and
+writes nothing. Pass `--bundle PATH` to publish exactly those bytes at `PATH`, which
+must not already exist. Pass `--open` to open the folder the journal is kept in, on a
+platform that can open one. The listing and the bundle come from one run because the
+grant between them is held in memory: what you were shown is what you send.
+
+The window offers the same three actions under Diagnostics on the settings page. Preview
+draws the listing, Save bundle asks where the archive goes and writes exactly the members
+above it, and Open folder opens the journal directory. A preview goes stale once the
+session records another action, so take a fresh one if a publish is refused.
 
 ## Commands this build declines
 
@@ -192,6 +206,9 @@ if panel is not None:
 ## Troubleshooting
 
 - Run `calibrate-pro doctor --json` and retain the complete output.
+- Attach a support bundle. Settings -> Diagnostics -> Preview lists what the bundle
+  carries and Save bundle writes it, or run `calibrate-pro diagnostics --bundle PATH`.
+  The journal is redacted before it is written, and the listing is what you send.
 - Confirm that the package came from the GitHub release or the `calibrate-pro` project
   on PyPI and verify its SHA-256 against `SHA256SUMS.txt`.
 - If a display control is unavailable, treat that as a capability result; do not run the

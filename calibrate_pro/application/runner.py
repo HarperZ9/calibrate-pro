@@ -120,6 +120,30 @@ class SessionActionRunner:
         )
         return outcome
 
+    def run_diagnostic_preview(self, action_id: str, operation: Callable[[], T]) -> ActionOutcome[T]:
+        """Run the one action whose own record has to be durable before it answers.
+
+        A bundle preview hands back a token that opens a write, so the record
+        saying the token was issued is synced before the operation runs rather
+        than after it returns. Every other action can be journalled once, from
+        its outcome; this one cannot, because a crash between issuing and
+        recording would leave a live grant nothing accounts for.
+        """
+        stage = self._state.stage
+
+        def guarded() -> T:
+            self.require_enabled(action_id)
+            return operation()
+
+        try:
+            outcome = self._boundary.invoke_diagnostic_preview(stage, guarded)
+        finally:
+            self._correlation_ids.release()
+        self._state.journal_ready = not (
+            isinstance(outcome, ActionError) and outcome.category == _DIAGNOSTICS_CATEGORY
+        )
+        return outcome
+
     def resolve(self, action_id: str) -> ResolvedAction:
         """Ask the manifest what this action is right now.
 

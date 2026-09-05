@@ -80,6 +80,7 @@ calibrate-pro status --closed                         # Actions this session can
 calibrate-pro verify --target srgb_web                # Sealed plan and its predicted accuracy
 calibrate-pro generate-profiles out --target srgb_web # Publish one sealed bundle into 'out'
 calibrate-pro profiles out                            # Re-check the seal on published bundles
+calibrate-pro diagnostics                             # List what a support bundle would carry
 calibrate-pro doctor                                  # Read-only installation and capability diagnostics
 calibrate-pro doctor --json                           # Stable machine-readable diagnostics
 calibrate-pro hdr                                     # Open the HDR proposal application

@@ -87,12 +87,14 @@ become an observation of the attached display.
 
 - `CalibratePro.exe` / `calibrate-pro gui`: main PySide6 workflow.
 - `CalibrateProCLI.exe`: the frozen dispatcher. It answers `doctor`, `gui`, `hdr`,
-  `detect`, `status`, `verify`, `generate-profiles`, and `profiles`, and refuses every
-  other developer name by saying which package it lives in. `hdr` opens the HDR
-  target/proposal workflow.
+  `detect`, `status`, `verify`, `generate-profiles`, `profiles`, and `diagnostics`, and
+  refuses every other developer name by saying which package it lives in. `hdr` opens
+  the HDR target/proposal workflow.
 - `calibrate-pro doctor [--json]`: deterministic, read-only installation diagnostics.
-- `detect`, `status`, `verify`, `generate-profiles`, and `profiles`: the headless
-  session, running the actions the window runs and writing only where it was told to.
+- `detect`, `status`, `verify`, `generate-profiles`, `profiles`, and `diagnostics`: the
+  headless session, running the actions the window runs and writing only where it was
+  told to. `diagnostics` reads the redacted journal every action writes to, and
+  publishes it as a support bundle when a path is given.
 - `list-targets`, `list-panels`, `info`, `hdr-status`, and `plugins`: read-only
   listings and diagnostics.
 - Tray and calibration guard: monitor-and-notify only in 1.1.

@@ -22,6 +22,9 @@ TRY_IT_HEADING = "## Try it"
 #: The sentence introducing the names only the developer wheel answers.
 DEVELOPER_ONLY_INTRO = "These names exist only in the developer wheel"
 
+#: The heading over the table of commands that drive a session from a terminal.
+HEADLESS_HEADING = "## Headless calibration commands"
+
 #: Every page a reader outside the repository can reach. A claim about what this
 #: build does has to hold on all of them, because a reader arrives at one.
 PUBLIC_SURFACES = (
@@ -70,6 +73,25 @@ def fenced_commands(text: str, after: str) -> list[str]:
         if not stripped.startswith("calibrate-pro "):
             continue
         names.append(stripped.split()[1])
+    return names
+
+
+def table_commands(text: str, after: str) -> set[str]:
+    """The command names in the first table following a heading.
+
+    A row is read the way a reader reads it, off the code span in the first
+    column, so a command documented only in the prose beneath the table does not
+    count as documented here.
+    """
+    parts = text.split(after, 1)
+    assert len(parts) == 2, f"the guide no longer contains {after!r}"
+    names = set()
+    for line in parts[1].splitlines():
+        row = re.match(r"\|\s*`calibrate-pro ([a-z-]+)", line)
+        if row is not None:
+            names.add(row.group(1))
+        elif names and not line.startswith("|"):
+            break
     return names
 
 
@@ -366,3 +388,28 @@ def test_every_public_page_says_measured_calibration_is_closed_while_it_is() -> 
 
     expected = set(PUBLIC_SURFACES) if closed else set()
     assert said == expected, f"manifest closed={closed}; pages saying so: {sorted(said)}"
+
+
+def test_the_usage_guide_documents_every_command_a_terminal_can_run() -> None:
+    """The headless table is read back off the table the parsers are built from.
+
+    Every check above this one asks whether a sentence is still there. This asks
+    the other question, which is whether a command that now runs has a row at all.
+    A command absent from the guide is a command an operator never learns about,
+    and the guide has no way to notice that it went quiet.
+    """
+    from calibrate_pro.commands.session_args import COMMANDS
+
+    text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
+
+    assert table_commands(text, HEADLESS_HEADING) == set(COMMANDS)
+
+
+def test_the_headless_table_reader_reports_a_command_with_no_row() -> None:
+    """The check on the check above, against a table one row short."""
+    text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
+    documented = table_commands(text, HEADLESS_HEADING)
+    thinned = text.replace("| `calibrate-pro detect` ", "| `calibrate-pro` ", 1)
+
+    assert "detect" in documented
+    assert table_commands(thinned, HEADLESS_HEADING) == documented - {"detect"}

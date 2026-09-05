@@ -15,6 +15,7 @@ the work it is supposed to be showing.
 
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from calibrate_pro.application.outcomes import ActionError, ActionSuccess
 from calibrate_pro.application.prediction import MODEL_NAME
 from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
 from calibrate_pro.gui.pages.settings import OUTPUT_REJECTED, OUTPUT_UNSET
+from calibrate_pro.gui.pages.settings_diagnostics import NOT_PREVIEWED
 from calibrate_pro.gui.pages.verify import NOT_RUN_NOTE
 from calibrate_pro.sensorless.neuralux import COLORCHECKER_CLASSIC
 from calibrate_pro.verification.provenance import EvidenceKind
@@ -667,3 +669,139 @@ def test_a_directory_the_session_refuses_leaves_the_save_closed(
     assert page._output_note.text() == OUTPUT_REJECTED
     assert page._settings.value("paths/output_dir", "") == ""
     assert not button.isEnabled()
+
+
+def answer_save_dialog(monkeypatch: pytest.MonkeyPatch, destination: Path | None) -> None:
+    """Answer the diagnostics save dialog with one path, or with a withdrawal."""
+    from calibrate_pro.gui.pages import settings_diagnostics
+
+    answer = "" if destination is None else str(destination)
+    monkeypatch.setattr(
+        settings_diagnostics.QFileDialog,
+        "getSaveFileName",
+        staticmethod(lambda *args, **kwargs: (answer, "")),
+    )
+
+
+def diagnostics_section(window: object) -> object:
+    """The diagnostics block the settings page builds."""
+    return window.settings_page._diagnostics_section
+
+
+def test_the_diagnostics_section_opens_with_nothing_read(window: object) -> None:
+    """The page names the journal folder without reading anything in it.
+
+    Naming a configured path is not an observation, so the folder line is
+    filled at bind time. Everything else stays empty until an action runs, and
+    publishing stays closed because no preview has issued a token.
+    """
+    section = diagnostics_section(window)
+
+    assert section._preview_button.isEnabled()
+    assert not section._save_button.isEnabled()
+    assert "preview" in section._save_button.toolTip().lower()
+    assert section._listing.text() == NOT_PREVIEWED
+    assert section._receipt.text() == ""
+    assert str(window.session_root / "diagnostics") in section._folder.text()
+    assert window.toasts == []
+
+
+def test_publishing_writes_exactly_the_files_the_listing_named(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """What the listing promises before the write is what lands after it.
+
+    An operator sending a bundle is sending the members named here, so the
+    published archive is opened back off disk and every entry in it is checked
+    against the listing the preview drew.
+    """
+    section = diagnostics_section(window)
+    section._preview_button.click()
+
+    listing = section._listing.text()
+    assert "diagnostics.jsonl" in listing
+    assert section._save_button.isEnabled()
+
+    destination = tmp_path / "bundle.zip"
+    answer_save_dialog(monkeypatch, destination)
+    section._save_button.click()
+
+    with zipfile.ZipFile(destination) as archive:
+        published = sorted(archive.namelist())
+    assert published
+    for basename in published:
+        assert basename in listing
+
+    receipt = section._receipt.text()
+    assert str(destination) in receipt
+    assert "verified" in receipt
+    assert not section._save_button.isEnabled()
+    assert window.toasts == []
+
+
+def test_a_refused_publish_spends_the_preview_it_was_offered(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A token is spent by the attempt, not by the attempt succeeding.
+
+    The session refuses a destination that already exists and drops the grant
+    on the way out. Leaving the button enabled would offer a second attempt
+    against a token nothing would accept, so the control closes with the grant.
+    """
+    section = diagnostics_section(window)
+    section._preview_button.click()
+
+    taken = tmp_path / "taken.zip"
+    taken.write_bytes(b"")
+    answer_save_dialog(monkeypatch, taken)
+    section._save_button.click()
+
+    assert taken.read_bytes() == b""
+    assert section._receipt.text() == ""
+    assert not section._save_button.isEnabled()
+    assert len(window.toasts) == 1
+
+
+def test_closing_the_save_dialog_reports_nothing_and_keeps_the_preview(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A withdrawn choice never reaches the journal.
+
+    Nothing is written, nothing is said, and the token the preview issued is
+    still the one the next attempt would use.
+    """
+    section = diagnostics_section(window)
+    section._preview_button.click()
+
+    answer_save_dialog(monkeypatch, None)
+    section._save_button.click()
+
+    assert section._receipt.text() == ""
+    assert section._save_button.isEnabled()
+    assert window.toasts == []
+
+
+def test_opening_the_folder_reaches_the_folder_the_page_named(
+    window: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The button opens the folder the line above it names, and no other.
+
+    The opener is substituted because the real one hands a path to the shell.
+    Substituting it also removes the platform from the question, so the wiring
+    is held to the same claim wherever the suite runs.
+    """
+    section = diagnostics_section(window)
+    opened: list[Path] = []
+    monkeypatch.setattr(window.service._bundles, "_folder_opener", opened.append)
+
+    section._open_button.click()
+
+    assert opened == [window.session_root / "diagnostics"]
+    assert str(opened[0]) in section._folder.text()
+    assert window.toasts == []

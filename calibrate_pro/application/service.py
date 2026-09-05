@@ -19,8 +19,10 @@ from pathlib import Path
 from calibrate_pro.application.assets import AssetGenerator, ExportBundle
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.detection import DisplayDetector
+from calibrate_pro.application.diagnostics import DiagnosticsActions
 from calibrate_pro.application.exporting import choose_directory, export_bundle, export_single_format
 from calibrate_pro.application.generation import generate_bundle
+from calibrate_pro.application.journal import DiagnosticBundleManager
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.planning import target_for
 from calibrate_pro.application.prediction import predict_accuracy
@@ -52,7 +54,7 @@ from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
 
 
-class FunctionalRecoveryService(ProfileActions, SurfaceActions):
+class FunctionalRecoveryService(ProfileActions, SurfaceActions, DiagnosticsActions):
     """One calibration session, driven one action at a time."""
 
     def __init__(
@@ -64,6 +66,7 @@ class FunctionalRecoveryService(ProfileActions, SurfaceActions):
         generator: AssetGenerator,
         engine: SensorlessEngine,
         lut_size: int = 33,
+        bundles: DiagnosticBundleManager | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
@@ -71,6 +74,7 @@ class FunctionalRecoveryService(ProfileActions, SurfaceActions):
         self._generator = generator
         self._engine = engine
         self._lut_size = lut_size
+        self._bundles = bundles
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 

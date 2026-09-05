@@ -40,6 +40,7 @@ EXPECTED_FEATURES = {
     "schema_version": 1,
     "commands": [
         "detect",
+        "diagnostics",
         "doctor",
         "generate-profiles",
         "gui",

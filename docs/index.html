@@ -167,7 +167,8 @@ calibrate-pro profiles out  <span class="comment"># Re-check the seal on publish
       <pre>calibrate-pro detect        <span class="comment"># Displays observed, with characterization sources</span>
 calibrate-pro status        <span class="comment"># Actions this session can run, and why the rest cannot</span>
 calibrate-pro verify --target srgb_web
-                            <span class="comment"># Sealed plan and its predicted accuracy</span></pre>
+                            <span class="comment"># Sealed plan and its predicted accuracy</span>
+calibrate-pro diagnostics   <span class="comment"># What a support bundle would carry, with digests</span></pre>
       <p style="color: var(--muted); font-size: 0.85rem;">The headless session runs the same actions the window runs. It reads, it plans, and it publishes sealed bundles into a directory you name. It does not change display state. Accuracy figures from a sensorless plan are estimated, and the command prints that beneath them.</p>
       <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, and <code>restore</code> are proposal-only in 1.1. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
     </div>

@@ -8,9 +8,9 @@ which is how the sentence a window shows and the sentence a terminal prints stay
 the same sentence.
 
 Nothing here changes display state. The production composition holds no display
-adapter, and confirming a plan acknowledges it rather than writing one. The only
-thing a command in this module writes is a bundle, into a directory the operator
-named on the command line.
+adapter, and confirming a plan acknowledges it rather than writing one. Two
+commands write, both to a path the operator named on the command line: a
+calibration bundle into a directory, and a diagnostic bundle at a file path.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from calibrate_pro.application.actions import ActionDisposition
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, refusal_message
+from calibrate_pro.commands.session_diagnostics import diagnostics
 
 if TYPE_CHECKING:
     from calibrate_pro.application.assets import ExportBundle
@@ -256,6 +257,7 @@ def profiles(service: FunctionalRecoveryService, args: Any) -> int:
 
 COMMANDS = {
     "detect": detect,
+    "diagnostics": diagnostics,
     "generate-profiles": generate,
     "profiles": profiles,
     "status": status,

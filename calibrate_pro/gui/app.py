@@ -1942,6 +1942,7 @@ class CalibrateProWindow(QMainWindow):
                 self.settings_page.bind_actions(
                     self._binder,
                     set_output_directory=self.service.set_export_directory,
+                    diagnostics=self.service,
                 )
                 self.stack.addWidget(self.settings_page)  # 5
             except (ImportError, OSError) as e:

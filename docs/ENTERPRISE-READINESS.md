@@ -22,9 +22,11 @@ mutation.
 - Read-only CLI diagnostics, target/panel information, HDR status, pattern display, and
   plugin metadata.
 - Stable `doctor --json` installation diagnostics for support automation.
-- A headless session (`detect`, `status`, `verify`, `generate-profiles`, `profiles`) that
-  runs the same actions the window runs, for unattended inventory, planning, and bundle
-  publication. It performs no display write.
+- A headless session (`detect`, `status`, `verify`, `generate-profiles`, `profiles`,
+  `diagnostics`) that runs the same actions the window runs, for unattended inventory,
+  planning, and bundle publication. It performs no display write.
+- A redacted action journal an operator can read back and publish as a support bundle,
+  after being shown the digest of every file it would carry.
 - Legacy mutation-capable CLI names are proposal-only and perform no display write.
 - A read-only tray and monitor-and-notify calibration guard.
 
