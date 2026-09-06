@@ -175,6 +175,19 @@ the correction model. It is labelled `estimated` everywhere it appears and is
 withheld entirely for three of the four targets, so nothing is misrepresented as
 measured. It still carries no information about the display.
 
+**Resolved after this assessment.** `calibrate_pro/application/prediction.py` now
+runs a reference sRGB display through the same chain and subtracts it, so the
+ColorChecker round-trip cancels and what is left is the part the panel record
+determines. A reference display scores 0.0. A panel narrower than the target
+scores 0.2774 average and 3.3931 maximum. A panel with a D50 native white scores
+0.3656 and 8.7732. The quantity is named `gamut reproduction, modelled` on every
+surface that prints it, and the note beside it states that tone response is
+outside the number, so a display whose grey tracks nothing like its record scores
+the same as a perfect one. `tests/test_predicted_verification.py` carries the
+controls, including a sweep of every distinct gamut in the shipped database
+against the constant they all used to report. The frozen binary this document
+tests still has the old behaviour.
+
 ### 2. For an unrecognized panel the generated 3D LUT is an exact identity
 
 The generic path is the only route available when a panel is absent from the

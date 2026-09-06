@@ -626,6 +626,11 @@ class VerifyPage(QWidget):
         layout.addWidget(self._stat_max_de)
         self._stat_evidence = Stat("Evidence source", "Not measured")
         layout.addWidget(self._stat_evidence)
+        # The two verification paths report different quantities in the same
+        # unit. Without this the page would show a modelled gamut residual and
+        # a measured colour error under one label.
+        self._stat_metric = Stat("What was measured", "Not run")
+        layout.addWidget(self._stat_metric)
 
         layout.addWidget(self._separator())
         self._gamut_section = GamutCoverageSection()
@@ -859,6 +864,7 @@ class VerifyPage(QWidget):
         self._stat_avg_de.set_value(average.display_text(), _metric_colour(average))
         self._stat_max_de.set_value(maximum.display_text(), _metric_colour(maximum))
         self._stat_evidence.set_value(average.source or "Not measured", C.TEXT)
+        self._stat_metric.set_value(result.metric or "Nothing", C.TEXT)
         self._method_label.setText(verification_note(result))
 
     def _render_export(self, bundle: ExportBundle) -> None:

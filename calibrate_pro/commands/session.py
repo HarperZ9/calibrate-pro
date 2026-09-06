@@ -220,6 +220,8 @@ def _print_verification(result: VerificationResult) -> None:
 
     print(f"Verification source: {result.source}")
     print(f"  evidence       {result.evidence.value}")
+    if result.metric:
+        print(f"  measure        {result.metric}")
     print(f"  average dE     {result.average_delta_e.display_text()}")
     print(f"  maximum dE     {result.maximum_delta_e.display_text()}")
     print(f"  patches        {result.patch_count}")

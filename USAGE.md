@@ -176,12 +176,22 @@ the bundle directory alone. `restore-profiles` detaches every profile this produ
 attached to the display and leaves the files registered, so a bundle attached to a
 second monitor keeps working. Neither will touch a profile this product did not publish.
 
-`verify` prints a plan digest, the panel and target the plan was built for, and an
-average dE. That figure is **estimated** from the panel characterization: no display was
-measured and no sensor was read, and the command prints that sentence under the figures.
-A display whose panel is not in the characterization database is refused with `Sensorless
+`verify` prints a plan digest, the panel and target the plan was built for, what the
+figures measure, and an average dE. On a sensorless plan the figure is **estimated** and
+the quantity is gamut reproduction: how far the corrected output falls from a display
+with exact sRGB primaries. No display was measured and no sensor was read, and the
+command prints that sentence under the figures. Tone response is outside the number. The
+correction encodes for the gamma the panel record claims and the panel decodes with the
+same number, so grey tracking cancels before anything is compared and a display whose
+grey is badly wrong scores the same as a perfect one. Measure to establish grey. A
+display whose panel is not in the characterization database is refused with `Sensorless
 calibration requires a selected characterized display.` rather than estimated from a
 stand-in panel.
+
+The measured path answers a different question in the same unit, which is why both paths
+name their own quantity on the line above the figures. A measured dE is colour accuracy
+read off the display through an instrument. A predicted dE is a residual computed from a
+panel record. Reading one for the other is the mistake the label exists to prevent.
 
 `generate-profiles` prints every file it wrote and the SHA-256 of the manifest sealing
 them. `--dry-run` stops at the plan and writes nothing. `profiles` recomputes those

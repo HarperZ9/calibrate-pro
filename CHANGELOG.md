@@ -2,6 +2,21 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Stopped `verify` reporting a constant as a predicted accuracy. The sensorless figure
+  was the distance between the simulated output and the ColorChecker's own Lab column,
+  and that column does not round-trip through the model's 2.2 power law, so a residual
+  near 0.65 dE was present before any panel property was considered. All 59 database
+  panels landed within 0.001 of the same value, which is the shape of a constant rather
+  than a measurement, and no test caught it because nothing compared two panels. The
+  figure now subtracts a reference sRGB display run through the same chain, so the
+  chart's round-trip cancels and what is left is gamut reproduction. A reference display
+  scores 0.0. A panel narrower than the target scores 0.2774 average against 3.3931
+  maximum, and one with a D50 native white scores 0.3656 against 8.7732. Tone response
+  cancels inside the correction and cannot reach the figure at any gamma, so the note
+  printed beside it says that grey is unestablished and that a measurement is what
+  establishes it. Both verification paths now name the quantity they report, because a
+  modelled gamut residual and a measured colour error were being printed in the same
+  unit under the same label.
 - Fixed a packaged build that could not be produced at all. `calibrate-pro.spec`
   compares the shipped feature policy against a command list written out by hand, and
   `diagnostics` reached the dispatcher and the policy file without reaching that list,

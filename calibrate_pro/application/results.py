@@ -234,6 +234,11 @@ class VerificationResult:
     describing this result instead of a second computation the surface ran on
     its own.
 
+    ``metric`` names the quantity the figures are. The two paths answer
+    different questions in the same unit, so a surface printing a number, a
+    unit and nothing else would show a modelled gamut residual and a measured
+    colour error as though they were the same reading.
+
     ``detail`` is the line a measured run needs and a predicted one does not:
     the instrument, how many patches it read, and the geometry it read them at.
     A luminance-derived figure is only reproducible next to those, so they
@@ -248,6 +253,7 @@ class VerificationResult:
     patches: tuple[VerifiedPatch, ...]
     limitation: str | None = None
     detail: str | None = None
+    metric: str = ""
 
     @property
     def covered(self) -> bool:

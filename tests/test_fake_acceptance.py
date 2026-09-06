@@ -34,6 +34,7 @@ from calibrate_pro.application.fake_acceptance import (
     FakeAcceptanceService,
 )
 from calibrate_pro.application.outcomes import ActionOutcome, ActionSuccess
+from calibrate_pro.application.prediction import METRIC_NAME
 from calibrate_pro.application.runner import ACTION_NOT_AVAILABLE
 from calibrate_pro.recovery import RecoveryGuarantee
 from calibrate_pro.verification.provenance import EvidenceKind
@@ -158,10 +159,27 @@ def test_verification_reports_estimated_accuracy_read_from_the_generated_plan(
     assert result.source == "generated_plan"
     assert result.evidence is EvidenceKind.ESTIMATED
     assert result.covered is True
-    assert result.limitation is None
     assert result.patch_count > 0
     assert result.average_delta_e.evidence is EvidenceKind.ESTIMATED
     assert result.average_delta_e.value <= result.maximum_delta_e.value
+
+
+def test_the_figure_arrives_naming_its_quantity_and_what_it_left_open(
+    completed_run: CompletedRun,
+) -> None:
+    """The caveat has to survive the service, not only the call that wrote it.
+
+    A limitation is what a surface prints in place of its default note, so a
+    run reaching the end with the field dropped shows an operator a number
+    under nothing at all. The unit tests assert the model sets it. This asserts
+    it is still attached after the plan, the apply and the export have run.
+    """
+    result = completed_run.outcome("verification.sensorless").value
+
+    assert result.metric == METRIC_NAME
+    assert result.limitation is not None
+    assert "No display was measured and no sensor was read" in result.limitation
+    assert "Measure to establish grey" in result.limitation
 
 
 def test_the_export_writes_every_named_file_and_a_manifest_that_matches(

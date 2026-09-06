@@ -50,6 +50,11 @@ from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 #: sensor.
 VERIFICATION_SOURCE = "measured_display"
 
+#: What the figures are, for a surface that labels them. Colour rather than
+#: brightness, because every reading is scaled against the display's own
+#: measured white before it is differenced.
+METRIC_NAME = "colour accuracy, measured"
+
 #: The patch sent to find the reference white every reading is scaled against.
 WHITE_SIGNAL = (1.0, 1.0, 1.0)
 
@@ -230,6 +235,7 @@ def verify_measured(
         ),
         patches=tuple(verified),
         limitation=None,
+        metric=METRIC_NAME,
         detail=(
             f"{total} ColorChecker patches read as {patches.describe()}, scaled to the display's "
             f"measured white. {_gamut_note(len(deltas))}"
@@ -239,6 +245,7 @@ def verify_measured(
 
 __all__ = [
     "IDENTICAL_READING_TOLERANCE",
+    "METRIC_NAME",
     "VERIFICATION_SOURCE",
     "WHITE_SIGNAL",
     "measured_lab",
