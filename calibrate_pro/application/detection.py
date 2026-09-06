@@ -248,20 +248,25 @@ def dwm_lut_path_usable(_display: DisplayInfo) -> bool:
     return True
 
 
-def windows_read_only_probe(*, sensor: CapabilityCheck | None = None) -> ReadOnlyCapabilityProbe:
+def windows_read_only_probe(
+    *,
+    sensor: CapabilityCheck | None = None,
+    ddc: CapabilityCheck | None = None,
+) -> ReadOnlyCapabilityProbe:
     """Wire the checks that answer without opening a device session.
 
-    DDC/CI and authoritative DWM state capture stay unwired. Each needs a
-    monitor handle or a device session, and this module opens neither. A
-    caller that wants those answers passes its own check and accepts that
-    cost explicitly.
+    Authoritative DWM state capture stays unwired, because nothing answers it
+    without a device session and this module opens none.
 
-    The sensor check is a parameter for the same reason. USB enumeration is
-    cheap and reads descriptors only, so a composition may wire it, and this
-    module still does not decide that a colorimeter should be searched for.
+    The sensor and DDC/CI checks are parameters rather than defaults. USB
+    enumeration reads descriptors and DDC/CI opens a monitor handle, so the
+    two cost very different amounts, and a composition decides for itself
+    which it is willing to pay for. Left unwired, each answers False and names
+    itself unprobed rather than unavailable.
     """
     return ReadOnlyCapabilityProbe(
         sensor=sensor,
+        ddc=ddc,
         dwm_lut=dwm_lut_path_usable,
         profile_write=color_directory_present,
         vcgt=gamma_ramp_api_present,

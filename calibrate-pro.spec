@@ -22,6 +22,8 @@ feature_policy = json.loads(FEATURE_POLICY_PATH.read_text(encoding="utf-8"))
 module_policy = json.loads(MODULE_POLICY_PATH.read_text(encoding="utf-8"))
 
 if feature_policy.get("commands") != [
+    "ddc-calibrate",
+    "ddc-info",
     "detect",
     "diagnostics",
     "doctor",

@@ -39,8 +39,6 @@ _DEVELOPER_ONLY_COMMANDS = {
 _DECLINED_COMMANDS = {
     "auto",
     "calibrate",
-    "ddc-calibrate",
-    "ddc-info",
     "disable-startup",
     "enable-startup",
     "export-panel",
@@ -77,6 +75,9 @@ _USAGE_LINES = (
     "  gui                    Open the main desktop application",
     "  hdr                    Open the HDR proposal application",
     "  detect                 Report the displays this machine presents",
+    "  ddc-info               Read the selected display's own controls over DDC/CI",
+    "  ddc-calibrate [--brightness N ...] [--confirm]",
+    "                         Set the selected display's own controls over DDC/CI",
     "  status [--closed]      Report which actions this session can run",
     "  verify --target NAME   Generate a plan and report its predicted accuracy",
     "  generate-profiles DIR --target NAME",

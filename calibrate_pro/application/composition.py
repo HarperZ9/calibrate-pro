@@ -160,7 +160,22 @@ def build_calibration_service() -> CalibrationApplyService:
     apply qualification. The other half is what the probe found on the
     selected display. A session built here still refuses to apply to a
     display that reported no writable route.
+
+    The monitor control source is wired here and nowhere else, and so is the
+    DDC/CI capability check. That check costs a device session per display,
+    which is why the read-only probe does not carry it by default: it opens
+    the display and reads one control, because a panel can enumerate on the
+    bus, advertise brightness in its capability string, and then refuse to
+    answer for it.
+
+    Wiring the source widens nothing on its own. It says a port exists, and
+    the reading a session takes says whether a display answered. A control is
+    offered only when both are true.
     """
+    from calibrate_pro.adapters.monitor_control_source import (
+        WindowsMonitorControlSource,
+        ddc_control_present,
+    )
     from calibrate_pro.adapters.windows_display_state import (
         DefaultWindowsDisplayPorts,
         WindowsDisplayStateAdapter,
@@ -171,7 +186,7 @@ def build_calibration_service() -> CalibrationApplyService:
     database = get_database()
     engine, generator = _engine_and_generator(database)
     detector = DisplayDetector(
-        capability_probe=windows_read_only_probe(sensor=usb_instrument_present),
+        capability_probe=windows_read_only_probe(sensor=usb_instrument_present, ddc=ddc_control_present),
         hdr_reader=read_hdr_states,
         database=database,
     )
@@ -184,11 +199,18 @@ def build_calibration_service() -> CalibrationApplyService:
         generator=generator,
         engine=engine,
         instruments=UsbInstrumentSource(),
+        monitor_controls=WindowsMonitorControlSource(),
     )
 
 
 def build_production_service() -> FunctionalRecoveryService:
-    """Build the session this product ships, which holds no display adapter."""
+    """Build the read-only session, which changes neither the signal nor the display.
+
+    No monitor control source is wired, so the DDC/CI lane reports that this
+    session was built without a port. That is the same refusal the calibration
+    session gives for a display that did not answer, and it is stated by the
+    composition rather than inferred from a failure.
+    """
     state = SessionState(measurement_route=True)
     journal = DiagnosticJournal()
     database = get_database()

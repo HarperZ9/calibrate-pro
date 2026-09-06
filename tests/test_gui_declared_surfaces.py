@@ -14,7 +14,7 @@ pass an action id that is computed rather than written, so the set of bound
 actions exists only at runtime. The window and both dialogs are built here and
 asked what they bound.
 
-What is left over is not a failure on its own. Four kinds of surface legitimately
+What is left over is not a failure on its own. Three kinds of surface legitimately
 have no bound control, and each one is written down below with the reason and
 checked against the manifest or the source, so an entry cannot quietly become a
 stale excuse for a control somebody deleted.
@@ -58,13 +58,6 @@ PERFORMED_WITHOUT_A_CONTROL: dict[str, str] = {
     "calibration.open_for_display": "Performed when a display card asks for the Calibrate page.",
 }
 
-#: An action the session refuses by policy, drawn as the reason instead of as a
-#: control. Every staged control on the DDC page depends on this transaction, so
-#: the page states its refusal once rather than repeating it per control.
-REASON_DRAWN_INSTEAD: dict[str, str] = {
-    "ddc.apply": "The DDC page reports this transaction's reason in its status line.",
-}
-
 #: Declared, open to the session, and drawn nowhere. This is an honest null
 #: rather than a policy decision, and the checks below hold it to that: an entry
 #: here must not be hidden by the manifest, and must not be bound anywhere.
@@ -96,7 +89,7 @@ def declared_surfaces() -> set[str]:
 
 
 def recorded() -> dict[str, str]:
-    return {**HIDDEN_BY_THE_SESSION, **PERFORMED_WITHOUT_A_CONTROL, **REASON_DRAWN_INSTEAD, **UNPRESENTED}
+    return {**HIDDEN_BY_THE_SESSION, **PERFORMED_WITHOUT_A_CONTROL, **UNPRESENTED}
 
 
 def package_root() -> Path:
@@ -164,7 +157,7 @@ def test_no_control_stands_for_an_action_the_manifest_gives_no_surface(surfaces:
 
 def test_each_action_is_recorded_under_exactly_one_reason() -> None:
     """One action, one reason. Two would let a stale entry cover a real gap."""
-    tables = (HIDDEN_BY_THE_SESSION, PERFORMED_WITHOUT_A_CONTROL, REASON_DRAWN_INSTEAD, UNPRESENTED)
+    tables = (HIDDEN_BY_THE_SESSION, PERFORMED_WITHOUT_A_CONTROL, UNPRESENTED)
     counted = sum(len(table) for table in tables)
 
     assert counted == len(recorded())
@@ -228,12 +221,21 @@ def test_asking_a_card_for_the_calibrate_page_performs_the_declared_action(
     assert performed[before:] == ["calibration.open_for_display"]
 
 
-def test_the_refused_transaction_is_drawn_as_its_reason(surfaces: tuple[object, set[str]]) -> None:
-    """The DDC page states the manifest sentence rather than writing its own."""
+def test_the_write_the_page_leads_to_carries_both_a_control_and_its_reason(
+    surfaces: tuple[object, set[str]],
+) -> None:
+    """The apply is a button now, and a refused one still says what it waits for.
+
+    This page used to draw the transaction as a sentence and no control, which
+    left an operator staging values with nothing to write them. The button is
+    bound, so the check is the pair: a control the binder knows about, and a
+    status line still quoting the session rather than composing its own excuse
+    for why the button is off.
+    """
     from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
 
-    window, _bound = surfaces
-    assert DDC_TRANSACTION in REASON_DRAWN_INSTEAD
+    window, bound = surfaces
+    assert DDC_TRANSACTION in bound
 
     resolved = window._binder.disposition_of(DDC_TRANSACTION)
     assert window.ddc._status_label.text() == resolved.reason

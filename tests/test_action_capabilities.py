@@ -15,6 +15,7 @@ from calibrate_pro.application.actions import (
     ActionRegistry,
 )
 from calibrate_pro.application.contracts import CharacterizationKind, EvidenceKind
+from calibrate_pro.application.monitor_controls import STAGE_ACTION_CODES
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
 
 # fmt: off
@@ -78,6 +79,10 @@ EXPECTED_CONDITIONAL_POLICY_IDS = {
     "export.active.cube", "export.active.3dlut", "export.active.png", "export.active.icc",
     "export.active.mpv", "export.active.obs", "profile.export",
     "settings.lut_size", "settings.output_directory", "diagnostics.bundle.create",
+    "ddc.read_current", "ddc.raw_read", "ddc.apply", "ddc.restore_defaults",
+    "ddc.stage.brightness", "ddc.stage.contrast", "ddc.stage.red_gain", "ddc.stage.green_gain",
+    "ddc.stage.blue_gain", "ddc.stage.red_black_level", "ddc.stage.green_black_level",
+    "ddc.stage.blue_black_level",
 }
 
 EXPECTED_DISABLED_POLICY_IDS = {
@@ -86,11 +91,9 @@ EXPECTED_DISABLED_POLICY_IDS = {
     "panel_profile.edid.create", "panel_profile.import", "display.restore_defaults",
     "profile.install", "profile.rename", "profile.generate_all", "profile.activate", "profile.delete",
     "patterns.open",
-    "ddc.stage.brightness", "ddc.stage.contrast", "ddc.stage.red_gain", "ddc.stage.green_gain",
-    "ddc.stage.blue_gain", "ddc.stage.red_black_level", "ddc.stage.green_black_level",
-    "ddc.stage.blue_black_level", "ddc.unsupported.image_mode", "ddc.unsupported.color_preset",
-    "ddc.unsupported.gamma", "ddc.unsupported.factory_color_reset", "ddc.read_current",
-    "ddc.restore_defaults", "ddc.raw_read", "ddc.raw_write", "ddc.apply", "tray.switch_profile",
+    "ddc.unsupported.image_mode", "ddc.unsupported.color_preset",
+    "ddc.unsupported.gamma", "ddc.unsupported.factory_color_reset",
+    "ddc.raw_write", "tray.switch_profile",
 }
 
 EXPECTED_HIDDEN_POLICY_IDS = {
@@ -225,8 +228,8 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 33,
-        "disabled": 31,
+        "conditional": 45,
+        "disabled": 19,
         "hidden": 10,
     }
     assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
@@ -301,10 +304,13 @@ def _context(**changes: object) -> ActionContext:
         selected_profile_reparsed=True,
         validated_import_ready=True,
         supported_vcp_codes=frozenset({0x10, 0x12}),
+        staged_vcp_codes=frozenset({0x10}),
         diagnostic_bundle_preview_live=True,
         journal_ready=True,
         physical_apply_qualified=True,
         measured_qualified=True,
+        monitor_controls_qualified=True,
+        monitor_writes_qualified=True,
     )
     return replace(context, **changes)
 
@@ -507,10 +513,13 @@ def test_action_context_shape_includes_plan_bound_fake_apply_evidence():
         "selected_profile_reparsed",
         "validated_import_ready",
         "supported_vcp_codes",
+        "staged_vcp_codes",
         "diagnostic_bundle_preview_live",
         "journal_ready",
         "physical_apply_qualified",
         "measured_qualified",
+        "monitor_controls_qualified",
+        "monitor_writes_qualified",
     )
 
 
@@ -974,35 +983,223 @@ def test_generation_mismatch_disables_every_plan_dependent_action():
         assert registry.resolve(action_id, mismatch).disposition is ActionDisposition.DISABLED
 
 
-def test_all_seventeen_ddc_actions_remain_phase_two_disabled_when_qualified():
+#: The controls this build stages one action apiece for, written out rather
+#: than read off the table the resolver uses. A control that leaves that table
+#: fails the coverage check below instead of quietly shrinking what is tested.
+DDC_STAGE_ACTIONS = (
+    "ddc.stage.brightness",
+    "ddc.stage.contrast",
+    "ddc.stage.red_gain",
+    "ddc.stage.green_gain",
+    "ddc.stage.blue_gain",
+    "ddc.stage.red_black_level",
+    "ddc.stage.green_black_level",
+    "ddc.stage.blue_black_level",
+)
+
+#: What a qualified session may run over a display's own control bus.
+DDC_OFFERED_ACTIONS = ("ddc.read_current", "ddc.raw_read", *DDC_STAGE_ACTIONS, "ddc.apply", "ddc.restore_defaults")
+
+#: What stays closed however qualified the session is. Each of these asks the
+#: display for something this build cannot report the result of.
+DDC_CLOSED_ACTIONS = (
+    "ddc.raw_write",
+    "ddc.unsupported.image_mode",
+    "ddc.unsupported.color_preset",
+    "ddc.unsupported.gamma",
+    "ddc.unsupported.factory_color_reset",
+)
+
+
+def _ddc_context(**changes: object) -> ActionContext:
+    """A session that read every control this build drives and staged one value."""
+    qualified: dict[str, object] = {
+        "supported_vcp_codes": frozenset(STAGE_ACTION_CODES.values()),
+        "staged_vcp_codes": frozenset({STAGE_ACTION_CODES["ddc.stage.brightness"]}),
+    }
+    return _context(**{**qualified, **changes})
+
+
+def test_the_staging_actions_named_here_are_the_ones_the_resolver_stages():
+    """The eight names in this file are held against the table the resolver reads.
+
+    Every test below binds a control to an action id by hand. A ninth control
+    added to the application table and not to this list would go unchecked, and
+    a renamed one would leave these tests exercising an id nothing resolves.
+    """
+    assert set(DDC_STAGE_ACTIONS) == set(STAGE_ACTION_CODES)
+
+
+def test_every_declared_ddc_action_is_either_offered_or_closed_here():
+    """The two lists below cover the lane, so neither can go quiet on its own.
+
+    A DDC action added to the manifest and to neither list would be checked by
+    nothing in this file, and the suite would still pass. This is what makes
+    the coverage below a statement about the lane rather than about a set of
+    names somebody remembered to type.
+    """
     registry = ActionRegistry.load_default()
-    ddc_action_ids = (
-        "ddc.stage.brightness",
-        "ddc.stage.contrast",
-        "ddc.stage.red_gain",
-        "ddc.stage.green_gain",
-        "ddc.stage.blue_gain",
-        "ddc.stage.red_black_level",
-        "ddc.stage.green_black_level",
-        "ddc.stage.blue_black_level",
-        "ddc.unsupported.image_mode",
-        "ddc.unsupported.color_preset",
-        "ddc.unsupported.gamma",
-        "ddc.unsupported.factory_color_reset",
-        "ddc.read_current",
-        "ddc.restore_defaults",
-        "ddc.raw_read",
-        "ddc.raw_write",
-        "ddc.apply",
-    )
-    context = _context(
-        supported_vcp_codes=frozenset(range(256)),
-        physical_apply_qualified=True,
+
+    declared = {action_id for action_id in EXPECTED_ACTION_IDS if action_id.startswith("ddc.")}
+
+    assert declared == set(DDC_OFFERED_ACTIONS) | set(DDC_CLOSED_ACTIONS)
+    assert not set(DDC_OFFERED_ACTIONS) & set(DDC_CLOSED_ACTIONS)
+    for action_id in DDC_OFFERED_ACTIONS + DDC_CLOSED_ACTIONS:
+        assert action_id in registry.action_ids
+
+
+def test_a_qualified_session_is_offered_every_ddc_action_this_build_drives():
+    """Reading, staging, writing, and restoring open for a session that earned them.
+
+    Earning them means a control port in the build, a display that answered on
+    it, a reading in hand, and a journal to record a write in. A session
+    holding all of that is what an operator has with the panel in front of
+    them, and every control this lane drives is offered to it.
+    """
+    registry = ActionRegistry.load_default()
+    context = _ddc_context()
+
+    for action_id in DDC_OFFERED_ACTIONS:
+        assert registry.resolve(action_id, context).disposition is ActionDisposition.ENABLED
+
+
+def test_the_ddc_actions_with_no_readable_result_stay_closed_to_a_qualified_session():
+    """Qualification does not open a control whose result cannot be read back.
+
+    A raw write names a code outside the eight this build knows, so there is no
+    reported range to check the value against. The four mode selectors pick one
+    of the display's own numbered modes, and what a given number means is not
+    readable over DDC/CI. Neither is a matter of how qualified the session is.
+    """
+    registry = ActionRegistry.load_default()
+    context = _ddc_context(supported_vcp_codes=frozenset(range(256)))
+
+    for action_id in DDC_CLOSED_ACTIONS:
+        resolved = registry.resolve(action_id, context)
+        assert resolved.disposition is ActionDisposition.DISABLED
+        assert resolved.reason
+
+
+@pytest.mark.parametrize("action_id", ["ddc.read_current", "ddc.raw_read"])
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("selected_display_id", None),
+        ("monitor_controls_qualified", False),
+    ],
+)
+def test_ddc_read_predicates_are_independently_default_deny(action_id: str, field_name: str, invalid_value: object):
+    registry = ActionRegistry.load_default()
+    baseline = _ddc_context()
+
+    assert registry.resolve(action_id, baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve(action_id, replace(baseline, **{field_name: invalid_value})).disposition
+        is ActionDisposition.DISABLED
     )
 
-    assert len(ddc_action_ids) == 17
-    for action_id in ddc_action_ids:
-        assert registry.resolve(action_id, context).disposition is ActionDisposition.DISABLED
+
+@pytest.mark.parametrize("action_id", DDC_STAGE_ACTIONS)
+def test_a_control_the_display_did_not_answer_for_cannot_be_staged(action_id: str):
+    """One control drops off the surface without taking the other seven with it.
+
+    Panels answer for different subsets of these codes, and a display that
+    reports brightness and no black levels is ordinary rather than broken. So
+    the check is per code: the slider for a code that went unanswered closes,
+    and every other one stays open.
+    """
+    registry = ActionRegistry.load_default()
+    code = STAGE_ACTION_CODES[action_id]
+    without = _ddc_context(
+        supported_vcp_codes=frozenset(STAGE_ACTION_CODES.values()) - {code},
+        staged_vcp_codes=frozenset(),
+    )
+
+    assert registry.resolve(action_id, _ddc_context()).disposition is ActionDisposition.ENABLED
+    assert registry.resolve(action_id, without).disposition is ActionDisposition.DISABLED
+    for other_id in DDC_STAGE_ACTIONS:
+        if other_id != action_id:
+            assert registry.resolve(other_id, without).disposition is ActionDisposition.ENABLED
+
+
+@pytest.mark.parametrize("action_id", DDC_STAGE_ACTIONS)
+def test_staging_is_withheld_from_a_session_that_has_not_read_the_display(action_id: str):
+    """A value with no reading behind it has no range this build can check it against."""
+    registry = ActionRegistry.load_default()
+
+    assert registry.resolve(action_id, _ddc_context(monitor_writes_qualified=False)).disposition is (
+        ActionDisposition.DISABLED
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("fake_acceptance", True),
+        ("monitor_writes_qualified", False),
+        ("staged_vcp_codes", frozenset()),
+        ("journal_ready", False),
+    ],
+)
+def test_ddc_apply_predicates_are_independently_default_deny(field_name: str, invalid_value: object):
+    registry = ActionRegistry.load_default()
+    baseline = _ddc_context()
+
+    assert registry.resolve("ddc.apply", baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve("ddc.apply", replace(baseline, **{field_name: invalid_value})).disposition
+        is ActionDisposition.DISABLED
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("fake_acceptance", True),
+        ("monitor_writes_qualified", False),
+        ("journal_ready", False),
+    ],
+)
+def test_ddc_restore_predicates_are_independently_default_deny(field_name: str, invalid_value: object):
+    registry = ActionRegistry.load_default()
+    baseline = _ddc_context()
+
+    assert registry.resolve("ddc.restore_defaults", baseline).disposition is ActionDisposition.ENABLED
+    assert (
+        registry.resolve("ddc.restore_defaults", replace(baseline, **{field_name: invalid_value})).disposition
+        is ActionDisposition.DISABLED
+    )
+
+
+def test_a_restore_is_offered_with_nothing_staged_and_an_apply_is_not():
+    """The two writes disagree about what an empty staging set means.
+
+    An apply with nothing staged would open a device session, write no code,
+    and report a transaction the operator never asked for. A restore stages
+    nothing by construction: it asks the display to choose its own values, and
+    what it reports is the two readings taken around the request.
+    """
+    registry = ActionRegistry.load_default()
+    nothing_staged = _ddc_context(staged_vcp_codes=frozenset())
+
+    assert registry.resolve("ddc.apply", nothing_staged).disposition is ActionDisposition.DISABLED
+    assert registry.resolve("ddc.restore_defaults", nothing_staged).disposition is ActionDisposition.ENABLED
+
+
+def test_the_proof_session_is_offered_no_display_write():
+    """A session built to demonstrate the workflow against files gets no panel.
+
+    Every other refusal in this lane describes a machine that could qualify.
+    This one describes a composition that must not, because the results a
+    proof session produces have no display behind them.
+    """
+    registry = ActionRegistry.load_default()
+    fake = _ddc_context(fake_acceptance=True)
+
+    assert registry.resolve("ddc.apply", fake).disposition is ActionDisposition.DISABLED
+    assert registry.resolve("ddc.restore_defaults", fake).disposition is ActionDisposition.DISABLED
+    for action_id in DDC_STAGE_ACTIONS:
+        assert registry.resolve(action_id, fake).disposition is ActionDisposition.ENABLED
 
 
 def test_phase_two_import_and_physical_actions_remain_disabled_when_qualified():

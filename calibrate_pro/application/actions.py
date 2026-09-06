@@ -16,6 +16,7 @@ from calibrate_pro.application.contracts import (
     CharacterizationKind,
     EvidenceKind,
 )
+from calibrate_pro.application.monitor_controls import STAGE_ACTION_CODES
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
 
 Policy = Literal["enabled", "conditional", "disabled", "hidden"]
@@ -75,10 +76,26 @@ class ActionContext:
     selected_profile_reparsed: bool
     validated_import_ready: bool
     supported_vcp_codes: frozenset[int]
+
+    #: The codes an apply would write if it ran now. A staged set is what
+    #: separates an apply control that has something to do from one that would
+    #: send an empty transaction to a display.
+    staged_vcp_codes: frozenset[int]
     diagnostic_bundle_preview_live: bool
     journal_ready: bool
     physical_apply_qualified: bool
     measured_qualified: bool
+
+    #: Whether a monitor control port was wired and a probe found a display
+    #: that answers on it. This gates reading the display's own controls, and
+    #: it is separate from the apply qualification above because DDC/CI writes
+    #: to the panel rather than to the signal a LUT route carries.
+    monitor_controls_qualified: bool
+
+    #: The read qualification plus a reading in hand. Every staged value is
+    #: checked against a range the display reported, so a session with no
+    #: reading has nothing to check a write against and is offered none.
+    monitor_writes_qualified: bool
 
     def __post_init__(self) -> None:
         if not isinstance(self.stage, WorkflowStage):
@@ -98,6 +115,8 @@ class ActionContext:
             "sealed_plan_actuatable",
             "physical_apply_qualified",
             "measured_qualified",
+            "monitor_controls_qualified",
+            "monitor_writes_qualified",
         ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be an exact boolean")
@@ -128,11 +147,15 @@ class ActionContext:
             if self.verification_evidence not in PHASE_ONE_EVIDENCE_KINDS:
                 raise ValueError("Phase 0/1 does not admit simulated or replayed evidence")
         _validate_exact_frozenset(self.available_export_formats, _EXPORT_FORMATS, "available_export_formats")
-        if type(self.supported_vcp_codes) is not frozenset:
-            raise TypeError("supported_vcp_codes must be an exact frozenset")
-        for code in self.supported_vcp_codes:
-            if type(code) is not int or not 0 <= code <= 0xFF:
-                raise ValueError("supported_vcp_codes must contain exact integers from 0 through 255")
+        for name in ("supported_vcp_codes", "staged_vcp_codes"):
+            codes = getattr(self, name)
+            if type(codes) is not frozenset:
+                raise TypeError(f"{name} must be an exact frozenset")
+            for code in codes:
+                if type(code) is not int or not 0 <= code <= 0xFF:
+                    raise ValueError(f"{name} must contain exact integers from 0 through 255")
+        if not self.staged_vcp_codes <= self.supported_vcp_codes:
+            raise ValueError("staged_vcp_codes must name codes the display answered")
 
 
 @dataclass(frozen=True)
@@ -681,6 +704,35 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             and _verified_export_source(context)
             and context.journal_ready
         )
+    if action_id == "ddc.read_current":
+        # Reading opens a device session, so it is gated on the same two facts
+        # a measurement is: a port this composition wired, and a display that
+        # answered a probe. Neither is a value a surface can set.
+        return context.selected_display_id is not None and context.monitor_controls_qualified
+    if action_id == "ddc.raw_read":
+        return context.selected_display_id is not None and context.monitor_controls_qualified
+    if action_id in STAGE_ACTION_CODES:
+        # A control is offered only if this display answered for it. A panel
+        # that reports a capability string listing brightness and then refuses
+        # to read it leaves the code out of the reading, and out of this set.
+        return context.monitor_writes_qualified and STAGE_ACTION_CODES[action_id] in context.supported_vcp_codes
+    if action_id == "ddc.apply":
+        # Offered only with something staged, because an apply with nothing
+        # staged would open a device session, write nothing, and report a
+        # transaction the operator never asked for. The journal is required
+        # here rather than left to the boundary preflight, so a write that
+        # could not be recorded is refused before the operator reaches for it.
+        return (
+            not context.fake_acceptance
+            and context.monitor_writes_qualified
+            and bool(context.staged_vcp_codes)
+            and context.journal_ready
+        )
+    if action_id == "ddc.restore_defaults":
+        # A restore is reported by the readings around it, so a session that has
+        # not read the display is refused it: there would be nothing to compare
+        # the display's state against afterwards.
+        return not context.fake_acceptance and context.monitor_writes_qualified and context.journal_ready
     if action_id == "profile.export":
         return context.selected_profile_reparsed and context.journal_ready
     if action_id in {"settings.lut_size", "settings.output_directory"}:
@@ -696,12 +748,19 @@ def _disabled_reason(spec: ActionSpec, context: ActionContext) -> str:
         if not context.validated_import_ready:
             return "Panel import requires a validated source before Phase 2 qualification."
         return "Panel import remains disabled pending the Phase 2 import contract."
-    if action_id.startswith("ddc."):
-        if not context.supported_vcp_codes:
-            return "DDC/CI action requires detected VCP support and Phase 2 qualification."
-        if not context.physical_apply_qualified:
-            return "DDC/CI physical mutation is not qualified."
-        return "DDC/CI action remains disabled pending the Phase 2 transactional plan."
+    if action_id == "ddc.raw_write":
+        return (
+            "Writing an arbitrary control code remains disabled. This build writes the "
+            "eight controls it names and the factory restore request, and a code outside "
+            "that set has no range to check a value against and no way back if the "
+            "display takes it."
+        )
+    if action_id.startswith("ddc.unsupported."):
+        return (
+            "This control selects one of the display's own modes rather than setting a "
+            "value. What each numbered mode does is decided by the manufacturer and is "
+            "not readable over DDC/CI, so this build cannot report what a write to it did."
+        )
     if action_id in {
         "display.restore_defaults",
         "profile.install",

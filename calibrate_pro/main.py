@@ -6,9 +6,13 @@ are names from an earlier release that this build does not perform.
 
 A refused name is refused in the resolver's own words rather than in a sentence
 written here, so a terminal and a window give one answer about what this build
-does and there is one place for that answer to change. Nothing in this module
-changes display state. The session it builds holds no display adapter, and
-confirming a plan acknowledges it rather than writing one.
+does and there is one place for that answer to change.
+
+One session command changes display state, and it is the only one: setting a
+display's own controls over DDC/CI, which takes a word from the operator on the
+command line before it writes. Every other command here builds a session that
+holds no display adapter, and confirming a plan acknowledges it rather than
+writing one.
 """
 
 from __future__ import annotations
@@ -40,8 +44,6 @@ REFUSED = 2
 _DECLARED_REFUSALS = MappingProxyType(
     {
         "calibrate": "calibration.all",
-        "ddc-calibrate": "ddc.apply",
-        "ddc-info": "ddc.read_current",
         "disable-startup": "settings.startup",
         "enable-startup": "settings.startup",
         "export-panel": "panel_profile.edid.create",

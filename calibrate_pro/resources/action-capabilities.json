@@ -581,21 +581,23 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified",
+        "journal_ready"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_apply",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Writing the display's controls requires at least one value staged against a current reading of it, and a ready journal."
     },
     {
       "action_id": "ddc.raw_read",
@@ -612,12 +614,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_controls_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_raw_read",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -626,7 +629,7 @@
         "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Reading one control code requires a selected display, a control port in this build, and a display that answered on DDC/CI."
     },
     {
       "action_id": "ddc.raw_write",
@@ -642,9 +645,7 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "ddc_phase_two_qualification"
-      ],
+      "required_capabilities": [],
       "source_policy": "disabled",
       "frozen_policy": "disabled",
       "handler": "ddc_raw_write",
@@ -657,7 +658,7 @@
         "measured"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Writing an arbitrary control code is disabled. A code outside the eight this build names has no reported range to check a value against."
     },
     {
       "action_id": "ddc.read_current",
@@ -674,12 +675,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_controls_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_read_current",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -688,7 +690,7 @@
         "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Reading this display's own controls requires a selected display, a control port in this build, and a display that answered on DDC/CI."
     },
     {
       "action_id": "ddc.restore_defaults",
@@ -705,21 +707,23 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified",
+        "journal_ready"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_restore_defaults",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Asking the display to restore its factory settings requires a current reading of it to report what moved, and a ready journal."
     },
     {
       "action_id": "ddc.stage.blue_black_level",
@@ -736,12 +740,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_blue_black_level",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -750,7 +755,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging blue black level requires a reading in which this display reported blue black level."
     },
     {
       "action_id": "ddc.stage.blue_gain",
@@ -767,12 +772,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_blue_gain",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -781,7 +787,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging blue gain requires a reading in which this display reported blue gain."
     },
     {
       "action_id": "ddc.stage.brightness",
@@ -798,12 +804,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_brightness",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -812,7 +819,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging brightness requires a reading in which this display reported brightness."
     },
     {
       "action_id": "ddc.stage.contrast",
@@ -829,12 +836,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_contrast",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -843,7 +851,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging contrast requires a reading in which this display reported contrast."
     },
     {
       "action_id": "ddc.stage.green_black_level",
@@ -860,12 +868,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_green_black_level",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -874,7 +883,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging green black level requires a reading in which this display reported green black level."
     },
     {
       "action_id": "ddc.stage.green_gain",
@@ -891,12 +900,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_green_gain",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -905,7 +915,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging green gain requires a reading in which this display reported green gain."
     },
     {
       "action_id": "ddc.stage.red_black_level",
@@ -922,12 +932,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_red_black_level",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -936,7 +947,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging red black level requires a reading in which this display reported red black level."
     },
     {
       "action_id": "ddc.stage.red_gain",
@@ -953,12 +964,13 @@
         "save_report"
       ],
       "required_capabilities": [
-        "ddc_phase_two_qualification"
+        "monitor_writes_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "ddc_stage_red_gain",
       "required_modules": [
+        "calibrate_pro.application.monitor_actions",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -967,7 +979,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Staging red gain requires a reading in which this display reported red gain."
     },
     {
       "action_id": "ddc.unsupported.color_preset",
@@ -983,9 +995,7 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "ddc_phase_two_qualification"
-      ],
+      "required_capabilities": [],
       "source_policy": "disabled",
       "frozen_policy": "disabled",
       "handler": "ddc_unsupported_color_preset",
@@ -998,7 +1008,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
     },
     {
       "action_id": "ddc.unsupported.factory_color_reset",
@@ -1014,9 +1024,7 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "ddc_phase_two_qualification"
-      ],
+      "required_capabilities": [],
       "source_policy": "disabled",
       "frozen_policy": "disabled",
       "handler": "ddc_unsupported_factory_color_reset",
@@ -1029,7 +1037,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
     },
     {
       "action_id": "ddc.unsupported.gamma",
@@ -1045,9 +1053,7 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "ddc_phase_two_qualification"
-      ],
+      "required_capabilities": [],
       "source_policy": "disabled",
       "frozen_policy": "disabled",
       "handler": "ddc_unsupported_gamma",
@@ -1060,7 +1066,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
     },
     {
       "action_id": "ddc.unsupported.image_mode",
@@ -1076,9 +1082,7 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [
-        "ddc_phase_two_qualification"
-      ],
+      "required_capabilities": [],
       "source_policy": "disabled",
       "frozen_policy": "disabled",
       "handler": "ddc_unsupported_image_mode",
@@ -1091,7 +1095,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "DDC/CI is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
     },
     {
       "action_id": "diagnostics.bundle.create",

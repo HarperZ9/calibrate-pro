@@ -25,7 +25,7 @@ from PySide6.QtCore import QSettings
 from calibrate_pro.application.outcomes import ActionError, ActionSuccess
 from calibrate_pro.application.prediction import MODEL_NAME
 from calibrate_pro.gui.pages.calibrate import CONFIRMED_NOTE, DECLINED_NOTE
-from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION
+from calibrate_pro.gui.pages.ddc_control import DDC_TRANSACTION, NO_VALUE
 from calibrate_pro.gui.pages.settings import OUTPUT_REJECTED, OUTPUT_UNSET
 from calibrate_pro.gui.pages.settings_diagnostics import NOT_PREVIEWED
 from calibrate_pro.gui.pages.verify import NOT_RUN_NOTE
@@ -406,18 +406,18 @@ def ddc_bindings(window: object) -> list[object]:
 
 
 def test_every_ddc_control_stands_for_a_declared_action(window: object) -> None:
-    """The page keeps no control the manifest has not declared.
+    """The page holds one control per declared action, and none of its own.
 
     A control the page held for itself would be one the session never answers
     for, which is what the page used to be built from. Checking the bound set
     against the manifest means a control cannot be added later without an
-    action to justify it, and the one action with no control of its own is the
-    transaction the rest depend on.
+    action to justify it. The transaction is in the set now: the write the
+    staged controls lead to has a button, so an operator can reach it.
     """
     from calibrate_pro.application.actions import ActionRegistry
 
     declared = {action_id for action_id in ActionRegistry.load_default().action_ids if action_id.startswith("ddc.")}
-    assert {binding.action_id for binding in ddc_bindings(window)} == declared - {DDC_TRANSACTION}
+    assert {binding.action_id for binding in ddc_bindings(window)} == declared
 
 
 def test_a_ddc_control_shows_the_manifest_reason_rather_than_its_own(window: object) -> None:
@@ -462,18 +462,40 @@ def test_using_a_ddc_control_asks_the_session_and_is_refused(window: object) -> 
 
 
 def test_the_ddc_page_stages_nothing_of_its_own(window: object) -> None:
-    """Moving a control records nothing, because there is nowhere to record it.
+    """Moving a control asks the session to stage it, and keeps no answer of its own.
 
-    The page kept a dictionary of pending changes that no plan ever read, under
-    a status line counting how many were staged. Both are gone, so the page
-    cannot report progress toward an apply that was never being assembled.
+    The page used to hold a dictionary of pending changes that no plan ever
+    read. Staging now belongs to the session, which checks the value against
+    the range the display reported and is the only thing an apply reads. This
+    composition wired no control port, so the session refuses, and the refusal
+    it gives is the one the resolver would have given.
     """
     page = window.ddc
     assert not hasattr(page, "_pending_changes")
+    assert page._reading is None
 
-    before = page._status_label.text()
     page._brightness_slider.setValue(page._brightness_slider.value() + 1)
-    assert page._status_label.text() == before
+
+    assert window.service._state.monitor_controls.staged == {}
+    message, level = window.toasts[-1]
+    assert level == "warning"
+    assert window.service.resolve("ddc.stage.brightness").reason in message
+
+
+def test_a_refused_stage_leaves_the_row_showing_no_number(window: object) -> None:
+    """A slider the session refused goes back to reporting nothing.
+
+    Leaving the handle where the operator dropped it would put a number on
+    screen in the place the display's own value goes, for a display this
+    session has not read. The row says so instead.
+    """
+    page = window.ddc
+    slider = page._brightness_slider
+
+    slider.setValue(slider.maximum())
+
+    assert slider.value() == slider.minimum()
+    assert page._value_labels["ddc.stage.brightness"].text() == NO_VALUE
 
 
 def verify_controls(window: object) -> dict[str, object]:

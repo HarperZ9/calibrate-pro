@@ -24,6 +24,10 @@ PROFILE_SEAL_BROKEN = "PROFILE_SEAL_BROKEN"
 PROFILE_UNREADABLE = "PROFILE_UNREADABLE"
 NO_MEASUREMENT = "NO_MEASUREMENT"
 MEASUREMENT_REFUSED = "MEASUREMENT_REFUSED"
+MONITOR_CONTROL_REFUSED = "MONITOR_CONTROL_REFUSED"
+MONITOR_VALUE_REJECTED = "MONITOR_VALUE_REJECTED"
+NO_MONITOR_READING = "NO_MONITOR_READING"
+NO_STAGED_CONTROL = "NO_STAGED_CONTROL"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -191,6 +195,49 @@ def measurement_refused(reason: str) -> ActionFailure:
     )
 
 
+def monitor_control_refused(reason: str) -> ActionFailure:
+    """Report a display that was addressed on DDC/CI and did not carry it through.
+
+    Retryable, because almost everything that stops this lane is a state of the
+    machine rather than of the session: DDC/CI switched off in the panel's own
+    menu, a cable that renegotiated, a driver that gave the handle to something
+    else. The reason comes from the transaction layer unchanged, since a
+    generic message would hide which of those it was.
+    """
+    return ActionFailure(
+        code=MONITOR_CONTROL_REFUSED,
+        summary=reason,
+        retryable=True,
+        next_action="Check that DDC/CI is enabled on the display, then read its controls again.",
+        category="monitor_control",
+    )
+
+
+def monitor_value_rejected(reason: str) -> ActionFailure:
+    """Report a staged value the display's own reported range does not allow."""
+    return policy_refusal(
+        MONITOR_VALUE_REJECTED,
+        reason,
+        "Choose a value inside the range the display reported for that control.",
+    )
+
+
+def no_monitor_reading() -> ActionFailure:
+    return policy_refusal(
+        NO_MONITOR_READING,
+        "This session has not read the selected display's own controls.",
+        "Read the display's controls before staging or writing one.",
+    )
+
+
+def no_staged_control() -> ActionFailure:
+    return policy_refusal(
+        NO_STAGED_CONTROL,
+        "No control value is staged for the selected display.",
+        "Move a control before applying, so there is a value to write.",
+    )
+
+
 def export_failed() -> ActionFailure:
     """Report a publish the filesystem refused, which a retry might fix."""
     return ActionFailure(
@@ -205,13 +252,17 @@ def export_failed() -> ActionFailure:
 __all__ = [
     "EXPORT_FAILED",
     "MEASUREMENT_REFUSED",
+    "MONITOR_CONTROL_REFUSED",
+    "MONITOR_VALUE_REJECTED",
     "NO_DETECTION",
     "NOT_A_UI_ACTION",
     "NO_EXPORT_DIRECTORY",
     "NO_HANDLER",
     "NO_MEASUREMENT",
+    "NO_MONITOR_READING",
     "NO_SEALED_PLAN",
     "NO_SELECTED_PROFILE",
+    "NO_STAGED_CONTROL",
     "PROFILE_SEAL_BROKEN",
     "PROFILE_UNREADABLE",
     "SESSION_TRANSITION_REJECTED",
@@ -219,11 +270,15 @@ __all__ = [
     "export_failed",
     "incomplete_setup",
     "measurement_refused",
+    "monitor_control_refused",
+    "monitor_value_rejected",
     "no_display_selected",
     "no_export_directory",
     "no_handler",
     "no_measurement",
+    "no_monitor_reading",
     "no_sealed_plan",
+    "no_staged_control",
     "no_such_asset",
     "no_such_profile",
     "no_verified_profile",

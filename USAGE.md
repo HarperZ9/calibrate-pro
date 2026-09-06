@@ -123,14 +123,16 @@ attached unit they remain estimates unless a supported instrument measures that 
 ## Headless calibration commands
 
 These drive the actions the window drives, over the same session, and print what each
-action returned. A refusal is printed in the words the session refused it in. None of
-them changes display state. Two of them write, both to a path you name:
-`generate-profiles` writes a calibration bundle into a directory, and `diagnostics
---bundle` writes a support bundle at a file path.
+action returned. A refusal is printed in the words the session refused it in. Two of
+them write to a path you name: `generate-profiles` writes a calibration bundle into a
+directory, and `diagnostics --bundle` writes a support bundle at a file path. One
+changes the display itself, and only when you pass `--confirm`.
 
 | Command | Purpose |
 |---|---|
 | `calibrate-pro detect` | Report the displays this machine presents, and where each characterization came from |
+| `calibrate-pro ddc-info [--display ID]` | Read the selected display's own brightness, contrast, and RGB controls over DDC/CI |
+| `calibrate-pro ddc-calibrate [--brightness N] [...] [--confirm]` | Set those controls, after reading what each one holds now |
 | `calibrate-pro status [--closed]` | Report which actions this session can run, and the reason each closed one is closed |
 | `calibrate-pro verify --target NAME` | Generate a sealed plan and report its predicted accuracy |
 | `calibrate-pro generate-profiles DIR --target NAME [--dry-run]` | Write one calibration bundle into `DIR` |
@@ -162,6 +164,46 @@ them. `--dry-run` stops at the plan and writes nothing. `profiles` recomputes th
 digests from the bytes on disk, so a bundle whose files changed is reported as `CHANGED`
 and the run exits 1. A path with nothing at it is refused with exit code 2 instead of
 being counted as a directory holding no bundles.
+
+### Setting the display's own controls
+
+`ddc-info` and `ddc-calibrate` speak to the panel over DDC/CI, which is the display's
+own control bus. This is the one place the product changes hardware rather than the
+signal sent to it, so it works the way the window does: read first, stage against what
+was read, and write only on an explicit word.
+
+```powershell
+calibrate-pro ddc-info
+calibrate-pro ddc-calibrate --brightness 40 --red-gain 47
+calibrate-pro ddc-calibrate --brightness 40 --red-gain 47 --confirm
+```
+
+`ddc-info` prints every control the display answered for, at the value and out of the
+maximum the display itself reported, with the VCP code and the flag that sets it. A
+control this build asks about and the display declines is listed with the reason,
+rather than left out, so you can tell the two cases apart.
+
+`ddc-calibrate` reads the display, then checks each value you named against the range
+that reading reported. Without `--confirm` it stops there and prints what it would
+write, one line per control showing the current value beside the staged one. With
+`--confirm` it writes them as one transaction and reads every code back.
+
+That read-back is why the output shows two numbers. A display answers a write it
+ignored exactly the way it answers one it took, so a control that lands somewhere else
+is printed as `asked for N, reads M` and the run exits 1. Panels do this: a value out of
+range for a mode the display is in, a control the firmware reports and does not drive,
+or DDC/CI switched off in the display's own menu. Nothing here reports light. These are
+the display's own account of its control state, not a measurement.
+
+`--restore-defaults` asks the display to restore its factory settings. It takes no other
+control, because the values you would stage are checked against a reading the restore is
+about to invalidate. The display answers nothing to this request, so what the command
+prints is the two readings around it and the controls that moved between them.
+
+Setting these controls invalidates a sealed plan and any instrument run in the same
+session, and the session says so rather than resetting quietly. Run them before
+generating a plan, not after: panel brightness and RGB gain sit upstream of every table
+this build writes.
 
 `diagnostics` reads back the redacted journal every action writes to. With no arguments
 it lists each file a support bundle would carry, its byte length, and its SHA-256, and
@@ -207,11 +249,10 @@ Most of these are retained so an older script fails safely rather than appearing
 work. `patterns` is a current name whose action this build has not qualified:
 
 ```text
-auto                 calibrate             ddc-calibrate
-ddc-info             disable-startup       enable-startup
-export-panel         import-panel          match
-native-calibrate     patterns              refine
-restore              uniformity
+auto                 calibrate             disable-startup
+enable-startup       export-panel          import-panel
+match                native-calibrate      patterns
+refine               restore               uniformity
 ```
 
 Each returns exit code 2 without changing display state. A name with a declared action

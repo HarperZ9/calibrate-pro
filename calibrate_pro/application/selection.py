@@ -64,6 +64,10 @@ def adopt(state: SessionState, display_id: str | None) -> WorkflowController:
         else:
             state.characterization_kind = CharacterizationKind.UNKNOWN
     _carry_or_drop_measurement(state)
+    # A control reading belongs to one unit for the same reason a measurement
+    # does, so adopting a different display drops it and everything staged
+    # against the ranges it reported.
+    state.monitor_controls.retain_for(state.selected_display_id)
     controller = WorkflowController(state.capabilities or DENIED_CAPABILITIES)
     if state.selected_display_id is not None:
         controller.detect_complete()

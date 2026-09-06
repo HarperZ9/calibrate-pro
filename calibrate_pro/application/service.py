@@ -5,12 +5,17 @@ detector, a generator, an exporter, or the workflow state machine on its own,
 so every state change in a session passes through one resolver, one action
 boundary, and one journal.
 
-This class performs no physical mutation. It holds no adapter that writes to a
-display and it has no method that does. Two subclasses add one. The fake
-composition records what an apply would do, and the calibration composition
-sends it to the display. Both adapters arrive from the composition layer, so a
-session built without one is never handed one, and a build with no write route
-runs this class as written.
+One route out of this class changes a display. The monitor control lane writes
+the panel's own brightness and gains over DDC/CI, and it is here rather than in
+a subclass because it is where a calibration starts: the drive state a
+colorimeter run is taken against has to be set before the run, not after it.
+The source that opens a control port arrives from the composition layer, so a
+session built without one is never handed one and reads nothing.
+
+Applying a calibration is separate and still is not here. This class holds no
+adapter that loads a table or writes a profile. Two subclasses add one. The
+fake composition records what an apply would do, and the calibration
+composition sends it to the display.
 
 A measurement run is the one place this class reaches outside the process. It
 opens the colorimeter the composition wired and puts a patch window on the
@@ -49,6 +54,11 @@ from calibrate_pro.application.measurement import (
     MeasurementRefused,
     PatchPort,
     measure_characterization,
+)
+from calibrate_pro.application.monitor_actions import MonitorControlActions
+from calibrate_pro.application.monitor_controls import (
+    MonitorControlSource,
+    NoMonitorControlSource,
 )
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.panel_profiles import PanelProfileActions
@@ -90,6 +100,7 @@ class FunctionalRecoveryService(
     SurfaceActions,
     DiagnosticsActions,
     PreferenceActions,
+    MonitorControlActions,
 ):
     """One calibration session, driven one action at a time."""
 
@@ -104,6 +115,7 @@ class FunctionalRecoveryService(
         lut_size: int = 33,
         bundles: DiagnosticBundleManager | None = None,
         instruments: InstrumentSource | None = None,
+        monitor_controls: MonitorControlSource | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
@@ -113,6 +125,10 @@ class FunctionalRecoveryService(
         self._lut_size = lut_size
         self._bundles = bundles
         self._instruments = instruments if instruments is not None else NoInstrumentSource()
+        self._monitor_controls: MonitorControlSource = (
+            monitor_controls if monitor_controls is not None else NoMonitorControlSource()
+        )
+        state.monitor_controls.route = monitor_controls is not None
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 
@@ -205,6 +221,26 @@ class FunctionalRecoveryService(
     def _adopt(self, display_id: str | None) -> None:
         self._controller = adopt(self._state, display_id)
         self._sync_stage()
+
+    def _invalidate_after_monitor_write(self) -> None:
+        """Drop everything that described the display as it was before the write.
+
+        Brightness and the channel gains sit upstream of every table this build
+        can load, so a plan sealed beforehand describes a drive state that no
+        longer exists. So does an instrument run: a measurement is light read at
+        one drive state, and keeping it would leave the session reporting
+        MEASURED for a panel that has since moved underneath it.
+
+        The generation bump is what breaks the seal for every action that tests
+        it, the same way re-detecting hardware does, and the preview transition
+        puts the workflow back where a session with nothing sealed belongs.
+        """
+        state = self._state
+        state.capability_generation += 1
+        state.invalidate_seal()
+        state.invalidate_measurement()
+        self._sealed_plan = None
+        self._transition(self._controller.invalidate_preview)
 
     # -- method and target --------------------------------------------------
 

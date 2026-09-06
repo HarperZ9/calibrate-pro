@@ -22,8 +22,10 @@ from typing import Literal
 from calibrate_pro.application.actions import ActionContext, ExportFormat, RuntimeMode
 from calibrate_pro.application.assets import AssetFormat, GeneratedAssets
 from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel, EvidenceKind
+from calibrate_pro.application.control_session import MonitorControlSession
 from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.profiles import ProfileInspection, ProfileRecord
+from calibrate_pro.panels.database import GENERIC_PANEL_KEY
 from calibrate_pro.workflow import CalibrationMethod, CapabilityState, WorkflowStage
 
 ConfirmationState = Literal["none", "live", "confirmed", "consumed", "expired"]
@@ -97,7 +99,6 @@ class SessionState:
     profiles: tuple[ProfileRecord, ...] = ()
     selected_profile: ProfileInspection | None = None
     validated_import_ready: bool = False
-    supported_vcp_codes: frozenset[int] = frozenset()
     actuation_route: bool = False
     measurement_route: bool = False
     instrument_identity: str | None = None
@@ -109,6 +110,12 @@ class SessionState:
     #: instrument never saw.
     measured_characterization: MeasuredCharacterization | None = None
     measured_display_id: str | None = None
+
+    #: What this session has read off the selected display's own controls, and
+    #: what it means to write back. Held in its own record rather than spread
+    #: across this dataclass, because a reading, the values staged against it
+    #: and the transaction that wrote them are only meaningful together.
+    monitor_controls: MonitorControlSession = field(default_factory=MonitorControlSession)
 
     def __post_init__(self) -> None:
         if type(self.fake_acceptance) is not bool:
@@ -202,6 +209,36 @@ class SessionState:
         return self.measurement_route and self.capabilities is not None and self.capabilities.sensor_available
 
     @property
+    def supported_vcp_codes(self) -> frozenset[int]:
+        """The codes the selected display answered when its controls were read.
+
+        Derived from the reading rather than stored, so it empties the moment
+        the reading is dropped. A capability string can list a control the
+        panel refuses; this reports the codes that answered.
+        """
+        return self.monitor_controls.supported_codes
+
+    @property
+    def monitor_controls_qualified(self) -> bool:
+        """Report whether this session may read the display's own controls.
+
+        The route says a control port was wired. `ddc_available` says a probe
+        opened a display and it answered. Requiring both keeps a reported
+        control value attached to a display that produced one.
+        """
+        return self.monitor_controls.route and self.capabilities is not None and self.capabilities.ddc_available
+
+    @property
+    def monitor_writes_qualified(self) -> bool:
+        """Report whether this session may write the display's own controls.
+
+        A write is checked against the range the display reported, and read
+        back against the value it held. Both come from the reading, so a
+        session without one is offered nothing to write.
+        """
+        return self.monitor_controls_qualified and self.monitor_controls.reading is not None
+
+    @property
     def measurement_matches_selection(self) -> bool:
         """Report whether this session holds a run of the display it selected."""
         return (
@@ -232,6 +269,34 @@ class SessionState:
         """Forget a run, used when the display it described is no longer selected."""
         self.measured_characterization = None
         self.measured_display_id = None
+
+    @property
+    def characterization_without_measurement(self) -> CharacterizationKind | None:
+        """What this session would report about the panel with no run in hand.
+
+        Derived from the panel record rather than remembered, because the two
+        are set together everywhere else: accepting the generic record sets the
+        key and the kind, and so does adopting a display that matched. A
+        session that drops a run therefore lands back on the answer it would
+        have given had the run never been taken.
+        """
+        if self.selected_panel_key is None:
+            return CharacterizationKind.UNKNOWN if self.selected_display_id is not None else None
+        if self.selected_panel_key == GENERIC_PANEL_KEY:
+            return CharacterizationKind.EXPLICIT_GENERIC
+        return CharacterizationKind.MATCHED
+
+    def invalidate_measurement(self) -> None:
+        """Drop a run the display no longer matches, and the kind that claimed it.
+
+        Discarding the record alone would leave the session reporting MEASURED
+        with nothing behind it, which is the one claim this build must never
+        make. The kind goes back to what the panel record says on its own.
+        """
+        if self.measured_characterization is None:
+            return
+        self.discard_measurement()
+        self.characterization_kind = self.characterization_without_measurement
 
     @property
     def seal_intact(self) -> bool:
@@ -287,6 +352,7 @@ class SessionState:
             selected_profile_reparsed=self.selected_profile_reparsed,
             validated_import_ready=self.validated_import_ready,
             supported_vcp_codes=self.supported_vcp_codes,
+            staged_vcp_codes=self.monitor_controls.staged_codes,
             diagnostic_bundle_preview_live=self.diagnostic_bundle_preview_live,
             journal_ready=self.journal_ready,
             # Both qualifications are derived, never set. Each requires a
@@ -295,6 +361,8 @@ class SessionState:
             # always did rather than because the value was hardcoded.
             physical_apply_qualified=self.physical_apply_qualified,
             measured_qualified=self.measured_qualified,
+            monitor_controls_qualified=self.monitor_controls_qualified,
+            monitor_writes_qualified=self.monitor_writes_qualified,
         )
 
 

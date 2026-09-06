@@ -39,6 +39,8 @@ EXCLUDED_QT_IMPORTS = {
 EXPECTED_FEATURES = {
     "schema_version": 2,
     "commands": [
+        "ddc-calibrate",
+        "ddc-info",
         "detect",
         "diagnostics",
         "doctor",
@@ -61,8 +63,6 @@ EXPECTED_FEATURES = {
     "declined_commands": [
         "auto",
         "calibrate",
-        "ddc-calibrate",
-        "ddc-info",
         "disable-startup",
         "enable-startup",
         "export-panel",

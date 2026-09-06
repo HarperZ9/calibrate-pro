@@ -99,6 +99,11 @@ DASHBOARD_PAGE_INDEX = next(
     index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.dashboard"
 )
 
+#: Where the DDC page sits, read from the same table. The display it acts on is
+#: the session's, which another page can change while the operator is elsewhere,
+#: so the selector is read back when this page comes into view.
+DDC_PAGE_INDEX = next(index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.ddc")
+
 #: The Export submenu in menu order: the name the session publishes a format
 #: under, and the label the entry carries.
 EXPORT_MENU_ENTRIES: tuple[tuple[str, str], ...] = (
@@ -1556,7 +1561,16 @@ class CalibrateProWindow(QMainWindow):
                 from calibrate_pro.gui.pages.ddc_control import DDCControlPage
 
                 self.ddc = DDCControlPage()
-                self.ddc.bind_actions(self._binder, self.service.unhandled)
+                self.ddc.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    read_current=self.service.read_monitor_controls,
+                    read_raw=self.service.read_raw_vcp,
+                    stage=self.service.stage_monitor_control,
+                    apply_controls=self.service.apply_monitor_controls,
+                    restore_defaults=self.service.restore_monitor_defaults,
+                    unhandled=self.service.unhandled,
+                )
                 self.stack.addWidget(self.ddc)  # 4
             except (ImportError, RuntimeError) as e:
                 logger.warning("Failed to load DDCControlPage: %s", e)
@@ -1696,6 +1710,8 @@ class CalibrateProWindow(QMainWindow):
             # operator is on it, so the dashboard reads the session back rather
             # than showing the selection it drew for the last one.
             self._render_characterization()
+        if index == DDC_PAGE_INDEX:
+            self._render_ddc_selection()
         target = self.stack.widget(index)
         if target:
             try:
@@ -1861,6 +1877,20 @@ class CalibrateProWindow(QMainWindow):
             self._render_characterization()
             self._update_tray_state()
         return outcome
+
+    def _render_ddc_selection(self) -> None:
+        """Put the DDC page on the display the session holds right now.
+
+        Its controls read and write one monitor, and any page can adopt a
+        different one. The session drops what it read off a display it no
+        longer holds, so this moves the selector and clears the numbers under
+        it rather than leaving one panel's values on screen above another
+        panel's controls.
+        """
+        page = getattr(self, "ddc", None)
+        render = getattr(page, "render_selection", None)
+        if render is not None:
+            render(self.service.selection)
 
     def _render_characterization(self) -> None:
         """Repaint the dashboard row from what the session currently holds.

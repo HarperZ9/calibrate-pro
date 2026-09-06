@@ -35,7 +35,7 @@ import pytest
 from calibrate_pro import main
 from calibrate_pro.application.actions import ActionDisposition, ActionRegistry
 from calibrate_pro.application.composition import build_production_service
-from calibrate_pro.commands import session
+from calibrate_pro.commands import session, session_args, session_ddc
 from calibrate_pro.commands.catalog import REFERENCE_HEADING
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -282,3 +282,24 @@ def test_the_status_report_still_classifies_each_action() -> None:
     named = {line.split()[0] for line in lines if not line.startswith("           ")}
     assert named <= {member.value for member in ActionDisposition}
     assert named & {ActionDisposition.HIDDEN.value, ActionDisposition.DISABLED.value}
+
+
+def test_the_display_control_flags_name_the_controls_the_session_can_stage() -> None:
+    """The parser's control list is held against the one the session stages from.
+
+    The parser writes its eight flags out by hand so that building it stays off
+    the application layer, which a ``--help`` should not pay for. That is a
+    second copy of the control table, and a copy with nothing holding it is a
+    copy that drifts. So the flags are read off the built parser and compared
+    against flags derived from the staging actions themselves: a control added
+    to the application and not to the parser is unreachable from a terminal, and
+    a flag with no staging action behind it fails at the moment somebody uses it.
+    """
+    parser = main._build_parser()
+    subparsers = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
+    calibrate = subparsers.choices["ddc-calibrate"]
+
+    offered = {option for action in calibrate._actions for option in action.option_strings}
+
+    assert set(session_ddc.control_flags()) <= offered
+    assert {f"--{flag}" for flag, _label in session_args.DISPLAY_CONTROLS} == set(session_ddc.control_flags())

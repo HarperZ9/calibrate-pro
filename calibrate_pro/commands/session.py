@@ -7,10 +7,12 @@ written for the command line. A refusal is printed as the resolver worded it,
 which is how the sentence a window shows and the sentence a terminal prints stay
 the same sentence.
 
-Nothing here changes display state. The production composition holds no display
-adapter, and confirming a plan acknowledges it rather than writing one. Two
-commands write, both to a path the operator named on the command line: a
+Two commands write to a path the operator named on the command line: a
 calibration bundle into a directory, and a diagnostic bundle at a file path.
+Two more speak to the display over its own control bus, and one of those is the
+only command here that changes hardware. It is refused unless the operator
+passes ``--confirm``, and it is built from a composition that holds a control
+port, which the read-only one deliberately does not.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from calibrate_pro.application.actions import ActionDisposition
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, refusal_message
+from calibrate_pro.commands.session_ddc import ddc_calibrate, ddc_info
 from calibrate_pro.commands.session_diagnostics import diagnostics
 
 if TYPE_CHECKING:
@@ -38,6 +41,12 @@ if TYPE_CHECKING:
 PRESET_PREFIX = "calibration.preset."
 
 REFUSED = 2
+
+#: The commands that speak to a display over its own control bus. Every other
+#: command is answered by the read-only composition, which wires no control
+#: port and says so. These two are built from the composition this machine can
+#: honestly offer, because a port is the thing they exist to use.
+DISPLAY_CONTROL_COMMANDS = frozenset({"ddc-calibrate", "ddc-info"})
 
 
 class CommandError(Exception):
@@ -256,6 +265,8 @@ def profiles(service: FunctionalRecoveryService, args: Any) -> int:
 
 
 COMMANDS = {
+    "ddc-calibrate": ddc_calibrate,
+    "ddc-info": ddc_info,
     "detect": detect,
     "diagnostics": diagnostics,
     "generate-profiles": generate,
@@ -265,6 +276,21 @@ COMMANDS = {
 }
 
 
+def build_service(command: str) -> FunctionalRecoveryService:
+    """Build the composition one command needs, which is not the same for all of them.
+
+    A command that never touches a display is answered by the read-only
+    composition, so nothing it does can reach one. The two that address a
+    display need a build with a control port in it, and asking for that build
+    per command is what keeps the port out of the six that have no use for it.
+    """
+    from calibrate_pro.application.composition import build_default_service, build_production_service
+
+    if command in DISPLAY_CONTROL_COMMANDS:
+        return build_default_service()
+    return build_production_service()
+
+
 def run(command: str, args: Any, service: FunctionalRecoveryService | None = None) -> int:
     """Drive one command, turning a refusal into its own sentence and exit code.
 
@@ -272,9 +298,7 @@ def run(command: str, args: Any, service: FunctionalRecoveryService | None = Non
     drives the fake composition, and no test in this repository reaches a real
     display to find out what a command prints.
     """
-    from calibrate_pro.application.composition import build_production_service
-
-    session = service if service is not None else build_production_service()
+    session = service if service is not None else build_service(command)
     try:
         return COMMANDS[command](session, args)
     except CommandError as failure:
@@ -297,10 +321,12 @@ def run_argv(command: str, argv: Sequence[str]) -> int:
 
 __all__ = [
     "COMMANDS",
+    "DISPLAY_CONTROL_COMMANDS",
     "PRESET_PREFIX",
     "REFUSED",
     "CommandError",
     "Refused",
+    "build_service",
     "preset_names",
     "run",
     "run_argv",
