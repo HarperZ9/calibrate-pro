@@ -844,10 +844,11 @@ def _disabled_reason(spec: ActionSpec, context: ActionContext) -> str:
         return "Panel import remains disabled pending the Phase 2 import contract."
     if action_id == "ddc.raw_write":
         return (
-            "Writing an arbitrary control code remains disabled. This build writes the "
-            "eight controls it names and the factory restore request, and a code outside "
-            "that set has no range to check a value against and no way back if the "
-            "display takes it."
+            "Writing an arbitrary control code remains disabled. What a code means is not "
+            "readable over DDC/CI. Some codes that answer a read are command registers, "
+            "where the number written is a request rather than a level, and the only undo "
+            "this build has is writing the previous number back, which on a register like "
+            "that issues the request again."
         )
     if action_id.startswith("ddc.unsupported."):
         return (

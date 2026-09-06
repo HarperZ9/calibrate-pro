@@ -170,11 +170,12 @@ HANDLED_COMMANDS = frozenset({"ddc.read_current", DDC_TRANSACTION, "ddc.restore_
 class DDCControlPage(QWidget):
     """DDC/CI staging surface, listing the displays the session observed.
 
-    Nothing on this page reaches a monitor. Brightness and the other allowlisted
-    controls are staged for a plan that a confirmed transaction applies, and
-    every other control reports that it sent no command. The display list is
-    handed in by the window rather than read here, so the page never opens a
-    display of its own.
+    Moving a control here stages a number and sends nothing. The buttons are the
+    part that reaches the monitor: the session reads the display to fill these
+    sliders, and a confirmed transaction writes every staged value at once and
+    reads each code back afterwards. Every control outside that set reports that
+    it sent no command. The display list is handed in by the window rather than
+    read here, so the page never opens a display of its own.
     """
 
     def __init__(self, parent=None):

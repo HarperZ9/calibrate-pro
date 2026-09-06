@@ -658,7 +658,7 @@
         "measured"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Writing an arbitrary control code is disabled. A code outside the eight this build names has no reported range to check a value against."
+      "unavailable_reason": "Writing an arbitrary control code is disabled. What a code means is not readable over DDC/CI, so a code that answers a read may be a command register whose write this build could not undo."
     },
     {
       "action_id": "ddc.read_current",
