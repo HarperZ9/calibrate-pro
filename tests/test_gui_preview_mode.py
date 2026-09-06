@@ -43,6 +43,10 @@ def test_preview_provider_is_generic_deterministic_and_evidence_labelled() -> No
     )
 
 
+# Builds the production service, whose journal root is the Windows
+# per-user application directory. Running it where that directory does not
+# exist would test a faked environment rather than the shipped one.
+@pytest.mark.windows
 def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
     qapp: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -164,6 +168,7 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         qapp.processEvents()
 
 
+@pytest.mark.windows
 def test_preview_renderer_writes_a_nonempty_1440_by_900_png(tmp_path: Path) -> None:
     output = tmp_path / "calibrate-pro-native-preview.png"
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}

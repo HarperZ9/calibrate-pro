@@ -14,6 +14,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from calibrate_pro import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -469,7 +471,11 @@ def test_every_issue_form_requires_the_diagnostics_that_make_it_actionable() -> 
     to keep saying what the command does and does not read, because that claim is
     what makes pasting it into a public issue safe.
     """
-    import yaml
+    # The release build verifies this source tree from a hash-locked environment
+    # that carries only what the binary needs, and a parser for one docs gate is
+    # not that. Every CI lane installs the test extra, which declares it, so the
+    # gate runs there. test_release_metadata keeps that declaration honest.
+    yaml = pytest.importorskip("yaml")
 
     folder = ROOT / ".github" / "ISSUE_TEMPLATE"
     forms = sorted(path for path in folder.glob("*.yml") if path.name != "config.yml")

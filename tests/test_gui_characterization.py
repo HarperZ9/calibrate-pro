@@ -206,6 +206,10 @@ def test_a_window_that_detected_nothing_says_so_rather_than_guessing() -> None:
     assert characterization_note(None) == "No display is selected. Run a detection pass to select one."
 
 
+# Builds the production service, whose journal root is the Windows
+# per-user application directory. Running it where that directory does not
+# exist would test a faked environment rather than the shipped one.
+@pytest.mark.windows
 def test_the_preview_window_describes_its_fixture_rather_than_a_selection(qapp: object) -> None:
     """A preview draws cards from a bundled fixture and detects nothing.
 

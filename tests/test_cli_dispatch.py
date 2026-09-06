@@ -76,6 +76,10 @@ def test_no_command_belongs_to_two_groups_at_once() -> None:
     assert set().union(*groups) == parser_commands()
 
 
+# Builds the production service, whose journal root is the Windows
+# per-user application directory. Running it where that directory does not
+# exist would test a faked environment rather than the shipped one.
+@pytest.mark.windows
 def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_own(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -92,6 +96,7 @@ def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_ow
     assert main._UNTOUCHED in printed
 
 
+@pytest.mark.windows
 def test_the_pattern_viewer_is_declined_rather_than_opened(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -222,6 +227,7 @@ def test_the_frozen_build_sends_nobody_to_a_wheel_that_declines_the_same_name() 
     assert not set(features["developer_only_commands"]) & main._CONFIRMATION_COMMANDS
 
 
+@pytest.mark.windows
 def test_every_declined_name_refuses_in_the_same_shape(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -241,6 +247,7 @@ def test_every_declined_name_refuses_in_the_same_shape(
         assert main._UNTOUCHED in printed, f"{command} does not say nothing was touched"
 
 
+@pytest.mark.windows
 def test_no_declined_name_answers_with_an_internal_disposition_token(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -260,6 +267,7 @@ def test_no_declined_name_answers_with_an_internal_disposition_token(
         assert leaked == set(), f"{command} printed {sorted(leaked)}"
 
 
+@pytest.mark.windows
 def test_the_status_report_still_classifies_each_action() -> None:
     """The control for the gate above, which a blanket ban would pass silently.
 

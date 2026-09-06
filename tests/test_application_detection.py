@@ -350,6 +350,9 @@ class TestDwmLutUsability:
                 raising=False,
             )
 
+    # Reaching the hook imports the LUT loader, which binds a Windows
+    # user32 entry point at import time.
+    @pytest.mark.windows
     def test_absent_tooling_is_unavailable_with_its_own_reason(self, monkeypatch):
         self._patch_lookup(monkeypatch, found=None, version=None, build=None)
         probe = ReadOnlyCapabilityProbe(dwm_lut=dwm_lut_path_usable)
@@ -357,6 +360,7 @@ class TestDwmLutUsability:
         assert finding.available is False
         assert finding.reason == "no dwm_lut installation was found on this machine"
 
+    @pytest.mark.windows
     def test_bundled_hook_on_an_unsupported_build_is_unavailable(self, monkeypatch):
         self._patch_lookup(monkeypatch, found=Path("dwm_lut"), version="3.8", build=26220)
         probe = ReadOnlyCapabilityProbe(dwm_lut=dwm_lut_path_usable)
@@ -365,12 +369,14 @@ class TestDwmLutUsability:
         assert "26220" in finding.reason
         assert "Refusing DWM injection" in finding.reason
 
+    @pytest.mark.windows
     def test_bundled_hook_on_a_supported_build_is_available(self, monkeypatch):
         self._patch_lookup(monkeypatch, found=Path("dwm_lut"), version="3.8", build=22000)
         probe = ReadOnlyCapabilityProbe(dwm_lut=dwm_lut_path_usable)
         finding = self._dwm_finding(probe)
         assert finding.available is True
 
+    @pytest.mark.windows
     def test_operator_installed_hook_is_not_gated_on_the_bundled_version(self, monkeypatch):
         self._patch_lookup(monkeypatch, found=Path("elsewhere"), version=None, build=26220)
         probe = ReadOnlyCapabilityProbe(dwm_lut=dwm_lut_path_usable)
@@ -406,6 +412,7 @@ class TestDwmLutUsability:
         assert finding.available is False
         assert finding.reason == "check raised RuntimeError: bad wiring"
 
+    @pytest.mark.windows
     def test_the_usability_check_creates_nothing(self, monkeypatch, tmp_path):
         import calibrate_pro.lut_system.dwm_lut as dwm_lut
 

@@ -29,6 +29,9 @@ jobs:
       QT_API: pyside6
       QT_QPA_PLATFORM: offscreen
     strategy:
+      # Report every job. A cancelled matrix hides the other seven results behind
+      # whichever one went red first, which costs a push per failure to learn.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -48,12 +51,18 @@ jobs:
           python -m pip install -e ".[all,test]"
       - name: Run portable tests with coverage
         if: runner.os == 'Linux'
-        run: pytest tests/ -q -m "not windows" --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=15
+        run: pytest tests/ -q -m "not windows" --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=30
       - name: Run supported parallel test lane
         if: runner.os == 'Windows' && matrix.python-version == '3.12'
         run: python -m pytest -n 2 -p no:cacheprovider tests/test_professional_features.py tests/test_lut_engine.py tests/test_pdf_export.py -q
       - name: Run complete Windows tests with coverage
         if: runner.os == 'Windows'
         env:
-          COVERAGE_CORE: ${{ matrix.python-version == '3.12' && 'sysmon' || 'ctrace' }}
-        run: pytest tests/ -q --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=15
+          # The Win32 cancellation contracts inject a raise at a bytecode offset
+          # through sys.monitoring. A coverage core built on the same mechanism
+          # stops delivering INSTRUCTION events at the offsets it instruments, so
+          # the injection never fires and the contract reports a failure it did
+          # not have. Measured on 3.12: three cancellation contracts fail under
+          # sysmon and pass under ctrace, with the rest of the suite unchanged.
+          COVERAGE_CORE: ctrace
+        run: pytest tests/ -q --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=30

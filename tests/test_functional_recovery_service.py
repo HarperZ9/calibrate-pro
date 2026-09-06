@@ -130,6 +130,10 @@ def test_a_production_session_carries_no_display_adapter(service: FunctionalReco
         assert missing, f"{name} answers every display adapter call"
 
 
+# Builds the production service, whose journal root is the Windows
+# per-user application directory. Running it where that directory does not
+# exist would test a faked environment rather than the shipped one.
+@pytest.mark.windows
 def test_building_the_shipped_session_loads_no_adapter_or_hardware_module() -> None:
     probe = textwrap.dedent(
         """

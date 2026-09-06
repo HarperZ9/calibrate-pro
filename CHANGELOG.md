@@ -2,6 +2,22 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Made the Windows coverage lane measure the suite it claims to run. The lane pinned
+  a `sysmon` coverage core on Python 3.12, and that core stops delivering
+  `INSTRUCTION` events at the offsets it instruments, so the Win32 cancellation
+  contracts that inject a raise at a bytecode offset never fired and three of them
+  reported a failure the product does not have. The lane now pins `ctrace` on every
+  Windows version, which takes the complete suite green at 53.27 percent line
+  coverage. The job matrix also stopped cancelling on the first red, so one push
+  reports all eight results instead of one, and both lanes now hold a 30 percent
+  coverage floor that a gate keeps from being quietly lowered.
+- Declared `pyyaml` in the `test` and `dev` extras. A gate that reads the issue
+  forms imported it while no extra named it, so the check ran only where the
+  package already happened to be installed and failed on a clean install. The
+  release build verifies this source tree from a hash-locked environment that
+  carries only what the binary needs, so the gate skips there rather than pulling
+  a parser into the build, and a metadata check keeps the declaration that makes
+  the skip honest.
 - Stopped the packaged binary sending operators to a wheel that refuses the same
   command. `CalibrateProCLI.exe` listed 21 names as living in the developer wheel,
   and the wheel declines 14 of them. Typing `restore` on a packaged install read as

@@ -84,6 +84,21 @@ def test_metadata_tests_retain_python_3_10_toml_support() -> None:
     assert requirement in optional_dependencies["dev"]
 
 
+def test_the_issue_form_gate_declares_the_parser_it_imports() -> None:
+    """The gate that reads the issue forms skips when PyYAML is absent.
+
+    That skip is only honest while an extra every CI lane installs still names
+    the package. Without this check, dropping the declaration would turn the gate
+    into a silent no-op rather than a failure.
+    """
+    with (ROOT / "pyproject.toml").open("rb") as stream:
+        optional_dependencies = tomllib.load(stream)["project"]["optional-dependencies"]
+
+    requirement = "pyyaml>=6"
+    assert requirement in optional_dependencies["test"]
+    assert requirement in optional_dependencies["dev"]
+
+
 def package_files() -> list[str]:
     """Every file the package ships that is not source, as posix paths."""
     package = ROOT / "calibrate_pro"

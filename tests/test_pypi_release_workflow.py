@@ -145,7 +145,30 @@ def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows(
     assert '-m "not windows"' in linux
     assert "if: runner.os == 'Windows'" in windows
     assert '-m "not windows"' not in windows
-    assert "COVERAGE_CORE: ${{ matrix.python-version == '3.12' && 'sysmon' || 'ctrace' }}" in windows
+    assert "COVERAGE_CORE: ctrace" in windows
+    assert "COVERAGE_CORE: sysmon" not in windows
+
+
+def test_ci_holds_a_coverage_floor_both_lanes_clear_by_a_real_margin() -> None:
+    """A floor far below the measured number cannot fail, so it measures nothing.
+
+    Both lanes are held to the same figure. The portable lane deselects the Windows
+    suite and lands lower, so it sets the ceiling on how high this can go: 37.86
+    percent measured against 53.27 on the complete lane.
+    """
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    floors = re.findall(r"--cov-fail-under=(\d+)", text)
+
+    assert floors == ["30", "30"]
+
+
+def test_ci_reports_every_matrix_job_rather_than_cancelling_on_the_first_red() -> None:
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    strategy = text.split("    strategy:", 1)[1].split("    steps:", 1)[0]
+
+    assert "fail-fast: false" in strategy
+    assert "ubuntu-latest, windows-latest" in strategy
+    assert '"3.10", "3.11", "3.12", "3.13"' in strategy
 
 
 def test_ci_pins_static_analysis_and_type_checks_the_windows_target() -> None:
