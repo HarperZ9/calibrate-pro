@@ -31,7 +31,7 @@ PHASE_ONE_EVIDENCE_KINDS = frozenset(
 
 
 _UNKNOWN_PROVENANCE = "detector:no_panel_match"
-_UTC_Z_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z")
+_UTC_Z_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(?P<fraction>\d+))?Z")
 _SequenceMember = TypeVar("_SequenceMember")
 
 
@@ -180,10 +180,20 @@ class DashboardModel:
                 raise ValueError("selected_display_id must identify a dashboard display")
         if type(self.refreshed_utc) is not str:
             raise TypeError("refreshed_utc must be an exact string")
-        if _UTC_Z_RE.fullmatch(self.refreshed_utc) is None:
+        shape = _UTC_Z_RE.fullmatch(self.refreshed_utc)
+        if shape is None:
             raise ValueError("refreshed_utc must be a parseable UTC timestamp ending in Z")
+        # The fractional part is normalised to microseconds before parsing because
+        # datetime.fromisoformat disagrees with itself across the interpreters this
+        # package supports: 3.10 accepts only 3 or 6 fractional digits, and 3.11 onward
+        # accepts any width and truncates past 6. Handing it a fixed width means the set
+        # of timestamps this contract accepts is the set the pattern above describes,
+        # rather than a set that moves with the runtime. Truncation, not rounding, keeps
+        # the parsed instant identical to what 3.11 onward already produced.
+        fraction = shape.group("fraction")
+        microseconds = "" if fraction is None else f".{fraction[:6].ljust(6, '0')}"
         try:
-            parsed = datetime.fromisoformat(f"{self.refreshed_utc[:-1]}+00:00")
+            parsed = datetime.fromisoformat(f"{self.refreshed_utc[:19]}{microseconds}+00:00")
         except ValueError as exc:
             raise ValueError("refreshed_utc must be a parseable UTC timestamp ending in Z") from exc
         if parsed.utcoffset() != timedelta(0):

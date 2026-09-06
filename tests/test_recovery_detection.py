@@ -430,6 +430,33 @@ def test_dashboard_accepts_parseable_utc_z_timestamps(refreshed_utc: str) -> Non
     assert value.refreshed_utc == refreshed_utc
 
 
+@pytest.mark.parametrize("digits", tuple(range(1, 10)))
+def test_dashboard_accepts_every_fractional_width_on_every_supported_interpreter(digits: int) -> None:
+    """Fractional width is where the contract used to change shape under the runtime.
+
+    ``datetime.fromisoformat`` took only 3 or 6 fractional digits through 3.10 and
+    started accepting any width, truncating past 6, in 3.11. The pattern this contract
+    advertises allows any width, so on 3.10 a timestamp the pattern accepted was then
+    rejected by the parse behind it. Six of these nine widths failed there and passed
+    everywhere else, which is a supported interpreter disagreeing about what the
+    product accepts. Widths are checked one by one rather than at the two boundaries,
+    because the two rules that disagreed each carved out a different middle.
+    """
+    refreshed_utc = f"2026-07-14T12:34:56.{'1' * digits}Z"
+
+    assert _dashboard(refreshed_utc=refreshed_utc).refreshed_utc == refreshed_utc
+
+
+def test_dashboard_still_rejects_a_calendar_date_that_cannot_exist_with_a_fraction() -> None:
+    """Normalising the fraction must not normalise away the calendar check with it.
+
+    The parse is the only thing that rejects a month of 13 or a February 30th, and it
+    now runs against a rewritten string. This holds it to the same answer.
+    """
+    with pytest.raises(ValueError):
+        _dashboard(refreshed_utc="2026-02-30T12:34:56.123456789Z")
+
+
 @pytest.mark.parametrize(
     "refreshed_utc",
     (

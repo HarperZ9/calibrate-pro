@@ -168,7 +168,29 @@ def test_ci_reports_every_matrix_job_rather_than_cancelling_on_the_first_red() -
 
     assert "fail-fast: false" in strategy
     assert "ubuntu-latest, windows-latest" in strategy
-    assert '"3.10", "3.11", "3.12", "3.13"' in strategy
+
+
+def test_the_ci_matrix_covers_every_interpreter_the_package_advertises() -> None:
+    """The matrix and the classifiers were two hand-written lists of the same fact.
+
+    Both were correct, which is the only reason this reads as a precaution. It is not:
+    a version listed in the classifiers and absent from the matrix is a version the
+    package promises and never runs, and the promise is what a user installs against.
+    Deriving one list from the other means adding an interpreter to either place fails
+    here until it is added to both.
+    """
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    pyproject = PYPROJECT.read_text(encoding="utf-8")
+
+    tested = re.search(r"python-version: \[([^\]]+)\]", workflow)
+    assert tested is not None
+    matrix = [entry.strip().strip('"') for entry in tested.group(1).split(",")]
+    advertised = re.findall(r"Programming Language :: Python :: (\d+\.\d+)", pyproject)
+    floor = re.search(r'requires-python = ">=(\d+\.\d+)"', pyproject)
+    assert floor is not None
+
+    assert matrix == advertised
+    assert floor.group(1) == min(advertised, key=lambda version: tuple(int(part) for part in version.split(".")))
 
 
 def test_ci_pins_static_analysis_and_type_checks_the_windows_target() -> None:

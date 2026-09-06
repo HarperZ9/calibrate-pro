@@ -23,6 +23,7 @@ module_policy = json.loads(MODULE_POLICY_PATH.read_text(encoding="utf-8"))
 
 if feature_policy.get("commands") != [
     "detect",
+    "diagnostics",
     "doctor",
     "generate-profiles",
     "gui",

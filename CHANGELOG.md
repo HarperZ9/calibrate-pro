@@ -2,6 +2,25 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Fixed a packaged build that could not be produced at all. `calibrate-pro.spec`
+  compares the shipped feature policy against a command list written out by hand, and
+  `diagnostics` reached the dispatcher and the policy file without reaching that list,
+  so every freeze stopped at `frozen feature policy is not the approved command set`.
+  The release build is the only job that executes the spec, which is why nothing caught
+  it. Writing the list out is deliberate, because that is what makes the check fail
+  closed on a policy file somebody edited, so the list stays and a gate now compares it
+  against the commands the frozen dispatcher answers.
+- Stopped a dashboard contract changing shape with the interpreter. `refreshed_utc`
+  advertises a pattern allowing any number of fractional digits and then parsed with
+  `datetime.fromisoformat`, which took only three or six digits through 3.10 and began
+  accepting any width, truncating past six, in 3.11. Six of the nine widths the pattern
+  allows were rejected on 3.10 and accepted everywhere else, on a version this package
+  advertises and installs against. The fraction is normalised to microseconds before
+  parsing, so 3.11 onward produces the identical instant and the accepted set is the
+  set the pattern describes. A gate checks each width, and a second holds the calendar
+  check the rewritten string still has to pass. The job matrix and the version
+  classifiers were two hand-maintained copies of the same list, so a gate now derives
+  one from the other.
 - Made the Windows coverage lane measure the suite it claims to run. The lane pinned
   a `sysmon` coverage core on Python 3.12, and that core stops delivering
   `INSTRUCTION` events at the offsets it instruments, so the Win32 cancellation

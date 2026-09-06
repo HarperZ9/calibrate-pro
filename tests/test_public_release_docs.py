@@ -121,6 +121,22 @@ def test_readme_identifies_the_current_release_and_qt_binding() -> None:
     assert "](USAGE.md)" not in text
 
 
+@pytest.mark.parametrize("surface", PUBLIC_SURFACES)
+def test_every_version_pinned_repository_link_names_the_release_being_shipped(surface: str) -> None:
+    """A tag in a URL is a version carried by hand, and there were several.
+
+    The hero image was already derived from the version. The license, the usage
+    guide, and the example tree were not, so a bump would have left a reader on a
+    page describing this release and clicking through to the previous one. The links
+    stay pinned rather than pointing at a branch, because a reader arriving from a
+    published release should see the tree that release was cut from.
+    """
+    text = (ROOT / surface).read_text(encoding="utf-8")
+    pinned = re.findall(r"HarperZ9/calibrate-pro/(?:blob/|tree/|raw/)?v(\d+\.\d+\.\d+)", text)
+
+    assert set(pinned) <= {VERSION}, f"{surface} links to {sorted(set(pinned) - {VERSION})}"
+
+
 def test_readme_documents_proposal_only_legacy_commands_and_unelevated_launch() -> None:
     """Both ways in are named, and the README keeps them apart.
 
