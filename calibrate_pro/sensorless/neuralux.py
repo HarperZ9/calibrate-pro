@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
+from calibrate_pro.calibration.targets import D65 as D65_XY
 from calibrate_pro.core.color_math import (
     D50_WHITE,
     D65_WHITE,
@@ -121,7 +122,9 @@ class SensorlessEngine:
             return panel
         return None
 
-    def calculate_correction_matrix(self, panel: PanelCharacterization | None = None) -> np.ndarray:
+    def calculate_correction_matrix(
+        self, panel: PanelCharacterization | None = None, target_white: tuple[float, float] = D65_XY
+    ) -> np.ndarray:
         """
         Calculate 3x3 color correction matrix for panel.
 
@@ -131,8 +134,15 @@ class SensorlessEngine:
         The matrix is: xyz_to_panel @ srgb_to_xyz
         Applied as: panel_linear = matrix @ srgb_linear
 
+        The target white is what the sRGB primaries are referred to when the
+        source matrix is built, so it decides which white full-scale input
+        drives the panel to. A caller aiming at D50 that leaves this alone gets
+        a D65 correction and a display that never reaches the white its own
+        plan named.
+
         Args:
             panel: Panel characterization (uses current if None)
+            target_white: Target white point xy the correction drives to
 
         Returns:
             3x3 correction matrix
@@ -150,10 +160,8 @@ class SensorlessEngine:
             primaries.red.as_tuple(), primaries.green.as_tuple(), primaries.blue.as_tuple(), primaries.white.as_tuple()
         )
 
-        # sRGB to XYZ
-        srgb_to_xyz_mat = primaries_to_xyz_matrix(
-            (0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600), (0.3127, 0.3290)
-        )
+        # sRGB to XYZ, referred to the white this calibration aims at
+        srgb_to_xyz_mat = primaries_to_xyz_matrix((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600), target_white)
 
         # XYZ to panel RGB
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
@@ -269,6 +277,7 @@ class SensorlessEngine:
         hdr_mode: bool = False,
         target: str = "native",
         target_gamma: float = 2.2,
+        target_white: tuple[float, float] = D65_XY,
     ) -> LUT3D:
         """
         Create calibration 3D LUT for panel.
@@ -291,6 +300,11 @@ class SensorlessEngine:
             target: "native", "sRGB", or "p3"
             target_gamma: Power-law exponent the calibrated output should
                 follow. BT.1886 with a zero black level reduces to 2.4.
+            target_white: White point xy the correction drives the panel to.
+                It reaches every SDR path here. The HDR path does not remap
+                reference white and ignores it, which is stated rather than
+                silent because an HDR request carrying a white point would
+                otherwise look honoured.
 
         Returns:
             Calibration 3D LUT
@@ -337,6 +351,7 @@ class SensorlessEngine:
                 gamma_blue=panel.gamma_blue.gamma,
                 title=lut_name,
                 target_gamma=target_gamma,
+                target_white=target_white,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
                 panel_key=panel.model_pattern.split("|")[0],
@@ -352,6 +367,7 @@ class SensorlessEngine:
                     gamma_blue=panel.gamma_blue.gamma,
                     title=lut_name,
                     target_gamma=target_gamma,
+                    target_white=target_white,
                 )
             else:
                 lut = generator.create_calibration_lut(
@@ -360,9 +376,10 @@ class SensorlessEngine:
                     gamma_red=panel.gamma_red.gamma,
                     gamma_green=panel.gamma_green.gamma,
                     gamma_blue=panel.gamma_blue.gamma,
-                    color_matrix=self.calculate_correction_matrix(panel),
+                    color_matrix=self.calculate_correction_matrix(panel, target_white=target_white),
                     title=lut_name,
                     target_gamma=target_gamma,
+                    target_white=target_white,
                 )
         elif target == "p3":
             # Compress to DCI-P3 gamut
@@ -376,6 +393,7 @@ class SensorlessEngine:
                 target_primaries=p3_primaries,
                 title=lut_name,
                 target_gamma=target_gamma,
+                target_white=target_white,
             )
         else:
             # Unknown target, fall back to native
@@ -388,6 +406,7 @@ class SensorlessEngine:
                 gamma_blue=panel.gamma_blue.gamma,
                 title=lut_name,
                 target_gamma=target_gamma,
+                target_white=target_white,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
                 panel_key=panel.model_pattern.split("|")[0],

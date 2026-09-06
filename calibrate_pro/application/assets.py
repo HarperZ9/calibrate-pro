@@ -34,11 +34,13 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
+from typing import TypeVar
 
 from calibrate_pro import __version__
 from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.measurement import MeasuredCharacterization
+from calibrate_pro.calibration.targets import D50, D63_DCI, D65
 from calibrate_pro.core.lut_engine import LUT3D, LUTFormat
 from calibrate_pro.panels.database import (
     GENERIC_PANEL_KEY,
@@ -103,6 +105,17 @@ _SUFFIXES: Mapping[AssetFormat, str] = MappingProxyType(
     }
 )
 
+#: Preset white-point label to the chromaticity the correction drives to.
+#: Read from the calibration target catalogue rather than typed again, so a
+#: white point corrected in one place is corrected in both.
+_TARGET_WHITES: Mapping[str, tuple[float, float]] = MappingProxyType(
+    {
+        "D65": D65,
+        "D50": D50,
+        "D63": D63_DCI,
+    }
+)
+
 #: Preset gamut label to the gamut mode understood by the sensorless engine.
 _GAMUT_MODES: Mapping[str, str] = MappingProxyType(
     {
@@ -130,6 +143,31 @@ class BundlePublishError(Exception):
 
 class AssetGenerationError(Exception):
     """A requested artifact could not be generated from the given inputs."""
+
+
+_Resolved = TypeVar("_Resolved")
+
+
+def _resolve(known: Mapping[str, _Resolved], label: str, part: str) -> _Resolved:
+    """Translate one part of a declared target, refusing a label nothing maps.
+
+    A default here is how a target stops reaching the correction. The white
+    point defaulted to D65, so a D50 request produced a D65 correction while
+    the plan line, the manifest and the bundle all still said D50. Every
+    surface reported the target and only the arithmetic disagreed, which is
+    the one failure this package cannot ship: a declared value presented as a
+    property of a computed artifact.
+
+    Refusing instead means a target added to the catalogue without a
+    translation fails at generation rather than producing a bundle labelled
+    for one target and corrected for another.
+    """
+    resolved = known.get(label)
+    if resolved is None:
+        raise AssetGenerationError(
+            f"This build cannot generate for a {part} of {label!r}. It carries {', '.join(sorted(known))}."
+        )
+    return resolved
 
 
 def _require_text(value: object, *, field_name: str) -> str:
@@ -326,8 +364,9 @@ class AssetGenerator:
             characterization_kind = CharacterizationKind.MEASURED
             evidence_kind = EvidenceKind.MEASURED
         gamut_label, white_point, tone_response, target_hdr = PRESET_TARGETS[request.preset_id]
-        gamut_mode = _GAMUT_MODES.get(gamut_label, "native")
-        exponent = _TONE_RESPONSE_EXPONENTS.get(tone_response, 2.2)
+        gamut_mode = _resolve(_GAMUT_MODES, gamut_label, "gamut")
+        exponent = _resolve(_TONE_RESPONSE_EXPONENTS, tone_response, "tone response")
+        target_white = _resolve(_TARGET_WHITES, white_point, "white point")
 
         lut = self._engine.create_3d_lut(
             panel,
@@ -336,6 +375,7 @@ class AssetGenerator:
             hdr_mode=bool(target_hdr),
             target=gamut_mode,
             target_gamma=exponent,
+            target_white=target_white,
         )
 
         gamma_table, gamma_moves = _render_gamma_table(lut)
@@ -464,10 +504,13 @@ def _curve_changes_output(table: object) -> bool:
 def _cube_changes_output(lut: LUT3D) -> bool:
     """Answer whether loading this cube would move any 8-bit output code.
 
-    The generic characterization carries exact sRGB primaries, an exact D65
-    white, and an exact 2.2 response, so every target it can reach resolves to
-    the identity cube. Publishing that as a calibration is the failure this
-    guards. The same answer covers a matched panel already sitting on target.
+    A cube that leaves every output code alone is a calibration in name only,
+    and shipping one tells an operator their display was corrected when it was
+    left where it started. The generic characterization is where that arises.
+    It carries exact sRGB primaries, an exact D65 white and an exact 2.2
+    response, so the sRGB web target resolves to the identity cube on it. Each
+    of the three other shipped targets differs from that panel somewhere and
+    moves it. The same answer covers a matched panel sitting on its target.
     """
     numpy = importlib.import_module("numpy")
     axis = numpy.linspace(0.0, 1.0, lut.size)

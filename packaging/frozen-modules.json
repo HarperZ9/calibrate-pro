@@ -60,6 +60,7 @@
     "calibrate_pro.calibration",
     "calibrate_pro.calibration.hybrid",
     "calibrate_pro.calibration.native_loop",
+    "calibrate_pro.calibration.targets",
     "calibrate_pro.commands",
     "calibrate_pro.commands.doctor",
     "calibrate_pro.commands.gui",

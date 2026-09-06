@@ -703,6 +703,30 @@ class LUT3D:
         return cls(size=size, data=data, title=title)
 
 
+def headroom_scale(correction: np.ndarray) -> float:
+    """The factor that brings full-scale white inside what the panel can drive.
+
+    A correction aiming at a white the panel is not already at asks one
+    channel for more light than the panel has. Clamping the channels one at a
+    time is what this package did, and it changes the ratio between them,
+    which is the ratio that decides the white an operator sees. A D50 request
+    on a D65 panel landed at x=0.3332 that way, against a target of 0.3457 and
+    a catalogue tolerance of 0.003.
+
+    Scaling the whole correction keeps every ratio and spends luminance
+    instead. That is what a white point costs on a display that cannot make
+    more light, and it is what a measuring calibrator does with the same
+    request.
+
+    Returns 1.0 when the correction already fits, so a target the panel is
+    natively at changes nothing.
+    """
+    drive = float(np.max(correction @ np.ones(3)))
+    if not np.isfinite(drive) or drive <= 1.0:
+        return 1.0
+    return 1.0 / drive
+
+
 class LUTGenerator:
     """
     Generates 3D LUTs from calibration data.
@@ -886,6 +910,11 @@ class LUTGenerator:
             # to display the correct XYZ
             color_matrix = xyz_to_panel @ target_to_xyz
 
+        # Fit before the grid loop, so the clamp below only ever removes
+        # colours the panel genuinely cannot reach rather than the white the
+        # caller asked for.
+        color_matrix = color_matrix * headroom_scale(color_matrix)
+
         lut = LUT3D.create_identity(self.size)
         coords = np.linspace(0, 1, self.size)
 
@@ -1050,6 +1079,7 @@ class LUTGenerator:
             adapt_matrix = get_adaptation_matrix(panel_ill, target_ill)
             # Combined: panel RGB -> XYZ -> adapt -> XYZ -> panel RGB
             wp_correction = xyz_to_panel @ adapt_matrix @ panel_to_xyz
+            wp_correction = wp_correction * headroom_scale(wp_correction)
         else:
             wp_correction = np.eye(3)
 
@@ -1167,6 +1197,14 @@ class LUTGenerator:
             target_primaries[0], target_primaries[1], target_primaries[2], target_white
         )
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
+
+        # Fit the target space to the panel's headroom before anything reads
+        # it. Scaling here rather than after the combination keeps the gamut
+        # search below on the same scale as the vectorized path, and it stops
+        # a white the panel cannot reach at full drive from being handed to
+        # that search as an out-of-gamut colour and desaturated back toward
+        # the white it was asked to leave.
+        target_to_xyz = target_to_xyz * headroom_scale(xyz_to_panel @ target_to_xyz)
 
         # Combined matrix: target linear RGB -> panel linear RGB
         target_to_panel = xyz_to_panel @ target_to_xyz
