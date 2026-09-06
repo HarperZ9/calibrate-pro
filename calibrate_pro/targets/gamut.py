@@ -19,6 +19,8 @@ from enum import Enum
 
 import numpy as np
 
+from calibrate_pro.targets.coverage import GamutContainment, chromaticity_coverage, gamut_containment
+
 
 class GamutPreset(Enum):
     """Standard color gamut presets."""
@@ -224,45 +226,21 @@ def calculate_gamut_coverage(display_primaries: ColorPrimaries, reference_primar
     """
     Calculate how much of a reference gamut is covered by display primaries.
 
-    Uses triangle overlap calculation.
-
     Args:
         display_primaries: Display color primaries
         reference_primaries: Target/reference color primaries
 
     Returns:
-        Coverage percentage (0-100+, can exceed 100% if wider)
+        Coverage percentage, 0 to 100.
+
+    This used to divide one triangle's area by the other's, which measures
+    size rather than overlap and reported an Adobe RGB panel as covering
+    99.4% of DCI-P3. The two gamuts enclose nearly equal areas while reaching
+    different corners; the panel cannot show DCI-P3 red at all. Intersecting
+    the triangles reports 87.8%, and a panel wider than the reference is now
+    capped at 100 instead of returning a number above it.
     """
-    # Simple area ratio (approximate)
-    display_area = display_primaries.get_gamut_area()
-    reference_area = reference_primaries.get_gamut_area()
-
-    # This is approximate - proper calculation requires polygon intersection
-    return (display_area / reference_area) * 100
-
-
-def calculate_gamut_volume_coverage(display_primaries: ColorPrimaries, reference_primaries: ColorPrimaries) -> float:
-    """
-    Calculate 3D gamut volume coverage.
-
-    More accurate than 2D area calculation.
-
-    Args:
-        display_primaries: Display primaries
-        reference_primaries: Reference primaries
-
-    Returns:
-        Volume coverage percentage
-    """
-    # For accurate volume calculation, we'd need to:
-    # 1. Generate 3D gamut boundary meshes
-    # 2. Calculate intersection volume
-    # 3. Compare to reference volume
-
-    # Simplified approximation using area ratio raised to 1.5
-    # (accounts for 3D nature of gamut)
-    area_ratio = calculate_gamut_coverage(display_primaries, reference_primaries) / 100
-    return (area_ratio**1.5) * 100
+    return chromaticity_coverage(display_primaries, reference_primaries)
 
 
 @dataclass
@@ -302,7 +280,20 @@ class GamutTarget:
             self.name = self.preset.value
 
     def get_primaries(self) -> ColorPrimaries:
-        """Get target color primaries."""
+        """Get target color primaries, refusing a preset that names none.
+
+        Native and Custom are the two presets absent from the reference table,
+        and neither has a triangle of its own. Native means whatever the
+        display in front of the operator reaches, and Custom means the
+        primaries handed in beside it. Answering either with sRGB published one
+        gamut under another's name, which is how the sibling white point module
+        came to report D65's chromaticity for Illuminant A.
+
+        Nothing in this package reached the old fallback: every module constant
+        below names a preset the table carries, and :func:`custom_gamut` always
+        passes primaries. Raising keeps it that way rather than leaving a
+        default for a later caller to find.
+        """
         if self.primaries is not None:
             return self.primaries
 
@@ -310,7 +301,10 @@ class GamutTarget:
         if preset_name in GAMUT_PRIMARIES:
             return GAMUT_PRIMARIES[preset_name]
 
-        return PRIMARIES_SRGB
+        raise ValueError(
+            f"{self.preset.name} names no primaries of its own. "
+            "Pass the primaries this target means, or choose a standard gamut."
+        )
 
     def get_rgb_to_xyz_matrix(self) -> np.ndarray:
         """Get RGB to XYZ transformation matrix."""
@@ -335,6 +329,10 @@ class GamutTarget:
     def get_bt2020_coverage(self) -> float:
         """Calculate BT.2020 coverage percentage."""
         return calculate_gamut_coverage(self.get_primaries(), PRIMARIES_BT2020)
+
+    def containment_of(self, reference_primaries: ColorPrimaries) -> GamutContainment:
+        """Report whether this gamut encloses a reference, and where it falls short."""
+        return gamut_containment(self.get_primaries(), reference_primaries)
 
     def is_wide_gamut(self) -> bool:
         """Check if this is a wide gamut target (wider than sRGB)."""
@@ -471,6 +469,35 @@ class GamutTarget:
 # =============================================================================
 # Standard Presets
 # =============================================================================
+
+
+def reach_of_gamut_mode(display_primaries: object, gamut_mode: str) -> GamutContainment | None:
+    """What a display reaches of a named target gamut, or None for native.
+
+    ``gamut_mode`` is the engine's own spelling of the target, taken from the
+    bundle that was generated rather than from a label a surface chose, so the
+    answer describes the gamut the arithmetic was actually aimed at.
+
+    Native answers None. A display reaches its own gamut by definition and
+    there is no second triangle to intersect, so a coverage figure there would
+    be 100% of nothing in particular. Callers render None as no claim rather
+    than as full coverage.
+
+    An unrecognised mode raises. It is the same rule
+    :meth:`SensorlessEngine.create_3d_lut` applies to the same strings: a name
+    this build cannot resolve must stop the bundle rather than quietly describe
+    it as something else.
+    """
+    if gamut_mode == "native":
+        return None
+    reference = GAMUT_PRIMARIES.get(gamut_mode)
+    if reference is None:
+        known = ", ".join(sorted(GAMUT_PRIMARIES))
+        raise ValueError(
+            f"This build carries no reference primaries for a gamut of {gamut_mode!r}. It carries native, {known}."
+        )
+    return gamut_containment(display_primaries, reference)
+
 
 GAMUT_SRGB = GamutTarget(
     preset=GamutPreset.SRGB,

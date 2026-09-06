@@ -92,22 +92,29 @@ class TestPatchSets:
 
 
 class TestCLFFormat:
-    def test_clf_export(self):
-        import os
-        import tempfile
+    def test_clf_export_uses_isolated_tmp_path(self):
+        from pathlib import Path
 
+        source = Path(__file__).read_text(encoding="utf-8")
+        fixed_temp_call = "tempfile." + "gettempdir()"
+        export_filename = "test_" + "export.clf"
+
+        assert fixed_temp_call not in source
+        assert source.count(export_filename) == 1
+        assert f'tmp_path / "{export_filename}"' in source
+
+    def test_clf_export(self, tmp_path):
         from calibrate_pro.core.lut_engine import LUT3D
 
         lut = LUT3D.create_identity(5)
-        path = os.path.join(tempfile.gettempdir(), "test_export.clf")
-        lut.save_clf(path)
-        assert os.path.exists(path)
-        with open(path) as f:
+        output = tmp_path / "test_export.clf"
+        lut.save_clf(output)
+        assert output.is_file()
+        with output.open() as f:
             content = f.read()
         assert "ProcessList" in content
         assert "LUT3D" in content
         assert 'compCLFversion="3.0"' in content
-        os.unlink(path)
 
 
 class TestCCSSImport:

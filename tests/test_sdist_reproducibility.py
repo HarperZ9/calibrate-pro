@@ -9,11 +9,16 @@ from pathlib import Path
 
 import pytest
 
+from calibrate_pro import __version__
 from scripts.normalize_sdist import normalize_sdist
+from scripts.product_version import SDIST_NAME
+
+#: The directory the sdist unpacks to, which the build backend derives from
+#: the same version that names the archive.
+ROOT_NAME = SDIST_NAME[: -len(".tar.gz")]
+PAYLOAD_VERSION_LINE = f'VERSION = "{__version__}"\n'.encode()
 
 EPOCH = 315532800
-SDIST_NAME = "calibrate_pro-1.1.0.tar.gz"
-ROOT_NAME = "calibrate_pro-1.1.0"
 
 
 def _write_sdist(path: Path, *, mtime: int, reverse: bool = False) -> None:
@@ -21,9 +26,9 @@ def _write_sdist(path: Path, *, mtime: int, reverse: bool = False) -> None:
     entries = [
         (ROOT_NAME, None),
         (f"{ROOT_NAME}/package", None),
-        (f"{ROOT_NAME}/package/__init__.py", b'VERSION = "1.1.0"\n'),
+        (f"{ROOT_NAME}/package/__init__.py", PAYLOAD_VERSION_LINE),
         (f"{ROOT_NAME}/pyproject.toml", b"[build-system]\n"),
-        (f"{ROOT_NAME}/PKG-INFO", b"Metadata-Version: 2.4\nName: calibrate-pro\nVersion: 1.1.0\n"),
+        (f"{ROOT_NAME}/PKG-INFO", f"Metadata-Version: 2.4\nName: calibrate-pro\nVersion: {__version__}\n".encode()),
     ]
     if reverse:
         entries.reverse()
@@ -59,7 +64,7 @@ def test_normalize_sdist_makes_order_and_timestamps_reproducible(tmp_path: Path)
         assert [member.name for member in members] == sorted(member.name for member in members)
         assert all(member.mtime == EPOCH for member in members)
         assert all(not ({"mtime", "atime", "ctime"} & member.pax_headers.keys()) for member in members)
-        assert archive.extractfile(f"{ROOT_NAME}/package/__init__.py").read() == b'VERSION = "1.1.0"\n'
+        assert archive.extractfile(f"{ROOT_NAME}/package/__init__.py").read() == PAYLOAD_VERSION_LINE
 
 
 def test_normalize_sdist_rejects_unsafe_member_paths(tmp_path: Path) -> None:

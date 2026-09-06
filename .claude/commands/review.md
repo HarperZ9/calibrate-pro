@@ -12,13 +12,13 @@ allowed-tools: Read, Grep, Glob, Bash(git diff:*)
 
 ## Review Checklist (Python)
 
-1. **Security** — No secrets in code, proper input validation, no SQL injection
-2. **Type Hints** — Type annotations on all public functions, use Python 3.10+ syntax
-3. **Error Handling** — No bare except, no swallowed errors, proper logging
-4. **Performance** — No N+1 queries, proper use of generators, no memory leaks
-5. **Testing** — New code has tests, tests have explicit assertions
-6. **Imports** — Clean imports, no circular dependencies, no wildcard imports
-7. **Quality Gates** — Files <= 300 lines, functions <= 50 lines
+1. **Security**: No secrets in code, proper input validation, no SQL injection
+2. **Type Hints**: Type annotations on all public functions, use Python 3.10+ syntax
+3. **Error Handling**: No bare except, no swallowed errors, proper logging
+4. **Performance**: No N+1 queries, proper use of generators, no memory leaks
+5. **Testing**: New code has tests, tests have explicit assertions
+6. **Imports**: Clean imports, no circular dependencies, no wildcard imports
+7. **Quality Gates**: Files <= 300 lines, functions <= 50 lines
 
 ## Output Format
 

@@ -20,7 +20,7 @@ class TestFeature:
     def test_happy_path(self):
         # Arrange
         # Act
-        # Assert — SPECIFIC outcomes
+        # Assert SPECIFIC outcomes
         
     def test_error_case(self):
         with pytest.raises(SpecificError):

@@ -21,6 +21,10 @@ from calibrate_pro.panels.panel_types import (  # noqa: F401
     PanelPrimaries,
 )
 
+#: Key of the explicit generic profile. Asking for it by name is a deliberate
+#: generic choice, so callers that label provenance must not read it as a match.
+GENERIC_PANEL_KEY = "GENERIC_SRGB"
+
 
 class PanelDatabase:
     """
@@ -86,7 +90,7 @@ class PanelDatabase:
         """
         # First, try exact match on known panel names
         for key, panel in self.panels.items():
-            if key != "GENERIC_SRGB":  # Skip generic fallback
+            if key != GENERIC_PANEL_KEY:  # Skip generic fallback
                 if re.search(panel.model_pattern, model_string, re.IGNORECASE):
                     return panel
 
@@ -98,11 +102,11 @@ class PanelDatabase:
 
     def get_fallback(self) -> PanelCharacterization:
         """Get generic fallback panel profile."""
-        return self.panels["GENERIC_SRGB"]
+        return self.panels[GENERIC_PANEL_KEY]
 
     def list_panels(self) -> list[str]:
         """List all available panel keys."""
-        return [k for k in self.panels if k != "GENERIC_SRGB"]
+        return [k for k in self.panels if k != GENERIC_PANEL_KEY]
 
     def add_panel(self, key: str, panel: PanelCharacterization):
         """Add or update a panel characterization."""
@@ -160,23 +164,62 @@ def find_panel_for_display(model_string: str) -> PanelCharacterization | None:
     return get_database().find_panel(model_string)
 
 
+#: sRGB primaries and D65 white, the reference an EDID-built panel is corrected to.
+_SRGB_PRIMARIES = ((0.6400, 0.3300), (0.3000, 0.6000), (0.1500, 0.0600), (0.3127, 0.3290))
+
+
+def _srgb_to_native_matrix(
+    red: tuple[float, float],
+    green: tuple[float, float],
+    blue: tuple[float, float],
+    white: tuple[float, float],
+) -> list[list[float]] | None:
+    """
+    Build the sRGB to native-RGB matrix for a panel with these primaries.
+
+    The matrix follows from the chromaticities by the standard route, sRGB to
+    XYZ to native RGB, the same derivation ``NeuraLux`` uses. Returns None when
+    the primaries are degenerate and the native matrix cannot be inverted; a
+    caller reads None as "no correction available" and leaves the signal alone.
+    """
+    import numpy as np
+
+    from calibrate_pro.core.color_math import primaries_to_xyz_matrix
+
+    try:
+        native_to_xyz = primaries_to_xyz_matrix(red, green, blue, white)
+        srgb_to_xyz = primaries_to_xyz_matrix(*_SRGB_PRIMARIES)
+        matrix = np.linalg.inv(native_to_xyz) @ srgb_to_xyz
+    except (np.linalg.LinAlgError, ValueError, ZeroDivisionError):
+        return None
+
+    if not np.all(np.isfinite(matrix)):
+        return None
+
+    return [[float(v) for v in row] for row in matrix]
+
+
 def create_from_edid(
-    edid_chromaticity: dict, monitor_name: str = "Unknown", manufacturer: str = "Unknown", gamma: float = 2.2
+    edid_chromaticity: dict,
+    monitor_name: str = "Unknown",
+    manufacturer: str = "Unknown",
+    gamma: float | None = None,
 ) -> PanelCharacterization:
     """
     Create a PanelCharacterization from EDID chromaticity data.
 
-    This is the critical fallback for monitors not in the built-in database.
-    EDID reports native primaries and white point, giving us accurate gamut
-    information even for unknown panels. Combined with a reasonable gamma
-    assumption, this produces significantly better calibration than the
-    generic sRGB fallback.
+    This is the fallback for monitors not in the built-in database. EDID
+    reports the primaries and white point the manufacturer declared for the
+    panel, so the gamut in the returned characterization is that declaration.
+    No measurement in this repo compares it against the generic sRGB fallback.
+    EDID carries no photometry, so luminance, contrast and HDR support stay
+    unknown.
 
     Args:
         edid_chromaticity: Dict with 'red', 'green', 'blue', 'white' as (x, y) tuples
         monitor_name: Display name from EDID
         manufacturer: Manufacturer name
-        gamma: Assumed gamma (2.2 for most IPS/VA, 2.4 for some VA panels)
+        gamma: Gamma read from EDID byte 23, or None when the EDID carried none
 
     Returns:
         PanelCharacterization built from EDID data
@@ -198,23 +241,22 @@ def create_from_edid(
     else:
         panel_type = "sRGB-class"
 
-    # Build a correction matrix based on how far primaries are from sRGB
-    # This is an identity-ish matrix with small corrections
-    srgb_red = (0.6400, 0.3300)
-    srgb_green = (0.3000, 0.6000)
-    srgb_blue = (0.1500, 0.0600)
+    # The correction matrix is derived from the primaries, not weighted by hand.
+    # It used to be built from the distance of each primary to its sRGB
+    # counterpart times a fixed coefficient, which has no colorimetric meaning:
+    # the diagonal grew with the shift, so a wider panel was told to drive its
+    # already-oversaturated primary harder. per_display_calibration multiplies
+    # this into linear RGB on the way to the LUT loaded into the GPU.
+    ccm = _srgb_to_native_matrix(red, green, blue, white)
 
-    # Calculate approximate correction magnitudes
-    r_shift = abs(red[0] - srgb_red[0]) + abs(red[1] - srgb_red[1])
-    g_shift = abs(green[0] - srgb_green[0]) + abs(green[1] - srgb_green[1])
-    b_shift = abs(blue[0] - srgb_blue[0]) + abs(blue[1] - srgb_blue[1])
-
-    # Build conservative correction matrix
-    ccm = [
-        [1.0 + r_shift * 0.5, -g_shift * 0.3, -b_shift * 0.2],
-        [-r_shift * 0.1, 1.0 + g_shift * 0.3, -b_shift * 0.15],
-        [r_shift * 0.03, -g_shift * 0.5, 1.0 + b_shift * 0.45],
-    ]
+    # None means the EDID stated no gamma. The curves below need a number, so
+    # they take 2.2, and the note says which of the two a reader has. The
+    # parameter used to default to 2.2 outright, which made a gamma read off
+    # byte 23 and a gamma nobody read identical inside the profile.
+    gamma_value = 2.2 if gamma is None else gamma
+    gamma_note = (
+        "Gamma assumed 2.2, the EDID carried none." if gamma is None else f"Gamma {gamma_value:.2f} read from EDID."
+    )
 
     return PanelCharacterization(
         manufacturer=manufacturer,
@@ -226,22 +268,32 @@ def create_from_edid(
             blue=ChromaticityCoord(blue[0], blue[1]),
             white=ChromaticityCoord(white[0], white[1]),
         ),
-        gamma_red=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
-        gamma_green=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
-        gamma_blue=GammaCurve(gamma=gamma, offset=0.0, linear_portion=0.0),
+        gamma_red=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
+        gamma_green=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
+        gamma_blue=GammaCurve(gamma=gamma_value, offset=0.0, linear_portion=0.0),
         capabilities=PanelCapabilities(
-            max_luminance_sdr=250.0,
-            max_luminance_hdr=400.0,
-            min_luminance=0.1,
-            native_contrast=1000.0,
+            # Zero means not known. EDID chromaticity carries no photometry, and
+            # parse_edid does not read the CTA extension blocks that would carry
+            # HDR static metadata, so this panel has no evidence for peak
+            # brightness, black level, contrast or HDR support. These fields used
+            # to read 250, 400, 0.1 and 1000 for every display, and hdr_capable
+            # was copied from the gamut, which is a different property: a P3 SDR
+            # monitor is wide gamut and not HDR. The numbers reach hardware, so
+            # they are left unknown rather than filled in. wide_gamut does follow
+            # from the primaries above and is kept.
+            max_luminance_sdr=0.0,
+            max_luminance_hdr=0.0,
+            min_luminance=0.0,
+            native_contrast=0.0,
             bit_depth=8,
-            hdr_capable=is_wide_gamut,
+            hdr_capable=False,
             wide_gamut=is_wide_gamut,
             vrr_capable=False,
             local_dimming=False,
         ),
         color_correction_matrix=ccm,
-        notes=f"Auto-generated from EDID data. Primaries: R({red[0]:.4f},{red[1]:.4f}) "
+        notes=f"Built from EDID chromaticity. Primaries: R({red[0]:.4f},{red[1]:.4f}) "
         f"G({green[0]:.4f},{green[1]:.4f}) B({blue[0]:.4f},{blue[1]:.4f}). "
-        f"Gamma assumed {gamma}.",
+        f"{gamma_note} Luminance, contrast and HDR support are not in "
+        f"EDID chromaticity and are reported as unknown.",
     )

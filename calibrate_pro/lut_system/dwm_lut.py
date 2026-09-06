@@ -12,8 +12,9 @@ This module provides functionality to:
 3. Support PQ (ST.2084) EOTF for HDR calibration
 4. Hot-swap LUTs without restart
 
-Requirements:
-- Windows 10 20H2+ or Windows 11
+Requirements for the bundled dwm_lut 3.8 binary:
+- Windows builds 19042, 19043, or 22000 only
+- Other builds require a separately validated compatible injector
 - dwm_lut from ledoge/dwm_lut (DwmLutGUI.exe + dwm_lut.dll)
 
 LUT File Placement:
@@ -62,6 +63,9 @@ PQ_C3 = _ST2084_C3
 SDR_REFERENCE_WHITE = 80  # SDR content reference (sRGB)
 HDR_REFERENCE_WHITE = 203  # HDR10 reference white
 HDR_PEAK_LUMINANCE = _ST2084_PEAK_NITS  # PQ max luminance
+BUNDLED_DWM_LUT_VERSION = "3.8"
+DWM_LUT_EXECUTABLE = "DwmLutGUI.exe"
+BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS = frozenset({19042, 19043, 22000})
 
 
 class ColorPipelineStage(Enum):
@@ -122,6 +126,16 @@ class DwmLutError(Exception):
     """DWM LUT operation error."""
 
     pass
+
+
+def assert_dwm_lut_runtime_supported(version: str, windows_build: int) -> None:
+    """Reject DWM injection when bundled hook offsets are not build-compatible."""
+    if version == BUNDLED_DWM_LUT_VERSION and windows_build not in BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS:
+        supported = ", ".join(str(build) for build in sorted(BUNDLED_DWM_LUT_SUPPORTED_WINDOWS_BUILDS))
+        raise DwmLutError(
+            f"bundled dwm_lut {version} is unsupported on Windows build "
+            f"{windows_build}; supported builds: {supported}. Refusing DWM injection."
+        )
 
 
 # =============================================================================
@@ -601,6 +615,54 @@ def get_dwm_lut_directory() -> Path:
 # =============================================================================
 
 
+def dwm_lut_search_paths() -> list[Path]:
+    """List the directories searched for the DWM LUT tool, most preferred first."""
+    bundled = resource_path("dwm_lut")
+    paths = [bundled]
+    if getattr(sys, "frozen", False):
+        paths.append(Path(sys.executable).parent / "dwm_lut")
+    paths.extend(
+        [
+            Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
+            Path(__file__).parent / "bin",
+            Path("C:/Program Files/dwm_lut"),
+            Path.home() / "dwm_lut",
+        ]
+    )
+    return paths
+
+
+def bundled_dwm_lut_version_at(path: Path) -> str | None:
+    """Return the bundled hook version when `path` is the packaged copy, else None.
+
+    A copy the operator installed elsewhere carries no version this package can
+    vouch for, so it answers None instead of claiming the bundled version.
+    """
+    try:
+        is_bundled = path.resolve() == resource_path("dwm_lut").resolve()
+    except OSError:
+        return None
+    return BUNDLED_DWM_LUT_VERSION if is_bundled else None
+
+
+def find_dwm_lut_directory() -> Path | None:
+    """Locate the installed DWM LUT tool by reading the filesystem only.
+
+    This stats paths and consults PATH. It creates nothing, launches nothing,
+    and is safe to call from the read-only detection pass.
+    """
+    for candidate in dwm_lut_search_paths():
+        try:
+            if (candidate / DWM_LUT_EXECUTABLE).exists():
+                return candidate
+        except OSError:
+            continue
+    located = shutil.which(DWM_LUT_EXECUTABLE)
+    if located:
+        return Path(located).parent
+    return None
+
+
 class DwmLutController:
     """
     Controller for DWM-level 3D LUT application using ledoge/dwm_lut.
@@ -617,6 +679,7 @@ class DwmLutController:
             dwm_lut_path: Path to dwm_lut directory containing DwmLutGUI.exe
         """
         self._dwm_lut_path = dwm_lut_path
+        self._bundled_dependency_version: str | None = None
         self._lut_directory = get_dwm_lut_directory()
         self._active_luts: dict[str, DisplayLUTInfo] = {}
         self._monitors: list[MonitorInfo] = []
@@ -632,36 +695,25 @@ class DwmLutController:
 
     def _find_dwm_lut(self) -> None:
         """Find dwm_lut installation."""
-        if self._dwm_lut_path and (self._dwm_lut_path / "DwmLutGUI.exe").exists():
+        if self._dwm_lut_path and (self._dwm_lut_path / DWM_LUT_EXECUTABLE).exists():
             return
+        found = find_dwm_lut_directory()
+        if found is None:
+            return
+        self._dwm_lut_path = found
+        version = bundled_dwm_lut_version_at(found)
+        if version is not None:
+            self._bundled_dependency_version = version
 
-        # Search bundled resources before legacy installation locations.
-        search_paths = [resource_path("dwm_lut")]
-
-        # Frozen build: look next to the executable
-        if getattr(sys, "frozen", False):
-            search_paths.append(Path(sys.executable).parent / "dwm_lut")
-
-        search_paths.extend(
-            [
-                Path(__file__).parent.parent.parent / "dwm_lut",  # calibrate/dwm_lut
-                Path(__file__).parent / "bin",
-                Path("C:/Program Files/dwm_lut"),
-                Path.home() / "dwm_lut",
-            ]
+    def _assert_runtime_compatible(self) -> None:
+        """Fail closed before staging or launching a build-sensitive DWM hook."""
+        version = getattr(self, "_bundled_dependency_version", None)
+        if os.name != "nt" or version is None:
+            return
+        assert_dwm_lut_runtime_supported(
+            version,
+            sys.getwindowsversion().build,
         )
-
-        for path in search_paths:
-            if path.exists() and (path / "DwmLutGUI.exe").exists():
-                self._dwm_lut_path = path
-                return
-
-        # Check PATH
-        import shutil as sh
-
-        exe = sh.which("DwmLutGUI.exe")
-        if exe:
-            self._dwm_lut_path = Path(exe).parent
 
     def _ensure_lut_directory(self) -> None:
         """Ensure the LUT directory exists."""
@@ -743,6 +795,8 @@ class DwmLutController:
         Returns:
             True if successful
         """
+        self._assert_runtime_compatible()
+
         # Get monitor info
         if isinstance(monitor, int):
             monitor_info = self.get_monitor_by_index(monitor)
@@ -802,6 +856,8 @@ class DwmLutController:
         Returns:
             True if successful
         """
+        self._assert_runtime_compatible()
+
         source_path = Path(source_path)
         if not source_path.exists():
             raise DwmLutError(f"LUT file not found: {source_path}")
@@ -919,6 +975,7 @@ class DwmLutController:
         """
         if not self.is_available:
             raise DwmLutError("dwm_lut not found. Please install from https://github.com/ledoge/dwm_lut")
+        self._assert_runtime_compatible()
 
         try:
             # Check if already running

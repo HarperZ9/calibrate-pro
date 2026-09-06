@@ -125,10 +125,12 @@ inspectable, but its model score does not establish the accuracy of the attached
 
 **What sensorless calibration CANNOT do:** Guarantee measured accuracy. Only a colorimeter measurement on YOUR specific panel tells you the actual result.
 
-**Recommendation:** Use the GUI to review the assumptions and exact plan. For measured results,
-use a supported colorimeter and retain its evidence provenance. Generate and explicitly confirm
-a fresh plan for every display change; legacy direct-action CLI names are proposal-only and exit
-without changing display state.
+**Recommendation:** Use the window to review the assumptions and the exact plan before
+generating. With a supported colorimeter attached, measure the display first. The run
+replaces the panel record the plan is derived from, and measured verification then reports
+the result from a second reading rather than from a model. Generate and explicitly confirm
+a fresh plan for every display change; legacy direct-action CLI names are proposal-only and
+exit without changing display state.
 
 ---
 
@@ -138,7 +140,7 @@ without changing display state.
 |--------|----------|---------|
 | `.cube` (33³) | DaVinci Resolve, dwm_lut | Standard 3D LUT |
 | `.3dlut` | MadVR | Binary LUT for video playback |
-| `.icc` (v4) | Windows, macOS, Linux | ICC color profile with TRC curves |
+| `.icc` (v4) | Windows, macOS, Linux | Panel primaries at the target white and tone response, gamma table embedded |
 | `_mhc2.icc` | Windows HDR | MHC2 matrix for DWM compositor |
 | `_reshade.png` | ReShade | Strip texture LUT |
 | `_specialk.png` | SpecialK | Strip texture LUT |

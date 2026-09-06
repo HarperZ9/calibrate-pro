@@ -43,6 +43,10 @@ def test_preview_provider_is_generic_deterministic_and_evidence_labelled() -> No
     )
 
 
+# Builds the production service, whose journal root is the Windows
+# per-user application directory. Running it where that directory does not
+# exist would test a faked environment rather than the shipped one.
+@pytest.mark.windows
 def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
     qapp: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -68,12 +72,10 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         "_start_services",
         "_update_tray_state",
         "_check_first_run",
-        "_calibrate_all",
-        "_restore_defaults",
-        "_install_profile",
-        "_export",
-        "_test_patterns",
-        "_hdr_status",
+        "_prime_session",
+        "_detect_displays",
+        "_export_format",
+        "_show_hdr_status",
     ):
         monkeypatch.setattr(
             CalibrateProWindow,
@@ -103,9 +105,16 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         )
 
         buttons = {button.text(): button for button in window.findChildren(QPushButton)}
-        for label in ("Add Display Profile", "Calibrate All", "Calibrate"):
+        for label in ("Calibrate All", "Calibrate"):
             assert label in buttons
             assert not buttons[label].isEnabled()
+        # Opening the add-profile dialog is an interface action and stays open
+        # here, because the restriction narrows what reaches past the interface
+        # rather than what the operator is allowed to look at. The dialog it
+        # opens does nothing on its own: the preview session runs no detection
+        # pass, so it has no display to describe, and reading a chosen file is
+        # classified read_only and so is closed by the same restriction.
+        assert buttons["Add Display Profile"].isEnabled()
         assert "QPushButton:disabled" in buttons["Add Display Profile"].styleSheet()
         assert buttons["Calibrate All"].property("primary") is False
         assert buttons["Calibrate"].property("primary") is False
@@ -131,12 +140,24 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
             "&Calibrate All",
             ".cube (Resolve / dwm_lut)",
             "&Restore Defaults",
-            "&Install ICC Profile...",
+            "&Install Checked Profile",
             "&Test Patterns",
             "&HDR Status",
         ):
             assert label in actions
             assert not actions[label].isEnabled()
+
+        # An action the session hides is removed rather than shown greyed out.
+        # A permanently disabled "Calibrate All" would still advertise a
+        # workflow this build does not have.
+        assert not actions["&Calibrate All"].isVisible()
+        assert buttons["Calibrate All"].isHidden()
+
+        # Every disabled control explains itself in the session's own words.
+        # Qt answers an empty tooltip with the entry's own text, so a reason is
+        # present only when the tooltip says something the label does not.
+        for label in ("&Restore Defaults", "&Install Checked Profile", "&Test Patterns", "&HDR Status"):
+            assert actions[label].toolTip() not in ("", label)
 
         assert window.stack.count() == 6
         assert window.sidebar.isEnabled()
@@ -147,6 +168,7 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         qapp.processEvents()
 
 
+@pytest.mark.windows
 def test_preview_renderer_writes_a_nonempty_1440_by_900_png(tmp_path: Path) -> None:
     output = tmp_path / "calibrate-pro-native-preview.png"
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}

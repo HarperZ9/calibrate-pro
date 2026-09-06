@@ -1,7 +1,7 @@
-# Calibrate Pro 1.1 Enterprise Readiness
+# Calibrate Pro 2.0 Enterprise Readiness
 
 Calibrate Pro combines display-calibration planning, deterministic color transforms,
-hardware adapters, and evidence-labelled reporting in one Windows application. Its 1.1
+hardware adapters, and evidence-labelled reporting in one Windows application. Its 2.0
 release boundary favors inspectable, reversible operations over unattended display
 mutation.
 
@@ -22,6 +22,11 @@ mutation.
 - Read-only CLI diagnostics, target/panel information, HDR status, pattern display, and
   plugin metadata.
 - Stable `doctor --json` installation diagnostics for support automation.
+- A headless session (`detect`, `status`, `verify`, `generate-profiles`, `profiles`,
+  `diagnostics`) that runs the same actions the window runs, for unattended inventory,
+  planning, and bundle publication. It performs no display write.
+- A redacted action journal an operator can read back and publish as a support bundle,
+  after being shown the digest of every file it would carry.
 - Legacy mutation-capable CLI names are proposal-only and perform no display write.
 - A read-only tray and monitor-and-notify calibration guard.
 
@@ -76,7 +81,7 @@ build or support investigation can identify the exact inputs and outputs.
 
 - Hardware controls vary by display, firmware, GPU driver, and Windows capability.
   Unsupported or non-restorable operations remain unavailable.
-- A measured workflow requires a supported instrument.
+- Measured calibration runs from the desktop window and needs a supported colorimeter at the workstation. Procuring instruments is necessary and not sufficient: a run is refused while the display is loading a correction, and that check reads the video card gamma table rather than every layer that can sit between a signal and the light.
 - Sensorless characterization cannot measure unit variation or drift.
 - Recovery is an in-process compensating transaction, not a crash-proof hardware
   transaction across power loss or operating-system failure.

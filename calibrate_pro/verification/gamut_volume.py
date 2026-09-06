@@ -9,20 +9,52 @@ Provides comprehensive gamut coverage and volume analysis:
 - Color space intersection/union calculations
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-# Optional scipy import
-try:
-    from scipy.spatial import ConvexHull, Delaunay
+if TYPE_CHECKING:
+    from scipy.spatial import ConvexHull
 
-    SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
-    ConvexHull = None
-    Delaunay = None
+
+def _scipy_spatial() -> Any:
+    """Import ``scipy.spatial``, or answer None when it is not installed.
+
+    ``scipy.spatial`` costs 562 modules to import on Python 3.12. This module
+    used to pay that at import time, behind a try/except that still performs the
+    import when it succeeds, so anything reading the planar triangle math below
+    paid for a convex hull library it never called. The target layer reads three of those
+    helpers on the way to every headless command.
+
+    Three call sites in this file build a hull, and each one asks here first.
+    None is the condition the old ``SCIPY_AVAILABLE`` flag reported, and after
+    the first call this is a dictionary lookup in ``sys.modules``.
+    """
+    try:
+        import scipy.spatial
+    except ImportError:
+        return None
+    return scipy.spatial
+
+
+def __getattr__(name: str) -> Any:
+    """Answer the three names this module used to bind at import time.
+
+    ``SCIPY_AVAILABLE`` is re-exported by the package, and the two classes were
+    importable from here. Reading any of them imports SciPy, which is the point:
+    a caller that wants the hull types is a caller that wants SciPy.
+    """
+    if name == "SCIPY_AVAILABLE":
+        return _scipy_spatial() is not None
+    if name in ("ConvexHull", "Delaunay"):
+        spatial = _scipy_spatial()
+        return None if spatial is None else getattr(spatial, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # =============================================================================
 # Enums
@@ -131,7 +163,10 @@ class GamutCoverage:
 
     color_space: ColorSpace
     coverage_percent: float  # Percentage of target gamut covered
-    volume_ratio: float  # Measured volume / target volume
+    # None when the volume could not be computed. This used to default to 1.0,
+    # which published a display nobody sampled as an exact match for the
+    # target volume.
+    volume_ratio: float | None  # Measured volume / target volume
     exceeds_percent: float  # Percentage outside target (can exceed)
 
     # Primary accuracy
@@ -141,7 +176,7 @@ class GamutCoverage:
     # Detailed metrics
     area_xy: float  # 2D area in xy chromaticity
     area_uv: float  # 2D area in u'v' chromaticity
-    volume_lab: float  # 3D volume in Lab space
+    volume_lab: float | None  # 3D volume in Lab space, None when not computed
 
     grade: GamutGrade
 
@@ -203,10 +238,13 @@ class GamutAnalysisResult:
     oog_analysis: dict[ColorSpace, OutOfGamutAnalysis]
 
     # Overall metrics
-    total_volume_lab: float
-    white_point_xy: tuple[float, float]
-    white_point_cct: float
-    white_point_duv: float
+    total_volume_lab: float | None
+    # None when measured_primaries carried no "W". These used to default to
+    # D65, which reported a panel whose white nobody read as a perfect 6504K
+    # at Duv 0.0000. An absent measurement is absent, not a passing one.
+    white_point_xy: tuple[float, float] | None
+    white_point_cct: float | None
+    white_point_duv: float | None
 
     # Metadata
     timestamp: str = ""
@@ -541,7 +579,7 @@ def generate_gamut_samples(color_space: ColorSpace, samples_per_axis: int = 17) 
     return np.array(samples)
 
 
-def calculate_gamut_volume_lab(samples: np.ndarray) -> float:
+def calculate_gamut_volume_lab(samples: np.ndarray) -> float | None:
     """
     Calculate gamut volume in Lab space using convex hull.
 
@@ -549,29 +587,35 @@ def calculate_gamut_volume_lab(samples: np.ndarray) -> float:
         samples: Array of Lab values
 
     Returns:
-        Volume in Lab³ units
+        Volume in Lab³ units, or None when no hull could be built
     """
+    spatial = _scipy_spatial()
+    if spatial is None:
+        return None
     try:
-        hull = ConvexHull(samples)
-        return hull.volume
+        hull = spatial.ConvexHull(samples)
+        return float(hull.volume)
     except Exception:
-        return 0.0
+        # None, not 0.0. A convex hull fails on degenerate samples, and a
+        # reported volume of zero reads as a display that covers nothing
+        # rather than one this function never managed to measure.
+        return None
 
 
-def calculate_gamut_volume_ratio(measured_samples: np.ndarray, target_space: ColorSpace) -> float:
+def calculate_gamut_volume_ratio(measured_samples: np.ndarray, target_space: ColorSpace) -> float | None:
     """
     Calculate ratio of measured volume to target color space volume.
 
     Returns:
-        Volume ratio (1.0 = same volume)
+        Volume ratio (1.0 = same volume), or None when either volume is absent
     """
     target_samples = generate_gamut_samples(target_space, 17)
 
     measured_volume = calculate_gamut_volume_lab(measured_samples)
     target_volume = calculate_gamut_volume_lab(target_samples)
 
-    if target_volume <= 0:
-        return 0.0
+    if measured_volume is None or target_volume is None or target_volume <= 0:
+        return None
 
     return measured_volume / target_volume
 
@@ -656,6 +700,16 @@ class GamutAnalyzer:
         """
         from datetime import datetime
 
+        # Every triangle below indexes R, G and B. Checking here names the one
+        # that is missing instead of raising a KeyError from inside an area
+        # computation several frames down.
+        missing = [k for k in ("R", "G", "B") if k not in measured_primaries]
+        if missing:
+            raise ValueError(
+                f"measured_primaries is missing {', '.join(missing)}. "
+                f"Gamut analysis needs a measured red, green and blue chromaticity."
+            )
+
         # Calculate coverage for each standard space
         all_coverage: dict[ColorSpace, GamutCoverage] = {}
 
@@ -674,13 +728,13 @@ class GamutAnalyzer:
                 oog_analysis[color_space] = oog
 
         # Calculate total volume
-        total_volume = 0.0
+        total_volume: float | None = None
         if measured_samples is not None:
             total_volume = calculate_gamut_volume_lab(measured_samples)
 
-        # White point analysis
-        white_xy = measured_primaries.get("W", (0.3127, 0.3290))
-        white_cct, white_duv = self._calculate_cct(white_xy)
+        # White point analysis. Reported only when a white was measured.
+        white_xy = measured_primaries.get("W")
+        white_cct, white_duv = self._calculate_cct(white_xy) if white_xy is not None else (None, None)
 
         return GamutAnalysisResult(
             measured_boundary=measured_boundary,
@@ -718,8 +772,8 @@ class GamutAnalyzer:
         area_uv = calculate_gamut_area_uv(measured_primaries)
 
         # Calculate volume ratio
-        volume_ratio = 1.0
-        volume_lab = 0.0
+        volume_ratio: float | None = None
+        volume_lab: float | None = None
         if measured_samples is not None:
             volume_ratio = calculate_gamut_volume_ratio(measured_samples, target_space)
             volume_lab = calculate_gamut_volume_lab(measured_samples)
@@ -730,7 +784,10 @@ class GamutAnalyzer:
 
         for name in ["R", "G", "B"]:
             target_xy = target_primaries[name]
-            measured_xy = measured_primaries.get(name, target_xy)
+            # Indexed, not .get(name, target_xy). That default handed the
+            # scorer the answer it was checking, so an unmeasured primary
+            # reported a delta of exactly zero against its own target.
+            measured_xy = measured_primaries[name]
 
             delta_xy = np.sqrt((measured_xy[0] - target_xy[0]) ** 2 + (measured_xy[1] - target_xy[1]) ** 2)
 
@@ -781,9 +838,10 @@ class GamutAnalyzer:
 
         # 3D hull
         hull_lab = None
-        if samples is not None and len(samples) >= 4:
+        spatial = _scipy_spatial()
+        if spatial is not None and samples is not None and len(samples) >= 4:
             try:
-                hull_lab = ConvexHull(samples)
+                hull_lab = spatial.ConvexHull(samples)
             except Exception:
                 pass
 
@@ -799,8 +857,11 @@ class GamutAnalyzer:
         # Generate target gamut hull
         target_samples = generate_gamut_samples(target_space, 17)
 
+        spatial = _scipy_spatial()
         try:
-            target_hull = Delaunay(target_samples)
+            if spatial is None:
+                raise ModuleNotFoundError("scipy.spatial is not installed")
+            target_hull = spatial.Delaunay(target_samples)
         except Exception:
             return OutOfGamutAnalysis(
                 target_space=target_space,
@@ -926,7 +987,10 @@ def print_gamut_summary(result: GamutAnalysisResult) -> None:
     for name, xy in result.measured_primaries.items():
         print(f"  {name}: ({xy[0]:.4f}, {xy[1]:.4f})")
     print()
-    print(f"White Point: {result.white_point_cct:.0f}K, Duv = {result.white_point_duv:.4f}")
+    if result.white_point_cct is None or result.white_point_duv is None:
+        print("White Point: not measured")
+    else:
+        print(f"White Point: {result.white_point_cct:.0f}K, Duv = {result.white_point_duv:.4f}")
     print()
     print("Coverage Results:")
     print(f"  sRGB:      {result.srgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.srgb_coverage.grade)}")
@@ -938,7 +1002,9 @@ def print_gamut_summary(result: GamutAnalysisResult) -> None:
         f"  Adobe RGB: {result.adobe_rgb_coverage.coverage_percent:.1f}% - {grade_to_string(result.adobe_rgb_coverage.grade)}"
     )
     print()
-    if result.total_volume_lab > 0:
+    if result.total_volume_lab is None:
+        print("Total Volume (Lab³): not computed")
+    elif result.total_volume_lab > 0:
         print(f"Total Volume (Lab³): {result.total_volume_lab:.0f}")
     print("=" * 60)
 

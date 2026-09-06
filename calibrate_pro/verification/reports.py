@@ -129,6 +129,23 @@ class VerificationSummary:
     recommendations: list[str] = field(default_factory=list)
 
 
+def _num_or(value: float | None, spec: str, absent: str = "not measured") -> str:
+    """Format a number, or say the reading behind it never arrived.
+
+    The gamut result carries None for a white point the caller never measured
+    and for a volume this run could not compute. A formatted number in either
+    place is a reading nobody took.
+    """
+    return absent if value is None else spec.format(value)
+
+
+def _wp_xy(result: GamutAnalysisResult) -> str:
+    """Format the white point chromaticity pair, or say it was never measured."""
+    if result.white_point_xy is None:
+        return "not measured"
+    return f"({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})"
+
+
 def _summary_report_payload(summary: VerificationSummary) -> dict[str, object]:
     return build_report_payload({"mode": "verification", "metrics": summary.metrics})
 
@@ -514,11 +531,12 @@ class ReportGenerator:
         elements.append(table)
         elements.append(Spacer(1, 10))
 
-        # White point info
+        # White point info. None throughout when no white was measured, and
+        # a report that prints a number there claims a reading nobody took.
         wp_text = (
-            f"<b>White Point:</b> ({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})<br/>"
-            f"<b>CCT:</b> {result.white_point_cct:.0f}K<br/>"
-            f"<b>Duv:</b> {result.white_point_duv:.4f}"
+            f"<b>White Point:</b> {_wp_xy(result)}<br/>"
+            f"<b>CCT:</b> {_num_or(result.white_point_cct, '{:.0f}K')}<br/>"
+            f"<b>Duv:</b> {_num_or(result.white_point_duv, '{:.4f}')}"
         )
         elements.append(Paragraph(wp_text, body_style))
 
@@ -868,25 +886,25 @@ class ReportGenerator:
             <tr>
                 <td>sRGB</td>
                 <td>{result.srgb_coverage.coverage_percent:.1f}%</td>
-                <td>{result.srgb_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.srgb_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.srgb_coverage.grade.name.lower()}">{result.srgb_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>DCI-P3</td>
                 <td>{result.p3_coverage.coverage_percent:.1f}%</td>
-                <td>{result.p3_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.p3_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.p3_coverage.grade.name.lower()}">{result.p3_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>BT.2020</td>
                 <td>{result.bt2020_coverage.coverage_percent:.1f}%</td>
-                <td>{result.bt2020_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.bt2020_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.bt2020_coverage.grade.name.lower()}">{result.bt2020_coverage.grade.name}</span></td>
             </tr>
             <tr>
                 <td>Adobe RGB</td>
                 <td>{result.adobe_rgb_coverage.coverage_percent:.1f}%</td>
-                <td>{result.adobe_rgb_coverage.volume_ratio:.2f}</td>
+                <td>{_num_or(result.adobe_rgb_coverage.volume_ratio, "{:.2f}", "not computed")}</td>
                 <td><span class="grade-badge grade-{result.adobe_rgb_coverage.grade.name.lower()}">{result.adobe_rgb_coverage.grade.name}</span></td>
             </tr>
         </table>
@@ -894,15 +912,15 @@ class ReportGenerator:
         <h3>White Point</h3>
         <div class="stat-grid">
             <div class="stat-item">
-                <div class="stat-value">({result.white_point_xy[0]:.4f}, {result.white_point_xy[1]:.4f})</div>
+                <div class="stat-value">{_wp_xy(result)}</div>
                 <div class="stat-label">xy Chromaticity</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{result.white_point_cct:.0f}K</div>
+                <div class="stat-value">{_num_or(result.white_point_cct, "{:.0f}K")}</div>
                 <div class="stat-label">CCT</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">{result.white_point_duv:.4f}</div>
+                <div class="stat-value">{_num_or(result.white_point_duv, "{:.4f}")}</div>
                 <div class="stat-label">Duv</div>
             </div>
         </div>
@@ -1032,7 +1050,7 @@ class ReportGenerator:
         if summary.gamut:
             gm = summary.gamut
             data["gamut"] = {
-                "white_point_xy": list(gm.white_point_xy),
+                "white_point_xy": list(gm.white_point_xy) if gm.white_point_xy is not None else None,
                 "white_point_cct": gm.white_point_cct,
                 "white_point_duv": gm.white_point_duv,
                 "total_volume_lab": gm.total_volume_lab,
@@ -1114,7 +1132,7 @@ def generate_recommendations(summary: VerificationSummary) -> list[str]:
                 f"sRGB coverage is {gm.srgb_coverage.coverage_percent:.1f}%. "
                 "Display may not accurately reproduce web/photo content."
             )
-        if abs(gm.white_point_duv) > 0.005:
+        if gm.white_point_duv is not None and abs(gm.white_point_duv) > 0.005:
             recommendations.append(
                 f"White point Duv ({gm.white_point_duv:.4f}) indicates tint. Aim for Duv < 0.005 for neutral whites."
             )

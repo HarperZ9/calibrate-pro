@@ -1,0 +1,899 @@
+"""Source-controlled action capability manifest and default-deny resolver."""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import Enum
+from importlib import resources
+from types import MappingProxyType
+from typing import Any, Literal, cast
+
+from calibrate_pro.application.contracts import (
+    PHASE_ONE_EVIDENCE_KINDS,
+    CharacterizationKind,
+    EvidenceKind,
+)
+from calibrate_pro.application.monitor_controls import STAGE_ACTION_CODES
+from calibrate_pro.application.target_selection import PRESET_TARGETS, is_target_id
+from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
+
+Policy = Literal["enabled", "conditional", "disabled", "hidden"]
+EvidenceMode = Literal["none", "read_only", "estimated", "measured"]
+RuntimeMode = Literal["source", "frozen"]
+ExportFormat = Literal["cube", "3dlut", "png", "icc", "mpv", "obs"]
+
+UNKNOWN_ACTION_REASON = "Action is absent from the source-controlled product capability manifest."
+_POLICIES = frozenset({"enabled", "conditional", "disabled", "hidden"})
+_EVIDENCE_MODES = frozenset({"none", "read_only", "estimated", "measured"})
+_ASSET_KINDS = frozenset({"ICC", "CUBE"})
+_EXPORT_FORMATS = frozenset({"cube", "3dlut", "png", "icc", "mpv", "obs"})
+_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+class ActionDisposition(str, Enum):
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+    HIDDEN = "hidden"
+
+
+class ActionClassification(str, Enum):
+    UI_ONLY = "ui_only"
+    READ_ONLY = "read_only"
+    LOCAL_FILE_WRITE = "local_file_write"
+    PHYSICAL_MUTATION = "physical_mutation"
+
+
+@dataclass(frozen=True)
+class ActionContext:
+    stage: WorkflowStage
+    runtime_mode: RuntimeMode
+    fake_acceptance: bool
+    selected_display_id: str | None
+    characterization_kind: CharacterizationKind | None
+
+    #: Whether the selected display declared primaries and a transfer this
+    #: build could read. It says an offer exists, never that the session took
+    #: it: the kind is what reports acceptance, and that only moves when the
+    #: operator accepts.
+    edid_declaration_available: bool
+    selected_method: CalibrationMethod | None
+    target_valid: bool
+    selected_preset_id: str | None
+    target_hdr: bool
+    generated_asset_kinds: frozenset[Literal["ICC", "CUBE"]]
+    sealed_plan_sha256: str | None
+
+    #: Whether the sealed plan asks for a display route at all. A plan that
+    #: asks for none is a complete bundle an operator can export; it is not
+    #: something an apply can carry out, so the apply predicate reads this
+    #: beside the qualification rather than inferring it from the digest.
+    sealed_plan_actuatable: bool
+    confirmation_state: Literal["none", "live", "confirmed", "consumed", "expired"]
+    fake_applied_plan_sha256: str | None
+    applied_plan_sha256: str | None
+    capability_generation: int
+    sealed_capability_generation: int | None
+    verification_evidence: EvidenceKind | None
+    export_source_ready: bool
+    configured_export_directory_valid: bool
+    available_export_formats: frozenset[ExportFormat]
+    selected_profile_reparsed: bool
+    validated_import_ready: bool
+    supported_vcp_codes: frozenset[int]
+
+    #: The codes an apply would write if it ran now. A staged set is what
+    #: separates an apply control that has something to do from one that would
+    #: send an empty transaction to a display.
+    staged_vcp_codes: frozenset[int]
+    diagnostic_bundle_preview_live: bool
+    journal_ready: bool
+    physical_apply_qualified: bool
+    measured_qualified: bool
+
+    #: Whether a pattern surface was wired and a display was selected to open
+    #: one on. There is no probed capability in this pair, because nothing can
+    #: be asked of a display about a window that does not exist yet. A surface
+    #: too small or too scaled for the pattern asked for refuses at the
+    #: surface, which is the only place that fact is knowable.
+    patterns_qualified: bool
+
+    #: Whether a monitor control port was wired and a probe found a display
+    #: that answers on it. This gates reading the display's own controls, and
+    #: it is separate from the apply qualification above because DDC/CI writes
+    #: to the panel rather than to the signal a LUT route carries.
+    monitor_controls_qualified: bool
+
+    #: The read qualification plus a reading in hand. Every staged value is
+    #: checked against a range the display reported, so a session with no
+    #: reading has nothing to check a write against and is offered none.
+    monitor_writes_qualified: bool
+
+    #: Whether a system profile port was wired and a probe found the colour
+    #: directory this build installs into. This gates reading the machine's
+    #: profile store, which is a different thing from the panel's own controls
+    #: and from the LUT route: it changes what colour-managed software is
+    #: handed rather than what the panel or the signal is doing.
+    system_profiles_qualified: bool
+
+    #: The read qualification plus a reading of the store in hand. Every write
+    #: here reports itself by the difference between two readings, so a session
+    #: holding none of the first is offered no write.
+    system_profile_writes_qualified: bool
+
+    #: Whether the machine already holds the inspected bundle's profile. What
+    #: separates activating a calibration from asking a display for one the
+    #: store has never been given.
+    selected_profile_installed: bool
+
+    #: Whether the selected display carries any profile this product attached.
+    #: A restore with nothing of this product's on the display would open the
+    #: store, write nothing, and report an undo the operator never asked for.
+    restorable_system_profiles: bool
+
+    #: Whether the machine holds any profile at all a display could be moved
+    #: to, including the ones this product had no part in.
+    switchable_system_profiles: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.stage, WorkflowStage):
+            raise TypeError("stage must be a WorkflowStage")
+        if type(self.runtime_mode) is not str or self.runtime_mode not in {"source", "frozen"}:
+            raise ValueError("runtime_mode must be source or frozen")
+        for name in (
+            "fake_acceptance",
+            "edid_declaration_available",
+            "target_valid",
+            "target_hdr",
+            "export_source_ready",
+            "configured_export_directory_valid",
+            "selected_profile_reparsed",
+            "validated_import_ready",
+            "diagnostic_bundle_preview_live",
+            "journal_ready",
+            "sealed_plan_actuatable",
+            "physical_apply_qualified",
+            "measured_qualified",
+            "patterns_qualified",
+            "monitor_controls_qualified",
+            "monitor_writes_qualified",
+            "system_profiles_qualified",
+            "system_profile_writes_qualified",
+            "selected_profile_installed",
+            "restorable_system_profiles",
+            "switchable_system_profiles",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be an exact boolean")
+        _validate_optional_nonempty_string(self.selected_display_id, "selected_display_id")
+        _validate_optional_nonempty_string(self.selected_preset_id, "selected_preset_id")
+        if self.characterization_kind is not None and not isinstance(self.characterization_kind, CharacterizationKind):
+            raise TypeError("characterization_kind must be CharacterizationKind or None")
+        if self.selected_method is not None and not isinstance(self.selected_method, CalibrationMethod):
+            raise TypeError("selected_method must be CalibrationMethod or None")
+        _validate_exact_frozenset(self.generated_asset_kinds, _ASSET_KINDS, "generated_asset_kinds")
+        _validate_optional_sha256(self.sealed_plan_sha256, "sealed_plan_sha256")
+        if type(self.confirmation_state) is not str or self.confirmation_state not in {
+            "none",
+            "live",
+            "confirmed",
+            "consumed",
+            "expired",
+        }:
+            raise ValueError("confirmation_state is invalid")
+        _validate_optional_sha256(self.fake_applied_plan_sha256, "fake_applied_plan_sha256")
+        _validate_optional_sha256(self.applied_plan_sha256, "applied_plan_sha256")
+        _validate_generation(self.capability_generation, "capability_generation")
+        if self.sealed_capability_generation is not None:
+            _validate_generation(self.sealed_capability_generation, "sealed_capability_generation")
+        if self.verification_evidence is not None:
+            if not isinstance(self.verification_evidence, EvidenceKind):
+                raise TypeError("verification_evidence must be the canonical EvidenceKind")
+            if self.verification_evidence not in PHASE_ONE_EVIDENCE_KINDS:
+                raise ValueError("Phase 0/1 does not admit simulated or replayed evidence")
+        _validate_exact_frozenset(self.available_export_formats, _EXPORT_FORMATS, "available_export_formats")
+        for name in ("supported_vcp_codes", "staged_vcp_codes"):
+            codes = getattr(self, name)
+            if type(codes) is not frozenset:
+                raise TypeError(f"{name} must be an exact frozenset")
+            for code in codes:
+                if type(code) is not int or not 0 <= code <= 0xFF:
+                    raise ValueError(f"{name} must contain exact integers from 0 through 255")
+        if not self.staged_vcp_codes <= self.supported_vcp_codes:
+            raise ValueError("staged_vcp_codes must name codes the display answered")
+
+
+@dataclass(frozen=True)
+class ActionSpec:
+    action_id: str
+    surfaces: tuple[str, ...]
+    classification: ActionClassification
+    required_stages: tuple[WorkflowStage, ...]
+    required_capabilities: tuple[str, ...]
+    source_policy: Policy
+    frozen_policy: Policy
+    handler: str
+    required_modules: tuple[str, ...]
+    required_resources: tuple[str, ...]
+    receipt_required: bool
+    evidence_modes: tuple[EvidenceMode, ...]
+    unavailable_disposition: ActionDisposition
+    unavailable_reason: str
+
+
+@dataclass(frozen=True)
+class ResolvedAction:
+    action_id: str
+    disposition: ActionDisposition
+    reason: str | None
+    handler: str
+
+
+_ACTION_KEYS = frozenset(
+    {
+        "action_id",
+        "surfaces",
+        "classification",
+        "required_stages",
+        "required_capabilities",
+        "source_policy",
+        "frozen_policy",
+        "handler",
+        "required_modules",
+        "required_resources",
+        "receipt_required",
+        "evidence_modes",
+        "unavailable_disposition",
+        "unavailable_reason",
+    }
+)
+
+
+class ActionRegistry:
+    """Validated immutable view of the source-controlled action manifest."""
+
+    def __init__(self, specs: tuple[ActionSpec, ...]) -> None:
+        self._specs_by_id: Mapping[str, ActionSpec] = MappingProxyType({spec.action_id: spec for spec in specs})
+        self._surfaces_by_action: Mapping[str, frozenset[str]] = MappingProxyType(
+            {spec.action_id: frozenset(spec.surfaces) for spec in specs}
+        )
+
+    @classmethod
+    def from_json_bytes(cls, payload: bytes) -> ActionRegistry:
+        if type(payload) is not bytes:
+            raise TypeError("manifest payload must be exact bytes")
+        text = payload.decode("utf-8", errors="strict")
+        decoded = json.loads(text, object_pairs_hook=_object_from_pairs)
+        if type(decoded) is not dict:
+            raise ValueError("manifest root must be an object")
+        root = cast(dict[str, object], decoded)
+        _require_exact_keys(root, frozenset({"schema_version", "default", "actions"}), "manifest root")
+        if type(root["schema_version"]) is not int or root["schema_version"] != 1:
+            raise ValueError("manifest schema_version must be exact integer 1")
+        if type(root["default"]) is not str or root["default"] != "disabled":
+            raise ValueError("manifest default must be disabled")
+        raw_actions = root["actions"]
+        if type(raw_actions) is not list:
+            raise ValueError("manifest actions must be an exact list")
+
+        specs: list[ActionSpec] = []
+        action_ids: set[str] = set()
+        surface_ids: set[str] = set()
+        for index, raw_action in enumerate(cast(list[object], raw_actions)):
+            spec = _parse_action_spec(raw_action, index)
+            if spec.action_id in action_ids:
+                raise ValueError(f"duplicate action_id: {spec.action_id}")
+            action_ids.add(spec.action_id)
+            for surface in spec.surfaces:
+                if surface in surface_ids:
+                    raise ValueError(f"duplicate surface: {surface}")
+                surface_ids.add(surface)
+            specs.append(spec)
+        return cls(tuple(specs))
+
+    @classmethod
+    def load_default(cls) -> ActionRegistry:
+        package_files = cast(Any, resources.files("calibrate_pro"))
+        payload = package_files.joinpath("resources", "action-capabilities.json").read_bytes()
+        return cls.from_json_bytes(payload)
+
+    @property
+    def action_ids(self) -> frozenset[str]:
+        return frozenset(self._specs_by_id)
+
+    @property
+    def surfaces_by_action(self) -> Mapping[str, frozenset[str]]:
+        return self._surfaces_by_action
+
+    def resolve(self, action_id: str, context: ActionContext) -> ResolvedAction:
+        if type(action_id) is not str or not isinstance(context, ActionContext):
+            return ResolvedAction(
+                action_id=action_id if type(action_id) is str else "",
+                disposition=ActionDisposition.DISABLED,
+                reason=UNKNOWN_ACTION_REASON,
+                handler="",
+            )
+        spec = self._specs_by_id.get(action_id)
+        if spec is None:
+            return ResolvedAction(
+                action_id=action_id,
+                disposition=ActionDisposition.DISABLED,
+                reason=UNKNOWN_ACTION_REASON,
+                handler="",
+            )
+
+        policy = spec.source_policy if context.runtime_mode == "source" else spec.frozen_policy
+        if policy == "hidden":
+            return ResolvedAction(action_id, ActionDisposition.HIDDEN, spec.unavailable_reason, spec.handler)
+        if policy == "disabled":
+            return ResolvedAction(action_id, ActionDisposition.DISABLED, _disabled_reason(spec, context), spec.handler)
+        if context.stage not in spec.required_stages:
+            return ResolvedAction(
+                action_id,
+                spec.unavailable_disposition,
+                f"Action is unavailable during the {context.stage.value} stage.",
+                spec.handler,
+            )
+        if policy == "conditional" and not _conditional_allowed(spec.action_id, context):
+            return ResolvedAction(
+                action_id,
+                spec.unavailable_disposition,
+                spec.unavailable_reason,
+                spec.handler,
+            )
+        return ResolvedAction(action_id, ActionDisposition.ENABLED, None, spec.handler)
+
+    def classification_of(self, action_id: str) -> ActionClassification | None:
+        """Report what kind of effect one action has, or None if unknown.
+
+        A surface reads this to apply its own narrowing rule, such as a preview
+        that performs nothing outside the interface. The classification is
+        source-controlled, so a rule written against it cannot be widened by
+        anything a surface does.
+        """
+        spec = self._specs_by_id.get(action_id)
+        return None if spec is None else spec.classification
+
+    def _spec_for(self, action_id: str) -> ActionSpec | None:
+        return self._specs_by_id.get(action_id)
+
+
+def _object_from_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
+def _require_exact_keys(value: Mapping[str, object], expected: frozenset[str], label: str) -> None:
+    actual = frozenset(value)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        raise ValueError(f"{label} must contain exact keys; missing={missing}, extra={extra}")
+
+
+def _parse_action_spec(raw_action: object, index: int) -> ActionSpec:
+    if type(raw_action) is not dict:
+        raise ValueError(f"action {index} must be an object")
+    action = cast(dict[str, object], raw_action)
+    _require_exact_keys(action, _ACTION_KEYS, f"action {index}")
+    action_id = _exact_nonempty_string(action["action_id"], f"action {index} action_id")
+    _validate_dotted_identifier(action_id, "action_id")
+    surfaces = _string_tuple(action["surfaces"], "surfaces", dotted=True)
+    if action_id == "fake_acceptance.apply":
+        if surfaces:
+            raise ValueError("fake_acceptance.apply must be the sole zero-surface action")
+    elif not surfaces:
+        raise ValueError("only fake_acceptance.apply may have zero surfaces")
+    classification = _enum_value(ActionClassification, action["classification"], "classification")
+    stage_values = _string_tuple(action["required_stages"], "required_stages")
+    try:
+        required_stages = tuple(WorkflowStage(stage) for stage in stage_values)
+    except ValueError as exc:
+        raise ValueError("required_stages contains an unknown workflow stage") from exc
+    _reject_duplicates(required_stages, "required_stages")
+    required_capabilities = _string_tuple(action["required_capabilities"], "required_capabilities")
+    for capability in required_capabilities:
+        _validate_safe_token(capability, "required_capabilities")
+    source_policy = _policy(action["source_policy"], "source_policy")
+    frozen_policy = _policy(action["frozen_policy"], "frozen_policy")
+    handler = _exact_string(action["handler"], "handler")
+    if handler and not handler.isidentifier():
+        raise ValueError("handler must be empty or a Python identifier")
+    if (source_policy in {"enabled", "conditional"} or frozen_policy in {"enabled", "conditional"}) and not handler:
+        raise ValueError("an enabled or conditional action requires a handler")
+    required_modules = _string_tuple(action["required_modules"], "required_modules")
+    for module in required_modules:
+        _validate_module_name(module)
+    required_resources = _string_tuple(action["required_resources"], "required_resources")
+    for resource in required_resources:
+        _validate_resource_path(resource)
+    if type(action["receipt_required"]) is not bool:
+        raise ValueError("receipt_required must be an exact boolean")
+    receipt_required = cast(bool, action["receipt_required"])
+    evidence_values = _string_tuple(action["evidence_modes"], "evidence_modes")
+    if any(value not in _EVIDENCE_MODES for value in evidence_values):
+        raise ValueError("evidence_modes contains an unknown value")
+    if receipt_required and not evidence_values:
+        raise ValueError("receipt-required action has no typed success contract")
+    unavailable_disposition = _enum_value(
+        ActionDisposition,
+        action["unavailable_disposition"],
+        "unavailable_disposition",
+    )
+    if unavailable_disposition is ActionDisposition.ENABLED:
+        raise ValueError("unavailable_disposition must be disabled or hidden")
+    unavailable_reason = _exact_nonempty_string(action["unavailable_reason"], "unavailable_reason")
+    return ActionSpec(
+        action_id=action_id,
+        surfaces=surfaces,
+        classification=classification,
+        required_stages=required_stages,
+        required_capabilities=required_capabilities,
+        source_policy=source_policy,
+        frozen_policy=frozen_policy,
+        handler=handler,
+        required_modules=required_modules,
+        required_resources=required_resources,
+        receipt_required=receipt_required,
+        evidence_modes=cast(tuple[EvidenceMode, ...], evidence_values),
+        unavailable_disposition=unavailable_disposition,
+        unavailable_reason=unavailable_reason,
+    )
+
+
+def _enum_value(enum_type: type[Enum], value: object, field_name: str) -> Any:
+    if type(value) is not str:
+        raise ValueError(f"{field_name} must be an exact string")
+    try:
+        return enum_type(value)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} contains an unknown value") from exc
+
+
+def _policy(value: object, field_name: str) -> Policy:
+    text = _exact_string(value, field_name)
+    if text not in _POLICIES:
+        raise ValueError(f"{field_name} contains an unknown policy")
+    return cast(Policy, text)
+
+
+def _string_tuple(value: object, field_name: str, *, dotted: bool = False) -> tuple[str, ...]:
+    if type(value) is not list:
+        raise ValueError(f"{field_name} must be an exact list")
+    result = tuple(_exact_nonempty_string(item, field_name) for item in cast(list[object], value))
+    _reject_duplicates(result, field_name)
+    if dotted:
+        for item in result:
+            _validate_dotted_identifier(item, field_name)
+    return result
+
+
+def _reject_duplicates(values: tuple[object, ...], field_name: str) -> None:
+    if len(values) != len(set(values)):
+        raise ValueError(f"{field_name} contains a duplicate value")
+
+
+def _exact_string(value: object, field_name: str) -> str:
+    if type(value) is not str:
+        raise ValueError(f"{field_name} must be an exact string")
+    return cast(str, value)
+
+
+def _exact_nonempty_string(value: object, field_name: str) -> str:
+    text = _exact_string(value, field_name)
+    if not text or text != text.strip():
+        raise ValueError(f"{field_name} must be non-empty without surrounding whitespace")
+    return text
+
+
+def _validate_dotted_identifier(value: str, field_name: str) -> None:
+    if (
+        "*" in value
+        or ".." in value
+        or any(
+            not part or not all(character.isalnum() or character == "_" for character in part)
+            for part in value.split(".")
+        )
+    ):
+        raise ValueError(f"{field_name} must be a dotted identifier without wildcards or traversal")
+
+
+def _validate_safe_token(value: str, field_name: str) -> None:
+    if "*" in value or ".." in value or not all(character.isalnum() or character in "_.-" for character in value):
+        raise ValueError(f"{field_name} contains an unsafe token")
+
+
+def _validate_module_name(value: str) -> None:
+    if "*" in value or ".." in value or any(not part.isidentifier() for part in value.split(".")):
+        raise ValueError("required_modules must contain Python module names without wildcards or traversal")
+
+
+def _validate_resource_path(value: str) -> None:
+    if (
+        "*" in value
+        or ".." in value
+        or "\\" in value
+        or value.startswith("/")
+        or re.match(r"^[A-Za-z]:", value) is not None
+    ):
+        raise ValueError("required_resources must be normalized relative paths without traversal or wildcards")
+    parts = value.split("/")
+    if any(not part or part == "." for part in parts):
+        raise ValueError("required_resources must be normalized relative paths")
+
+
+def _validate_optional_nonempty_string(value: str | None, field_name: str) -> None:
+    if value is not None and (type(value) is not str or not value.strip()):
+        raise TypeError(f"{field_name} must be None or a non-empty exact string")
+
+
+def _validate_optional_sha256(value: str | None, field_name: str) -> None:
+    if value is not None and (type(value) is not str or _SHA256_RE.fullmatch(value) is None):
+        raise ValueError(f"{field_name} must be None or a canonical lowercase SHA-256 digest")
+
+
+def _validate_generation(value: int, field_name: str) -> None:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"{field_name} must be a non-negative exact integer")
+
+
+def _validate_exact_frozenset(value: object, allowed: frozenset[str], field_name: str) -> None:
+    if type(value) is not frozenset:
+        raise TypeError(f"{field_name} must be an exact frozenset")
+    if not cast(frozenset[object], value).issubset(allowed):
+        raise ValueError(f"{field_name} contains an unknown value")
+
+
+def _generation_matches(context: ActionContext) -> bool:
+    return (
+        context.sealed_capability_generation is not None
+        and context.capability_generation == context.sealed_capability_generation
+    )
+
+
+#: Which characterizations describe a panel well enough to compute a correction
+#: without an instrument. All three name primaries and a transfer: one from a
+#: record that matched, one from the nominal record the operator accepted, one
+#: from what the display declared. What separates them is how much they are
+#: worth trusting, which is why the kind travels with every artifact.
+SENSORLESS_CHARACTERIZATIONS = frozenset(
+    {
+        CharacterizationKind.MATCHED,
+        CharacterizationKind.EXPLICIT_GENERIC,
+        CharacterizationKind.EDID_DECLARED,
+    }
+)
+
+
+def _sensorless_ready(context: ActionContext) -> bool:
+    return (
+        context.selected_display_id is not None
+        and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS
+        and context.selected_method is CalibrationMethod.SENSORLESS
+        and not context.target_hdr
+    )
+
+
+def _measured_ready(context: ActionContext) -> bool:
+    """Report whether a target choice would be recorded against a real reading.
+
+    The characterization test is the strict one. ``measured_qualified`` says an
+    instrument is present, which is what opens the measured method; this says a
+    run of the selected display was actually taken, which is what a target and
+    a bundle built from it would describe.
+    """
+    return (
+        context.selected_display_id is not None
+        and context.characterization_kind is CharacterizationKind.MEASURED
+        and context.selected_method is CalibrationMethod.MEASURED
+        and not context.target_hdr
+    )
+
+
+def _target_ready(context: ActionContext) -> bool:
+    """Report whether either method has reached the point of choosing a target."""
+    return _sensorless_ready(context) or _measured_ready(context)
+
+
+def _verification_reachable(context: ActionContext) -> bool:
+    """Report whether a verification would describe something that happened.
+
+    Both verifications share this. A result is only about a calibration once a
+    plan is sealed against the current machine and the operator either stands
+    at a live confirmation or already applied the plan that was sealed.
+    """
+    if context.sealed_plan_sha256 is None or not _generation_matches(context):
+        return False
+    production_confirmed = not context.fake_acceptance and context.confirmation_state == "confirmed"
+    # An apply spends the confirmation, so a session that just changed a
+    # display no longer answers the confirmed test. Verification is what
+    # reports the result of that change, and refusing it here would leave
+    # the operator holding an applied calibration with no way to see it.
+    applied = (
+        not context.fake_acceptance
+        and context.confirmation_state == "consumed"
+        and context.applied_plan_sha256 == context.sealed_plan_sha256
+    )
+    fake_applied = (
+        context.fake_acceptance
+        and context.confirmation_state == "consumed"
+        and context.fake_applied_plan_sha256 == context.sealed_plan_sha256
+    )
+    return production_confirmed or applied or fake_applied
+
+
+def _verified_export_source(context: ActionContext) -> bool:
+    return (
+        context.sealed_plan_sha256 is not None
+        and _generation_matches(context)
+        and context.export_source_ready
+        and context.verification_evidence in PHASE_ONE_EVIDENCE_KINDS
+    )
+
+
+def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
+    if action_id == "calibration.open_for_display":
+        return context.selected_display_id is not None
+    if action_id == "display.characterization.use_generic":
+        return context.selected_display_id is not None and context.characterization_kind in {
+            None,
+            CharacterizationKind.UNKNOWN,
+        }
+    if action_id == "display.characterization.use_edid":
+        # Offered from the same standing as the generic record, and for the
+        # same reason: a display nothing matched is a display the operator has
+        # to decide about. What differs is that this one only appears when the
+        # display actually declared something, so the control is absent rather
+        # than present and inert on a monitor that declared nothing.
+        return (
+            context.selected_display_id is not None
+            and context.edid_declaration_available
+            and context.characterization_kind
+            in {
+                None,
+                CharacterizationKind.UNKNOWN,
+            }
+        )
+    if action_id == "workflow.select_display":
+        return context.selected_display_id is not None
+    if action_id == "calibration.method.sensorless":
+        return context.selected_display_id is not None and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS
+    if action_id == "calibration.method.measured":
+        # Measured is offered from every characterization sensorless is offered
+        # from, plus a display already measured in this session, so re-entering
+        # the method after a run does not require measuring again. UNKNOWN is
+        # left out for the reason it is left out of sensorless: adopting a
+        # description of the panel stays an act the operator performs.
+        return (
+            context.selected_display_id is not None
+            and context.measured_qualified
+            and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS | {CharacterizationKind.MEASURED}
+        )
+    if action_id == "calibration.measure":
+        # Offered only while nothing is sealed. Recording a run breaks the
+        # seal, so allowing it afterwards would drop a bundle the operator is
+        # holding without asking, which is why generate refuses to run twice.
+        return (
+            context.selected_display_id is not None
+            and context.measured_qualified
+            and context.selected_method is CalibrationMethod.MEASURED
+            and context.sealed_plan_sha256 is None
+            and context.journal_ready
+        )
+    if action_id in {
+        "calibration.target.gamut",
+        "calibration.target.whitepoint",
+        "calibration.target.custom_cct",
+        "calibration.target.gamma",
+    }:
+        return _target_ready(context)
+    if action_id in PRESET_TARGETS:
+        return _target_ready(context)
+    if action_id == "calibration.generate":
+        return (
+            _target_ready(context)
+            and context.target_valid
+            and (context.selected_preset_id is None or is_target_id(context.selected_preset_id))
+            and context.sealed_plan_sha256 is None
+            and context.journal_ready
+        )
+    if action_id == "calibration.preview":
+        return (
+            context.generated_asset_kinds == _ASSET_KINDS
+            and context.sealed_plan_sha256 is not None
+            and _generation_matches(context)
+            and context.export_source_ready
+            and context.journal_ready
+        )
+    if action_id in {"calibration.confirm_plan", "calibration.decline_plan"}:
+        return (
+            context.sealed_plan_sha256 is not None
+            and _generation_matches(context)
+            and context.confirmation_state == "live"
+            and context.journal_ready
+        )
+    if action_id == "calibration.apply":
+        # A recorded apply and a real one are separate actions with separate
+        # ids, so the fake composition is excluded here rather than left to the
+        # qualification check that would also refuse it.
+        return (
+            not context.fake_acceptance
+            and context.physical_apply_qualified
+            and context.sealed_plan_actuatable
+            and context.sealed_plan_sha256 is not None
+            and _generation_matches(context)
+            and context.confirmation_state == "confirmed"
+            and context.journal_ready
+        )
+    if action_id == "fake_acceptance.apply":
+        return (
+            context.fake_acceptance
+            and context.sealed_plan_sha256 is not None
+            and _generation_matches(context)
+            and context.confirmation_state == "confirmed"
+            and context.journal_ready
+        )
+    if action_id == "verification.sensorless":
+        # A session holding a measured result is refused the predicted one.
+        # Simulating over a reading would replace what an instrument found with
+        # what a model expects, and report it in the same accuracy field.
+        return (
+            _sensorless_ready(context)
+            and _verification_reachable(context)
+            and context.verification_evidence is not EvidenceKind.MEASURED
+        )
+    if action_id == "verification.measured":
+        # No evidence test here. Reading the display again over an earlier
+        # result replaces one instrument run with another, which is a repeat
+        # rather than the downgrade the sensorless branch refuses.
+        return context.measured_qualified and _measured_ready(context) and _verification_reachable(context)
+    if action_id == "report.save":
+        return _verified_export_source(context) and context.configured_export_directory_valid and context.journal_ready
+    if action_id.startswith("export.active."):
+        export_format = action_id.removeprefix("export.active.")
+        return (
+            export_format in context.available_export_formats
+            and _verified_export_source(context)
+            and context.journal_ready
+        )
+    if action_id == "patterns.open":
+        # A pattern opens a window on the selected display and nothing else.
+        # It writes no file, changes no panel control, and produces no
+        # evidence, so the gate is only that there is a surface to open and a
+        # display to open it on. Whether the surface can carry the pattern is
+        # settled when the window exists, which is the earliest anything can
+        # be said about its geometry.
+        return context.patterns_qualified
+    if action_id == "ddc.read_current":
+        # Reading opens a device session, so it is gated on the same two facts
+        # a measurement is: a port this composition wired, and a display that
+        # answered a probe. Neither is a value a surface can set.
+        return context.selected_display_id is not None and context.monitor_controls_qualified
+    if action_id == "ddc.raw_read":
+        return context.selected_display_id is not None and context.monitor_controls_qualified
+    if action_id in STAGE_ACTION_CODES:
+        # A control is offered only if this display answered for it. A panel
+        # that reports a capability string listing brightness and then refuses
+        # to read it leaves the code out of the reading, and out of this set.
+        return context.monitor_writes_qualified and STAGE_ACTION_CODES[action_id] in context.supported_vcp_codes
+    if action_id == "ddc.apply":
+        # Offered only with something staged, because an apply with nothing
+        # staged would open a device session, write nothing, and report a
+        # transaction the operator never asked for. The journal is required
+        # here rather than left to the boundary preflight, so a write that
+        # could not be recorded is refused before the operator reaches for it.
+        return (
+            not context.fake_acceptance
+            and context.monitor_writes_qualified
+            and bool(context.staged_vcp_codes)
+            and context.journal_ready
+        )
+    if action_id == "ddc.restore_defaults":
+        # A restore is reported by the readings around it, so a session that has
+        # not read the display is refused it: there would be nothing to compare
+        # the display's state against afterwards.
+        return not context.fake_acceptance and context.monitor_writes_qualified and context.journal_ready
+    if action_id == "profile.system.read":
+        # Reading the store is gated the way reading the display's controls is:
+        # a port this composition wired, and a probe that found the colour
+        # directory. Neither is a value a surface can set.
+        return context.selected_display_id is not None and context.system_profiles_qualified
+    if action_id == "profile.install":
+        # A bundle whose files no longer match its manifest is not offered.
+        # What gets registered with the machine outlives this session, so the
+        # gate is the same seal the export path requires.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.selected_profile_reparsed
+            and context.journal_ready
+        )
+    if action_id in {"profile.activate", "profile.delete"}:
+        # Both act on the machine's copy of the inspected bundle, so both are
+        # closed until a reading found one. Windows accepts a default naming a
+        # profile it does not hold, and a display pointed at a missing file is
+        # met as colour management that quietly stopped rather than as an error.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.selected_profile_installed
+            and context.journal_ready
+        )
+    if action_id == "tray.switch_profile":
+        # Any profile the machine holds may be chosen here, the vendor's own
+        # included. Choosing which of the installed profiles is in effect takes
+        # nothing away, and an operator moving between a daylight profile and a
+        # print profile is doing the ordinary thing this control is for.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.switchable_system_profiles
+            and context.journal_ready
+        )
+    if action_id == "display.restore_defaults":
+        # Offered only with something of this product's on the display. A
+        # restore is bounded to the profiles this build installed, so on a
+        # display carrying none of them it would have nothing to take off.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.restorable_system_profiles
+            and context.journal_ready
+        )
+    if action_id == "profile.export":
+        return context.selected_profile_reparsed and context.journal_ready
+    if action_id in {"settings.lut_size", "settings.output_directory"}:
+        return context.journal_ready
+    if action_id == "diagnostics.bundle.create":
+        return context.diagnostic_bundle_preview_live and context.journal_ready
+    return False
+
+
+def _disabled_reason(spec: ActionSpec, context: ActionContext) -> str:
+    action_id = spec.action_id
+    if action_id == "panel_profile.import":
+        if not context.validated_import_ready:
+            return "Panel import requires a validated source before Phase 2 qualification."
+        return "Panel import remains disabled pending the Phase 2 import contract."
+    if action_id == "ddc.raw_write":
+        return (
+            "Writing an arbitrary control code remains disabled. What a code means is not "
+            "readable over DDC/CI. Some codes that answer a read are command registers, "
+            "where the number written is a request rather than a level, and the only undo "
+            "this build has is writing the previous number back, which on a register like "
+            "that issues the request again."
+        )
+    if action_id.startswith("ddc.unsupported."):
+        return (
+            "This control selects one of the display's own modes rather than setting a "
+            "value. What each numbered mode does is decided by the manufacturer and is "
+            "not readable over DDC/CI, so this build cannot report what a write to it did."
+        )
+    if action_id == "calibration.method.hybrid":
+        return (
+            "Hybrid calibration remains disabled. It would build one bundle from a panel "
+            "record and an instrument run together, and this build cannot state which of "
+            "the two each published value came from."
+        )
+    if action_id in {"calibration.target.hdr", "calibration.preset.hdr10", "settings.hdr"}:
+        if not context.target_hdr:
+            return "HDR requires an explicitly selected HDR target and distinct evidence contract."
+        return "HDR remains disabled pending its distinct qualified workflow contract."
+    return spec.unavailable_reason
+
+
+__all__ = [
+    "ActionClassification",
+    "ActionContext",
+    "ActionDisposition",
+    "ActionRegistry",
+    "ActionSpec",
+    "PRESET_TARGETS",
+    "ResolvedAction",
+]

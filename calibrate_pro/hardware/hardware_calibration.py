@@ -94,10 +94,13 @@ class MeasurementResult:
     # Delta E from target
     delta_e: float = 0.0
 
-    # Lab values
-    L: float = 0.0
-    a: float = 0.0
-    b: float = 0.0
+    # Lab values. Named apart from r/g/b above: the Lab b* component shared
+    # the name of the blue stimulus, so writing the Lab triple overwrote the
+    # blue value the patch had been asked for, and every record in the
+    # grayscale and primary sweeps reported a stimulus it was not measured at.
+    lab_l: float = 0.0
+    lab_a: float = 0.0
+    lab_b: float = 0.0
 
     def __post_init__(self):
         """Calculate derived values."""
@@ -326,21 +329,39 @@ class HardwareCalibrationEngine:
     def __init__(self):
         self._colorimeter = None
         self._ddc_controller = None
+        self._patch_display: Callable[[int, int, int], None] | None = None
         self._progress_callback: Callable[[str, float, CalibrationPhase], None] | None = None
 
         # Calibration parameters
         self.max_iterations = 20
         self.convergence_threshold = 0.5  # Delta E change threshold
+        self.patch_settle_seconds = 0.5  # Time for the panel to reach the new patch
 
     def set_progress_callback(self, callback: Callable[[str, float, CalibrationPhase], None]):
         """Set callback for progress updates: callback(message, progress, phase)"""
         self._progress_callback = callback
 
+    def set_patch_display(self, callback: Callable[[int, int, int], None] | None):
+        """Set the callback that puts a patch on the display: callback(r, g, b), 0-255.
+
+        The colorimeter reads whatever the panel is showing. Without something
+        that puts the requested patch there first, a reading belongs to the
+        desktop that happened to be on screen, and the grayscale and primary
+        passes would read the same screen content for every patch they ask for.
+        """
+        self._patch_display = callback
+
     def _report(self, msg: str, progress: float, phase: CalibrationPhase):
         if self._progress_callback:
             self._progress_callback(msg, progress, phase)
 
-    def initialize(self, colorimeter=None, ddc_controller=None, display_index: int = 0) -> bool:
+    def initialize(
+        self,
+        colorimeter=None,
+        ddc_controller=None,
+        display_index: int = 0,
+        patch_display: Callable[[int, int, int], None] | None = None,
+    ) -> bool:
         """
         Initialize calibration with measurement device and DDC controller.
 
@@ -348,6 +369,8 @@ class HardwareCalibrationEngine:
             colorimeter: ColorimeterBase instance (or None for sensorless)
             ddc_controller: DDCCIController instance
             display_index: Which display to calibrate
+            patch_display: callback(r, g, b) that shows a patch, 0-255 per channel.
+                Required for measured mode; see set_patch_display.
 
         Returns:
             True if initialization successful
@@ -355,6 +378,8 @@ class HardwareCalibrationEngine:
         self._colorimeter = colorimeter
         self._ddc_controller = ddc_controller
         self._display_index = display_index
+        if patch_display is not None:
+            self._patch_display = patch_display
 
         if not self._ddc_controller:
             return False
@@ -419,15 +444,26 @@ class HardwareCalibrationEngine:
         """
         Measure a color patch.
 
-        If colorimeter is available, use it.
-        Otherwise, return None (sensorless mode).
+        Shows the patch, lets the panel settle, then reads the colorimeter.
+        Returns None without a colorimeter (sensorless mode) and also without a
+        patch display, because a reading taken off an unknown screen is not a
+        reading of this patch and must not be recorded as one.
         """
         if not self._colorimeter:
             return None
 
+        if self._patch_display is None:
+            self._report(
+                "No patch display configured, so the colorimeter cannot be pointed at "
+                f"RGB({r}, {g}, {b}). Call set_patch_display first.",
+                0.0,
+                CalibrationPhase.INITIALIZE,
+            )
+            return None
+
         try:
-            # Display patch (would need pattern window integration)
-            # For now, assume patch is displayed
+            self._patch_display(r, g, b)
+            time.sleep(self.patch_settle_seconds)
 
             # Measure with colorimeter
             measurement = self._colorimeter.measure()
@@ -446,7 +482,7 @@ class HardwareCalibrationEngine:
                 )
 
                 # Calculate Lab
-                result.L, result.a, result.b = xyz_to_lab(measurement.X, measurement.Y, measurement.Z)
+                result.lab_l, result.lab_a, result.lab_b = xyz_to_lab(measurement.X, measurement.Y, measurement.Z)
 
                 return result
         except Exception as e:
@@ -660,7 +696,7 @@ class HardwareCalibrationEngine:
                             measurement.Y,
                             (1 - targets.whitepoint_x - targets.whitepoint_y) * measurement.Y / targets.whitepoint_y,
                         )
-                        measured_lab = (measurement.L, measurement.a, measurement.b)
+                        measured_lab = (measurement.lab_l, measurement.lab_a, measurement.lab_b)
                         measurement.delta_e = delta_e_2000(target_lab, measured_lab)
                         delta_e_sum += measurement.delta_e
                         grayscale.measurements.append(measurement)

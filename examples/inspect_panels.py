@@ -10,9 +10,10 @@ package on PYTHONPATH):
 
     python examples/inspect_panels.py
 
-Legacy action names (`auto`, `calibrate`, `verify`, `detect`, ...) are
-proposal-only and exit with code 2 without changing display state. The GUI is
-the confirmed workflow; see USAGE.md.
+Legacy action names (`auto`, `calibrate`, `restore`, ...) are proposal-only and
+exit with code 2 without changing display state. `detect`, `status`, `verify`,
+`generate-profiles`, and `profiles` run headless over the session the window
+drives. The GUI is the confirmed workflow for a display change; see USAGE.md.
 """
 
 import calibrate_pro
@@ -50,6 +51,7 @@ def main() -> int:
 
     print("\nNext steps (see USAGE.md):")
     print("  Legacy action names are proposal-only and exit with code 2.")
+    print("  calibrate-pro detect      # displays observed, with characterization sources")
     print("  calibrate-pro gui         # preview and explicitly confirm supported changes")
     print(f"  calibrate-pro info {example_key}")
     return 0

@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
+from calibrate_pro.core.colorchecker import COLORCHECKER_PATCHES
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 # Type imports for documentation; runtime access via duck typing
@@ -219,33 +220,11 @@ SRGB_GREEN = (0.3000, 0.6000)
 SRGB_BLUE = (0.1500, 0.0600)
 D65_WHITE = (0.3127, 0.3290)
 
-# ColorChecker Classic reference sRGB values (matching sensorless engine)
-COLORCHECKER_SRGB = {
-    "Dark Skin": (0.453, 0.317, 0.264),
-    "Light Skin": (0.779, 0.577, 0.505),
-    "Blue Sky": (0.355, 0.480, 0.611),
-    "Foliage": (0.352, 0.422, 0.253),
-    "Blue Flower": (0.508, 0.502, 0.691),
-    "Bluish Green": (0.362, 0.745, 0.675),
-    "Orange": (0.879, 0.485, 0.183),
-    "Purplish Blue": (0.266, 0.358, 0.667),
-    "Moderate Red": (0.778, 0.321, 0.381),
-    "Purple": (0.367, 0.227, 0.414),
-    "Yellow Green": (0.623, 0.741, 0.246),
-    "Orange Yellow": (0.904, 0.634, 0.154),
-    "Blue": (0.139, 0.248, 0.577),
-    "Green": (0.262, 0.584, 0.291),
-    "Red": (0.705, 0.191, 0.223),
-    "Yellow": (0.934, 0.778, 0.077),
-    "Magenta": (0.757, 0.329, 0.590),
-    "Cyan": (0.000, 0.534, 0.665),
-    "White": (0.961, 0.962, 0.952),
-    "Neutral 8": (0.786, 0.793, 0.794),
-    "Neutral 6.5": (0.630, 0.639, 0.640),
-    "Neutral 5": (0.473, 0.475, 0.477),
-    "Neutral 3.5": (0.323, 0.330, 0.336),
-    "Black": (0.191, 0.194, 0.199),
-}
+# The chart is defined once, in calibrate_pro.core.colorchecker, because a
+# patch's reference Lab and the signal that drives a display to it are derived
+# from each other. Copies of the pair had drifted apart on ten patches, which
+# graded a display reproducing sRGB exactly at 2.27 dE2000 average.
+COLORCHECKER_SRGB = {patch.name: patch.srgb for patch in COLORCHECKER_PATCHES}
 
 
 # =============================================================================

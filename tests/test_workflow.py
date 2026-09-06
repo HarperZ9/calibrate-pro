@@ -357,7 +357,7 @@ def test_apply_failure_restores_the_snapshot() -> None:
     assert receipt == ApplyReceipt(False, True, False, False, True, True, "apply failed", None)
 
 
-def test_apply_completion_is_published_without_a_trace_interrupt_gap() -> None:
+def test_apply_completion_is_published_without_a_trace_interrupt_gap(unmeasured_tracing: None) -> None:
     source, first_line = inspect.getsourcelines(_apply_confirmed_with_best_effort_recovery)
     apply_index = next(index for index, line in enumerate(source) if "adapter.apply(plan)" in line)
     assert "applied =" in source[apply_index]
@@ -465,7 +465,9 @@ def test_base_exception_at_verified_commit_handoff_restores_releases_and_reraise
 
 
 @pytest.mark.parametrize("interrupt", (KeyboardInterrupt("post-capture"), SystemExit(8)))
-def test_base_exception_immediately_after_capture_restores_and_reraises(interrupt: BaseException) -> None:
+def test_base_exception_immediately_after_capture_restores_and_reraises(
+    interrupt: BaseException, unmeasured_tracing: None
+) -> None:
     class LeaseTrackingAdapter(FakeAdapter):
         def __init__(self) -> None:
             super().__init__()
@@ -519,6 +521,7 @@ def test_base_exception_at_capture_result_store_restores_and_allows_retry(
     interrupt_type: type[BaseException],
     interrupt_value: object,
     authorization: object | None,
+    unmeasured_tracing: None,
 ) -> None:
     class LeaseTrackingAdapter(FakeAdapter):
         def __init__(self) -> None:
@@ -603,7 +606,9 @@ def test_base_exception_at_capture_result_store_restores_and_allows_retry(
 
 
 @pytest.mark.parametrize("interrupt", (KeyboardInterrupt("sink-published"), SystemExit(10)))
-def test_capture_sink_owns_snapshot_before_python_resumes_after_extend(interrupt: BaseException) -> None:
+def test_capture_sink_owns_snapshot_before_python_resumes_after_extend(
+    interrupt: BaseException, unmeasured_tracing: None
+) -> None:
     class LeaseTrackingAdapter(FakeAdapter):
         def __init__(self) -> None:
             super().__init__()

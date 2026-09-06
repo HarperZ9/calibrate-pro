@@ -524,16 +524,11 @@ class AutoCalibrationEngine:
                     )
                     panel_wp = (primaries.white.x, primaries.white.y)
 
-                    peak_lum = getattr(panel.capabilities, "max_luminance_hdr", 1000.0) or 1000.0
-                    min_lum = getattr(panel.capabilities, "min_luminance", 0.0001) or 0.0001
-
                     mhc2_path = output_dir / f"{safe_name}_hdr_mhc2.icc"
                     generate_mhc2_profile(
                         panel_primaries=panel_prims,
                         panel_white=panel_wp,
                         target_white=(0.3127, 0.3290),
-                        peak_luminance=peak_lum,
-                        min_luminance=min_lum,
                         description=f"Calibrate Pro HDR - {result.display_name}",
                         output_path=mhc2_path,
                     )
@@ -787,7 +782,8 @@ class AutoCalibrationEngine:
             except (ImportError, OSError):
                 pass
 
-        # Method 4: Build from EDID chromaticity (much better than generic sRGB)
+        # Method 4: Build from EDID chromaticity, the primaries the
+        # manufacturer declared for the panel. EDID carries no photometry.
         if panel is None:
             try:
                 from calibrate_pro.panels.detection import get_edid_from_registry, parse_edid
@@ -800,7 +796,13 @@ class AutoCalibrationEngine:
                     edid_chromaticity = self._extract_edid_chromaticity(edid_data)
 
                     if edid_chromaticity:
-                        edid_gamma = edid_info.get("gamma", 2.2) or 2.2
+                        # parse_edid leaves gamma at 0.0 when EDID byte 23 reads
+                        # 0xFF, which is the EDID saying its gamma sits in an
+                        # extension block this parser does not read. `or 2.2`
+                        # erased that, so the line below printed a number nobody
+                        # read next to primaries that were read.
+                        edid_gamma = edid_info.get("gamma", 0.0) or None
+                        gamma_text = "not in EDID, model assumes 2.2" if edid_gamma is None else f"{edid_gamma:.2f}"
                         panel = create_from_edid(
                             edid_chromaticity=edid_chromaticity,
                             monitor_name=name or "EDID Display",
@@ -810,8 +812,8 @@ class AutoCalibrationEngine:
                         logger.info(
                             "EDID-based profiling used for '%s' (not in panel database). "
                             "Primaries: R(%.4f,%.4f) G(%.4f,%.4f) B(%.4f,%.4f), "
-                            "White(%.4f,%.4f), Gamma=%.2f. "
-                            "This provides significantly better calibration than generic sRGB fallback.",
+                            "White(%.4f,%.4f), Gamma=%s. "
+                            "These values are the manufacturer's EDID declaration, which carries no photometry.",
                             name or "Unknown",
                             edid_chromaticity["red"][0],
                             edid_chromaticity["red"][1],
@@ -821,7 +823,7 @@ class AutoCalibrationEngine:
                             edid_chromaticity["blue"][1],
                             edid_chromaticity["white"][0],
                             edid_chromaticity["white"][1],
-                            edid_gamma,
+                            gamma_text,
                         )
                         self._report_progress(
                             f"Using EDID chromaticity for {name or 'display'} (panel type: {panel.panel_type})",
@@ -1017,17 +1019,21 @@ class AutoCalibrationEngine:
         rgb_gain_g = max(0, min(100, rgb_gain_g))
         rgb_gain_b = max(0, min(100, rgb_gain_b))
 
-        # Calculate target brightness percentage
-        # Map target luminance to DDC range (0-100)
+        # Map the target luminance onto the DDC brightness range. Zero is the
+        # marker for a panel whose peak is not known, which is what a
+        # characterization built from EDID reports, and no percentage follows
+        # from it. None here means the brightness control is left alone.
         panel_max_lum = panel.capabilities.max_luminance_sdr
-        target_brightness_pct = min(100, (target.luminance / panel_max_lum) * 100)
+        target_brightness_pct = min(100, (target.luminance / panel_max_lum) * 100) if panel_max_lum > 0 else None
 
-        # Calculate contrast setting
-        # For OLED (near-zero black), use high contrast
-        # For LCD, balance based on native contrast
-        if panel.capabilities.min_luminance < 0.01:  # OLED
+        # Contrast follows the black level. A near-zero black is emissive and
+        # holds shadow detail at high contrast; an LCD needs the lift. Zero is
+        # the unknown marker rather than a perfect black, so it takes the
+        # conservative setting instead of being read as an OLED.
+        panel_min_lum = panel.capabilities.min_luminance
+        if 0.0 < panel_min_lum < 0.01:  # OLED
             target_contrast = 85  # High contrast, rely on pixel-level control
-        else:  # LCD
+        else:  # LCD, or a black level that is not known
             # Aim for visible shadow detail while maintaining blacks
             target_contrast = 75
 
@@ -1047,7 +1053,7 @@ class AutoCalibrationEngine:
             "white_error_x": white_error_x,
             "white_error_y": white_error_y,
             # DDC/CI hardware targets
-            "ddc_brightness": int(target_brightness_pct),
+            "ddc_brightness": None if target_brightness_pct is None else int(target_brightness_pct),
             "ddc_contrast": target_contrast,
             "ddc_rgb_gain": (int(rgb_gain_r), int(rgb_gain_g), int(rgb_gain_b)),
             # For software LUT (remaining correction after hardware)
@@ -1128,20 +1134,17 @@ class AutoCalibrationEngine:
             # ===================================================================
             # Step 2: Set Brightness for target luminance
             # ===================================================================
-            target_brightness = corrections.get("ddc_brightness", 50)
+            # None means the panel's SDR peak is not known, so there is no
+            # target percentage to drive to and the user's brightness stands.
+            target_brightness = corrections.get("ddc_brightness")
 
-            # Adjust for panel-specific brightness behavior
-            # Some panels have non-linear brightness response
-            corrections.get("panel_max_luminance", 250)
-            corrections.get("target_luminance", 120)
+            if target_brightness is not None and VCPCode.BRIGHTNESS in (caps.supported_vcp_codes if caps else []):
+                # Apply gamma-like correction to brightness curve
+                # (most displays are non-linear in brightness control)
+                brightness_gamma = 0.8  # Typical monitor brightness response
+                adjusted_brightness = int(100 * ((target_brightness / 100) ** brightness_gamma))
+                adjusted_brightness = max(0, min(100, adjusted_brightness))
 
-            # Apply gamma-like correction to brightness curve
-            # (most displays are non-linear in brightness control)
-            brightness_gamma = 0.8  # Typical monitor brightness response
-            adjusted_brightness = int(100 * ((target_brightness / 100) ** brightness_gamma))
-            adjusted_brightness = max(0, min(100, adjusted_brightness))
-
-            if VCPCode.BRIGHTNESS in (caps.supported_vcp_codes if caps else []):
                 if current.brightness != adjusted_brightness:
                     if controller.set_vcp(monitor, VCPCode.BRIGHTNESS, adjusted_brightness):
                         changes_made["brightness"] = (current.brightness, adjusted_brightness)  # type: ignore[assignment]  # numpy/dynamic
@@ -1182,26 +1185,29 @@ class AutoCalibrationEngine:
             if caps and caps.has_rgb_black_level:
                 # For black level, we typically want balanced neutral
                 # unless panel shows color tint in shadows
-                panel_min_lum = corrections.get("panel_min_luminance", 0.1)
-
-                if panel_min_lum < 0.01:
+                # Zero is the unknown marker, not a perfect black, so a panel
+                # with no known black level keeps the black levels it has.
+                panel_min_lum = corrections.get("panel_min_luminance", 0.0)
+                target_black: int | None = None
+                if 0.0 < panel_min_lum < 0.01:
                     # OLED - black levels should be at default (50)
                     target_black = 50
-                else:
+                elif panel_min_lum >= 0.01:
                     # LCD - slight lift can help shadow detail
                     target_black = 48
 
-                if current.red_black_level != target_black:
-                    if controller.set_vcp(monitor, VCPCode.RED_BLACK_LEVEL, target_black):
-                        changes_made["red_black_level"] = (current.red_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
+                if target_black is not None:
+                    if current.red_black_level != target_black:
+                        if controller.set_vcp(monitor, VCPCode.RED_BLACK_LEVEL, target_black):
+                            changes_made["red_black_level"] = (current.red_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
-                if current.green_black_level != target_black:
-                    if controller.set_vcp(monitor, VCPCode.GREEN_BLACK_LEVEL, target_black):
-                        changes_made["green_black_level"] = (current.green_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
+                    if current.green_black_level != target_black:
+                        if controller.set_vcp(monitor, VCPCode.GREEN_BLACK_LEVEL, target_black):
+                            changes_made["green_black_level"] = (current.green_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
-                if current.blue_black_level != target_black:
-                    if controller.set_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL, target_black):
-                        changes_made["blue_black_level"] = (current.blue_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
+                    if current.blue_black_level != target_black:
+                        if controller.set_vcp(monitor, VCPCode.BLUE_BLACK_LEVEL, target_black):
+                            changes_made["blue_black_level"] = (current.blue_black_level, target_black)  # type: ignore[assignment]  # numpy/dynamic
 
             controller.close()
 

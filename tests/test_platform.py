@@ -632,6 +632,20 @@ class TestWindowsBackend:
 
         assert WindowsBackend is not None
 
+    @staticmethod
+    def _monitors_windows_reports() -> int:
+        """Count the display monitors through an API the backend does not use.
+
+        ``GetSystemMetrics(SM_CMONITORS)`` is an independent oracle. Reading the
+        precondition off the backend's own result would turn the failure this
+        test exists to catch into a skip: a backend that finds nothing would
+        report no hardware, and no hardware would excuse finding nothing.
+        """
+        import ctypes
+
+        SM_CMONITORS = 80
+        return int(ctypes.windll.user32.GetSystemMetrics(SM_CMONITORS))
+
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_enumerate_on_windows(self):
         from calibrate_pro.platform.windows import WindowsBackend
@@ -639,8 +653,13 @@ class TestWindowsBackend:
         backend = WindowsBackend()
         displays = backend.enumerate_displays()
         assert isinstance(displays, list)
-        assert len(displays) > 0, "Should detect at least one display"
         assert all(isinstance(d, DisplayInfo) for d in displays)
+
+        attached = self._monitors_windows_reports()
+        if attached == 0:
+            pytest.skip("no display monitor attached to this host")
+
+        assert len(displays) > 0, f"Windows reports {attached} display monitor(s) and the backend found none"
 
     @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_display_fields_valid(self):

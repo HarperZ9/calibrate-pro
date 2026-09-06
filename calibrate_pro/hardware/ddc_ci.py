@@ -1326,7 +1326,12 @@ class HardwareCalibrationResult:
     measured_white_x: float = 0.0
     measured_white_y: float = 0.0
     measured_brightness: float = 0.0
-    delta_e: float = 0.0
+    #: Distance between target and measured white in the CIE 1976 u'v' plane.
+    #: This is a chromaticity difference, not a Delta E. The white point loop
+    #: never measures the target luminance, so no CIE Delta E is available from
+    #: it, and a chromaticity distance reported under that name would be read
+    #: against Delta E tolerances it does not share a scale with.
+    delta_uv: float = 0.0
     iterations: int = 0
     message: str = ""
 
@@ -1467,14 +1472,14 @@ class HardwareCalibrator:
         if not result.success:
             result.message = f"Did not converge after {max_iterations} iterations"
 
-        # Calculate final Delta E (simplified for white point)
-        # Using CIE 1976 UCS for chromaticity difference
+        # Distance between target and measured white in the CIE 1976 u'v' plane,
+        # unscaled. Roughly 0.002 is a just-noticeable white point shift.
         u_target = 4 * target.white_point_x / (-2 * target.white_point_x + 12 * target.white_point_y + 3)
         v_target = 9 * target.white_point_y / (-2 * target.white_point_x + 12 * target.white_point_y + 3)
         u_meas = 4 * result.measured_white_x / (-2 * result.measured_white_x + 12 * result.measured_white_y + 3)
         v_meas = 9 * result.measured_white_y / (-2 * result.measured_white_x + 12 * result.measured_white_y + 3)
 
-        result.delta_e = ((u_target - u_meas) ** 2 + (v_target - v_meas) ** 2) ** 0.5 * 100
+        result.delta_uv = ((u_target - u_meas) ** 2 + (v_target - v_meas) ** 2) ** 0.5
 
         return result
 

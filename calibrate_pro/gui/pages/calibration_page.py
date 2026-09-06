@@ -384,7 +384,7 @@ class CalibrationPage(QWidget):
                 if isinstance(getattr(result, "delta_e_predicted", None), MetricValue)
                 else MetricValue(None, "dE2000", EvidenceKind.NOT_MEASURED)
             )
-            self.progress_label.setText(f"Calibration assets generated — {delta_e.display_text()}")
+            self.progress_label.setText(f"Calibration assets generated: {delta_e.display_text()}")
 
             # Try to refresh the dashboard if we can find it
             try:

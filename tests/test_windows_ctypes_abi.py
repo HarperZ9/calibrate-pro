@@ -174,6 +174,7 @@ def test_detection_profile_cancellation_closes_dc_and_propagates(monkeypatch: py
 def test_detection_dc_handoff_closes_on_first_post_create_cancellation(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32()
     monkeypatch.setattr(detection, "HAS_MSCMS", True)
@@ -214,6 +215,7 @@ def test_detection_dc_handoff_closes_on_first_post_create_cancellation(
 def test_detection_dc_acquisition_survives_call_to_store_fast_cancellation(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     """Caller-local tracing cannot interrupt the exact native worker's publication."""
     fake = FakeGdi32()
@@ -266,6 +268,7 @@ def test_detection_dc_acquisition_survives_call_to_store_fast_cancellation(
 def test_detection_dc_cleanup_starts_when_resumption_from_yield_is_cancelled(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32()
     monkeypatch.setattr(detection, "HAS_MSCMS", True)
@@ -321,6 +324,7 @@ def test_detection_dc_delete_preserves_control_flow_exception(
 def test_detection_dc_cleanup_retries_when_cancellation_prevents_delete_dc_entry(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32()
     monkeypatch.setattr(detection, "HAS_MSCMS", True)
@@ -415,6 +419,7 @@ def test_detection_dc_release_retains_a_still_open_dc_after_bounded_false_result
 def test_detection_dc_release_retains_or_retries_when_cancelled_between_false_attempts(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class RetryableDeleteGdi(FakeGdi32):
         def __init__(self) -> None:
@@ -548,6 +553,7 @@ def test_delete_dc_allows_only_one_worker_for_one_open_owner(
 def test_display_claim_guard_rolls_back_cancellation_before_body(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     owner = detection._RetainedDisplayDc(
         api=FakeGdi32(),
@@ -606,6 +612,7 @@ def test_display_claim_guard_rolls_back_cancellation_before_body(
 def test_display_claim_guard_return_cancellation_cannot_strand_claim(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     owner = detection._RetainedDisplayDc(
         api=FakeGdi32(),
@@ -651,6 +658,7 @@ def test_display_claim_guard_return_cancellation_cannot_strand_claim(
 def test_display_claim_publication_cancellation_rolls_back_from_shared_token(
     monkeypatch: pytest.MonkeyPatch,
     assignment: str,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32()
     owner = detection._RetainedDisplayDc(
@@ -858,6 +866,7 @@ def test_display_registry_capacity_counts_pending_ingress_atomically(
 def test_cancelled_display_ingress_publishes_attempt_and_drain_retires_ghost(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32()
     owner = detection._RetainedDisplayDc(api=fake, device_name=r"\\.\DISPLAY1")
@@ -1150,6 +1159,7 @@ def test_display_boundary_double_cleanup_control_errors_demote_only_stale_owner_
 def test_retained_display_dc_drain_propagates_control_after_successful_retry(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     fake = FakeGdi32(delete_success=False)
     retained: list[object] = []

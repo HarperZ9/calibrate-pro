@@ -11,6 +11,9 @@ Thumbs.db
 *.obj
 .env
 .env.*
+!.env.example
+.envrc
+.envrc.local
 .warden-safe-cache/
 .eggs/
 htmlcov/
@@ -21,3 +24,6 @@ CLAUDE.local.md
 
 # raw hardware dumps
 *.bin
+
+# machine-local dwm_lut monitor bindings
+/dwm_lut/config.xml

@@ -5,10 +5,12 @@ Creates 3D color lookup tables for system-wide color management.
 Supports multiple export formats: .cube, .3dl, .mga, .csp, .clf/.ctf
 """
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -29,6 +31,9 @@ from calibrate_pro.core.color_math import (
     xyz_abs_to_jzazbz,
 )
 
+if TYPE_CHECKING:
+    from calibrate_pro.core.tone_response import ToneResponse
+
 
 class LUTFormat(Enum):
     """Supported 3D LUT file formats."""
@@ -39,6 +44,26 @@ class LUTFormat(Enum):
     CSP = "csp"  # Rising Sun Research Cinespace
     ICC = "icc"  # Embedded in ICC profile
     CLF = "clf"  # SMPTE ST 2136-1 Common LUT Format (ACES)
+
+
+def _decode_target(
+    signal: np.ndarray,
+    target_gamma: float,
+    target_tone: "ToneResponse | None",
+    eps: float = 1e-10,
+) -> np.ndarray:
+    """Decode a target signal to relative light, by curve when one is given.
+
+    ``target_gamma`` covers the power laws and stays the default so a caller
+    that passes a number keeps the arithmetic it had. A ``target_tone``
+    carries the shapes an exponent cannot: sRGB is piecewise below 0.04045,
+    L* follows CIE lightness, and BT.1886 leaves the 2.4 power law as soon as
+    a panel reports a black level above zero.
+    """
+    values = np.asarray(signal, dtype=np.float64)
+    if target_tone is None:
+        return np.where(values > eps, np.power(values, target_gamma), 0.0)
+    return np.where(values > eps, target_tone.to_linear(values), 0.0)
 
 
 @dataclass
@@ -207,7 +232,7 @@ class LUT3D:
                         val = self.data[r, g, b]
                         f.write(f"{val[0]:.6f} {val[1]:.6f} {val[2]:.6f}\n")
 
-    def save_clf(self, filepath: str | Path):
+    def save_clf(self, filepath: str | Path, clf_id: str | None = None):
         """
         Save in CLF (Common LUT Format) per SMPTE ST 2136-1.
 
@@ -221,6 +246,9 @@ class LUT3D:
 
         Args:
             filepath: Output file path (typically .clf or .ctf extension)
+            clf_id: ProcessList identifier. When omitted, a UUID5 is derived
+                from the LUT title, grid size, and data so that identical
+                LUTs produce identical files.
         """
         import uuid
         from xml.etree.ElementTree import Element, ElementTree, SubElement
@@ -230,7 +258,13 @@ class LUT3D:
         # Root <ProcessList>
         root = Element("ProcessList")
         root.set("compCLFversion", "3.0")
-        root.set("id", str(uuid.uuid4()))
+        if clf_id is None:
+            fingerprint = hashlib.sha256()
+            fingerprint.update(self.title.encode("utf-8"))
+            fingerprint.update(str(self.size).encode("ascii"))
+            fingerprint.update(np.ascontiguousarray(self.data, dtype=np.float64).tobytes())
+            clf_id = str(uuid.uuid5(uuid.NAMESPACE_URL, fingerprint.hexdigest()))
+        root.set("id", clf_id)
 
         desc = SubElement(root, "Description")
         desc.text = f"Calibrate Pro - {self.title}"
@@ -693,6 +727,30 @@ class LUT3D:
         return cls(size=size, data=data, title=title)
 
 
+def headroom_scale(correction: np.ndarray) -> float:
+    """The factor that brings full-scale white inside what the panel can drive.
+
+    A correction aiming at a white the panel is not already at asks one
+    channel for more light than the panel has. Clamping the channels one at a
+    time is what this package did, and it changes the ratio between them,
+    which is the ratio that decides the white an operator sees. A D50 request
+    on a D65 panel landed at x=0.3332 that way, against a target of 0.3457 and
+    a catalogue tolerance of 0.003.
+
+    Scaling the whole correction keeps every ratio and spends luminance
+    instead. That is what a white point costs on a display that cannot make
+    more light, and it is what a measuring calibrator does with the same
+    request.
+
+    Returns 1.0 when the correction already fits, so a target the panel is
+    natively at changes nothing.
+    """
+    drive = float(np.max(correction @ np.ones(3)))
+    if not np.isfinite(drive) or drive <= 1.0:
+        return 1.0
+    return 1.0 / drive
+
+
 class LUTGenerator:
     """
     Generates 3D LUTs from calibration data.
@@ -830,6 +888,7 @@ class LUTGenerator:
         color_matrix: np.ndarray | None = None,
         title: str = "Display Calibration LUT",
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
     ) -> LUT3D:
         """
         Create comprehensive calibration LUT for display.
@@ -876,6 +935,11 @@ class LUTGenerator:
             # to display the correct XYZ
             color_matrix = xyz_to_panel @ target_to_xyz
 
+        # Fit before the grid loop, so the clamp below only ever removes
+        # colours the panel genuinely cannot reach rather than the white the
+        # caller asked for.
+        color_matrix = color_matrix * headroom_scale(color_matrix)
+
         lut = LUT3D.create_identity(self.size)
         coords = np.linspace(0, 1, self.size)
 
@@ -902,9 +966,9 @@ class LUTGenerator:
                     # So: signal = (xyz_to_panel @ srgb_to_xyz @ sRGB^target_gamma)^(1/panel_gamma)
                     #     signal = (color_matrix @ sRGB^target_gamma)^(1/panel_gamma)
 
-                    # Step 1: Linearize sRGB (apply target gamma)
-                    # Use safe power that preserves zeros
-                    rgb_linear = np.where(rgb > EPS, np.power(rgb, target_gamma), 0.0)
+                    # Step 1: Linearize sRGB (apply the target tone response)
+                    # Use a safe decode that preserves zeros
+                    rgb_linear = _decode_target(rgb, target_gamma, target_tone, EPS)
 
                     # Step 2: Apply color correction matrix in LINEAR space
                     # This maps from sRGB linear to what panel needs in linear
@@ -988,6 +1052,7 @@ class LUTGenerator:
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         title: str = "Native Gamut Calibration LUT",
         oled_compensation: bool = False,
@@ -1040,6 +1105,7 @@ class LUTGenerator:
             adapt_matrix = get_adaptation_matrix(panel_ill, target_ill)
             # Combined: panel RGB -> XYZ -> adapt -> XYZ -> panel RGB
             wp_correction = xyz_to_panel @ adapt_matrix @ panel_to_xyz
+            wp_correction = wp_correction * headroom_scale(wp_correction)
         else:
             wp_correction = np.eye(3)
 
@@ -1047,7 +1113,6 @@ class LUTGenerator:
         coords = np.linspace(0, 1, self.size)
         EPS = 1e-10
         inv_gammas = np.array([1.0 / gamma_red, 1.0 / gamma_green, 1.0 / gamma_blue])
-        target_gammas = np.array([target_gamma, target_gamma, target_gamma])
 
         # Vectorized: build all grid points
         N = self.size
@@ -1059,7 +1124,7 @@ class LUTGenerator:
 
         # Step 1: The input signal is what the panel would receive.
         # Linearize with the PANEL's native gamma (undo what the panel does)
-        rgb_linear = np.where(all_rgb > EPS, np.power(all_rgb, target_gammas), 0.0)
+        rgb_linear = _decode_target(all_rgb, target_gamma, target_tone, EPS)
 
         # Step 2: Apply white point correction in linear space
         rgb_corrected = (wp_correction @ rgb_linear.T).T
@@ -1115,6 +1180,7 @@ class LUTGenerator:
         target_primaries: tuple[tuple[float, float], ...] | None = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
         title: str = "Oklab Perceptual Calibration LUT",
     ) -> LUT3D:
         """
@@ -1158,6 +1224,14 @@ class LUTGenerator:
         )
         xyz_to_panel = np.linalg.inv(panel_to_xyz)
 
+        # Fit the target space to the panel's headroom before anything reads
+        # it. Scaling here rather than after the combination keeps the gamut
+        # search below on the same scale as the vectorized path, and it stops
+        # a white the panel cannot reach at full drive from being handed to
+        # that search as an out-of-gamut colour and desaturated back toward
+        # the white it was asked to leave.
+        target_to_xyz = target_to_xyz * headroom_scale(xyz_to_panel @ target_to_xyz)
+
         # Combined matrix: target linear RGB -> panel linear RGB
         target_to_panel = xyz_to_panel @ target_to_xyz
 
@@ -1176,7 +1250,7 @@ class LUTGenerator:
         is_black = np.all(all_rgb == 0.0, axis=1)
 
         # 2. Linearize all points (target gamma decode), vectorized
-        rgb_linear_all = np.where(all_rgb > EPS, np.power(all_rgb, target_gamma), 0.0)
+        rgb_linear_all = _decode_target(all_rgb, target_gamma, target_tone, EPS)
 
         # 3. Convert all to panel linear RGB via combined matrix, vectorized
         #    panel_linear = target_to_panel @ rgb_linear  for each row
@@ -1256,7 +1330,6 @@ class LUTGenerator:
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
         peak_luminance: float = 1000.0,
-        target_white_luminance: float = 203.0,
         title: str = "HDR Calibration LUT",
     ) -> LUT3D:
         """
@@ -1276,9 +1349,14 @@ class LUTGenerator:
             6. Convert the (possibly compressed) JzAzBz back to XYZ.
             7. Convert XYZ to panel linear RGB.
             8. Apply per-channel inverse panel gamma.
-            9. Map the SDR-in-HDR reference white (203 cd/m^2 by default)
-               so that it lands at the correct level.
-            10. Encode the result back to PQ and write into the LUT.
+            9. Encode the result back to PQ and write into the LUT.
+
+        Reference white is not remapped. The step that would scale it, and
+        the ``target_white_luminance`` argument that carried the BT.2408
+        level, computed a fraction of the peak and discarded it, so every
+        LUT this has written left reference white where the panel puts it.
+        The argument is removed rather than kept as a control that reads
+        like it does something.
 
         The output .cube file should be saved with an ``_hdr`` suffix for
         dwm_lut compatibility (the caller is responsible for naming).
@@ -1291,17 +1369,26 @@ class LUTGenerator:
             gamma_green: Native gamma of the green channel.
             gamma_blue: Native gamma of the blue channel.
             peak_luminance: Panel peak luminance in cd/m^2 (e.g. 1000).
-            target_white_luminance: HDR reference-white luminance in cd/m^2
-                (default 203 cd/m^2 per ITU-R BT.2408).
+                Must be positive: it divides the absolute luminance of every
+                grid point.
             title: Title embedded in the .cube file.
 
         Returns:
             A :class:`LUT3D` whose domain is PQ-encoded [0, 1].
         """
+        # The peak divides absolute luminance at every grid point, so a peak
+        # of zero, which is how a panel with no measured photometry reports
+        # the field, fills the LUT with inf and nan and writes it out as a
+        # calibration. Refuse instead.
+        if peak_luminance <= 0.0:
+            raise ValueError(
+                f"An HDR LUT needs a positive peak luminance, got {peak_luminance} cd/m2. "
+                "Zero marks a panel whose peak brightness was never measured."
+            )
+
         # ---- colour-space matrices ----
         # BT.2020 linear RGB -> XYZ (D65)
         bt2020_to_xyz = BT2020_TO_XYZ.copy()
-        np.linalg.inv(bt2020_to_xyz)
 
         # Panel linear RGB -> XYZ (D65)  and inverse
         panel_to_xyz = primaries_to_xyz_matrix(
@@ -1315,13 +1402,6 @@ class LUTGenerator:
         # Combined matrix: BT.2020 linear -> panel linear (used for the
         # fast in-gamut path and for checking gamut membership).
         bt2020_to_panel = xyz_to_panel @ bt2020_to_xyz
-
-        # Reference-white scaling factor.
-        # The SDR reference white at ``target_white_luminance`` cd/m^2
-        # should map to the same absolute luminance on the panel.  We
-        # express it as a fraction of the peak so that we can rescale
-        # the panel-linear values before gamma encoding.
-        target_white_luminance / peak_luminance  # e.g. 0.203
 
         inv_gammas = np.array(
             [1.0 / gamma_red, 1.0 / gamma_green, 1.0 / gamma_blue],
@@ -1371,8 +1451,7 @@ class LUTGenerator:
         # ---- fast vectorised in-gamut path ----
         ig_panel = np.clip(panel_linear_all[in_gamut_mask], 0.0, 1.0)
         ig_output_linear = np.where(ig_panel > EPS, np.power(ig_panel, inv_gammas), 0.0)
-        # Scale so that reference-white maps correctly, then convert
-        # back to absolute nits and PQ-encode.
+        # Convert back to absolute nits and PQ-encode.
         ig_nits = np.clip(ig_output_linear, 0.0, 1.0) * peak_luminance
         result_all[in_gamut_mask] = pq_oetf(ig_nits)
 
@@ -1390,10 +1469,6 @@ class LUTGenerator:
             Jz, Cz, hz = float(jch[0]), float(jch[1]), float(jch[2])
 
             if Cz > EPS:
-                h_rad = np.radians(hz)
-                np.cos(h_rad)
-                np.sin(h_rad)
-
                 # Binary search: find the maximum chroma in panel gamut
                 lo, hi = 0.0, Cz
                 for _ in range(24):

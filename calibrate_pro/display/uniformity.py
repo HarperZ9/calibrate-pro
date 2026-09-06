@@ -352,9 +352,14 @@ def cmd_uniformity(args) -> int:
     print(f"Patch size: {plan[0][2]}x{plan[0][3]} pixels\n")
 
     # --- Step 2: Acquire data ------------------------------------------------
+    mark = ""
     if simulated:
         print("[Simulated mode] Generating synthetic uniformity data...\n")
         measurements = generate_simulated_uniformity(rows, cols)
+        # The single line above scrolls away. Every block below prints
+        # luminances in cd/m2 and a grade, which is the shape of a colorimeter
+        # report, so each one says where the numbers came from.
+        mark = " [synthetic]"
     else:
         print("Connect a colorimeter and use --simulated for testing without one.")
         print("Full measurement mode is not yet implemented in CLI.")
@@ -365,7 +370,7 @@ def cmd_uniformity(args) -> int:
     comp = UniformityCompensation.from_measurements(measurements)
     stats = comp.compute_uniformity_stats()
 
-    print("--- Uniformity Statistics ---")
+    print(f"--- Uniformity Statistics{mark} ---")
     print(f"  Max deviation:  {stats['max_deviation_pct']:.1f}%")
     print(f"  Avg deviation:  {stats['avg_deviation_pct']:.1f}%")
     print(f"  Worst area:     {stats['worst_corner']} (row {stats['worst_row']}, col {stats['worst_col']})")
@@ -374,13 +379,13 @@ def cmd_uniformity(args) -> int:
     print(f"  Chrominance spread: {stats['chrominance_spread']:.5f}")
 
     # --- Step 4: Report worst areas ------------------------------------------
-    print("\n--- Luminance Map (cd/m2) ---")
+    print(f"\n--- Luminance Map (cd/m2){mark} ---")
     grid = comp.grid
     for r in range(grid.rows):
         row_vals = "  ".join(f"{grid.luminance[r, c]:6.1f}" for c in range(grid.cols))
         print(f"  Row {r}: {row_vals}")
 
-    print("\n--- Correction Factors (center of each cell) ---")
+    print(f"\n--- Correction Factors (center of each cell){mark} ---")
     for r in range(grid.rows):
         factors = []
         for c in range(grid.cols):
@@ -400,8 +405,10 @@ def cmd_uniformity(args) -> int:
     else:
         grade = "Poor"
 
-    print(f"\nUniformity Grade: {grade}")
-    print(f"Max Deviation: {stats['max_deviation_pct']:.1f}%  (worst: {stats['worst_corner']})")
+    print(f"\nUniformity Grade: {grade}{mark}")
+    print(f"Max Deviation: {stats['max_deviation_pct']:.1f}%  (worst: {stats['worst_corner']}){mark}")
+    if simulated:
+        print("Synthetic data from a model. No colorimeter read this display.")
     print("=" * 60)
 
     return 0

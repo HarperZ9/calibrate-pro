@@ -179,6 +179,17 @@ class ActuationCoordinator:
             )
             return token
 
+    def invalidate_confirmation(self) -> None:
+        """Discard any outstanding confirmation without consuming a token.
+
+        Called when the plan behind a confirmation changed or the operator
+        stepped back. Dropping the pending record here means a token issued for
+        the old plan can never be redeemed, so a stale confirmation cannot
+        authorize an apply the operator did not see.
+        """
+        with self._lock:
+            self._pending = None
+
     def apply(self, plan: ApplyPlan, token: str, *, confirmed: bool) -> ApplyReceipt:
         with self._apply_lock:
             confirmed_plan = _private_plan_copy(plan)

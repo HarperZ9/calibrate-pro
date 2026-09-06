@@ -12,7 +12,7 @@ on:
         description: Existing GitHub release tag whose assets were accepted
         required: true
         type: string
-        default: v1.1.0
+        default: v2.0.0
   release:
     types: [published]
 
@@ -174,12 +174,18 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.release_tag }}
         run: |
-          test "$RELEASE_TAG" = "v1.1.0"
-          cmp --silent accepted/calibrate_pro-1.1.0-py3-none-any.whl windows-candidate/calibrate_pro-1.1.0-py3-none-any.whl
-          cmp --silent accepted/calibrate_pro-1.1.0.tar.gz windows-candidate/calibrate_pro-1.1.0.tar.gz
+          # The version is declared once, in calibrate_pro/__init__.py. Read it
+          # rather than repeating it, so the tag, the artifacts and the package
+          # cannot disagree after a bump.
+          VERSION="$(python scripts/product_version.py)"
+          test "$RELEASE_TAG" = "v$VERSION"
+          WHEEL="calibrate_pro-$VERSION-py3-none-any.whl"
+          SDIST="calibrate_pro-$VERSION.tar.gz"
+          cmp --silent "accepted/$WHEEL" "windows-candidate/$WHEEL"
+          cmp --silent "accepted/$SDIST" "windows-candidate/$SDIST"
           mkdir pypi-dist
-          cp accepted/calibrate_pro-1.1.0-py3-none-any.whl pypi-dist/
-          cp accepted/calibrate_pro-1.1.0.tar.gz pypi-dist/
+          cp "accepted/$WHEEL" pypi-dist/
+          cp "accepted/$SDIST" pypi-dist/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: verified-pypi-distributions

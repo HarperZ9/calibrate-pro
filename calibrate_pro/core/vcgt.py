@@ -324,13 +324,14 @@ def export_vcgt_icc_bytes(vcgt: VCGTTable) -> bytes:
     # Entry size (2 bytes = 16-bit)
     data.extend(struct.pack(">H", 2))
 
-    # Table data (16-bit values, big-endian)
+    # Table data (16-bit values, big-endian), one channel after another. This
+    # used to interleave R, G and B per index, which a reader following the
+    # header above decodes as one channel of alternating red, green and blue.
     r_int, g_int, b_int = vcgt.to_integers(16)
 
-    for i in range(vcgt.size):
-        data.extend(struct.pack(">H", r_int[i]))
-        data.extend(struct.pack(">H", g_int[i]))
-        data.extend(struct.pack(">H", b_int[i]))
+    for channel in (r_int, g_int, b_int):
+        for value in channel:
+            data.extend(struct.pack(">H", int(value)))
 
     return bytes(data)
 

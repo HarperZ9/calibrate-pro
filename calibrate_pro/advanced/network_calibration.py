@@ -9,7 +9,6 @@ Provides remote and fleet calibration capabilities:
 - Calibration job scheduling
 """
 
-import asyncio
 import hashlib
 import json
 import socket
@@ -247,6 +246,24 @@ class NetworkMessage:
 # =============================================================================
 
 
+def _remote_operation_unavailable(operation: str, node: "DisplayNode") -> NotImplementedError:
+    """Build the error a remote job raises instead of inventing a result.
+
+    The server tracks nodes and queues jobs, but it has no transport that runs
+    a calibration on one. A status, a Delta E, or a pass flag returned from here
+    would be a number this process made up, and the job record cannot tell that
+    apart from a reading an instrument took on the remote display. Raising sends
+    the job to FAILED with the reason attached to the node, which is what the
+    fleet actually knows.
+    """
+    return NotImplementedError(
+        f"{operation} on node {node.node_id!r} is not implemented. "
+        "The server has no transport to the node, so it cannot report a result "
+        "for one. Run the operation on the node itself until the node protocol "
+        "lands."
+    )
+
+
 class CalibrationServer:
     """
     Central calibration server for fleet management.
@@ -432,25 +449,15 @@ class CalibrationServer:
         return results
 
     def _send_profile_to_node(self, node: DisplayNode, package: ProfilePackage) -> bool:
-        """Send profile package to a node."""
-        try:
-            NetworkMessage(
-                msg_type=MessageType.PROFILE_PUSH,
-                sender_id=self.server_id,
-                payload={
-                    "package_id": package.package_id,
-                    "name": package.name,
-                    "version": package.version,
-                    "checksum": package.checksum,
-                    "has_icc": package.icc_profile is not None,
-                    "has_lut_3d": package.lut_3d is not None,
-                    "calibration_data": package.calibration_data,
-                },
-            )
-            # Actual send would go here
-            return True
-        except Exception:
-            return False
+        """Report that a profile package cannot be sent to a node.
+
+        The method built a PROFILE_PUSH message, dropped it, and answered True.
+        `push_profile_to_nodes` passed that on as a per-node success, and
+        `ProfileSyncManager.sync_all` then listed the package under
+        `synced_profiles` with no sync errors, for a node that received nothing.
+        There is no transport to a node, so the answer is False until one exists.
+        """
+        return False
 
     # =========================================================================
     # Fleet Calibration
@@ -588,29 +595,23 @@ class CalibrationServer:
 
     async def _run_calibration(self, node: DisplayNode, params: dict) -> dict:
         """Run full calibration on node."""
-        # This would send calibration commands to the remote node
-        await asyncio.sleep(0.1)  # Placeholder
-        return {"status": "completed", "delta_e_mean": 1.2}
+        raise _remote_operation_unavailable("Full calibration", node)
 
     async def _run_verification(self, node: DisplayNode, params: dict) -> dict:
         """Run verification on node."""
-        await asyncio.sleep(0.1)
-        return {"status": "completed", "passed": True}
+        raise _remote_operation_unavailable("Verification", node)
 
     async def _apply_profile(self, node: DisplayNode, params: dict) -> dict:
         """Apply profile to node."""
-        await asyncio.sleep(0.1)
-        return {"status": "applied"}
+        raise _remote_operation_unavailable("Profile apply", node)
 
     async def _apply_lut(self, node: DisplayNode, params: dict) -> dict:
         """Apply LUT to node."""
-        await asyncio.sleep(0.1)
-        return {"status": "applied"}
+        raise _remote_operation_unavailable("LUT apply", node)
 
     async def _run_measurement(self, node: DisplayNode, params: dict) -> dict:
         """Run measurement on node."""
-        await asyncio.sleep(0.1)
-        return {"status": "completed", "measurements": []}
+        raise _remote_operation_unavailable("Measurement", node)
 
     # =========================================================================
     # Callbacks
@@ -645,9 +646,13 @@ class CalibrationServer:
     # =========================================================================
 
     def start(self) -> None:
-        """Start the calibration server."""
+        """Open the job processing loop.
+
+        No socket is opened and nothing listens. Nodes reach this server by
+        being registered through `register_node`, so the fleet it reports is
+        the one this process was told about rather than one it discovered.
+        """
         self._running = True
-        # Server socket setup would go here
 
     def stop(self) -> None:
         """Stop the calibration server."""

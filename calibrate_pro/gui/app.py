@@ -7,8 +7,10 @@ Every widget has proper layout constraints. Every panel resizes correctly.
 
 import logging
 import sys
-from dataclasses import dataclass
-from pathlib import Path
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from decimal import Decimal
+from functools import partial
 
 from calibrate_pro import __version__ as APP_VERSION
 from calibrate_pro.qt_runtime import configure_qt_api
@@ -33,12 +35,11 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QKeySequence, QPainter, QPen, QPixmap, QPolygonF, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -48,15 +49,172 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
     QSystemTrayIcon,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from calibrate_pro.application.actions import ActionClassification, ActionDisposition, ResolvedAction
+from calibrate_pro.application.assets import ExportBundle
+from calibrate_pro.application.composition import build_default_service
+from calibrate_pro.application.contracts import (
+    CharacterizationKind,
+    DisplayObservation,
+    PanelCharacterization,
+)
+from calibrate_pro.application.detection import panel_key_from_provenance
+from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
+from calibrate_pro.application.pattern_catalogue import CATALOGUE as PATTERN_CATALOGUE
+from calibrate_pro.application.pattern_surface import PatternPresentation
+from calibrate_pro.application.results import DetectionSummary, DisplaySelection, HdrStatus, PlanPreview
+from calibrate_pro.application.service import FunctionalRecoveryService
+from calibrate_pro.application.system_profile_results import ProfileActivation
+from calibrate_pro.application.system_profile_session import ProfileOutcome
+from calibrate_pro.gui.action_binding import ActionBinder, Operation, refusal_message
+from calibrate_pro.gui.add_display import AddDisplayDialog
+from calibrate_pro.gui.plan_dialog import PlanConfirmationDialog
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
+from calibrate_pro.workflow import CalibrationMethod
 
 APP_NAME = "Calibrate Pro"
 APP_ORG = "Build Universe"
+
+#: What a control says when this window narrowed it because the build is a
+#: simulated preview. The banner promises no hardware access and no display
+#: changes, and this is that same promise stated on the control itself.
+PREVIEW_DISABLED_REASON = "Disabled in simulated preview."
+
+#: The View menu's page entries in stack order: the label, its shortcut, and
+#: the navigation action the entry stands for.
+PAGE_MENU_ENTRIES: tuple[tuple[str, str, str], ...] = (
+    ("&Dashboard", "Ctrl+1", "navigation.dashboard"),
+    ("&Calibrate", "Ctrl+2", "navigation.calibrate"),
+    ("&Verify", "Ctrl+3", "navigation.verify"),
+    ("&Profiles", "Ctrl+4", "navigation.profiles"),
+    ("DD&C Control", "Ctrl+5", "navigation.ddc"),
+    ("&Settings", "Ctrl+6", "navigation.settings"),
+)
+
+#: Where the profiles page sits in the stack, read from the navigation table so
+#: the tray entry and the View menu cannot come to point at different pages.
+PROFILES_PAGE_INDEX = next(index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.profiles")
+
+#: Where the dashboard sits, read from the same table for the same reason. The
+#: window repaints the characterization row when this page comes back into view.
+DASHBOARD_PAGE_INDEX = next(
+    index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.dashboard"
+)
+
+#: Where the DDC page sits, read from the same table. The display it acts on is
+#: the session's, which another page can change while the operator is elsewhere,
+#: so the selector is read back when this page comes into view.
+DDC_PAGE_INDEX = next(index for index, entry in enumerate(PAGE_MENU_ENTRIES) if entry[2] == "navigation.ddc")
+
+#: The Export submenu in menu order: the name the session publishes a format
+#: under, and the label the entry carries.
+EXPORT_MENU_ENTRIES: tuple[tuple[str, str], ...] = (
+    ("cube", ".cube (Resolve / dwm_lut)"),
+    ("3dlut", ".3dlut (MadVR)"),
+    ("png", ".png (ReShade / SpecialK)"),
+    ("icc", ".icc (ICC Profile)"),
+    ("mpv", "mpv config"),
+    ("obs", "OBS LUT"),
+)
+
+
+def refresh_text(refresh_millihz: int) -> str:
+    """Render a refresh rate at the precision the observation carries.
+
+    The contract stores millihertz because 59.94 Hz is a real rate that whole
+    hertz cannot hold. Trailing zeros are dropped, so an exact 60 Hz reading is
+    not dressed up as 60.000.
+    """
+    hertz = (Decimal(refresh_millihz) / Decimal(1000)).normalize()
+    return f"{hertz:f} Hz"
+
+
+def hdr_text(hdr_enabled: bool | None) -> str:
+    """Say what the HDR switch answered, including that it did not answer."""
+    if hdr_enabled is None:
+        return "not read"
+    return "on" if hdr_enabled else "off"
+
+
+def characterization_text(characterization: PanelCharacterization) -> str:
+    """Name where a panel description came from, or say there is none.
+
+    A card showing a panel type with no source would read as a measurement of
+    the attached unit. What a detection pass holds is a database match, a
+    deliberate generic stand-in, or nothing, and which one it is decides how
+    much any number derived from it is worth.
+    """
+    if characterization.kind is CharacterizationKind.UNKNOWN:
+        return "Panel not characterized"
+    key = panel_key_from_provenance(characterization)
+    if key is not None:
+        return f"Panel {key}"
+    return f"Panel characterization: {characterization.provenance}"
+
+
+def characterization_note(selection: DisplaySelection | None) -> str:
+    """State how the session characterized the display it holds.
+
+    A card names the characterization of one observation. This names the
+    characterization of the session, which is a different thing in two cases
+    that matter. A matched panel whose record the session cannot name is
+    adopted as uncharacterized, and a session that took the generic path holds
+    that decision while the observation behind it still reads unknown. Reading
+    the observation here would show the operator a state the resolver was not
+    working from.
+    """
+    if selection is None:
+        return "No display is selected. Run a detection pass to select one."
+    kind = selection.characterization_kind
+    if kind is CharacterizationKind.UNKNOWN:
+        return (
+            "This display is not in the bundled panel database, so the session holds no description "
+            "of its primaries. Calibration methods and targets stay closed until a characterization "
+            "is chosen."
+        )
+    if kind is CharacterizationKind.EXPLICIT_GENERIC:
+        return (
+            "This session is using the generic characterization. It describes a nominal sRGB panel "
+            "rather than this unit, and every figure derived from it carries that provenance."
+        )
+    if kind is CharacterizationKind.MEASURED:
+        return (
+            "This display was measured in this session, so what the session holds describes the unit "
+            "on the desk rather than the product. Selecting another display drops the run with it."
+        )
+    return (
+        f"Characterized from the bundled panel record {selection.panel_key}, which describes the "
+        "product rather than the unit on the desk."
+    )
+
+
+def chromaticity_point(pair: tuple[str, str] | None) -> tuple[float, float] | None:
+    """Convert one contract chromaticity into what the gamut widget draws.
+
+    The contract carries exact decimal strings so that no stage rounds a
+    coordinate twice. The widget draws pixels, so the single conversion to
+    binary floating point happens here, at the last moment before drawing.
+    """
+    if pair is None:
+        return None
+    return (float(pair[0]), float(pair[1]))
+
+
+def menu_action(menu: QMenu, text: str, parent: QWidget, shortcut: str | None = None) -> QAction:
+    """Create one menu entry and hand it back to be bound.
+
+    The entry is deliberately not connected here. Every entry in this window is
+    connected by the binder, which is what stops a control from reaching a
+    handler the session was never asked about.
+    """
+    action = QAction(text, parent)
+    if shortcut is not None:
+        action.setShortcut(QKeySequence(shortcut))
+    menu.addAction(action)
+    return action
 
 
 def not_measured_metric(unit: str) -> MetricValue:
@@ -118,97 +276,26 @@ def qt_display_snapshots() -> list[QtDisplaySnapshot]:
     return snapshots
 
 
-def make_tray_icon(accent_color: str = "#92ad7e") -> QIcon:
+#: What the tray says before a detection pass has answered in this process.
+NOTHING_OBSERVED = "no displays read yet"
+
+
+def detection_sentence(summary: DetectionSummary) -> str:
+    """Name what one pass found, including the displays it turned down.
+
+    The status line and the tray both show this, so they cannot come to
+    describe the same pass differently.
     """
-    Create a tray icon variant with a specific accent color.
+    text = f"{len(summary.dashboard.displays)} display(s) detected"
+    rejected = len(summary.rejected)
+    if rejected:
+        text = f"{text}, {rejected} not usable"
+    return text
 
-    The accent color tints the calibration arcs, check mark, stand, and
-    frame to visually indicate calibration state:
-        - Green (#92ad7e): all displays calibrated
-        - Yellow (#e0c87a): calibration is stale (>30 days)
-        - Gray  (#bfb0a4): no calibration applied
-    """
-    icon = QIcon()
-    for size in [16, 24, 32, 48, 64, 128, 256]:
-        pm = QPixmap(size, size)
-        pm.fill(QColor(0, 0, 0, 0))
 
-        p = QPainter(pm)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        s = size
-        m = s * 0.08
-
-        # Monitor body
-        body_rect = (m, m, s - 2 * m, s * 0.72)
-        p.setPen(QPen(QColor(accent_color), max(1, s * 0.04)))
-        p.setBrush(QColor("#f7f3ee"))
-        p.drawRoundedRect(
-            int(body_rect[0]), int(body_rect[1]), int(body_rect[2]), int(body_rect[3]), s * 0.08, s * 0.08
-        )
-
-        # Screen area
-        inset = s * 0.14
-        screen_x = inset
-        screen_y = inset
-        screen_w = s - 2 * inset
-        screen_h = s * 0.52
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("#f0ebe4"))
-        p.drawRoundedRect(int(screen_x), int(screen_y), int(screen_w), int(screen_h), s * 0.04, s * 0.04)
-
-        # Single-color calibration arc
-        cx = s * 0.5
-        cy = s * 0.42
-        radius = s * 0.18
-
-        for angle_start in [200, 240, 280]:
-            pen = QPen(QColor(accent_color), max(1.5, s * 0.05))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            p.setPen(pen)
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            arc_rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
-            p.drawArc(arc_rect, angle_start * 16, 35 * 16)
-
-        # Stand
-        stand_top = s * 0.76
-        stand_w = s * 0.22
-        stand_h = s * 0.08
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(accent_color))
-        stand = QPolygonF(
-            [
-                QPointF(cx - stand_w * 0.4, stand_top),
-                QPointF(cx + stand_w * 0.4, stand_top),
-                QPointF(cx + stand_w * 0.7, stand_top + stand_h),
-                QPointF(cx - stand_w * 0.7, stand_top + stand_h),
-            ]
-        )
-        p.drawPolygon(stand)
-
-        # Base
-        base_y = stand_top + stand_h
-        base_w = s * 0.30
-        p.drawRoundedRect(int(cx - base_w / 2), int(base_y), int(base_w), int(s * 0.04), s * 0.02, s * 0.02)
-
-        # Check mark in accent color
-        if size >= 24:
-            check_x = screen_x + screen_w * 0.65
-            check_y = screen_y + screen_h * 0.55
-            check_s = s * 0.14
-            pen = QPen(QColor(accent_color), max(1.5, s * 0.04))
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            p.setPen(pen)
-            p.drawLine(
-                QPointF(check_x, check_y + check_s * 0.4), QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75)
-            )
-            p.drawLine(QPointF(check_x + check_s * 0.35, check_y + check_s * 0.75), QPointF(check_x + check_s, check_y))
-
-        p.end()
-        icon.addPixmap(pm)
-
-    return icon
+def tray_tooltip(summary: DetectionSummary | None) -> str:
+    """The line the tray carries, for a session that has observed this much."""
+    return f"{APP_NAME} - {NOTHING_OBSERVED if summary is None else detection_sentence(summary)}"
 
 
 def make_app_icon() -> QIcon:
@@ -604,603 +691,34 @@ class SensorCard(Card):
         layout.addWidget(text, stretch=1)
 
 
-class LiveSensorCard(Card):
-    """Live colorimeter readout with auto-updating XYZ, luminance, CCT."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumHeight(90)
-        self._driver = None
-        self._timer = None
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
-
-        # Header
-        header = QHBoxLayout()
-        self._title = QLabel("Colorimeter -- Live Readout")
-        self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.GREEN_HI};")
-        header.addWidget(self._title)
-        header.addStretch()
-
-        self._toggle_btn = QPushButton("Start")
-        self._toggle_btn.setFixedSize(60, 24)
-        self._toggle_btn.setStyleSheet("font-size: 10px; padding: 2px 8px;")
-        self._toggle_btn.clicked.connect(self._toggle_live)
-        header.addWidget(self._toggle_btn)
-        layout.addLayout(header)
-
-        # Readout row
-        readings = QHBoxLayout()
-        readings.setSpacing(24)
-
-        self._lum_stat = Stat("Luminance", "--", C.TEXT)
-        self._cct_stat = Stat("CCT", "--", C.TEXT)
-        self._xyz_label = QLabel("X -- Y -- Z --")
-        self._xyz_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT2}; font-family: 'Cascadia Code', 'Consolas', monospace;"
-        )
-
-        readings.addWidget(self._lum_stat)
-        readings.addWidget(self._cct_stat)
-        readings.addWidget(self._xyz_label, stretch=1)
-        layout.addLayout(readings)
-
-        self._running = False
-
-    def _toggle_live(self):
-        if self._running:
-            self._stop_live()
-        else:
-            self._start_live()
-
-    def _start_live(self):
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            self._driver = I1D3Driver()
-            if not self._driver.open():
-                self._title.setText("Colorimeter -- Failed to open")
-                self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.RED};")
-                return
-
-            self._running = True
-            self._toggle_btn.setText("Stop")
-            self._title.setText("Colorimeter -- Live")
-
-            self._timer = QTimer()
-            self._timer.timeout.connect(self._take_reading)
-            self._timer.start(800)  # Read every 800ms
-
-        except (ImportError, OSError, RuntimeError) as e:
-            self._title.setText(f"Error: {e}")
-
-    def _stop_live(self):
-        self._running = False
-        if self._timer:
-            self._timer.stop()
-            self._timer = None
-        if self._driver:
-            self._driver.close()
-            self._driver = None
-        self._toggle_btn.setText("Start")
-        self._title.setText("Colorimeter -- Stopped")
-        self._title.setStyleSheet(f"font-size: 12px; font-weight: 500; color: {C.TEXT2};")
-
-    def _take_reading(self):
-        if not self._driver or not self._running:
-            return
-        try:
-            m = self._driver.measure(integration_time=0.5)
-            if m and (m.X > 0 or m.Y > 0 or m.Z > 0):
-                self._lum_stat.set_value(f"{m.luminance:.1f}", C.TEXT)
-                self._cct_stat.set_value(f"{m.cct:.0f}K" if m.cct > 1000 else "--", C.TEXT)
-                self._xyz_label.setText(f"X {m.X:.2f}   Y {m.Y:.2f}   Z {m.Z:.2f}")
-            else:
-                self._xyz_label.setText("No light detected")
-        except (OSError, RuntimeError):
-            self._xyz_label.setText("Read error")
-
-
-# Add Display Profile Dialog
-
-
-class AddDisplayDialog(QDialog):
-    """Dialog for adding display profiles via EDID auto-detect or JSON import."""
-
-    display_added = Signal()  # emitted when a profile is added
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Add Display Profile")
-        self.setMinimumSize(520, 460)
-        self.setStyleSheet(
-            f"QDialog {{ background: {C.BG}; }}"
-            f"QTabWidget::pane {{ border: 1px solid {C.BORDER}; border-radius: 10px; "
-            f"  background: {C.SURFACE}; padding: 12px; }}"
-            f"QTabBar::tab {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-            f"  border-top-left-radius: 8px; border-top-right-radius: 8px; "
-            f"  padding: 8px 20px; margin-right: 2px; font-size: 12px; color: {C.TEXT}; }}"
-            f"QTabBar::tab:selected {{ background: {C.SURFACE}; border-bottom-color: {C.SURFACE}; "
-            f"  font-weight: 600; color: {C.ACCENT_TX}; }}"
-            f"QTabBar::tab:hover {{ background: {C.SURFACE}; }}"
-            f"QLabel {{ color: {C.TEXT}; }}"
-            f"QComboBox {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"  border-radius: 8px; padding: 6px 12px; font-size: 12px; }}"
-            f"QComboBox:hover {{ border-color: {C.ACCENT}; }}"
-            f"QComboBox::drop-down {{ border: none; width: 24px; }}"
-        )
-        self._build()
-
-    def _build(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
-
-        heading = QLabel("Add Display Profile")
-        heading.setStyleSheet(f"font-size: 18px; font-weight: 500; color: {C.TEXT};")
-        layout.addWidget(heading)
-
-        tabs = QTabWidget()
-        tabs.addTab(self._build_edid_tab(), "Auto-detect from EDID")
-        tabs.addTab(self._build_import_tab(), "Import from file")
-        layout.addWidget(tabs)
-
-    # EDID auto-detect tab
-    def _build_edid_tab(self):
-        tab = QWidget()
-        vbox = QVBoxLayout(tab)
-        vbox.setContentsMargins(8, 12, 8, 8)
-        vbox.setSpacing(12)
-
-        desc = QLabel(
-            "Detect connected displays via EDID and create panel profiles\nfrom their reported chromaticity data."
-        )
-        desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; line-height: 1.4;")
-        desc.setWordWrap(True)
-        vbox.addWidget(desc)
-
-        # Display selector
-        self._edid_combo = QComboBox()
-        self._edid_combo.setFixedHeight(34)
-        self._edid_combo.currentIndexChanged.connect(self._on_edid_display_changed)
-        vbox.addWidget(self._edid_combo)
-
-        # Info card
-        info_card = QFrame()
-        info_card.setStyleSheet(
-            f"QFrame {{ background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 10px; padding: 12px; }}"
-        )
-        info_layout = QVBoxLayout(info_card)
-        info_layout.setSpacing(6)
-
-        self._edid_info_label = QLabel("Click 'Scan Displays' to detect connected monitors.")
-        self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
-        self._edid_info_label.setWordWrap(True)
-        info_layout.addWidget(self._edid_info_label)
-
-        # Primaries display
-        self._primaries_label = QLabel("")
-        self._primaries_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT}; font-family: 'Consolas', monospace;")
-        self._primaries_label.setWordWrap(True)
-        info_layout.addWidget(self._primaries_label)
-
-        vbox.addWidget(info_card)
-
-        # Panel type and gamma overrides
-        override_form = QFormLayout()
-        override_form.setSpacing(10)
-        override_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-
-        type_label = QLabel("Panel type")
-        type_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        self._panel_type_combo = QComboBox()
-        self._panel_type_combo.addItems(["Auto", "QD-OLED", "WOLED", "IPS", "VA", "Mini-LED", "TN"])
-        self._panel_type_combo.setFixedHeight(32)
-        override_form.addRow(type_label, self._panel_type_combo)
-
-        gamma_label = QLabel("Gamma")
-        gamma_label.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-        self._gamma_combo = QComboBox()
-        self._gamma_combo.addItems(["2.2 (standard)", "2.4 (VA / cinema)", "2.0", "1.8", "sRGB (2.2 + linear toe)"])
-        self._gamma_combo.setFixedHeight(32)
-        override_form.addRow(gamma_label, self._gamma_combo)
-
-        vbox.addLayout(override_form)
-
-        # Buttons
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        scan_btn = QPushButton("Scan Displays")
-        scan_btn.setFixedHeight(34)
-        scan_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 12px; padding: 6px 18px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        scan_btn.clicked.connect(self._scan_displays)
-        btn_row.addWidget(scan_btn)
-
-        btn_row.addStretch()
-
-        self._create_btn = QPushButton("Create Profile")
-        self._create_btn.setFixedHeight(34)
-        self._create_btn.setProperty("primary", True)
-        self._create_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-            f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-            f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-        )
-        self._create_btn.setEnabled(False)
-        self._create_btn.clicked.connect(self._create_edid_profile)
-        btn_row.addWidget(self._create_btn)
-
-        vbox.addLayout(btn_row)
-        vbox.addStretch()
-
-        # Internal state
-        self._scanned_displays = []
-        self._scanned_edid_data = []
-
-        return tab
-
-    # Import-from-file tab
-    def _build_import_tab(self):
-        tab = QWidget()
-        vbox = QVBoxLayout(tab)
-        vbox.setContentsMargins(8, 12, 8, 8)
-        vbox.setSpacing(12)
-
-        desc = QLabel(
-            "Import a community .json panel profile into the database.\n"
-            "Panel profiles contain chromaticity, gamma, and capability data."
-        )
-        desc.setStyleSheet(f"font-size: 11px; color: {C.TEXT2}; line-height: 1.4;")
-        desc.setWordWrap(True)
-        vbox.addWidget(desc)
-
-        # File path display
-        self._import_path_label = QLabel("No file selected")
-        self._import_path_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT3}; padding: 8px; "
-            f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
-        )
-        self._import_path_label.setWordWrap(True)
-        vbox.addWidget(self._import_path_label)
-
-        # Preview area
-        self._import_preview = QLabel("")
-        self._import_preview.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT}; font-family: 'Consolas', monospace; "
-            f"padding: 8px; background: {C.SURFACE2}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 8px;"
-        )
-        self._import_preview.setWordWrap(True)
-        self._import_preview.setMinimumHeight(80)
-        self._import_preview.hide()
-        vbox.addWidget(self._import_preview)
-
-        # Buttons
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        browse_btn = QPushButton("Browse...")
-        browse_btn.setFixedHeight(34)
-        browse_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.SURFACE}; border: 1px solid {C.BORDER}; "
-            f"border-radius: 10px; font-size: 12px; padding: 6px 18px; }}"
-            f"QPushButton:hover {{ border-color: {C.ACCENT}; background: {C.SURFACE2}; }}"
-        )
-        browse_btn.clicked.connect(self._browse_import_file)
-        btn_row.addWidget(browse_btn)
-
-        btn_row.addStretch()
-
-        self._import_btn = QPushButton("Import Profile")
-        self._import_btn.setFixedHeight(34)
-        self._import_btn.setProperty("primary", True)
-        self._import_btn.setStyleSheet(
-            f"QPushButton {{ background: {C.ACCENT}; border: none; color: white; "
-            f"font-weight: 600; border-radius: 10px; font-size: 12px; padding: 6px 22px; }}"
-            f"QPushButton:hover {{ background: {C.ACCENT_HI}; }}"
-            f"QPushButton:disabled {{ background: {C.BORDER}; color: {C.TEXT3}; }}"
-        )
-        self._import_btn.setEnabled(False)
-        self._import_btn.clicked.connect(self._import_profile)
-        btn_row.addWidget(self._import_btn)
-
-        vbox.addLayout(btn_row)
-        vbox.addStretch()
-
-        self._import_file_path = None
-
-        return tab
-
-    # EDID scanning logic
-    def _scan_displays(self):
-        """Scan for connected displays not already in the panel database."""
-        try:
-            displays = qt_display_snapshots()
-
-            self._edid_combo.clear()
-            self._scanned_displays = []
-            self._scanned_edid_data = []
-
-            for i, display in enumerate(displays):
-                name = display.name
-                panel = None
-
-                # Qt deliberately exposes no EDID bytes. Keep inferred color
-                # characteristics empty instead of importing a writer-capable
-                # legacy module merely to read them.
-                edid_chromaticity = None
-                edid_gamma = 2.2
-
-                in_db = "  [in database]" if panel else "  [unknown]"
-                res = f"{display.width}x{display.height}"
-                self._edid_combo.addItem(f"{name}  ({res}){in_db}")
-
-                self._scanned_displays.append(
-                    {
-                        "display": display,
-                        "name": name,
-                        "index": i,
-                        "in_database": panel is not None,
-                        "panel": panel,
-                        "edid_chromaticity": edid_chromaticity,
-                        "edid_gamma": edid_gamma,
-                        "manufacturer": display.manufacturer or "Unknown",
-                    }
-                )
-                self._scanned_edid_data.append(edid_chromaticity)
-
-            if not displays:
-                self._edid_info_label.setText("No displays detected.")
-                self._create_btn.setEnabled(False)
-            else:
-                self._on_edid_display_changed(0)
-
-        except (ImportError, OSError, AttributeError, KeyError) as e:
-            self._edid_info_label.setText(f"Error scanning displays: {e}")
-            self._create_btn.setEnabled(False)
-
-    def _on_edid_display_changed(self, index):
-        """Update info panel when a different display is selected."""
-        if index < 0 or index >= len(self._scanned_displays):
-            return
-
-        info = self._scanned_displays[index]
-        chrom = info["edid_chromaticity"]
-
-        if info["in_database"]:
-            panel = info["panel"]
-            self._edid_info_label.setText(
-                f"This display is already in the database as:\n{panel.name}  ({panel.panel_type})"
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.GREEN};")
-            self._create_btn.setEnabled(False)
-            if chrom:
-                self._primaries_label.setText(
-                    f"R({chrom['red'][0]:.4f}, {chrom['red'][1]:.4f})  "
-                    f"G({chrom['green'][0]:.4f}, {chrom['green'][1]:.4f})  "
-                    f"B({chrom['blue'][0]:.4f}, {chrom['blue'][1]:.4f})\n"
-                    f"White({chrom['white'][0]:.4f}, {chrom['white'][1]:.4f})"
-                )
-            else:
-                self._primaries_label.setText("")
-        elif chrom:
-            # Calculate approximate gamut coverage
-            r, g, b = chrom["red"], chrom["green"], chrom["blue"]
-            is_wide = r[0] > 0.66 or g[1] > 0.65
-            gamut_desc = "Wide gamut (P3+)" if is_wide else "sRGB-class"
-
-            self._edid_info_label.setText(
-                f"EDID chromaticity detected - ready to create profile.\n"
-                f"Gamut: {gamut_desc}   |   Gamma: {info['edid_gamma']:.1f}"
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT};")
-            self._primaries_label.setText(
-                f"R({r[0]:.4f}, {r[1]:.4f})  "
-                f"G({g[0]:.4f}, {g[1]:.4f})  "
-                f"B({b[0]:.4f}, {b[1]:.4f})\n"
-                f"White({chrom['white'][0]:.4f}, {chrom['white'][1]:.4f})"
-            )
-            self._create_btn.setEnabled(True)
-        else:
-            self._edid_info_label.setText(
-                "No EDID chromaticity data available for this display.\nA generic sRGB profile will be used."
-            )
-            self._edid_info_label.setStyleSheet(f"font-size: 11px; color: {C.YELLOW};")
-            self._primaries_label.setText("")
-            self._create_btn.setEnabled(False)
-
-    def _create_edid_profile(self):
-        """Create a panel profile from the selected display's EDID data."""
-        index = self._edid_combo.currentIndex()
-        if index < 0 or index >= len(self._scanned_displays):
-            return
-
-        info = self._scanned_displays[index]
-        chrom = info["edid_chromaticity"]
-        if not chrom:
-            return
-
-        # Resolve gamma override
-        gamma_text = self._gamma_combo.currentText()
-        if gamma_text.startswith("2.4"):
-            gamma = 2.4
-        elif gamma_text.startswith("2.0"):
-            gamma = 2.0
-        elif gamma_text.startswith("1.8"):
-            gamma = 1.8
-        else:
-            gamma = info["edid_gamma"]
-
-        # Resolve panel type override
-        panel_type_text = self._panel_type_combo.currentText()
-
-        try:
-            from calibrate_pro.panels.database import DDCRecommendations, PanelDatabase, create_from_edid
-
-            panel = create_from_edid(
-                edid_chromaticity=chrom,
-                monitor_name=info["name"],
-                manufacturer=info["manufacturer"],
-                gamma=gamma,
-            )
-
-            # Override panel type if user selected one
-            if panel_type_text != "Auto":
-                panel.panel_type = panel_type_text
-
-            # Add generic DDC recommendations
-            if panel.ddc is None:
-                panel.ddc = DDCRecommendations(
-                    notes=f"Auto-generated defaults for {info['name']}. "
-                    "Adjust picture mode and color preset in your monitor's OSD "
-                    "for best DDC/CI control."
-                )
-
-            # Save to profiles directory
-            db = PanelDatabase()
-            safe_name = info["name"].replace(" ", "_").replace("/", "_").replace("\\", "_")
-            key = safe_name or f"EDID_Display_{index}"
-            db.add_panel(key, panel)
-            filepath = db.save_panel(key, f"{safe_name.lower()}.json")
-
-            QMessageBox.information(
-                self,
-                "Profile Created",
-                f"Panel profile created successfully.\n\n"
-                f"Name: {info['name']}\n"
-                f"Type: {panel.panel_type}\n"
-                f"Gamma: {gamma}\n"
-                f"Saved to: {filepath}",
-            )
-
-            self.display_added.emit()
-            self.accept()
-
-        except (ImportError, OSError, KeyError, ValueError) as e:
-            QMessageBox.warning(self, "Error", f"Failed to create profile:\n{e}")
-
-    # File import logic
-    def _browse_import_file(self):
-        """Open file dialog to select a .json panel profile."""
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select Panel Profile", "", "JSON Panel Profiles (*.json);;All Files (*)"
-        )
-        if not path:
-            return
-
-        self._import_file_path = path
-        self._import_path_label.setText(path)
-        self._import_path_label.setStyleSheet(
-            f"font-size: 11px; color: {C.TEXT}; padding: 8px; "
-            f"background: {C.SURFACE2}; border: 1px solid {C.BORDER}; border-radius: 8px;"
-        )
-
-        # Preview the file
-        try:
-            import json
-
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-
-            if isinstance(data, list):
-                count = len(data)
-                names = [d.get("display_name", d.get("model_pattern", "?")) for d in data[:5]]
-                preview = f"{count} panel profile(s):\n" + "\n".join(f"  - {n}" for n in names)
-                if count > 5:
-                    preview += f"\n  ... and {count - 5} more"
-            else:
-                mfg = data.get("manufacturer", "?")
-                name = data.get("display_name", data.get("model_pattern", "?"))
-                ptype = data.get("panel_type", "?")
-                preview = f"Manufacturer: {mfg}\nDisplay: {name}\nPanel type: {ptype}"
-
-            self._import_preview.setText(preview)
-            self._import_preview.show()
-            self._import_btn.setEnabled(True)
-
-        except (OSError, json.JSONDecodeError, ValueError, KeyError) as e:
-            self._import_preview.setText(f"Error reading file: {e}")
-            self._import_preview.show()
-            self._import_btn.setEnabled(False)
-
-    def _import_profile(self):
-        """Import the selected JSON file into the panel database."""
-        if not self._import_file_path:
-            return
-
-        try:
-            import json
-            import shutil
-
-            from calibrate_pro.panels.database import PanelCharacterization, PanelDatabase
-
-            with open(self._import_file_path, encoding="utf-8") as f:
-                data = json.load(f)
-
-            db = PanelDatabase()
-            profiles_dir = db.profiles_dir
-            profiles_dir.mkdir(parents=True, exist_ok=True)
-
-            # Copy the file into the profiles directory
-            dest = profiles_dir / Path(self._import_file_path).name
-            if dest.exists():
-                reply = QMessageBox.question(
-                    self,
-                    "File Exists",
-                    f"{dest.name} already exists. Overwrite?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return
-
-            shutil.copy2(self._import_file_path, dest)
-
-            # Load and validate the profiles
-            if isinstance(data, list):
-                count = len(data)
-                for panel_data in data:
-                    panel = PanelCharacterization.from_dict(panel_data)
-                    key = panel.model_pattern.split("|")[0]
-                    db.add_panel(key, panel)
-            else:
-                panel = PanelCharacterization.from_dict(data)
-                key = panel.model_pattern.split("|")[0]
-                db.add_panel(key, panel)
-                count = 1
-
-            QMessageBox.information(
-                self,
-                "Import Successful",
-                f"Imported {count} panel profile(s) from:\n{Path(self._import_file_path).name}\n\nSaved to: {dest}",
-            )
-
-            self.display_added.emit()
-            self.accept()
-
-        except (ImportError, OSError, json.JSONDecodeError, ValueError, KeyError) as e:
-            QMessageBox.warning(self, "Import Error", f"Failed to import profile:\n{e}")
-
-
 class DashboardPage(QWidget):
-    """Main dashboard -- display overview and quick actions."""
+    """The displays this session observed, and nothing it did not observe.
+
+    The page renders one detection summary. It enumerates no displays and opens
+    no colorimeter of its own, because a card built from a second reading would
+    describe machine state that no action performed and no journal entry
+    covers. State this process owns rather than reads off the machine, the
+    calibration guard and the startup registration, is supplied by the window
+    that started those services.
+    """
 
     navigate_to_calibrate = Signal(int)  # emits display index
-    calibrate_all_requested = Signal()
 
-    def __init__(self, parent=None, preview_mode: bool = False):
+    #: What a stat says when the window running this page never read it.
+    NOT_READ = "Not read"
+
+    def __init__(
+        self,
+        parent=None,
+        preview_mode: bool = False,
+        program_state: Callable[[], tuple[tuple[str, str], tuple[str, str]]] | None = None,
+    ):
         super().__init__(parent)
         self.preview_mode = preview_mode
         self.preview_populated = False
         self.preview_metrics: tuple[MetricValue, ...] = ()
+        self.observed: DetectionSummary | None = None
+        self._program_state = program_state
         self._build()
 
     def _build(self):
@@ -1222,11 +740,17 @@ class DashboardPage(QWidget):
         header_row.addWidget(Heading("Displays"))
         header_row.addStretch()
 
+        # Refresh runs the session's detection action, bound by the window that
+        # owns this page. It is not connected to a redraw here, because a card
+        # redrawn with no pass behind it would show an older observation under
+        # a button that promises a newer one.
         self.refresh_btn = QPushButton("Refresh")
         self.refresh_btn.setFixedHeight(32)
-        self.refresh_btn.clicked.connect(self._populate)
         header_row.addWidget(self.refresh_btn)
 
+        # Enabled state, visibility, and tooltip belong to the binder in the
+        # window that owns this page, which reads them from the session rather
+        # than from this widget's idea of what the build can do.
         self.add_display_btn = QPushButton("Add Display Profile")
         self.add_display_btn.setFixedHeight(32)
         self.add_display_btn.setStyleSheet(
@@ -1235,19 +759,12 @@ class DashboardPage(QWidget):
             f"QPushButton:hover {{ background: {C.SURFACE2}; border-color: {C.ACCENT_HI}; }}"
             f"QPushButton:disabled {{ background: {C.SURFACE}; border-color: {C.BORDER}; color: {C.TEXT3}; }}"
         )
-        self.add_display_btn.clicked.connect(self._show_add_display_dialog)
-        self.add_display_btn.setEnabled(not self.preview_mode)
-        if self.preview_mode:
-            self.add_display_btn.setToolTip("Disabled in simulated preview")
         header_row.addWidget(self.add_display_btn)
 
         self.calibrate_all_btn = QPushButton("Calibrate All")
         self.calibrate_all_btn.setFixedHeight(32)
         self.calibrate_all_btn.setProperty("primary", not self.preview_mode)
-        self.calibrate_all_btn.clicked.connect(self.calibrate_all_requested.emit)
-        self.calibrate_all_btn.setEnabled(not self.preview_mode)
-        if self.preview_mode:
-            self.calibrate_all_btn.setToolTip("Disabled in simulated preview")
+        self.calibrate_all_btn.setEnabled(False)
         header_row.addWidget(self.calibrate_all_btn)
 
         layout.addLayout(header_row)
@@ -1256,6 +773,8 @@ class DashboardPage(QWidget):
         self._cards_layout = QVBoxLayout()
         self._cards_layout.setSpacing(12)
         layout.addLayout(self._cards_layout)
+
+        layout.addWidget(self._build_characterization_row())
 
         # Sensor status
         self._sensor_layout = QVBoxLayout()
@@ -1280,151 +799,167 @@ class DashboardPage(QWidget):
         layout.addStretch()
         scroll.setWidget(content)
 
-        QTimer.singleShot(0 if self.preview_mode else 200, self._populate)
+        if self.preview_mode:
+            QTimer.singleShot(0, self._populate)
+        else:
+            self._populate()
 
-    def _populate(self):
-        # Clear existing cards
-        while self._cards_layout.count():
-            item = self._cards_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        while self._sensor_layout.count():
-            item = self._sensor_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+    def _build_characterization_row(self) -> QWidget:
+        """Build the row that says how the session characterized its display.
 
+        The row sits outside the cards layout because it survives a redraw, and
+        it is one row rather than one per card because the action behind it is
+        about the display the session selected. A per-card button would state a
+        disposition for a display the resolver was never asked about.
+
+        The starting sentence is the one a window that has detected nothing
+        should show. A preview says something else, because its cards come from
+        a bundled fixture rather than from a pass, so a sentence about a
+        selection would read as a claim about this machine.
+        """
+        card, row = Card.with_layout(QHBoxLayout, margins=(16, 12, 16, 12), spacing=12)
+
+        self._characterization_label = QLabel(
+            "These cards come from a bundled fixture. No session selected a display."
+            if self.preview_mode
+            else characterization_note(None)
+        )
+        self._characterization_label.setWordWrap(True)
+        self._characterization_label.setStyleSheet(f"background: transparent; font-size: 11px; color: {C.TEXT2};")
+        row.addWidget(self._characterization_label, 1)
+
+        # Enabled state and reason belong to the binder in the window that owns
+        # this page, which resolves them against the session.
+        self.use_edid_btn = QPushButton("Use Display's Own Data")
+        self.use_edid_btn.setFixedHeight(32)
+        row.addWidget(self.use_edid_btn)
+        self.use_generic_btn = QPushButton("Use Generic Panel")
+        self.use_generic_btn.setFixedHeight(32)
+        row.addWidget(self.use_generic_btn)
+        return card
+
+    def render_characterization(self, selection: DisplaySelection | None) -> None:
+        """Say how the session characterized the display it currently holds."""
+        self._characterization_label.setText(characterization_note(selection))
+
+    def render_session(self, summary: DetectionSummary) -> None:
+        """Show exactly what one detection pass observed, replacing the last."""
+        self.observed = summary
+        self._populate()
+
+    def _populate(self) -> None:
+        """Redraw the page from what it already holds, reading nothing new."""
+        self._clear(self._cards_layout)
+        self._clear(self._sensor_layout)
         if self.preview_mode:
             self._populate_preview()
             return
+        self._populate_observed()
 
-        # Read-only display detection
+    @staticmethod
+    def _clear(layout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _populate_observed(self) -> None:
+        """Render the stored summary, or say plainly that there is not one."""
+        self._populate_panel_count()
+        self._populate_program_state()
+        # Applying a DWM LUT now requires a separately confirmed plan.
+        self._stat_lut.set_value("Confirmation required", C.TEXT3)
+
+        summary = self.observed
+        if summary is None:
+            self._cards_layout.addWidget(self._notice("No detection pass has run in this session."))
+            self._stat_sensor.set_value(self.NOT_READ, C.TEXT3)
+            return
+
+        for index, observation in enumerate(summary.dashboard.displays):
+            card = self._display_card(index, observation)
+            card.calibrate_clicked.connect(self.navigate_to_calibrate.emit)
+            self._cards_layout.addWidget(card)
+        for display_id, reason in summary.rejected:
+            self._cards_layout.addWidget(self._notice(f"Not usable: {display_id} · {reason}"))
+        if not summary.dashboard.displays:
+            self._cards_layout.addWidget(self._notice("The last detection pass found no usable display."))
+        self._populate_sensor(summary)
+
+    def _display_card(self, index: int, observation: DisplayObservation) -> DisplayCard:
+        """Build one card from one observation, claiming nothing more.
+
+        Every colorimetric metric is Not measured, because a detection pass
+        reads geometry and capability and never reads light. The primaries come
+        from the panel characterization the pass matched, which describes a
+        product rather than the unit on the desk.
+        """
+        characterization = observation.characterization
+        return DisplayCard(
+            observation.safe_label,
+            f"{observation.width_px}x{observation.height_px} @ {refresh_text(observation.refresh_millihz)}",
+            characterization_text(characterization),
+            gamut_srgb=not_measured_metric("%"),
+            gamut_p3=not_measured_metric("%"),
+            gamut_bt2020=not_measured_metric("%"),
+            calibrated=False,
+            hdr=observation.hdr_enabled is True,
+            cal_age=f"Calibration: Not measured · HDR: {hdr_text(observation.hdr_enabled)}",
+            delta_e=not_measured_metric("dE2000"),
+            red_xy=chromaticity_point(characterization.red_xy),
+            green_xy=chromaticity_point(characterization.green_xy),
+            blue_xy=chromaticity_point(characterization.blue_xy),
+            peak_nits=not_measured_metric("nits"),
+            display_index=index,
+        )
+
+    def _populate_sensor(self, summary: DetectionSummary) -> None:
+        """Report the colorimeter exactly as the detection pass found it.
+
+        The pass answers whether a supported sensor was present, not which
+        product it was. Opening the device again here to recover a product
+        string would put a second, unjournaled instrument read behind a label
+        the session never produced.
+
+        A live readout card used to sit under this one. Its button opened the
+        colorimeter over raw HID and polled it every 800ms, and each reply
+        landed on screen as luminance, correlated colour temperature and
+        tristimulus values with no evidence kind, no receipt and no journal
+        entry. The action behind it, measurement.live.toggle, is declared
+        hidden until its workflow is specified, so this surface offered a
+        measurement the session declines to define, on a path no gate covers.
+        """
+        available = any(display.capabilities.sensor_available for display in summary.dashboard.displays)
+        self._sensor_layout.addWidget(SensorCard(available, "present"))
+        self._stat_sensor.set_value(*(("Present", C.GREEN_HI) if available else ("Not detected", C.TEXT3)))
+
+    def _populate_panel_count(self) -> None:
+        """Count the bundled panel records, which is a read of a local file."""
         try:
             from calibrate_pro.panels.database import PanelDatabase
 
-            db = PanelDatabase()
-            displays = qt_display_snapshots()
+            self._stat_panels.set_value(str(len(PanelDatabase().list_panels())))
+        except (ImportError, OSError, ValueError) as exc:
+            logger.debug("Could not read the panel database: %s", exc)
+            self._stat_panels.set_value("Unavailable", C.TEXT3)
 
-            for i, display in enumerate(displays):
-                name = display.name
-                res = f"{display.width}x{display.height} @ {display.refresh_rate}Hz"
+    def _populate_program_state(self) -> None:
+        """Show what the window knows about its services, or that it knows nothing."""
+        if self._program_state is None:
+            self._stat_guard.set_value(self.NOT_READ, C.TEXT3)
+            self._stat_startup.set_value(self.NOT_READ, C.TEXT3)
+            return
+        guard, startup = self._program_state()
+        self._stat_guard.set_value(*guard)
+        self._stat_startup.set_value(*startup)
 
-                panel = None
-
-                panel_type = panel.panel_type if panel else "Unknown"
-                hdr = panel.capabilities.hdr_capable if panel else False
-
-                # Check calibration status
-                calibrated = False
-                try:
-                    from calibrate_pro.utils.startup_manager import StartupManager
-
-                    mgr = StartupManager()
-                    cal = mgr.get_display_calibration(i)
-                    if cal and cal.lut_path and Path(cal.lut_path).exists():
-                        calibrated = True
-                except (ImportError, OSError, AttributeError) as e:
-                    logger.debug("Could not read calibration status for display %d: %s", i, e)
-
-                # Get primaries for gamut viz
-                r_xy = (panel.native_primaries.red.x, panel.native_primaries.red.y) if panel else None
-                g_xy = (panel.native_primaries.green.x, panel.native_primaries.green.y) if panel else None
-                b_xy = (panel.native_primaries.blue.x, panel.native_primaries.blue.y) if panel else None
-
-                srgb_pct = not_measured_metric("%")
-                gamut_p3 = not_measured_metric("%")
-                bt2020_pct = not_measured_metric("%")
-                peak = not_measured_metric("nits")
-
-                # Calibration age
-                cal_age = ""
-                delta_e = not_measured_metric("dE2000")
-                try:
-                    cal_state = mgr.get_display_calibration(i)
-                    if cal_state and cal_state.last_calibrated:
-                        from datetime import datetime
-
-                        cal_dt = datetime.fromisoformat(cal_state.last_calibrated)
-                        age = datetime.now() - cal_dt
-                        if age.days == 0:
-                            cal_age = "Calibrated today"
-                        elif age.days == 1:
-                            cal_age = "Calibrated yesterday"
-                        else:
-                            cal_age = f"Calibrated {age.days} days ago"
-                except (AttributeError, ValueError, TypeError) as e:
-                    logger.debug("Could not read calibration age for display %d: %s", i, e)
-
-                card = DisplayCard(
-                    name,
-                    res,
-                    panel_type,
-                    gamut_srgb=srgb_pct,
-                    gamut_p3=gamut_p3,
-                    gamut_bt2020=bt2020_pct,
-                    calibrated=calibrated,
-                    hdr=hdr,
-                    cal_age=cal_age,
-                    delta_e=delta_e,
-                    red_xy=r_xy,
-                    green_xy=g_xy,
-                    blue_xy=b_xy,
-                    peak_nits=peak,
-                    display_index=i,
-                )
-                card.calibrate_clicked.connect(self.navigate_to_calibrate.emit)
-                self._cards_layout.addWidget(card)
-
-            self._stat_panels.set_value(str(len(db.list_panels())))
-
-            # Applying a DWM LUT now requires a separately confirmed plan.
-            self._stat_lut.set_value("Confirmation required", C.TEXT3)
-
-            # Guard status
-            try:
-                main_window = self.window()
-                if hasattr(main_window, "_guard") and main_window._guard and main_window._guard.is_running:
-                    restores = main_window._guard.restore_count
-                    self._stat_guard.set_value(f"Active ({restores} restores)" if restores else "Active", C.GREEN_HI)
-                else:
-                    self._stat_guard.set_value("Inactive", C.TEXT3)
-            except (AttributeError, RuntimeError):
-                self._stat_guard.set_value("N/A", C.TEXT3)
-
-            # Startup status
-            try:
-                from calibrate_pro.utils.startup_manager import StartupManager
-
-                mgr = StartupManager()
-                if mgr.is_startup_enabled():
-                    self._stat_startup.set_value("Enabled", C.GREEN_HI)
-                else:
-                    self._stat_startup.set_value("Disabled", C.TEXT3)
-            except (ImportError, OSError):
-                self._stat_startup.set_value("N/A", C.TEXT3)
-
-        except (ImportError, OSError, AttributeError) as e:
-            err = QLabel(f"Detection error: {e}")
-            err.setStyleSheet(f"color: {C.RED};")
-            self._cards_layout.addWidget(err)
-
-        # Sensor detection
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            devices = I1D3Driver.find_devices()
-            if devices:
-                sensor_name = devices[0].get("product", "Unknown Colorimeter")
-                self._sensor_layout.addWidget(SensorCard(True, sensor_name))
-                # Add live readout card
-                self._live_sensor = LiveSensorCard()
-                self._sensor_layout.addWidget(self._live_sensor)
-                self._stat_sensor.set_value(sensor_name, C.GREEN_HI)
-            else:
-                self._sensor_layout.addWidget(SensorCard(False))
-                self._stat_sensor.set_value("None", C.TEXT3)
-        except (ImportError, OSError, RuntimeError):
-            self._sensor_layout.addWidget(SensorCard(False))
-            self._stat_sensor.set_value("N/A", C.TEXT3)
+    def _notice(self, text: str) -> QLabel:
+        """Render one line the page states rather than one it observed."""
+        label = QLabel(text)
+        label.setObjectName("dashboardNotice")
+        label.setWordWrap(True)
+        label.setStyleSheet(f"background: transparent; color: {C.TEXT3}; font-size: 12px;")
+        return label
 
     def _populate_preview(self) -> None:
         """Populate only from the bundled fixture without consulting machine state."""
@@ -1469,14 +1004,23 @@ class DashboardPage(QWidget):
         self._stat_startup.set_value("Not measured", C.TEXT3)
         self.preview_populated = True
 
-    def _show_add_display_dialog(self):
-        """Show the Add Display Profile dialog."""
-        dialog = AddDisplayDialog(self)
-        dialog.display_added.connect(self._populate)
-        dialog.exec()
-
 
 # Placeholder Pages (to be rebuilt individually)
+
+
+def _apply_operation(service: FunctionalRecoveryService) -> Operation:
+    """Give the apply control an operation on a session that cannot apply.
+
+    The read-only session carries no apply method, and the control is still
+    bound so the manifest's reason is what the operator reads on it rather
+    than an absence. Nothing here decides whether the control is live: the
+    resolver disables it on a session with no actuation route, so the refusal
+    below is a floor and not the path anyone takes.
+    """
+    apply_confirmed = getattr(service, "apply_confirmed_plan", None)
+    if apply_confirmed is None:
+        return partial(service.unhandled, "calibration.apply")
+    return apply_confirmed
 
 
 class PlaceholderPage(QWidget):
@@ -1514,9 +1058,38 @@ class PreviewModePage(QWidget):
 class CalibrateProWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self, preview_mode: bool = False):
+    def __init__(
+        self,
+        preview_mode: bool = False,
+        service: FunctionalRecoveryService | None = None,
+    ):
+        """Build the window around one session service.
+
+        The service is injectable so a test can drive this window against a
+        composition that touches no hardware. Building the production one costs
+        nothing on its own: it wires a detector and a generator and reads no
+        display until an action asks it to.
+        """
         super().__init__()
         self.preview_mode = preview_mode
+        self.service = service if service is not None else build_default_service()
+        #: The last detection pass this session answered with, or None before one
+        #: has run. The tray reports this and nothing else, so a window that has
+        #: observed nothing says so rather than describing an earlier run.
+        self._observed: DetectionSummary | None = None
+        #: The add-profile dialog while it is open. It is held because it is
+        #: shown without blocking, and a dialog nothing holds is collected the
+        #: moment the call that opened it returns.
+        self._add_display_dialog: AddDisplayDialog | None = None
+        #: The plan-confirmation dialog while it is open, held for the same
+        #: reason. It is opened by a previewed plan rather than by a control,
+        #: so nothing else in the window has a reference to it.
+        self._plan_dialog: PlanConfirmationDialog | None = None
+        self._binder = ActionBinder(
+            self.service,
+            report=self.show_toast,
+            restrict=self._preview_restriction if preview_mode else None,
+        )
         self.settings = QSettings(APP_ORG, APP_NAME)
         self.setWindowTitle(f"{APP_NAME} v{APP_VERSION}")
         self.setMinimumSize(900, 600)
@@ -1525,11 +1098,17 @@ class CalibrateProWindow(QMainWindow):
         self._app_icon = make_app_icon()
         self.setWindowIcon(self._app_icon)
 
+        # Declared before the pages are built. The dashboard asks the window
+        # what its services are doing while it draws its first frame, and a
+        # window that has not started them yet answers that it has not read
+        # them rather than raising.
+        self._guard = None
+        self._startup = None
+
         self._build_menubar()
         self._build_central()
         self._build_statusbar()
         self._setup_shortcuts()
-        self._guard = None
 
         if self.preview_mode:
             self._status.setText("Simulated preview · hardware and display changes disabled")
@@ -1537,14 +1116,37 @@ class CalibrateProWindow(QMainWindow):
             self._build_tray()
             self._restore_geometry()
             self._start_services()
-            self._update_tray_state()
-
-            # Periodic tray state refresh (every 60 seconds)
-            self._tray_timer = QTimer(self)
-            self._tray_timer.timeout.connect(self._update_tray_state)
-            self._tray_timer.start(60_000)
-
+            self._prime_session()
             QTimer.singleShot(500, self._check_first_run)
+
+    # --- Action policy for this surface ---
+
+    def _preview_restriction(self, resolved: ResolvedAction) -> ResolvedAction:
+        """Narrow every action that reaches past the interface.
+
+        The preview banner promises no hardware access and no display changes.
+        This keeps that promise per control: reading a display is refused here
+        even though the session would allow it, because the promise covers
+        reads. A narrowing can only make an answer stricter, so this can never
+        offer something the session itself would refuse.
+        """
+        if self.service.classification(resolved.action_id) is ActionClassification.UI_ONLY:
+            return resolved
+        return replace(
+            resolved,
+            disposition=ActionDisposition.DISABLED,
+            reason=PREVIEW_DISABLED_REASON,
+        )
+
+    def _prime_session(self) -> None:
+        """Detect once at startup so the menu describes a real session.
+
+        Every control is rendered from session state. Without this the window
+        would open showing a menu resolved against an empty session, and the
+        HDR entry would answer from a detection pass that never ran.
+        """
+        self._detect_displays()
+        self._binder.refresh()
 
     # --- Background Services ---
 
@@ -1553,7 +1155,15 @@ class CalibrateProWindow(QMainWindow):
         import logging
 
         logger = logging.getLogger(__name__)
-        self._guard = None
+
+        try:
+            from calibrate_pro.utils.startup_manager import StartupManager
+
+            # Constructing this creates the application config directory, so it
+            # happens once here rather than every time a page redraws.
+            self._startup = StartupManager()
+        except (ImportError, OSError) as exc:
+            logger.debug("StartupManager not available: %s", exc)
 
         try:
             from calibrate_pro.services.calibration_guard import CalibrationGuard, GuardedDisplay
@@ -1607,7 +1217,15 @@ class CalibrateProWindow(QMainWindow):
     # --- First-Run Wizard ---
 
     def _check_first_run(self):
-        """Show welcome wizard on first launch."""
+        """Show the welcome dialog once, describing the session's own pass.
+
+        It used to describe a session of its own. Qt was asked for the screens
+        directly, which lists displays the pass turned down, and the USB bus was
+        opened for a colorimeter's product string, which is a second unjournaled
+        instrument read behind a name the session never produced. The dashboard
+        already refuses both, and an operator's first screen is the worst place
+        to answer that question differently from every screen after it.
+        """
         if self.settings.value("first_run_completed", False, type=bool):
             return
 
@@ -1647,43 +1265,28 @@ class CalibrateProWindow(QMainWindow):
         displays_heading.setStyleSheet(f"font-size: 14px; font-weight: 500; color: {C.TEXT};")
         layout.addWidget(displays_heading)
 
-        try:
-            displays = qt_display_snapshots()
-            if displays:
-                for d in displays:
-                    name = d.name
-                    res = f"{d.width}x{d.height} @ {d.refresh_rate}Hz"
-                    row = QHBoxLayout()
-                    dot = StatusDot(C.GREEN, 8)
-                    row.addWidget(dot)
-                    lbl = QLabel(f"{name}  ({res})")
-                    lbl.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
-                    row.addWidget(lbl, stretch=1)
-                    layout.addLayout(row)
-            else:
-                no_disp = QLabel("No displays detected")
-                no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-                layout.addWidget(no_disp)
-        except (ImportError, OSError):
-            no_disp = QLabel("Could not enumerate displays")
-            no_disp.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
-            layout.addWidget(no_disp)
+        observed = self._observed
+        for observation in observed.dashboard.displays if observed else ():
+            resolution = f"{observation.width_px}x{observation.height_px} @ {refresh_text(observation.refresh_millihz)}"
+            row = QHBoxLayout()
+            row.addWidget(StatusDot(C.GREEN, 8))
+            listed = QLabel(f"{observation.safe_label}  ({resolution})")
+            listed.setStyleSheet(f"font-size: 12px; color: {C.TEXT};")
+            row.addWidget(listed, stretch=1)
+            layout.addLayout(row)
+        if observed is None or not observed.dashboard.displays:
+            nothing = QLabel(NOTHING_OBSERVED if observed is None else detection_sentence(observed))
+            nothing.setStyleSheet(f"font-size: 12px; color: {C.TEXT3};")
+            layout.addWidget(nothing)
 
         layout.addSpacing(4)
 
-        # Sensor status
-        sensor_text = "No colorimeter \u2014 sensorless mode available"
-        sensor_color = C.TEXT3
-        try:
-            from calibrate_pro.hardware.i1d3_native import I1D3Driver
-
-            devices = I1D3Driver.find_devices()
-            if devices:
-                sensor_name = devices[0].get("product", "i1Display3")
-                sensor_text = f"Colorimeter detected: {sensor_name}"
-                sensor_color = C.GREEN_HI
-        except (ImportError, OSError, RuntimeError):
-            pass
+        # Sensor status, as the pass reported it rather than as the bus answers.
+        available = observed is not None and any(
+            display.capabilities.sensor_available for display in observed.dashboard.displays
+        )
+        sensor_text = "Colorimeter present" if available else "No colorimeter; sensorless mode available"
+        sensor_color = C.GREEN_HI if available else C.TEXT3
 
         sensor_row = QHBoxLayout()
         sensor_dot = StatusDot(sensor_color, 8)
@@ -1704,6 +1307,9 @@ class CalibrateProWindow(QMainWindow):
         layout.addWidget(get_started)
 
         dialog.exec()
+        # Completing onboarding is a declared action, so the journal carries it
+        # rather than a local setting being the only trace that it happened.
+        self.service.perform_ui("onboarding.complete", lambda: None)
         self.settings.setValue("first_run_completed", True)
 
     # --- Keyboard Shortcuts ---
@@ -1725,7 +1331,10 @@ class CalibrateProWindow(QMainWindow):
         self.sidebar._on_click(index)
 
     def _escape_action(self):
-        """Minimize to tray if available, otherwise minimize window."""
+        """Hide or minimize, through the action the manifest declares for it."""
+        self._perform_ui("window.hide_or_minimize", self._hide_or_minimize)
+
+    def _hide_or_minimize(self) -> None:
         if hasattr(self, "_tray") and self._tray.isVisible():
             self.hide()
         else:
@@ -1734,68 +1343,113 @@ class CalibrateProWindow(QMainWindow):
     # --- Menu Bar ---
 
     def _build_menubar(self):
+        """Build the menu bar, binding every entry to the action it stands for.
+
+        No entry decides for itself whether it is available. Each one is handed
+        to the binder, which asks the session and renders that answer, so a menu
+        can never offer something the session would turn down.
+        """
         mb = self.menuBar()
-        self._preview_mutation_actions: list[QAction] = []
-
-        def add_mutation_action(menu, action: QAction) -> QAction:
-            if self.preview_mode:
-                action.setEnabled(False)
-                action.setToolTip("Disabled in simulated preview")
-                self._preview_mutation_actions.append(action)
-            menu.addAction(action)
-            return action
-
-        # File
-        file_menu = mb.addMenu("&File")
-        add_mutation_action(
-            file_menu,
-            QAction("&Calibrate All", self, shortcut="Ctrl+Shift+C", triggered=self._calibrate_all),
+        self._build_file_menu(mb.addMenu("&File"))
+        self._build_view_menu(mb.addMenu("&View"))
+        self._build_display_menu(mb.addMenu("&Display"))
+        self._build_tools_menu(mb.addMenu("&Tools"))
+        self._binder.bind(
+            "help.about",
+            menu_action(mb.addMenu("&Help"), "&About", self),
+            partial(self.service.perform_ui, "help.about", self._about),
         )
-        file_menu.addSeparator()
 
-        export = file_menu.addMenu("&Export")
-        for fmt, label in [
-            ("cube", ".cube (Resolve / dwm_lut)"),
-            ("3dlut", ".3dlut (MadVR)"),
-            ("png", ".png (ReShade / SpecialK)"),
-            ("icc", ".icc (ICC Profile)"),
-            ("mpv", "mpv config"),
-            ("obs", "OBS LUT"),
-        ]:
-            act = QAction(label, self)
-            act.triggered.connect(lambda checked, f=fmt: self._export(f))
-            add_mutation_action(export, act)
+    def _build_file_menu(self, menu: QMenu) -> None:
+        self._binder.bind(
+            "calibration.all",
+            menu_action(menu, "&Calibrate All", self, "Ctrl+Shift+C"),
+            partial(self.service.unhandled, "calibration.all"),
+        )
+        menu.addSeparator()
 
-        file_menu.addSeparator()
-        file_menu.addAction(QAction("E&xit", self, shortcut="Alt+F4", triggered=self.close))
+        export = menu.addMenu("&Export")
+        for export_name, label in EXPORT_MENU_ENTRIES:
+            self._binder.bind(
+                f"export.active.{export_name}",
+                menu_action(export, label, self),
+                partial(self._export_format, export_name),
+                on_success=self._report_export,
+            )
 
-        # View -- page navigation shortcuts
-        view = mb.addMenu("&View")
-        page_names = ["&Dashboard", "&Calibrate", "&Verify", "&Profiles", "DD&C Control", "&Settings"]
-        page_shortcuts = ["Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+5", "Ctrl+6"]
-        for i, (name, sc) in enumerate(zip(page_names, page_shortcuts)):
-            act = QAction(name, self)
-            act.setShortcut(QKeySequence(sc))
-            act.triggered.connect(lambda checked, idx=i: self._shortcut_switch_page(idx))
-            view.addAction(act)
-        view.addSeparator()
-        view.addAction(QAction("&Refresh Dashboard", self, shortcut="F5", triggered=self._refresh_dashboard))
+        menu.addSeparator()
+        self._binder.bind(
+            "application.exit",
+            menu_action(menu, "E&xit", self, "Alt+F4"),
+            partial(self.service.perform_ui, "application.exit", self.close),
+        )
 
-        # Display
-        disp = mb.addMenu("&Display")
-        disp.addAction(QAction("&Detect Displays", self, triggered=self._refresh_dashboard))
-        add_mutation_action(disp, QAction("&Restore Defaults", self, triggered=self._restore_defaults))
-        disp.addSeparator()
-        add_mutation_action(disp, QAction("&Install ICC Profile...", self, triggered=self._install_profile))
+    def _build_view_menu(self, menu: QMenu) -> None:
+        for index, (label, shortcut, action_id) in enumerate(PAGE_MENU_ENTRIES):
+            self._binder.bind(
+                action_id,
+                menu_action(menu, label, self, shortcut),
+                partial(
+                    self.service.perform_ui,
+                    action_id,
+                    partial(self._shortcut_switch_page, index),
+                ),
+            )
+        menu.addSeparator()
+        self._bind_detect(menu_action(menu, "&Refresh Dashboard", self, "F5"))
 
-        # Tools
-        tools = mb.addMenu("&Tools")
-        add_mutation_action(tools, QAction("&Test Patterns", self, triggered=self._test_patterns))
-        add_mutation_action(tools, QAction("&HDR Status", self, triggered=self._hdr_status))
+    def _build_display_menu(self, menu: QMenu) -> None:
+        self._bind_detect(menu_action(menu, "&Detect Displays", self))
+        self._binder.bind(
+            "display.restore_defaults",
+            menu_action(menu, "&Restore Defaults", self),
+            self.service.restore_display_profiles,
+            on_success=self._report_profile_write,
+        )
+        menu.addSeparator()
+        self._binder.bind(
+            "profile.install",
+            menu_action(menu, "&Install Checked Profile", self),
+            self.service.install_selected_profile,
+            on_success=self._report_profile_write,
+        )
 
-        # Help
-        help_menu = mb.addMenu("&Help")
-        help_menu.addAction(QAction("&About", self, triggered=self._about))
+    def _build_tools_menu(self, menu: QMenu) -> None:
+        patterns = menu.addMenu("&Test Patterns")
+        # The submenu header stands for the same action its entries do, so a
+        # session that cannot show a pattern greys the whole menu rather than
+        # opening onto a list where every line is greyed for the same reason.
+        # Nothing is connected: opening a submenu is not performing an action.
+        self._binder.bind("patterns.open", patterns.menuAction(), lambda: None, connect=False)
+        for pattern in PATTERN_CATALOGUE:
+            entry = menu_action(patterns, pattern.name, self)
+            entry.setStatusTip(pattern.decision)
+            self._binder.bind(
+                "patterns.open",
+                entry,
+                partial(self._show_pattern, pattern.pattern_id),
+                on_success=self._report_pattern,
+            )
+        self._binder.bind(
+            "display.hdr_status",
+            menu_action(menu, "&HDR Status", self),
+            self.service.hdr_status,
+            on_success=self._show_hdr_status,
+        )
+
+    def _bind_detect(self, control: QAction) -> None:
+        """Bind one more entry to the single detection action.
+
+        Two menus offer detection. Both run the same action and are rendered
+        from the same answer, so they cannot disagree about whether it is
+        available or about what it found.
+        """
+        self._binder.bind(
+            "display.detect",
+            control,
+            self._detect_displays,
+            on_success=self._report_detection,
+        )
 
     # --- Central Widget ---
 
@@ -1832,9 +1486,45 @@ class CalibrateProWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.setStyleSheet(f"background: {C.BG};")
 
-        self.dashboard = DashboardPage(preview_mode=self.preview_mode)
+        self.dashboard = DashboardPage(
+            preview_mode=self.preview_mode,
+            program_state=self._program_state,
+        )
         self.dashboard.navigate_to_calibrate.connect(self._navigate_to_calibrate)
-        self.dashboard.calibrate_all_requested.connect(self._calibrate_all)
+        self._bind_detect(self.dashboard.refresh_btn)
+        self._binder.bind(
+            "panel_profile.dialog.open",
+            self.dashboard.add_display_btn,
+            partial(self.service.perform_ui, "panel_profile.dialog.open", self._open_add_display_dialog),
+        )
+        self._binder.bind(
+            "calibration.all",
+            self.dashboard.calibrate_all_btn,
+            partial(self.service.unhandled, "calibration.all"),
+        )
+        # A display outside the bundled panel database is adopted uncharacterized,
+        # and every method and target after it requires a characterization, so
+        # without this control that display reached the Calibrate page and was
+        # refused by everything on it. The row is disabled in place rather than
+        # hidden, matching the disposition the manifest declares for it.
+        # Offered above the generic control and bound the same way. It is the
+        # better answer where it is available, because the numbers describe the
+        # model on the desk rather than a nominal sRGB panel, and it disappears
+        # into a disabled state on a display that declared nothing readable.
+        self._binder.bind(
+            "display.characterization.use_edid",
+            self.dashboard.use_edid_btn,
+            self.service.use_edid_characterization,
+            on_success=self.dashboard.render_characterization,
+            hides=False,
+        )
+        self._binder.bind(
+            "display.characterization.use_generic",
+            self.dashboard.use_generic_btn,
+            self.service.use_generic_characterization,
+            on_success=self.dashboard.render_characterization,
+            hides=False,
+        )
         self.stack.addWidget(self.dashboard)  # 0
 
         if self.preview_mode:
@@ -1845,9 +1535,25 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.calibrate import CalibratePage
 
-                cal_page = CalibratePage()
-                cal_page.calibration_completed.connect(self._update_tray_state)
-                self.stack.addWidget(cal_page)  # 1
+                self.calibrate_page = CalibratePage()
+                self.calibrate_page.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    select_sensorless=partial(self.service.select_method, CalibrationMethod.SENSORLESS),
+                    select_measured=partial(self.service.select_method, CalibrationMethod.MEASURED),
+                    set_target=self.service.set_target,
+                    set_gamut=self.service.select_target_gamut,
+                    set_white_point=self.service.select_target_white_point,
+                    set_tone_response=self.service.select_target_tone_response,
+                    set_custom_cct=self.service.select_custom_white_point,
+                    unhandled=self.service.unhandled,
+                    measure=self.service.measure,
+                    generate=self.service.generate,
+                    preview=self.service.preview,
+                    apply_plan=_apply_operation(self.service),
+                    confirm_plan=self._open_plan_dialog,
+                )
+                self.stack.addWidget(self.calibrate_page)  # 1
             except (ImportError, AttributeError) as e:
                 logger.warning("Failed to load CalibratePage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Calibrate"))  # 1
@@ -1856,7 +1562,15 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.verify import VerifyPage
 
-                self.stack.addWidget(VerifyPage())  # 2
+                self.verify_page = VerifyPage()
+                self.verify_page.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    run_sensorless=self.service.verify,
+                    run_measured=self.service.verify_measured,
+                    save_report=self.service.export,
+                )
+                self.stack.addWidget(self.verify_page)  # 2
             except (ImportError, TypeError) as e:
                 logger.warning("Failed to load VerifyPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Verify"))  # 2
@@ -1864,8 +1578,19 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.profiles import ProfilesPage
 
-                self.stack.addWidget(ProfilesPage())  # 3
-            except ImportError as e:
+                self.profiles_page = ProfilesPage()
+                self.profiles_page.bind_actions(
+                    self._binder,
+                    refresh=self.service.list_profiles,
+                    inspect_profile=self.service.inspect_profile,
+                    export_profile=self.service.export_profile,
+                    read_system=self.service.read_system_profiles,
+                    activate_profile=self.service.activate_selected_profile,
+                    delete_profile=self.service.remove_selected_profile,
+                    unhandled=self.service.unhandled,
+                )
+                self.stack.addWidget(self.profiles_page)  # 3
+            except (ImportError, TypeError) as e:
                 logger.warning("Failed to load ProfilesPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Profiles"))  # 3
 
@@ -1873,7 +1598,18 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.ddc_control import DDCControlPage
 
-                self.stack.addWidget(DDCControlPage())  # 4
+                self.ddc = DDCControlPage()
+                self.ddc.bind_actions(
+                    self._binder,
+                    select_display=self.service.select_display,
+                    read_current=self.service.read_monitor_controls,
+                    read_raw=self.service.read_raw_vcp,
+                    stage=self.service.stage_monitor_control,
+                    apply_controls=self.service.apply_monitor_controls,
+                    restore_defaults=self.service.restore_monitor_defaults,
+                    unhandled=self.service.unhandled,
+                )
+                self.stack.addWidget(self.ddc)  # 4
             except (ImportError, RuntimeError) as e:
                 logger.warning("Failed to load DDCControlPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("DDC Control"))  # 4
@@ -1882,7 +1618,16 @@ class CalibrateProWindow(QMainWindow):
             try:
                 from calibrate_pro.gui.pages.settings import SettingsPage
 
-                self.stack.addWidget(SettingsPage())  # 5
+                self.settings_page = SettingsPage()
+                self.settings_page.bind_actions(
+                    self._binder,
+                    set_output_directory=self.service.set_export_directory,
+                    set_lut_size=self.service.set_lut_size,
+                    lut_size=self.service.lut_size,
+                    unhandled=self.service.unhandled,
+                    diagnostics=self.service,
+                )
+                self.stack.addWidget(self.settings_page)  # 5
             except (ImportError, OSError) as e:
                 logger.warning("Failed to load SettingsPage: %s", e)
                 self.stack.addWidget(PlaceholderPage("Settings"))  # 5
@@ -1905,36 +1650,52 @@ class CalibrateProWindow(QMainWindow):
 
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(self._app_icon)
-        self._tray.setToolTip(f"{APP_NAME} -- Display Calibration")
+        self._tray.setToolTip(tray_tooltip(self._observed))
 
         menu = QMenu()
         menu.setStyleSheet(STYLE)
 
-        show_act = QAction("Show Window", self)
-        show_act.triggered.connect(lambda: (self.showNormal(), self.activateWindow()))
-        menu.addAction(show_act)
+        self._binder.bind(
+            "window.show",
+            menu_action(menu, "Show Window", self),
+            partial(self.service.perform_ui, "window.show", self._show_window),
+        )
 
         menu.addSeparator()
 
-        cal_act = QAction("Calibrate All Displays", self)
-        cal_act.triggered.connect(self._calibrate_all)
-        menu.addAction(cal_act)
-
-        restore_act = QAction("Restore Defaults", self)
-        restore_act.triggered.connect(self._restore_defaults)
-        menu.addAction(restore_act)
-
-        menu.addSeparator()
-
-        # --- Switch Profile submenu ---
-        self._profile_submenu = menu.addMenu("Switch Profile")
-        self._rebuild_profile_submenu()
+        self._binder.bind(
+            "calibration.all",
+            menu_action(menu, "Calibrate All Displays", self),
+            partial(self.service.unhandled, "calibration.all"),
+        )
+        self._binder.bind(
+            "display.restore_defaults",
+            menu_action(menu, "Restore Defaults", self),
+            self.service.restore_display_profiles,
+            on_success=self._announce_profile_write,
+        )
 
         menu.addSeparator()
 
-        exit_act = QAction("Exit", self)
-        exit_act.triggered.connect(self._quit)
-        menu.addAction(exit_act)
+        self._binder.bind(
+            "navigation.profiles",
+            menu_action(menu, "Profiles", self),
+            partial(self.service.perform_ui, "navigation.profiles", self._show_profiles),
+        )
+        self._binder.bind(
+            "tray.switch_profile",
+            menu_action(menu, "Switch Profile", self),
+            self._switch_to_chosen_profile,
+            on_success=self._announce_profile_write,
+        )
+
+        menu.addSeparator()
+
+        self._binder.bind(
+            "application.exit",
+            menu_action(menu, "Exit", self),
+            partial(self.service.perform_ui, "application.exit", self._quit),
+        )
 
         self._tray.setContextMenu(menu)
         self._tray.activated.connect(self._tray_clicked)
@@ -1942,132 +1703,38 @@ class CalibrateProWindow(QMainWindow):
 
     def _tray_clicked(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            if self.isVisible():
-                self.hide()
-            else:
-                self.showNormal()
-                self.activateWindow()
+            self._perform_ui("window.toggle_visibility", self._toggle_visibility)
 
-    def _update_tray_state(self):
-        """Check calibration status across all displays and update the tray icon/tooltip."""
-        if not hasattr(self, "_tray"):
-            return
+    def _toggle_visibility(self) -> None:
+        if self.isVisible():
+            self.hide()
+        else:
+            self.showNormal()
+            self.activateWindow()
 
-        try:
-            from datetime import datetime
+    def _update_tray_state(self) -> None:
+        """Say what this session observed, and nothing it has not observed.
 
-            from calibrate_pro.utils.startup_manager import StartupManager
+        The tray this replaces read a startup record for every display index,
+        took a LUT file existing on disk as a calibration, coloured the icon
+        green on the strength of that record, and called anything older than
+        thirty days stale. It reached the registry and the display enumerator
+        directly, once at startup and again every sixty seconds, so a window
+        whose session had detected nothing still carried a sentence about
+        calibration state.
 
-            mgr = StartupManager()
-            displays = qt_display_snapshots()
-
-            calibrated_count = 0
-            stale_count = 0
-            total = len(displays)
-            per_display_status = []
-
-            for i, d in enumerate(displays):
-                name = d.name
-                cal = mgr.get_display_calibration(i)
-                if cal and cal.lut_path and Path(cal.lut_path).exists():
-                    # Check age
-                    is_stale = False
-                    if cal.last_calibrated:
-                        try:
-                            cal_dt = datetime.fromisoformat(cal.last_calibrated)
-                            age_days = (datetime.now() - cal_dt).days
-                            if age_days > 30:
-                                is_stale = True
-                        except (ValueError, TypeError):
-                            pass
-                    if is_stale:
-                        stale_count += 1
-                        per_display_status.append(f"{name}: stale")
-                    else:
-                        calibrated_count += 1
-                        per_display_status.append(f"{name}: calibrated")
-                else:
-                    per_display_status.append(f"{name}: not calibrated")
-
-            # Determine icon color and tooltip
-            if total == 0:
-                icon_color = C.TEXT3
-                tooltip = f"{APP_NAME} - No displays detected"
-            elif calibrated_count == total:
-                icon_color = C.GREEN
-                tooltip = f"{APP_NAME} - All displays calibrated"
-            elif (
-                stale_count > 0 and (calibrated_count + stale_count) == total or calibrated_count > 0 or stale_count > 0
-            ):
-                icon_color = C.YELLOW
-                tooltip = f"{APP_NAME} - {', '.join(per_display_status)}"
-            else:
-                icon_color = C.TEXT3
-                tooltip = f"{APP_NAME} - No calibration applied"
-
-            self._tray.setIcon(make_tray_icon(icon_color))
-            self._tray.setToolTip(tooltip)
-
-        except (ImportError, OSError, AttributeError) as e:
-            logger.debug("Could not update tray state: %s", e)
-            # Fall back to default icon
-            self._tray.setIcon(make_tray_icon(C.TEXT3))
-            self._tray.setToolTip(f"{APP_NAME} - Display Calibration")
-
-    def _rebuild_profile_submenu(self):
-        """Populate the tray 'Switch Profile' submenu with available profiles."""
-        if not hasattr(self, "_profile_submenu"):
-            return
-        self._profile_submenu.clear()
-
-        cal_dir = Path.home() / "Documents" / "Calibrate Pro" / "Calibrations"
-        if not cal_dir.exists():
-            no_act = QAction("No profiles found", self)
-            no_act.setEnabled(False)
-            self._profile_submenu.addAction(no_act)
-            return
-
-        # Find all .cube files
-        cube_files = sorted(cal_dir.glob("*.cube"))
-        if not cube_files:
-            no_act = QAction("No profiles found", self)
-            no_act.setEnabled(False)
-            self._profile_submenu.addAction(no_act)
-            return
-
-        # Determine currently active profile stem
-        active_stem = None
-        try:
-            from calibrate_pro.utils.startup_manager import StartupManager
-
-            mgr = StartupManager()
-            cal = mgr.get_display_calibration(0)
-            if cal and cal.lut_path:
-                active_stem = Path(cal.lut_path).stem
-        except (ImportError, OSError, AttributeError):
-            pass
-
-        for cube in cube_files:
-            name = cube.stem.replace("_", " ").replace("-", " \u2014 ", 1)
-            act = QAction(name, self)
-            act.setCheckable(True)
-            if active_stem and cube.stem == active_stem:
-                act.setChecked(True)
-            act.triggered.connect(lambda checked, p=str(cube): self._apply_tray_profile(p))
-            self._profile_submenu.addAction(act)
-
-    def _apply_tray_profile(self, cube_path: str):
-        """Stage a calibration profile selection without changing display state."""
-        profile_name = Path(cube_path).stem.replace("_", " ")
-        self.show_toast(
-            f"Preview selected: {profile_name}. Open Calibrate to review and confirm.",
-            level="info",
-        )
+        What the tray carries now is the detection pass the session last
+        answered with, in the same words the status line uses. A calibration
+        applied in an earlier run is not reported: nothing in this process has
+        observed it, and the tray is not the place to state a result no action
+        produced.
+        """
+        tray = getattr(self, "_tray", None)
+        if tray is not None:
+            tray.setToolTip(tray_tooltip(self._observed))
 
     def _quit(self):
         self._stop_services()
-        if hasattr(self, "_tray_timer"):
-            self._tray_timer.stop()
         if hasattr(self, "_tray"):
             self._tray.hide()
         QApplication.quit()
@@ -2078,6 +1745,13 @@ class CalibrateProWindow(QMainWindow):
         """Switch page with a subtle opacity fade transition."""
         if index == self.stack.currentIndex():
             return
+        if index == DASHBOARD_PAGE_INDEX:
+            # The Calibrate page can adopt a different display while the
+            # operator is on it, so the dashboard reads the session back rather
+            # than showing the selection it drew for the last one.
+            self._render_characterization()
+        if index == DDC_PAGE_INDEX:
+            self._render_ddc_selection()
         target = self.stack.widget(index)
         if target:
             try:
@@ -2102,80 +1776,302 @@ class CalibrateProWindow(QMainWindow):
         else:
             self.stack.setCurrentIndex(index)
 
-    def _navigate_to_calibrate(self, display_index: int):
-        """Switch to the Calibrate page and pre-select the given display."""
-        self._switch_page(1)
-        self.sidebar._on_click(1)
-        # Select the display in the Calibrate page's combo box
-        cal_page = self.stack.widget(1)
-        if hasattr(cal_page, "display_combo"):
-            if display_index < cal_page.display_combo.count():
-                cal_page.display_combo.setCurrentIndex(display_index)
+    def _navigate_to_calibrate(self, display_index: int) -> None:
+        """Adopt one display and open the page on it, as two actions in order.
 
-    def _refresh_dashboard(self):
-        self.dashboard._populate()
+        The card that emits this is not a bound control, so a refusal is
+        reported here rather than by the binder. The selection is performed
+        before the open rather than inside it. The boundary issues one
+        correlation ID per invocation into one slot per thread, so an action
+        run inside another action's operation releases the identity the outer
+        invocation reads once its operation returns.
 
-    def _calibrate_all(self):
-        self._status.setText("Calibrating all displays...")
+        This used to guard on a ``display_combo`` attribute the page has never
+        had, so the display an operator clicked was silently dropped and the
+        page opened on whichever one the session already held.
+        """
+        page = getattr(self, "calibrate_page", None)
+        if page is not None:
+            page.select_display_index(display_index)
+        outcome = self.service.open_calibration()
+        if isinstance(outcome, ActionError):
+            self.show_toast(refusal_message(outcome), "warning")
+            return
+        self._shortcut_switch_page(1)
 
-    def _restore_defaults(self):
-        reply = QMessageBox.question(
-            self,
-            "Restore Defaults",
-            "Reset all displays to uncalibrated defaults?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+    def _perform_ui(self, action_id: str, effect: Callable[[], None]) -> None:
+        """Run one interface action whose trigger is not a bound control.
+
+        The tray icon and the Escape key emit from objects the binder cannot
+        hold, so a refusal on either has nowhere to render. Reporting it here
+        keeps those two from being the places where a refused action is
+        indistinguishable from nothing having happened.
+        """
+        outcome = self.service.perform_ui(action_id, effect)
+        if isinstance(outcome, ActionError):
+            self.show_toast(refusal_message(outcome), "warning")
+
+    def _show_window(self) -> None:
+        """Bring the window forward from the tray."""
+        self.showNormal()
+        self.activateWindow()
+
+    def _open_add_display_dialog(self) -> None:
+        """Open the add-profile dialog on the displays this session observed.
+
+        The dialog is shown without blocking. Running it modally would hold this
+        action open for as long as the operator kept the dialog up, so the
+        journal would record the close rather than the open, and would time the
+        operator rather than the work.
+        """
+        dialog = AddDisplayDialog(
+            self.service,
+            inspect_profile=self.service.inspect_panel_profile,
+            observed=self.dashboard.observed,
+            restrict=self._preview_restriction if self.preview_mode else None,
+            parent=self,
         )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._status.setText("Reset proposal ready — review and confirmation required")
-            QMessageBox.information(
-                self,
-                "Confirmation Required",
-                "No display settings were changed. Open Calibrate to review a reset plan before applying it.",
+        self._add_display_dialog = dialog
+        dialog.finished.connect(self._add_display_closed)
+        dialog.open()
+
+    def _add_display_closed(self, _result: int) -> None:
+        """Drop the closed dialog. Nothing it did needs the page redrawn."""
+        self._add_display_dialog = None
+
+    def _open_plan_dialog(self, preview: PlanPreview) -> None:
+        """Put a previewed plan in front of the operator to be answered.
+
+        The window had no way to answer one. Confirming a plan is what the
+        session reads before it will verify, and a saved report and every active
+        export read the verification, so a window that could preview and not
+        confirm ended at the preview and refused the three pages after it. The
+        terminal never had that gap: ``verify`` and ``generate`` both confirm
+        the plan they printed.
+
+        There is no action for opening this, and inventing a button for one
+        would be a control standing for nothing. The plan itself is the
+        occasion, so the preview that produced it opens the dialog.
+        """
+        dialog = PlanConfirmationDialog(
+            self.service,
+            preview,
+            accept=partial(self.service.confirm_plan, accepted=True),
+            decline=partial(self.service.confirm_plan, accepted=False),
+            restrict=self._preview_restriction if self.preview_mode else None,
+            parent=self,
+        )
+        self._plan_dialog = dialog
+        dialog.finished.connect(self._plan_dialog_closed)
+        dialog.open()
+
+    def _plan_dialog_closed(self, _result: int) -> None:
+        """Take the answer back to the page, and re-resolve what it opened.
+
+        Every control in the window resolves against the session, so a confirmed
+        plan reaches Verify only once the window refreshes. The dialog holds its
+        own binder and refreshed that, which is a different set of controls.
+        """
+        dialog = self._plan_dialog
+        self._plan_dialog = None
+        if dialog is None:
+            return
+        decision = dialog.decision()
+        if decision is not None:
+            self.calibrate_page.render_decision(decision)
+        self._binder.refresh()
+
+    def _show_profiles(self) -> None:
+        """Bring the window forward on the page that lists published profiles.
+
+        The tray entry this replaces listed files it found by globbing a folder
+        no part of this application writes to, named each one by mangling its
+        filename, and applied nothing when clicked. What the tray can honestly
+        offer is the way to the page that reads published bundles back.
+        """
+        self._show_window()
+        self._shortcut_switch_page(PROFILES_PAGE_INDEX)
+
+    # --- Bound action handlers ---
+
+    def _detect_displays(self) -> ActionOutcome[DetectionSummary]:
+        """Run the session's detection pass, then repaint what renders it.
+
+        The pages are refreshed only after the action succeeded. A refused
+        detection leaves them showing the last state the session actually
+        observed, rather than a newer reading nothing recorded. The DDC page is
+        optional because its import is allowed to fail into a placeholder.
+        """
+        outcome = self.service.detect()
+        if isinstance(outcome, ActionSuccess):
+            pages = (
+                self.dashboard,
+                getattr(self, "calibrate_page", None),
+                getattr(self, "ddc", None),
+                getattr(self, "verify_page", None),
+            )
+            for page in pages:
+                if page is not None:
+                    page.render_session(outcome.value)
+            self._observed = outcome.value
+            self._render_characterization()
+            self._update_tray_state()
+        return outcome
+
+    def _render_ddc_selection(self) -> None:
+        """Put the DDC page on the display the session holds right now.
+
+        Its controls read and write one monitor, and any page can adopt a
+        different one. The session drops what it read off a display it no
+        longer holds, so this moves the selector and clears the numbers under
+        it rather than leaving one panel's values on screen above another
+        panel's controls.
+        """
+        page = getattr(self, "ddc", None)
+        render = getattr(page, "render_selection", None)
+        if render is not None:
+            render(self.service.selection)
+
+    def _render_characterization(self) -> None:
+        """Repaint the dashboard row from what the session currently holds.
+
+        A pass adopts a display on its own, so no outcome carries that adoption
+        out to be rendered, and the Calibrate page can adopt a different one
+        while the operator is looking elsewhere. Both are read back off the
+        session here rather than pushed from the surfaces that caused them.
+        """
+        page = getattr(self, "dashboard", None)
+        if page is not None:
+            page.render_characterization(self.service.selection)
+
+    def _program_state(self) -> tuple[tuple[str, str], tuple[str, str]]:
+        """Report the two services this process runs, for the dashboard to show.
+
+        Both are read here rather than by the page, so redrawing a card never
+        reaches the registry and never creates the application config
+        directory. A window whose services never started answers that it did
+        not read them, rather than reporting a disabled state it never checked.
+        """
+        guard = self._guard
+        if guard is not None and guard.is_running:
+            restores = guard.restore_count
+            guard_state = (f"Active ({restores} restores)" if restores else "Active", C.GREEN_HI)
+        else:
+            guard_state = ("Inactive", C.TEXT3)
+        startup = self._startup
+        if startup is None:
+            return guard_state, (DashboardPage.NOT_READ, C.TEXT3)
+        if startup.is_startup_enabled():
+            return guard_state, ("Enabled", C.GREEN_HI)
+        return guard_state, ("Disabled", C.TEXT3)
+
+    def _report_detection(self, summary: DetectionSummary) -> None:
+        """Say what the pass found, including the displays it turned down."""
+        self._status.setText(detection_sentence(summary))
+
+    def _export_format(self, export_name: str) -> "ActionOutcome[ExportBundle] | None":
+        """Publish one generated format into a directory the operator chooses.
+
+        The dialog asks for a directory rather than a filename. A single-format
+        export writes the asset together with a manifest sealing it, so what
+        lands on disk is a small directory, and naming a file would describe
+        something the export does not produce.
+
+        Choosing the directory is its own journaled action and its refusal is
+        returned unchanged, so an export is never reported against a directory
+        the session rejected. Closing the dialog reports nothing at all.
+        """
+        directory = QFileDialog.getExistingDirectory(self, f"Export {export_name} into folder")
+        if not directory:
+            return None
+        chosen = self.service.set_export_directory(directory)
+        if isinstance(chosen, ActionError):
+            return chosen
+        return self.service.export_format(export_name)
+
+    def _switch_to_chosen_profile(self) -> "ActionOutcome[ProfileActivation] | None":
+        """Ask which installed profile this display should hand out, then switch.
+
+        The list is the one the session's reading found registered, so nothing
+        is offered that the store did not answer with. Closing the dialog
+        reports nothing, so a withdrawn choice never reaches the journal.
+
+        With nothing to choose from the action is asked for anyway. The session
+        refuses it and says why, which is a better answer than a menu entry
+        that appears to do nothing when it is used.
+        """
+        installed = self.service.installed_system_profiles
+        if not installed:
+            return self.service.switch_display_profile("")
+        name, chosen = QInputDialog.getItem(
+            self,
+            "Switch profile",
+            "Hand this display:",
+            list(installed),
+            0,
+            False,
+        )
+        if not chosen or not name:
+            return None
+        return self.service.switch_display_profile(name)
+
+    def _report_profile_write(self, outcome: ProfileOutcome) -> None:
+        """Say what one colour profile write did, in the result's own words."""
+        self._status.setText(outcome.summary)
+
+    def _announce_profile_write(self, outcome: ProfileOutcome) -> None:
+        """Report a write started from the tray, where the window may be hidden.
+
+        The status line is written either way, so an operator who opens the
+        window afterwards reads the same sentence. The balloon is what reaches
+        somebody who used the tray and never opened it.
+        """
+        self._report_profile_write(outcome)
+        if hasattr(self, "_tray") and self._tray.isVisible():
+            self._tray.showMessage(
+                APP_NAME,
+                outcome.summary,
+                QSystemTrayIcon.MessageIcon.Information,
+                4000,
             )
 
-    def _install_profile(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Install ICC Profile", "", "ICC Profiles (*.icc *.icm)")
-        if path:
-            self._status.setText(f"Selected {Path(path).name} — confirmation required")
-            QMessageBox.information(
-                self,
-                "Profile Preview",
-                "The profile was selected but not installed. Review and confirm the exact apply plan in Calibrate.",
-            )
+    def _show_pattern(self, pattern_id: str) -> ActionOutcome[PatternPresentation]:
+        """Hold one pattern on the selected display with the window inert.
 
-    def _export(self, fmt: str):
-        ext_map = {
-            "cube": "*.cube",
-            "3dlut": "*.3dlut",
-            "png": "*.png",
-            "icc": "*.icc",
-            "mpv": "*.conf",
-            "obs": "*.cube",
-        }
-        path, _ = QFileDialog.getSaveFileName(self, f"Export {fmt}", "", f"{fmt.upper()} ({ext_map.get(fmt, '*.*')})")
-        if path:
-            self._status.setText(f"Exported: {Path(path).name}")
-
-    def _test_patterns(self):
+        The surface pumps this application's event loop rather than entering one
+        of its own, which is what keeps a Qt shell alive while a pattern is up.
+        It also means a second entry could fire while the first pattern is still
+        on screen, so the window is switched off for the duration and switched
+        back on however the presentation ends.
+        """
+        self.setEnabled(False)
         try:
-            from calibrate_pro.patterns.display import show_patterns
+            return self.service.show_test_pattern(pattern_id)
+        finally:
+            self.setEnabled(True)
 
-            show_patterns()
-        except (ImportError, OSError, RuntimeError) as e:
-            QMessageBox.warning(self, "Error", str(e))
+    def _report_pattern(self, presentation: PatternPresentation) -> None:
+        """Say which pattern was shown, where, and how the operator ended it."""
+        self._status.setText(presentation.summary)
 
-    def _hdr_status(self):
-        try:
-            from calibrate_pro.display.hdr_detect import detect_hdr_state
+    def _report_export(self, bundle: ExportBundle) -> None:
+        """Name what was written, taken from the manifest that seals it."""
+        self._status.setText(
+            f"Exported {len(bundle.assets)} file(s) to {bundle.directory} ({bundle.manifest_filename})"
+        )
 
-            states = detect_hdr_state()
-            msg = (
-                "\n".join(f"{s.display_name}: {'HDR ON' if s.hdr_enabled else 'SDR'}" for s in states)
-                or "No displays detected"
-            )
-            QMessageBox.information(self, "HDR Status", msg)
-        except (ImportError, OSError) as e:
-            QMessageBox.warning(self, "Error", str(e))
+    def _show_hdr_status(self, status: HdrStatus) -> None:
+        """Show the HDR switch positions the last detection pass observed.
+
+        A display whose switch was never read says so. Rendering an unanswered
+        query as SDR would turn a missing observation into an observed value.
+        """
+        lines = "\n".join(f"{entry.safe_label}: {entry.summary}" for entry in status.displays)
+        QMessageBox.information(
+            self,
+            "HDR Status",
+            f"{lines or 'No displays in this session.'}\n\nObserved {status.observed_utc}",
+        )
 
     def _about(self):
         QMessageBox.about(

@@ -309,12 +309,16 @@ class AmbientSensor:
         Read current ambient light level.
 
         Override this method for actual sensor integration.
+
+        Raises:
+            NotImplementedError: always. A default reading returned from here
+                would carry a lux value no sensor produced, and a caller has no
+                way to tell it apart from one a sensor did produce.
         """
-        # Default implementation returns simulated value
-        return AmbientReading(
-            timestamp=datetime.now(),
-            lux=300,
-            cct=6500,
+        raise NotImplementedError(
+            f"{type(self).__name__} does not read a sensor. Subclass AmbientSensor "
+            "and override read(), or use SimulatedSensor when a stand-in value is "
+            "what you want."
         )
 
     def start_monitoring(self, interval: float = 5.0) -> None:
@@ -406,30 +410,29 @@ class WindowsLightSensor(AmbientSensor):
         self._init_sensor()
 
     def _init_sensor(self) -> None:
-        """Initialize Windows light sensor."""
-        try:
-            # This would use winrt or win32api
-            # Placeholder for actual implementation
-            pass
-        except Exception:
-            self._available = False
+        """Initialize Windows light sensor.
+
+        The Windows.Devices.Sensors binding is not wired up, so the sensor stays
+        unavailable and read() refuses rather than answering with a number.
+        """
+        self._available = False
 
     @property
     def is_available(self) -> bool:
         return self._available
 
     def read(self) -> AmbientReading:
-        """Read from Windows sensor."""
-        if not self._available:
-            return AmbientReading(
-                timestamp=datetime.now(),
-                lux=300,
-            )
+        """Read from Windows sensor.
 
-        # Actual sensor reading would go here
-        return AmbientReading(
-            timestamp=datetime.now(),
-            lux=300,
+        Raises:
+            RuntimeError: while the sensor is unavailable. Answering with a
+                nominal room level here would put a value the room never had
+                into an adaptation decision and into anything that logs it.
+        """
+        raise RuntimeError(
+            "Windows ambient light sensor is unavailable: the Windows.Devices.Sensors "
+            "binding is not implemented. Check is_available before reading, and pass a "
+            "sensor you have to AdaptationController."
         )
 
 

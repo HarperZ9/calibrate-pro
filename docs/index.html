@@ -100,7 +100,11 @@
       </div>
       <div class="card">
         <h3>Sensorless Mode</h3>
-        <p>Build an estimated plan from panel characterization without claiming measured accuracy. A supported i1Display3 provides instrument observations.</p>
+        <p>Build an estimated plan from panel characterization when no instrument is attached. Sensorless results are labelled estimated and are never presented as measurements of the attached unit.</p>
+      </div>
+      <div class="card">
+        <h3>Measured Mode</h3>
+        <p>With a supported colorimeter attached, read the selected display over four 17-step ramps and generate from that reading. A run is refused while the display is loading a correction, so the numbers describe the panel rather than the panel plus somebody else's calibration.</p>
       </div>
       <div class="card">
         <h3>Read-Only Monitoring</h3>
@@ -117,12 +121,12 @@
       <div class="step">
         <div class="step-num">1</div>
         <h3>Detect</h3>
-        <p>Identify connected displays and match to the panel database via EDID.</p>
+        <p>Identify connected displays and match them to the panel database. A display the database does not name is calibrated from the primaries it declares about itself, and the result says it came from a declaration rather than a reading.</p>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <h3>Choose</h3>
-        <p>Select a characterized or measured method and a calibration target.</p>
+        <p>Select a calibration target. The characterized method is the one 2.0 offers; the measured method is present and disabled, and the window says why.</p>
       </div>
       <div class="step">
         <div class="step-num">3</div>
@@ -132,7 +136,7 @@
       <div class="step">
         <div class="step-num">4</div>
         <h3>Verify and Report</h3>
-        <p>Inspect evidence-labelled results: measured, estimated, simulated, replayed, or Not measured.</p>
+        <p>Read the display's distance from the target before and after the correction, so the pair says what changed. Every result carries its evidence: measured, estimated, simulated, replayed, or Not measured.</p>
       </div>
     </div>
   </div>
@@ -145,7 +149,7 @@
       <li><strong>OS:</strong> Windows 10 / 11</li>
       <li><strong>Python:</strong> 3.10+</li>
       <li><strong>GUI:</strong> PySide6</li>
-      <li><strong>Sensor:</strong> Optional &mdash; i1Display3 family</li>
+      <li><strong>Sensor:</strong> Not used in 2.0. The i1Display3 driver ships, and no surface opens it.</li>
     </ul>
   </div>
 </section>
@@ -160,9 +164,17 @@
       <pre>calibrate-pro gui</pre>
       <h3>Read-Only CLI</h3>
       <pre>calibrate-pro doctor        <span class="comment"># Installation and capability diagnostics</span>
-calibrate-pro list-targets  <span class="comment"># List calibration target presets</span>
-calibrate-pro list-panels   <span class="comment"># List characterized panel profiles</span></pre>
-      <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, <code>restore</code>, and <code>verify</code> are proposal-only in 1.1. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
+calibrate-pro doctor --json <span class="comment"># Stable machine-readable diagnostics</span>
+calibrate-pro profiles out  <span class="comment"># Re-check the seal on published bundles</span></pre>
+      <p style="color: var(--muted); font-size: 0.85rem;">The packaged binary answers these. <code>list-targets</code>, <code>list-panels</code>, <code>info</code>, and <code>hdr-status</code> exist only in the developer wheel, and the binary refuses each with exit code 2.</p>
+      <h3>Headless Session</h3>
+      <pre>calibrate-pro detect        <span class="comment"># Displays observed, with characterization sources</span>
+calibrate-pro status        <span class="comment"># Actions this session can run, and why the rest cannot</span>
+calibrate-pro verify --target srgb_web
+                            <span class="comment"># Sealed plan and its predicted accuracy</span>
+calibrate-pro diagnostics   <span class="comment"># What a support bundle would carry, with digests</span></pre>
+      <p style="color: var(--muted); font-size: 0.85rem;">The headless session runs the same actions the window runs. It reads, it plans, and it publishes sealed bundles into a directory you name. It does not change display state. Accuracy figures from a sensorless plan are estimated, and the command prints that beneath them.</p>
+      <p style="color: var(--muted); font-size: 0.85rem;">Legacy action names such as <code>auto</code>, <code>calibrate</code>, and <code>restore</code> are proposal-only in 2.0. They return exit code 2 without changing display state and direct you to the confirmed GUI workflow.</p>
     </div>
   </div>
 </section>

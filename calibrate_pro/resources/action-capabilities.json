@@ -1,0 +1,2837 @@
+{
+  "schema_version": 1,
+  "default": "disabled",
+  "actions": [
+    {
+      "action_id": "application.exit",
+      "surfaces": [
+        "menu.file.exit",
+        "tray.exit"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "application_exit",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "calibration.all",
+      "surfaces": [
+        "dashboard.calibrate_all",
+        "menu.file.calibrate_all",
+        "tray.calibrate_all"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "calibration_all",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "calibration.apply",
+      "surfaces": [
+        "calibrate.apply"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "preview",
+        "apply"
+      ],
+      "required_capabilities": [
+        "physical_apply_qualification",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "apply_confirmed_plan",
+      "required_modules": [
+        "calibrate_pro.application.calibration"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Apply needs a confirmed current plan that requests a write route this display reported and this build can capture."
+    },
+    {
+      "action_id": "calibration.confirm_plan",
+      "surfaces": [
+        "dialog.plan.accept"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_confirm_plan",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Confirmation requires a live one-use token for the current capability generation."
+    },
+    {
+      "action_id": "calibration.decline_plan",
+      "surfaces": [
+        "dialog.plan.decline"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_decline_plan",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Declining requires a live one-use token for the current capability generation."
+    },
+    {
+      "action_id": "calibration.measure",
+      "surfaces": [
+        "calibrate.measure"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [
+        "measured_qualified",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_measure",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Measuring the display requires the measured method, a connected colorimeter, no live plan, and a ready journal."
+    },
+    {
+      "action_id": "calibration.generate",
+      "surfaces": [
+        "calibrate.generate"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_generate",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated",
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Generation requires a selected characterized display, a valid non-HDR target, no live plan, and a ready journal."
+    },
+    {
+      "action_id": "calibration.method.hybrid",
+      "surfaces": [
+        "calibrate.method.hybrid"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "method"
+      ],
+      "required_capabilities": [
+        "measured_contract"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "calibration_method_hybrid",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Measured calibration is disabled pending a distinct qualified measurement contract."
+    },
+    {
+      "action_id": "calibration.method.measured",
+      "surfaces": [
+        "calibrate.method.measured"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "method"
+      ],
+      "required_capabilities": [
+        "measured_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_method_measured",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Measured calibration requires a selected characterized display and a connected colorimeter."
+    },
+    {
+      "action_id": "calibration.method.sensorless",
+      "surfaces": [
+        "calibrate.method.sensorless"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "method"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_method_sensorless",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Sensorless calibration requires a selected characterized display. A display no panel record matches can be characterized generically instead."
+    },
+    {
+      "action_id": "calibration.open_for_display",
+      "surfaces": [
+        "dashboard.display_card.calibrate"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_open_for_display",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Select a detected display before opening calibration."
+    },
+    {
+      "action_id": "calibration.preset.dci_p3",
+      "surfaces": [
+        "calibrate.preset.dci_p3"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_preset_dci_p3",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This preset requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.preset.hdr10",
+      "surfaces": [
+        "calibrate.preset.hdr10"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [
+        "hdr_contract"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "calibration_preset_hdr10",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "HDR is disabled pending a distinct qualified HDR contract."
+    },
+    {
+      "action_id": "calibration.preset.photography",
+      "surfaces": [
+        "calibrate.preset.photography"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_preset_photography",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This preset requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.preset.rec709",
+      "surfaces": [
+        "calibrate.preset.rec709"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_preset_rec709",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This preset requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.preset.srgb_web",
+      "surfaces": [
+        "calibrate.preset.srgb_web"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_preset_srgb_web",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This preset requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.preview",
+      "surfaces": [
+        "calibrate.preview"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_preview",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Preview requires reparsed matching ICC and CUBE assets, a current plan, and a ready journal."
+    },
+    {
+      "action_id": "calibration.target.custom_cct",
+      "surfaces": [
+        "calibrate.target.custom_cct"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_target_custom_cct",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Target editing requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.target.gamma",
+      "surfaces": [
+        "calibrate.target.gamma"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_target_gamma",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Target editing requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.target.gamut",
+      "surfaces": [
+        "calibrate.target.gamut"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_target_gamut",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Target editing requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "calibration.target.hdr",
+      "surfaces": [
+        "calibrate.target.hdr"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [
+        "hdr_contract"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "calibration_target_hdr",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "HDR is disabled pending a distinct qualified HDR contract."
+    },
+    {
+      "action_id": "calibration.target.whitepoint",
+      "surfaces": [
+        "calibrate.target.whitepoint"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_target_whitepoint",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Target editing requires a selected characterized display and the sensorless non-HDR method."
+    },
+    {
+      "action_id": "ddc.apply",
+      "surfaces": [
+        "ddc.apply"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_apply",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Writing the display's controls requires at least one value staged against a current reading of it, and a ready journal."
+    },
+    {
+      "action_id": "ddc.raw_read",
+      "surfaces": [
+        "ddc.raw_read"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_controls_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_raw_read",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Reading one control code requires a selected display, a control port in this build, and a display that answered on DDC/CI."
+    },
+    {
+      "action_id": "ddc.raw_write",
+      "surfaces": [
+        "ddc.raw_write"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "ddc_raw_write",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Writing an arbitrary control code is disabled. What a code means is not readable over DDC/CI, so a code that answers a read may be a command register whose write this build could not undo."
+    },
+    {
+      "action_id": "ddc.read_current",
+      "surfaces": [
+        "ddc.read_current"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_controls_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_read_current",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Reading this display's own controls requires a selected display, a control port in this build, and a display that answered on DDC/CI."
+    },
+    {
+      "action_id": "ddc.restore_defaults",
+      "surfaces": [
+        "ddc.restore_defaults"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_restore_defaults",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Asking the display to restore its factory settings requires a current reading of it to report what moved, and a ready journal."
+    },
+    {
+      "action_id": "ddc.stage.blue_black_level",
+      "surfaces": [
+        "ddc.blue_black_level"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_blue_black_level",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging blue black level requires a reading in which this display reported blue black level."
+    },
+    {
+      "action_id": "ddc.stage.blue_gain",
+      "surfaces": [
+        "ddc.blue_gain"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_blue_gain",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging blue gain requires a reading in which this display reported blue gain."
+    },
+    {
+      "action_id": "ddc.stage.brightness",
+      "surfaces": [
+        "ddc.brightness"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_brightness",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging brightness requires a reading in which this display reported brightness."
+    },
+    {
+      "action_id": "ddc.stage.contrast",
+      "surfaces": [
+        "ddc.contrast"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_contrast",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging contrast requires a reading in which this display reported contrast."
+    },
+    {
+      "action_id": "ddc.stage.green_black_level",
+      "surfaces": [
+        "ddc.green_black_level"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_green_black_level",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging green black level requires a reading in which this display reported green black level."
+    },
+    {
+      "action_id": "ddc.stage.green_gain",
+      "surfaces": [
+        "ddc.green_gain"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_green_gain",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging green gain requires a reading in which this display reported green gain."
+    },
+    {
+      "action_id": "ddc.stage.red_black_level",
+      "surfaces": [
+        "ddc.red_black_level"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_red_black_level",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging red black level requires a reading in which this display reported red black level."
+    },
+    {
+      "action_id": "ddc.stage.red_gain",
+      "surfaces": [
+        "ddc.red_gain"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "monitor_writes_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "ddc_stage_red_gain",
+      "required_modules": [
+        "calibrate_pro.application.monitor_actions",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Staging red gain requires a reading in which this display reported red gain."
+    },
+    {
+      "action_id": "ddc.unsupported.color_preset",
+      "surfaces": [
+        "ddc.color_preset"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "ddc_unsupported_color_preset",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
+    },
+    {
+      "action_id": "ddc.unsupported.factory_color_reset",
+      "surfaces": [
+        "ddc.factory_color_reset"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "ddc_unsupported_factory_color_reset",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
+    },
+    {
+      "action_id": "ddc.unsupported.gamma",
+      "surfaces": [
+        "ddc.gamma"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "ddc_unsupported_gamma",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
+    },
+    {
+      "action_id": "ddc.unsupported.image_mode",
+      "surfaces": [
+        "ddc.image_mode"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "ddc_unsupported_image_mode",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This control selects one of the display's own modes rather than setting a value, and what each numbered mode does is not readable over DDC/CI."
+    },
+    {
+      "action_id": "diagnostics.bundle.create",
+      "surfaces": [
+        "settings.diagnostics.create_bundle"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "create_diagnostic_bundle",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.diagnostics"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Diagnostic bundle creation requires a live unconsumed preview token and a ready journal."
+    },
+    {
+      "action_id": "diagnostics.bundle.preview",
+      "surfaces": [
+        "settings.diagnostics.preview_bundle"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "preview_diagnostic_bundle",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.diagnostics"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "diagnostics.folder.open",
+      "surfaces": [
+        "settings.diagnostics.open_folder"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "open_diagnostics_folder",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.diagnostics"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "display.characterization.use_generic",
+      "surfaces": [
+        "dashboard.characterization.use_generic"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "display_characterization_use_generic",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Generic characterization is available only for an uncharacterized selected display."
+    },
+    {
+      "action_id": "display.characterization.use_edid",
+      "surfaces": [
+        "dashboard.characterization.use_edid"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "display_characterization_use_edid",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Accepting a display's own declaration requires an uncharacterized selected display that declared one."
+    },
+    {
+      "action_id": "display.detect",
+      "surfaces": [
+        "dashboard.refresh",
+        "menu.display.detect",
+        "menu.view.refresh"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "detect_displays",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.detection"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "display.hdr_status",
+      "surfaces": [
+        "menu.tools.hdr_status"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "hdr_contract"
+      ],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "display_hdr_status",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "display.restore_defaults",
+      "surfaces": [
+        "menu.display.restore_defaults",
+        "tray.restore_defaults"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "restorable_system_profiles",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "display_restore_defaults",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Restoring this display requires a reading that found a profile this product attached to it, and a diagnostic journal that will take the record."
+    },
+    {
+      "action_id": "export.active.3dlut",
+      "surfaces": [
+        "menu.export.3dlut"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_3dlut",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The 3dlut export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "export.active.cube",
+      "surfaces": [
+        "menu.export.cube"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_cube",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The cube export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "export.active.icc",
+      "surfaces": [
+        "menu.export.icc"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_icc",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The icc export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "export.active.mpv",
+      "surfaces": [
+        "menu.export.mpv"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_mpv",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The mpv export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "export.active.obs",
+      "surfaces": [
+        "menu.export.obs"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_obs",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The obs export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "export.active.png",
+      "surfaces": [
+        "menu.export.png"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "export_active_png",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "The png export requires that exact available format, verified source assets, a current verification snapshot, and a ready journal."
+    },
+    {
+      "action_id": "fake_acceptance.apply",
+      "surfaces": [],
+      "classification": "ui_only",
+      "required_stages": [
+        "preview",
+        "apply"
+      ],
+      "required_capabilities": [
+        "fake_composition",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "apply_confirmed_fake_plan",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Fake Apply is available only in fake composition for a confirmed current plan with a ready journal."
+    },
+    {
+      "action_id": "help.about",
+      "surfaces": [
+        "menu.help.about"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "help_about",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "measurement.live.toggle",
+      "surfaces": [
+        "dashboard.live_sensor.toggle"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "measurement_live_toggle",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "navigation.calibrate",
+      "surfaces": [
+        "menu.view.calibrate",
+        "sidebar.calibrate"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_calibrate",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "navigation.dashboard",
+      "surfaces": [
+        "menu.view.dashboard",
+        "sidebar.dashboard"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_dashboard",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "navigation.ddc",
+      "surfaces": [
+        "menu.view.ddc",
+        "sidebar.ddc"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_ddc",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "navigation.profiles",
+      "surfaces": [
+        "menu.view.profiles",
+        "sidebar.profiles",
+        "tray.profiles"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_profiles",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "navigation.settings",
+      "surfaces": [
+        "menu.view.settings",
+        "sidebar.settings"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_settings",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "navigation.verify",
+      "surfaces": [
+        "menu.view.verify",
+        "sidebar.verify"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "navigation_verify",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "onboarding.complete",
+      "surfaces": [
+        "dialog.onboarding.get_started"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "onboarding_complete",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "panel_profile.dialog.open",
+      "surfaces": [
+        "dashboard.add_display"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "panel_profile_dialog_open",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "panel_profile.edid.create",
+      "surfaces": [
+        "dialog.add_display.edid.create"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "panel_profile_edid_create",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "EDID profile creation is disabled pending the Phase 2 profile-generation contract."
+    },
+    {
+      "action_id": "panel_profile.edid.select_display",
+      "surfaces": [
+        "dialog.add_display.edid.display"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "panel_profile_edid_select_display",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "panel_profile.import",
+      "surfaces": [
+        "dialog.add_display.import.commit"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "panel_profile_import",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Panel-profile import is disabled pending the Phase 2 validated import contract."
+    },
+    {
+      "action_id": "panel_profile.import.choose",
+      "surfaces": [
+        "dialog.add_display.import.choose"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "panel_profile_import_choose",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "patterns.open",
+      "surfaces": [
+        "menu.tools.patterns"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "patterns_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "patterns_open",
+      "required_modules": [
+        "calibrate_pro.application.pattern_actions",
+        "calibrate_pro.application.pattern_catalogue",
+        "calibrate_pro.application.pattern_surface",
+        "calibrate_pro.application.patterns",
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Showing a test pattern requires a selected display and a pattern surface in this build."
+    },
+    {
+      "action_id": "profile.activate",
+      "surfaces": [
+        "profiles.card.activate"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_installed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_activate",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Activating a profile requires the store to hold this bundle's profile, so install it first, and a diagnostic journal that will take the record."
+    },
+    {
+      "action_id": "profile.delete",
+      "surfaces": [
+        "profiles.card.delete"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_installed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_delete",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Removing a profile requires the store to hold this bundle's profile, and a diagnostic journal that will take the record."
+    },
+    {
+      "action_id": "profile.export",
+      "surfaces": [
+        "profiles.card.export"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_export",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Profile export requires a reparsed selected profile and a ready journal."
+    },
+    {
+      "action_id": "profile.generate_all",
+      "surfaces": [
+        "profiles.generate_all"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "profile_generate_all",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+    },
+    {
+      "action_id": "profile.inspect",
+      "surfaces": [
+        "profiles.card.inspect"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "profile_inspect",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "profile.install",
+      "surfaces": [
+        "menu.display.install_profile"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_reparsed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_install",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Installing a profile requires a selected display, a colour profile store that answered, a bundle whose seal was read back, and a diagnostic journal that will take the record."
+    },
+    {
+      "action_id": "profile.list.refresh",
+      "surfaces": [
+        "profiles.refresh"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "profile_list_refresh",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "profile.rename",
+      "surfaces": [
+        "profiles.rename"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "profile_rename",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+    },
+    {
+      "action_id": "profile.system.read",
+      "surfaces": [
+        "profiles.system.read"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profiles_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_system_read",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Reading the system colour profile store requires a selected display and a profile port in this build."
+    },
+    {
+      "action_id": "report.save",
+      "surfaces": [
+        "verify.export_report"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "report_save",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.exporting"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Report save requires a current verification snapshot, verified source assets, a valid output directory, and a ready journal."
+    },
+    {
+      "action_id": "settings.argyll_path",
+      "surfaces": [
+        "settings.argyll_path",
+        "settings.argyll_path.browse"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_argyll_path",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.default_target",
+      "surfaces": [
+        "settings.default_target"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_default_target",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.hdr",
+      "surfaces": [
+        "settings.hdr"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "hdr_contract"
+      ],
+      "source_policy": "disabled",
+      "frozen_policy": "disabled",
+      "handler": "settings_hdr",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "HDR is disabled pending a distinct qualified HDR contract."
+    },
+    {
+      "action_id": "settings.lut_size",
+      "surfaces": [
+        "settings.lut_size"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "settings_lut_size",
+      "required_modules": [
+        "calibrate_pro.application.preferences"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "LUT-size changes require a ready journal."
+    },
+    {
+      "action_id": "settings.minimize_to_tray",
+      "surfaces": [
+        "settings.minimize_to_tray"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_minimize_to_tray",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.oled_automation",
+      "surfaces": [
+        "settings.oled_automation"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_oled_automation",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.output_directory",
+      "surfaces": [
+        "settings.output_directory",
+        "settings.output_directory.browse"
+      ],
+      "classification": "local_file_write",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "settings_output_directory",
+      "required_modules": [
+        "calibrate_pro.application.preferences"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Output-directory changes require a ready journal."
+    },
+    {
+      "action_id": "settings.panel_profiles_path",
+      "surfaces": [
+        "settings.panel_profiles_path",
+        "settings.panel_profiles_path.browse"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_panel_profiles_path",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.per_app.enabled",
+      "surfaces": [
+        "settings.per_app.enabled"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_per_app_enabled",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.per_app.rules",
+      "surfaces": [
+        "settings.per_app.action",
+        "settings.per_app.add",
+        "settings.per_app.profile",
+        "settings.per_app.remove",
+        "settings.per_app.table"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_per_app_rules",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "settings.startup",
+      "surfaces": [
+        "settings.startup"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "hidden",
+      "frozen_policy": "hidden",
+      "handler": "settings_startup",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "hidden",
+      "unavailable_reason": "This surface is hidden until its product workflow is specified."
+    },
+    {
+      "action_id": "tray.switch_profile",
+      "surfaces": [
+        "tray.switch_profile"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "switchable_system_profiles",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "tray_switch_profile",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Switching this display's profile requires a reading that found at least one installed profile, and a diagnostic journal that will take the record."
+    },
+    {
+      "action_id": "verification.measured",
+      "surfaces": [
+        "verify.run_measured"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "verify"
+      ],
+      "required_capabilities": [
+        "measured_qualified",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "verification_measured",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Measured verification requires a connected colorimeter, a measured plan generated for the selected display, and truthful confirmation or apply evidence."
+    },
+    {
+      "action_id": "verification.sensorless",
+      "surfaces": [
+        "verify.run_sensorless"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "verify"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "verification_sensorless",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "estimated"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Sensorless verification requires a generated current plan and truthful confirmation or fake-Apply evidence."
+    },
+    {
+      "action_id": "window.hide_or_minimize",
+      "surfaces": [
+        "shortcut.escape"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "window_hide_or_minimize",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "window.show",
+      "surfaces": [
+        "tray.show"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "window_show",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "window.toggle_visibility",
+      "surfaces": [
+        "tray.icon.activate"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "enabled",
+      "frozen_policy": "enabled",
+      "handler": "window_toggle_visibility",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "This action is unavailable outside its declared source-controlled capability policy."
+    },
+    {
+      "action_id": "workflow.select_display",
+      "surfaces": [
+        "calibrate.display",
+        "ddc.display",
+        "verify.display"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "workflow_select_display",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Select a detected display to continue."
+    }
+  ]
+}

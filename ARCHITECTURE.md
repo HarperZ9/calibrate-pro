@@ -1,6 +1,6 @@
 # Architecture
 
-Calibrate Pro 1.1 separates color computation, workflow policy, user confirmation, and
+Calibrate Pro 2.0 separates color computation, workflow policy, user confirmation, and
 Windows display actuation. The central rule is simple: application-facing code can
 propose a display change, but only the confirmation coordinator and canonical Windows
 adapter can execute it.
@@ -26,11 +26,22 @@ calibrate_pro/
     windows_display_state.py
                     canonical DDC/CI, ICC, VCGT, and DWM write boundary
 
+  services/         long-running watchers and proposal builders; none of them
+                    write display state
   gui/              PySide6 presentation; emits proposals, never raw writes
-  commands/         unelevated desktop/HDR launch and read-only doctor command
-  main.py           read-only CLI dispatch and proposal-only legacy names
-  frozen_main.py    two frozen executable entry points
+  commands/         unelevated desktop/HDR launch, read-only doctor, and the
+                    headless calibration session a terminal drives
+  main.py           developer command dispatch and proposal-only legacy names
+  frozen_main.py    the frozen entry point behind both packaged executables
 ```
+
+Two of the four service modules have a live caller. `calibration_guard` backs the
+guard the window starts, and `drift_monitor` backs the tray's calibration-age report.
+`gamut_clamp` and `app_switcher` are re-exported from `calibrate_pro.services` and
+nothing constructs them: the per-app switcher's two actions, `settings.per_app.enabled`
+and `settings.per_app.rules`, are declared hidden in the action manifest because their
+product workflow is not specified, and no surface offers a system-wide gamut clamp. Both
+modules ship as implementations without a workflow rather than as features of this build.
 
 Low-level Windows modules still contain native API wrappers. Application code cannot
 import or call their writer primitives directly; `DefaultWindowsDisplayAdapter` is the
@@ -85,12 +96,18 @@ become an observation of the attached display.
 ## Entry points
 
 - `CalibratePro.exe` / `calibrate-pro gui`: main PySide6 workflow.
-- `CalibrateProCLI.exe`: frozen `doctor`, `gui`, and `hdr` dispatcher; `hdr` opens the
-  HDR target/proposal workflow.
+- `CalibrateProCLI.exe`: the frozen dispatcher. It answers `doctor`, `gui`, `hdr`,
+  `detect`, `status`, `verify`, `generate-profiles`, `profiles`, and `diagnostics`, and
+  refuses every other developer name by saying which package it lives in. `hdr` opens
+  the HDR target/proposal workflow.
 - `calibrate-pro doctor [--json]`: deterministic, read-only installation diagnostics.
-- `list-targets`, `list-panels`, `info`, `hdr-status`, `patterns`, and `plugins`:
-  read-only or visual-inspection utilities.
-- Tray and calibration guard: monitor-and-notify only in 1.1.
+- `detect`, `status`, `verify`, `generate-profiles`, `profiles`, and `diagnostics`: the
+  headless session, running the actions the window runs and writing only where it was
+  told to. `diagnostics` reads the redacted journal every action writes to, and
+  publishes it as a support bundle when a path is given.
+- `list-targets`, `list-panels`, `info`, `hdr-status`, and `plugins`: read-only
+  listings and diagnostics.
+- Tray and calibration guard: monitor-and-notify only in 2.0.
 
 Both frozen executables use `asInvoker`; the installer is per-user and lowest privilege.
 
@@ -107,5 +124,5 @@ SHA-256 inventory from a hash-locked environment.
 Tests cover the pure color/HDR core, workflow state machine, confirmation and recovery,
 Windows API contracts, native-resource lifecycle, least-privilege boundary, GUI
 truthfulness, Qt selection, frozen module closure, redistribution notices, and release
-artifact construction. Publication additionally requires frozen offscreen smoke tests,
+artifact construction. Publication also requires frozen offscreen smoke tests,
 PE manifest inspection, component/source audits, and a clean install proof.

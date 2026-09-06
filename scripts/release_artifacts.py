@@ -15,9 +15,12 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+try:  # imported as `scripts.release_artifacts` from the test suite
+    from scripts.product_version import PORTABLE_NAME, SDIST_NAME
+except ModuleNotFoundError:  # run as `python scripts/release_artifacts.py`
+    from product_version import PORTABLE_NAME, SDIST_NAME
+
 MAXIMUM_BYTES = 350 * 1024 * 1024
-PRODUCT_VERSION = "1.1.0"
-PORTABLE_NAME = f"CalibratePro-{PRODUCT_VERSION}-win64.zip"
 _NATIVE_SUFFIXES = {".dll", ".exe", ".pyd"}
 _FORBIDDEN_PATH_PARTS = {
     "_internal/ada92cb5d92a588d1b93__mypyc",
@@ -168,7 +171,18 @@ def _toc_entries(value: object) -> list[tuple[str, str, str]]:
 
 
 def audit_analysis_toc(analysis_toc: str | Path, module_policy: Policy) -> dict[str, Any]:
-    """Reject unapproved first-party modules and forbidden GUI/binding roots."""
+    """Reject unapproved first-party modules and forbidden GUI/binding roots.
+
+    The first-party checks read every entry in the analysis table of contents,
+    so they hold wherever the build ran. The distribution-roots check does not.
+    It can only name the distribution a dependency came from by reading the
+    path segment after ``site-packages``, so a build whose dependencies resolve
+    from anywhere else contributes no observed roots and the check passes on an
+    empty set. That covers an editable install, a ``pip install --target``
+    directory, and a layout that imports from a directory not named
+    ``site-packages``. Read a pass as bounding the dependency set only for a
+    build run inside the locked release virtual environment.
+    """
     toc_path = Path(analysis_toc).resolve()
     try:
         toc_value = ast.literal_eval(toc_path.read_text(encoding="utf-8"))
@@ -327,8 +341,8 @@ def _component_catalog(
                 raise RuntimeError(f"source provenance missing for component {component_id}: {name}")
             if kind == "binary" and name not in binary_names:
                 raise RuntimeError(f"binary provenance missing for component {component_id}: {name}")
-            if kind == "release_source" and (name != "calibrate_pro-1.1.0.tar.gz" or entry["owner"] != "calibrate-pro"):
-                raise RuntimeError("release_source is restricted to calibrate-pro and calibrate_pro-1.1.0.tar.gz")
+            if kind == "release_source" and (name != SDIST_NAME or entry["owner"] != "calibrate-pro"):
+                raise RuntimeError(f"release_source is restricted to calibrate-pro and {SDIST_NAME}")
             provenance.append({"kind": str(kind), "name": name})
             seen_references.add(key)
         if entry["owner"] == "calibrate-pro" and not any(

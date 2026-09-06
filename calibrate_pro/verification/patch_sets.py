@@ -36,6 +36,8 @@ from __future__ import annotations
 import colorsys
 from dataclasses import dataclass
 
+from calibrate_pro.core.colorchecker import COLORCHECKER_PATCHES, COLORCHECKER_REF_LAB
+
 # =============================================================================
 # Patch Dataclass
 # =============================================================================
@@ -355,69 +357,18 @@ EBU_BARS: list[CalibrationPatch] = [
 # =============================================================================
 # 9. COLORCHECKER_CLASSIC - X-Rite ColorChecker Classic 24-patch
 # =============================================================================
-# sRGB values sourced from BabelColor / X-Rite published data.
-# Reference Lab D50 values are in COLORCHECKER_CLASSIC_LAB_D50 below.
+# The chart is defined once, in calibrate_pro.core.colorchecker, because a
+# patch's reference Lab and the signal that drives a display to it are derived
+# from each other. Copies of the pair had drifted apart on ten patches, which
+# graded a display reproducing sRGB exactly at 2.27 dE2000 average.
 
 COLORCHECKER_CLASSIC: list[CalibrationPatch] = [
-    # Row 1 - Natural colors
-    CalibrationPatch("Dark Skin", 0.453, 0.317, 0.264, "colorchecker"),
-    CalibrationPatch("Light Skin", 0.779, 0.577, 0.505, "colorchecker"),
-    CalibrationPatch("Blue Sky", 0.355, 0.480, 0.611, "colorchecker"),
-    CalibrationPatch("Foliage", 0.352, 0.422, 0.253, "colorchecker"),
-    CalibrationPatch("Blue Flower", 0.508, 0.502, 0.691, "colorchecker"),
-    CalibrationPatch("Bluish Green", 0.362, 0.745, 0.675, "colorchecker"),
-    # Row 2 - Miscellaneous colors
-    CalibrationPatch("Orange", 0.879, 0.485, 0.183, "colorchecker"),
-    CalibrationPatch("Purplish Blue", 0.266, 0.358, 0.667, "colorchecker"),
-    CalibrationPatch("Moderate Red", 0.778, 0.321, 0.381, "colorchecker"),
-    CalibrationPatch("Purple", 0.367, 0.227, 0.414, "colorchecker"),
-    CalibrationPatch("Yellow Green", 0.623, 0.741, 0.246, "colorchecker"),
-    CalibrationPatch("Orange Yellow", 0.904, 0.634, 0.154, "colorchecker"),
-    # Row 3 - Primary and secondary colors
-    CalibrationPatch("Blue", 0.139, 0.248, 0.577, "colorchecker"),
-    CalibrationPatch("Green", 0.262, 0.584, 0.291, "colorchecker"),
-    CalibrationPatch("Red", 0.752, 0.197, 0.178, "colorchecker"),
-    CalibrationPatch("Yellow", 0.938, 0.857, 0.159, "colorchecker"),
-    CalibrationPatch("Magenta", 0.752, 0.313, 0.577, "colorchecker"),
-    CalibrationPatch("Cyan", 0.121, 0.544, 0.659, "colorchecker"),
-    # Row 4 - Grayscale
-    CalibrationPatch("White", 0.961, 0.961, 0.961, "colorchecker"),
-    CalibrationPatch("Neutral 8", 0.784, 0.784, 0.784, "colorchecker"),
-    CalibrationPatch("Neutral 6.5", 0.584, 0.584, 0.584, "colorchecker"),
-    CalibrationPatch("Neutral 5", 0.420, 0.420, 0.420, "colorchecker"),
-    CalibrationPatch("Neutral 3.5", 0.258, 0.258, 0.258, "colorchecker"),
-    CalibrationPatch("Black", 0.085, 0.085, 0.085, "colorchecker"),
+    CalibrationPatch(patch.name, patch.srgb[0], patch.srgb[1], patch.srgb[2], "colorchecker")
+    for patch in COLORCHECKER_PATCHES
 ]
 
 # Reference Lab D50 values for ColorChecker Classic 24-patch.
-# Based on X-Rite published data (2014 revision), D50 illuminant.
-# Also available in calibrate_pro.verification.colorchecker.COLORCHECKER_CLASSIC_D50
-COLORCHECKER_CLASSIC_LAB_D50: dict[str, tuple[float, float, float]] = {
-    "Dark Skin": (37.986, 13.555, 14.059),
-    "Light Skin": (65.711, 18.130, 17.810),
-    "Blue Sky": (49.927, -4.880, -21.925),
-    "Foliage": (43.139, -13.095, 21.905),
-    "Blue Flower": (55.112, 8.844, -25.399),
-    "Bluish Green": (70.719, -33.397, -0.199),
-    "Orange": (62.661, 36.067, 57.096),
-    "Purplish Blue": (40.020, 10.410, -45.964),
-    "Moderate Red": (51.124, 48.239, 16.248),
-    "Purple": (30.325, 22.976, -21.587),
-    "Yellow Green": (72.532, -23.709, 57.255),
-    "Orange Yellow": (71.941, 19.363, 67.857),
-    "Blue": (28.778, 14.179, -50.297),
-    "Green": (55.261, -38.342, 31.370),
-    "Red": (42.101, 53.378, 28.190),
-    "Yellow": (81.733, 4.039, 79.819),
-    "Magenta": (51.935, 49.986, -14.574),
-    "Cyan": (51.038, -28.631, -28.638),
-    "White": (96.539, -0.425, 1.186),
-    "Neutral 8": (81.257, -0.638, -0.335),
-    "Neutral 6.5": (66.766, -0.734, -0.504),
-    "Neutral 5": (50.867, -0.153, -0.270),
-    "Neutral 3.5": (35.656, -0.421, -1.231),
-    "Black": (20.461, -0.079, -0.973),
-}
+COLORCHECKER_CLASSIC_LAB_D50: dict[str, tuple[float, float, float]] = dict(COLORCHECKER_REF_LAB)
 
 
 # =============================================================================

@@ -1015,6 +1015,7 @@ def test_legacy_install_deletes_created_profile_when_cancelled_before_native_ent
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     color_dir = tmp_path / "color"
     source_dir = tmp_path / "source"
@@ -1061,6 +1062,7 @@ def test_legacy_install_publishes_native_result_before_post_native_cancellation(
     monkeypatch: pytest.MonkeyPatch,
     native_result: bool,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     color_dir = tmp_path / "color"
     source_dir = tmp_path / "source"
@@ -1145,6 +1147,7 @@ def test_legacy_install_removes_its_created_file_when_handle_publication_is_canc
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     color_dir = tmp_path / "color"
     source_dir = tmp_path / "source"
@@ -1293,6 +1296,7 @@ def test_profile_lease_retries_close_when_normal_cleanup_dispatch_is_cancelled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Lease:
         handle: object | None = 77
@@ -1372,6 +1376,7 @@ def test_profile_lease_cleanup_retries_cancellation_before_close_native_guard(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Lease:
         handle: object | None = 77
@@ -1547,6 +1552,7 @@ def test_profile_lease_closes_when_resumption_from_yield_is_cancelled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Lease:
         handle: object | None = 77
@@ -1598,6 +1604,7 @@ def test_profile_lease_runs_delete_and_close_when_failure_cleanup_dispatch_is_ca
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     class Lease:
         handle: object | None = 77
@@ -1736,6 +1743,7 @@ def test_uninstall_post_success_cancellation_disposes_the_exact_unregistered_fil
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     profile = tmp_path / "ordinary.icc"
     profile.write_bytes(b"profile")
@@ -1894,6 +1902,7 @@ def test_handle_delete_closes_on_first_post_create_cancellation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     profile = tmp_path / "ordinary.icc"
     profile.write_bytes(b"profile")
@@ -1957,6 +1966,7 @@ def test_handle_delete_closes_on_first_post_create_cancellation(
 def test_profile_handle_constructor_retries_a_known_open_false_close(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    unmeasured_tracing: None,
 ) -> None:
     profile = tmp_path / "ordinary.icc"
     profile.write_bytes(b"profile")
@@ -2026,6 +2036,7 @@ def test_profile_handle_acquisition_survives_call_to_store_fast_cancellation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     """Caller-local tracing cannot interrupt the exact native worker's publication."""
     profile = tmp_path / "ordinary.icc"
@@ -2099,6 +2110,7 @@ def test_profile_handle_acquisition_survives_call_to_store_fast_cancellation(
 def test_profile_delete_disposition_retries_instruction_cancellation_before_native_call(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     native_calls: list[object] = []
     close_calls: list[object] = []
@@ -2327,6 +2339,7 @@ def test_profile_delete_cannot_replace_an_in_flight_close_attempt(
 def test_profile_claim_guard_rolls_back_cancellation_before_body(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     lease = object.__new__(profile_installer._VerifiedProfileDeleteHandle)
     lease.handle = 77
@@ -2383,6 +2396,7 @@ def test_profile_claim_guard_rolls_back_cancellation_before_body(
 def test_profile_claim_guard_return_cancellation_cannot_strand_claim(
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     lease = object.__new__(profile_installer._VerifiedProfileDeleteHandle)
     lease.handle = 77
@@ -2426,6 +2440,7 @@ def test_profile_claim_guard_return_cancellation_cannot_strand_claim(
 def test_profile_claim_publication_cancellation_rolls_back_from_shared_token(
     monkeypatch: pytest.MonkeyPatch,
     assignment: str,
+    unmeasured_tracing: None,
 ) -> None:
     close_calls: list[object] = []
 
@@ -2604,6 +2619,7 @@ def test_cancelled_profile_ingress_publishes_attempt_and_drain_retires_ghost(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     interruption: BaseException,
+    unmeasured_tracing: None,
 ) -> None:
     profile = tmp_path / "ingress.icc"
     retained: list[object] = []

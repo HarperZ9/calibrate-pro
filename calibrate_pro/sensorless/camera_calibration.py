@@ -352,10 +352,19 @@ class CameraCalibrationEngine:
         Returns:
             CameraCapture with measured values
         """
-        # If we have simulated camera, set pattern directly
+        # Put the color on the display before the camera looks at it. A capture
+        # taken without this step is a frame of whatever the screen already
+        # showed, and CameraCapture would file it under pattern_rgb regardless.
         if isinstance(self.camera, SimulatedCamera):
             self.camera.set_pattern(rgb)
-        # TODO: For real cameras, use pattern display
+        elif self.display is not None:
+            self.display.show_pattern(rgb)
+        else:
+            raise RuntimeError(
+                f"No pattern display configured, so RGB{rgb} cannot be shown and the "
+                "capture would not be a measurement of it. Pass a PatternDisplay to "
+                "CameraCalibrationEngine."
+            )
 
         # Capture
         image = self.camera.capture(delay=0.3)
@@ -547,6 +556,15 @@ class CameraCalibrationEngine:
             if consent is None or not consent.hardware_modification_approved:
                 result.message = "Hardware modification requires user consent"
                 return result
+            # Consent is in hand, and there is still nothing here that writes to
+            # the display. Reporting a calibration the display never received is
+            # the failure this guard exists to prevent.
+            result.message = (
+                "Applying a correction to the display is not implemented in the camera "
+                "engine. Run with apply_to_hardware=False for the measured correction, "
+                "then apply it through the LUT or DDC/CI path."
+            )
+            return result
 
         try:
             # Initial measurement
@@ -567,20 +585,19 @@ class CameraCalibrationEngine:
             correction = self.calculate_rgb_correction(initial_analysis)
             result.rgb_correction = correction
 
-            # If we're applying to hardware
-            if apply_to_hardware:
-                # TODO: Apply via DDC/CI or VCGT
-                self._report_progress("Applying correction...", 0.6)
-                pass
-
-            # Final measurement
-            self._report_progress("Verification...", 0.8)
-            final_points = self.measure_grayscale_ramp()
-            result.delta_e_after = self.calculate_grayscale_delta_e(final_points)
+            # Nothing was written to the display, so the second ramp reads the
+            # same state over again. It bounds measurement repeatability; it does
+            # not show a correction taking effect.
+            self._report_progress("Repeat measurement...", 0.8)
+            repeat_points = self.measure_grayscale_ramp()
+            result.delta_e_after = self.calculate_grayscale_delta_e(repeat_points)
 
             result.success = True
             result.iterations = 1
-            result.message = f"Calibration complete. Delta E: {result.delta_e_before:.2f} → {result.delta_e_after:.2f}"
+            result.message = (
+                f"Measured Delta E {result.delta_e_before:.2f}, repeat "
+                f"{result.delta_e_after:.2f}. Correction computed, not applied."
+            )
 
             self._report_progress("Complete!", 1.0)
 

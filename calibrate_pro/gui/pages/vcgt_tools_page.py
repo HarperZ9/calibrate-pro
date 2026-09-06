@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro import __release_series__
 from calibrate_pro.gui.theme import COLORS
 
 
@@ -248,7 +249,8 @@ class VCGTToolsPage(QWidget):
         QMessageBox.information(
             self,
             "Conversion Deferred",
-            "No VCGT was exported or applied. Version 1.1 keeps conversion disabled until its pure exporter is isolated from display writers.",
+            f"No VCGT was exported or applied. Version {__release_series__} keeps conversion disabled"
+            " until its pure exporter is isolated from display writers.",
         )
 
     def _apply_vcgt(self):

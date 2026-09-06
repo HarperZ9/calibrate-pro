@@ -14,98 +14,38 @@ from enum import Enum, auto
 
 import numpy as np
 
+from calibrate_pro.core.colorchecker import COLORCHECKER_PATCHES
+
 # =============================================================================
 # Constants - ColorChecker Reference Data
 # =============================================================================
 
-# ColorChecker Classic 24-patch reference values (D50, Lab)
-# Based on X-Rite published data for ColorChecker Classic (2014)
+
+# The chart is defined once, in calibrate_pro.core.colorchecker, because a
+# patch's reference Lab and the signal that drives a display to it are derived
+# from each other. Copies of the pair had drifted apart on ten patches, which
+# graded a display reproducing sRGB exactly at 2.27 dE2000 average.
+#
+# This module identifies a patch by an id rather than by the display name: the
+# name lower-cased with spaces as underscores. Deriving the id keeps the two
+# spellings of the same chart from parting company.
+
+
+def _patch_id(name: str) -> str:
+    return name.lower().replace(" ", "_")
+
+
 COLORCHECKER_CLASSIC_D50: dict[str, tuple[float, float, float]] = {
-    # Row 1 - Natural colors
-    "dark_skin": (37.986, 13.555, 14.059),
-    "light_skin": (65.711, 18.130, 17.810),
-    "blue_sky": (49.927, -4.880, -21.925),
-    "foliage": (43.139, -13.095, 21.905),
-    "blue_flower": (55.112, 8.844, -25.399),
-    "bluish_green": (70.719, -33.397, -0.199),
-    # Row 2 - Miscellaneous colors
-    "orange": (62.661, 36.067, 57.096),
-    "purplish_blue": (40.020, 10.410, -45.964),
-    "moderate_red": (51.124, 48.239, 16.248),
-    "purple": (30.325, 22.976, -21.587),
-    "yellow_green": (72.532, -23.709, 57.255),
-    "orange_yellow": (71.941, 19.363, 67.857),
-    # Row 3 - Primary and secondary colors
-    "blue": (28.778, 14.179, -50.297),
-    "green": (55.261, -38.342, 31.370),
-    "red": (42.101, 53.378, 28.190),
-    "yellow": (81.733, 4.039, 79.819),
-    "magenta": (51.935, 49.986, -14.574),
-    "cyan": (51.038, -28.631, -28.638),
-    # Row 4 - Grayscale
-    "white": (96.539, -0.425, 1.186),
-    "neutral_8": (81.257, -0.638, -0.335),
-    "neutral_6.5": (66.766, -0.734, -0.504),
-    "neutral_5": (50.867, -0.153, -0.270),
-    "neutral_3.5": (35.656, -0.421, -1.231),
-    "black": (20.461, -0.079, -0.973),
+    _patch_id(patch.name): patch.lab_d50 for patch in COLORCHECKER_PATCHES
 }
+
 
 # ColorChecker Classic patch names in order (left-to-right, top-to-bottom)
-COLORCHECKER_CLASSIC_ORDER = [
-    "dark_skin",
-    "light_skin",
-    "blue_sky",
-    "foliage",
-    "blue_flower",
-    "bluish_green",
-    "orange",
-    "purplish_blue",
-    "moderate_red",
-    "purple",
-    "yellow_green",
-    "orange_yellow",
-    "blue",
-    "green",
-    "red",
-    "yellow",
-    "magenta",
-    "cyan",
-    "white",
-    "neutral_8",
-    "neutral_6.5",
-    "neutral_5",
-    "neutral_3.5",
-    "black",
-]
+COLORCHECKER_CLASSIC_ORDER = [_patch_id(patch.name) for patch in COLORCHECKER_PATCHES]
+
 
 # ColorChecker Classic display names
-COLORCHECKER_CLASSIC_NAMES = {
-    "dark_skin": "Dark Skin",
-    "light_skin": "Light Skin",
-    "blue_sky": "Blue Sky",
-    "foliage": "Foliage",
-    "blue_flower": "Blue Flower",
-    "bluish_green": "Bluish Green",
-    "orange": "Orange",
-    "purplish_blue": "Purplish Blue",
-    "moderate_red": "Moderate Red",
-    "purple": "Purple",
-    "yellow_green": "Yellow Green",
-    "orange_yellow": "Orange Yellow",
-    "blue": "Blue",
-    "green": "Green",
-    "red": "Red",
-    "yellow": "Yellow",
-    "magenta": "Magenta",
-    "cyan": "Cyan",
-    "white": "White",
-    "neutral_8": "Neutral 8",
-    "neutral_6.5": "Neutral 6.5",
-    "neutral_5": "Neutral 5",
-    "neutral_3.5": "Neutral 3.5",
-    "black": "Black",
-}
+COLORCHECKER_CLASSIC_NAMES = {_patch_id(patch.name): patch.name for patch in COLORCHECKER_PATCHES}
 
 # Patch categories for analysis
 COLORCHECKER_CATEGORIES = {

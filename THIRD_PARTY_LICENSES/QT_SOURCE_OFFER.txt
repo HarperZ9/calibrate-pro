@@ -1,7 +1,7 @@
 Corresponding source and source-provenance record
 ================================================
 
-Calibrate Pro 1.1.0 redistributes the components listed below without source modifications. The release provenance lock therefore records `modifications` as the empty list. Each URL identifies the exact source archive and each digest is SHA-256.
+Calibrate Pro 2.0.0 redistributes the components listed below without source modifications. The release provenance lock therefore records `modifications` as the empty list. Each URL identifies the exact source archive and each digest is SHA-256.
 
 CPython 3.12.10
 https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz
@@ -122,4 +122,4 @@ and MSYS2 build-input package are separately hash-locked in
 `packaging/binary-provenance.lock.json`; they are binary-origin evidence, not
 substitutes for the corresponding source listed above.
 
-These archives are available without charge at the listed HTTPS locations. If a location becomes unavailable, a recipient may request the exact archived source by opening an issue at https://github.com/HarperZ9/calibrate-pro and identifying Calibrate Pro 1.1.0 plus the component name. The distributor will provide an electronic copy without charge, or a physical copy for no more than the reasonable cost of conveying it, for at least three years after the last distribution of this release. The machine-readable record is `packaging/source-provenance.lock.json`; run `python scripts/verify_source_provenance.py packaging/source-provenance.lock.json` to re-download and verify every archive.
+These archives are available without charge at the listed HTTPS locations. If a location becomes unavailable, a recipient may request the exact archived source by opening an issue at https://github.com/HarperZ9/calibrate-pro and identifying Calibrate Pro 2.0.0 plus the component name. The distributor will provide an electronic copy without charge, or a physical copy for no more than the reasonable cost of conveying it, for at least three years after the last distribution of this release. The machine-readable record is `packaging/source-provenance.lock.json`; run `python scripts/verify_source_provenance.py packaging/source-provenance.lock.json` to re-download and verify every archive.

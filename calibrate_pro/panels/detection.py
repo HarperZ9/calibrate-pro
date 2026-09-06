@@ -301,6 +301,111 @@ def _enumerate_displays_cross_platform() -> list[DisplayInfo]:
 # =============================================================================
 
 
+def _display_from_monitor(adapter: DISPLAY_DEVICE, monitor: DISPLAY_DEVICE, devmode: DEVMODE) -> DisplayInfo:
+    """Build the display record for a monitor device attached to an adapter."""
+    manufacturer, model = parse_device_id(monitor.DeviceID)
+
+    return DisplayInfo(
+        device_name=adapter.DeviceName,
+        device_string=adapter.DeviceString,
+        monitor_name=monitor.DeviceString,
+        device_id=monitor.DeviceID,
+        is_primary=bool(adapter.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE),
+        is_active=bool(adapter.StateFlags & DISPLAY_DEVICE_ACTIVE),
+        width=devmode.dmPelsWidth,
+        height=devmode.dmPelsHeight,
+        refresh_rate=devmode.dmDisplayFrequency,
+        bit_depth=devmode.dmBitsPerPel,
+        position_x=devmode.dmPositionX,
+        position_y=devmode.dmPositionY,
+        manufacturer=manufacturer,
+        model=model,
+    )
+
+
+def _display_from_adapter_only(adapter: DISPLAY_DEVICE, devmode: DEVMODE) -> DisplayInfo:
+    """Build the display record for an adapter with no monitor device on it.
+
+    The monitor fields stay empty. ``device_string`` names the graphics adapter,
+    so copying it into ``monitor_name`` would report the GPU as the panel, and
+    there is no device ID for ``parse_device_id`` to read a manufacturer out of.
+    An empty string is what the rest of the package already reads as unknown.
+    """
+    return DisplayInfo(
+        device_name=adapter.DeviceName,
+        device_string=adapter.DeviceString,
+        monitor_name="",
+        device_id="",
+        is_primary=bool(adapter.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE),
+        is_active=True,
+        width=devmode.dmPelsWidth,
+        height=devmode.dmPelsHeight,
+        refresh_rate=devmode.dmDisplayFrequency,
+        bit_depth=devmode.dmBitsPerPel,
+        position_x=devmode.dmPositionX,
+        position_y=devmode.dmPositionY,
+    )
+
+
+def _displays_for_adapter(
+    adapter: DISPLAY_DEVICE, devmode: DEVMODE, monitors: list[DISPLAY_DEVICE]
+) -> list[DisplayInfo]:
+    """Build the display records for one adapter and the monitors reported on it.
+
+    An adapter can hold an active desktop with no monitor device to enumerate:
+    the panel is asleep or switched off, or the mode comes from an indirect
+    display driver. Windows still counts that desktop in ``SM_CMONITORS``, still
+    hands out a gamma ramp for it, and still resolves an ICC profile for it, so
+    dropping it reported no displays at all on a machine with a working desktop
+    and left the tool with nothing to calibrate. The adapter is reported in that
+    case, with every monitor-specific field left empty rather than filled in
+    from the adapter.
+    """
+    displays = [
+        _display_from_monitor(adapter, monitor, devmode)
+        for monitor in monitors
+        if monitor.StateFlags & DISPLAY_DEVICE_ACTIVE
+    ]
+
+    if (
+        not displays
+        and adapter.StateFlags & DISPLAY_DEVICE_ACTIVE
+        and devmode.dmPelsWidth > 0
+        and devmode.dmPelsHeight > 0
+    ):
+        displays.append(_display_from_adapter_only(adapter, devmode))
+
+    if displays:
+        profile = get_display_profile(adapter.DeviceName)
+        for display in displays:
+            display.current_profile = profile
+
+    return displays
+
+
+def _enumerate_monitor_children(adapter: DISPLAY_DEVICE) -> list[DISPLAY_DEVICE]:
+    """Enumerate the monitor devices Windows reports on one adapter."""
+    monitors: list[DISPLAY_DEVICE] = []
+    monitor_index = 0
+
+    while True:
+        monitor = DISPLAY_DEVICE()
+        monitor.cb = ctypes.sizeof(monitor)
+
+        if not user32.EnumDisplayDevicesW(
+            adapter.DeviceName,
+            monitor_index,
+            ctypes.byref(monitor),
+            EDD_GET_DEVICE_INTERFACE_NAME,
+        ):
+            break
+
+        monitor_index += 1
+        monitors.append(monitor)
+
+    return monitors
+
+
 def enumerate_displays() -> list[DisplayInfo]:
     """
     Enumerate all connected displays.
@@ -308,6 +413,9 @@ def enumerate_displays() -> list[DisplayInfo]:
     On Windows, uses Win32 EnumDisplayDevices directly.
     On macOS/Linux, delegates to the platform backend and converts
     the result to the detection module's DisplayInfo format.
+
+    An active adapter whose monitor device cannot be enumerated is reported from
+    the adapter alone rather than dropped. See :func:`_displays_for_adapter`.
 
     Returns:
         List of DisplayInfo for each active display
@@ -317,7 +425,7 @@ def enumerate_displays() -> list[DisplayInfo]:
     if sys.platform != "win32":
         return _enumerate_displays_cross_platform()
 
-    displays = []
+    displays: list[DisplayInfo] = []
 
     # Enumerate display adapters (Windows-specific)
     adapter_index = 0
@@ -339,46 +447,8 @@ def enumerate_displays() -> list[DisplayInfo]:
         devmode.dmSize = ctypes.sizeof(devmode)
 
         if user32.EnumDisplaySettingsW(adapter.DeviceName, -1, ctypes.byref(devmode)):
-            # Enumerate monitors attached to this adapter
-            monitor_index = 0
-            while True:
-                monitor = DISPLAY_DEVICE()
-                monitor.cb = ctypes.sizeof(monitor)
-
-                if not user32.EnumDisplayDevicesW(
-                    adapter.DeviceName, monitor_index, ctypes.byref(monitor), EDD_GET_DEVICE_INTERFACE_NAME
-                ):
-                    break
-
-                monitor_index += 1
-
-                if not (monitor.StateFlags & DISPLAY_DEVICE_ACTIVE):
-                    continue
-
-                # Parse device ID for EDID info
-                manufacturer, model = parse_device_id(monitor.DeviceID)
-
-                display = DisplayInfo(
-                    device_name=adapter.DeviceName,
-                    device_string=adapter.DeviceString,
-                    monitor_name=monitor.DeviceString,
-                    device_id=monitor.DeviceID,
-                    is_primary=bool(adapter.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE),
-                    is_active=bool(adapter.StateFlags & DISPLAY_DEVICE_ACTIVE),
-                    width=devmode.dmPelsWidth,
-                    height=devmode.dmPelsHeight,
-                    refresh_rate=devmode.dmDisplayFrequency,
-                    bit_depth=devmode.dmBitsPerPel,
-                    position_x=devmode.dmPositionX,
-                    position_y=devmode.dmPositionY,
-                    manufacturer=manufacturer,
-                    model=model,
-                )
-
-                # Get current ICC profile
-                display.current_profile = get_display_profile(adapter.DeviceName)
-
-                displays.append(display)
+            monitors = _enumerate_monitor_children(adapter)
+            displays.extend(_displays_for_adapter(adapter, devmode, monitors))
 
     return displays
 
@@ -434,68 +504,167 @@ def parse_device_id(device_id: str) -> tuple[str, str]:
 # =============================================================================
 
 
-def get_edid_from_registry(device_id: str) -> bytes | None:
-    """
-    Read raw EDID data from Windows registry.
+#: Where Windows records what each attached display said about itself.
+EDID_ENUM_PATH = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
 
-    This works even when Windows shows "Generic PnP Monitor" because
-    the raw EDID is still stored in the registry.
+
+def edid_registry_lookup(device_id: str) -> tuple[str, str | None] | None:
+    """Split one device id into the registry key it names and the instance under it.
+
+    Windows writes the same display two ways, and both reach this function.
+    ``MONITOR\\SPT0C98\\{guid}_0`` names the hardware key and then a class
+    id, so the instance has to be searched for. The interface path
+    ``\\\\?\\DISPLAY#SPT0C98#5&5ebaf23&0&UID4352#{guid}`` names the
+    hardware key and then the instance, which is the key itself.
+
+    The instance is worth carrying. Two units of one model sit under a single
+    hardware key as two instances, and so does a model attached today beside
+    the same model attached to another port last year. Reading whichever
+    instance the registry lists first would answer for a display that is not
+    the one asked about.
+    """
+    interface = re.search(r"DISPLAY#([^#\\]+)#([^#\\]+)#", device_id, re.IGNORECASE)
+    if interface:
+        return interface.group(1).upper(), interface.group(2)
+    legacy = re.search(r"MONITOR\\([A-Z]{3}[A-F0-9]{4})", device_id, re.IGNORECASE)
+    if legacy:
+        return legacy.group(1).upper(), None
+    return None
+
+
+def _read_edid_value(winreg: Any, instance_path: str) -> bytes | None:
+    """Read the EDID one instance key carries, or None where it carries none."""
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f"{instance_path}\\Device Parameters") as params:
+            edid, _ = winreg.QueryValueEx(params, "EDID")
+    except OSError:
+        return None
+    return bytes(edid) if edid and len(edid) >= 128 else None
+
+
+def _search_edid_value(winreg: Any, hardware_id: str) -> bytes | None:
+    """Find an EDID under one hardware key when the device id named no instance.
+
+    The legacy device id form carries a class id where the instance would be,
+    so there is nothing to open directly and the instances are walked. What
+    comes back describes the model rather than one attached unit, which is what
+    an id that does not name a unit can answer.
+    """
+    base = f"{EDID_ENUM_PATH}\\{hardware_id}"
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as hardware_key:
+            instances = _subkey_names(winreg, hardware_key)
+    except OSError:
+        return None
+    for instance in instances:
+        edid = _read_edid_value(winreg, f"{base}\\{instance}")
+        if edid is not None:
+            return edid
+    return None
+
+
+def _subkey_names(winreg: Any, key: Any) -> list[str]:
+    """Every subkey under one open key, in the order the registry lists them."""
+    names: list[str] = []
+    index = 0
+    while True:
+        try:
+            names.append(winreg.EnumKey(key, index))
+        except OSError:
+            return names
+        index += 1
+
+
+def get_edid_from_registry(device_id: str) -> bytes | None:
+    """Read the EDID a display reported, out of the registry Windows kept.
+
+    This answers where the desktop shows "Generic PnP Monitor", because the
+    bytes the display sent are stored whether or not Windows found a driver
+    that names the model.
 
     Args:
         device_id: PnP device ID string
 
     Returns:
-        Raw EDID bytes (128 or 256 bytes) or None
+        Raw EDID bytes (at least 128) or None
     """
+    if sys.platform != "win32":
+        return None
     import winreg
 
-    try:
-        # Extract the monitor key from device ID
-        # Format: MONITOR\XXX####\{guid}_##
-        match = re.search(r"MONITOR\\([A-Z]{3}[A-F0-9]{4})\\", device_id, re.IGNORECASE)
-        if not match:
-            return None
+    lookup = edid_registry_lookup(device_id)
+    if lookup is None:
+        return None
+    hardware_id, instance_id = lookup
+    if instance_id is not None:
+        return _read_edid_value(winreg, f"{EDID_ENUM_PATH}\\{hardware_id}\\{instance_id}")
+    return _search_edid_value(winreg, hardware_id)
 
-        monitor_key = match.group(1).upper()
 
-        # Search in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\DISPLAY
-        base_path = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
+#: Twice the area of a triangle too small to be a display gamut. sRGB measures
+#: 0.2241 by the same cross product, so this admits a gamut a tenth its size
+#: and rejects three primaries that have collapsed onto a line.
+_MIN_GAMUT_AREA = 0.02
 
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base_path) as display_key:
-            # Enumerate display subkeys
-            for i in range(100):
-                try:
-                    subkey_name = winreg.EnumKey(display_key, i)
+#: The corners an EDID chromaticity block names, each as the byte holding its
+#: top eight bits and the pair of low bits packed into byte 25 or 26.
+_CHROMATICITY_LAYOUT = (
+    ("red_x", 27, 25, 6),
+    ("red_y", 28, 25, 4),
+    ("green_x", 29, 25, 2),
+    ("green_y", 30, 25, 0),
+    ("blue_x", 31, 26, 6),
+    ("blue_y", 32, 26, 4),
+    ("white_x", 33, 26, 2),
+    ("white_y", 34, 26, 0),
+)
 
-                    # Check if this matches our monitor
-                    if monitor_key in subkey_name.upper():
-                        subkey_path = f"{base_path}\\{subkey_name}"
 
-                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, subkey_path) as monitor_type_key:
-                            # Enumerate instance subkeys
-                            for j in range(10):
-                                try:
-                                    instance_name = winreg.EnumKey(monitor_type_key, j)
-                                    instance_path = f"{subkey_path}\\{instance_name}\\Device Parameters"
+def _chromaticity_is_declared(points: dict[str, tuple[float, float]]) -> bool:
+    """Whether this block is a declaration rather than an unwritten one.
 
-                                    try:
-                                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, instance_path) as params_key:
-                                            edid, _ = winreg.QueryValueEx(params_key, "EDID")
-                                            if edid and len(edid) >= 128:
-                                                return bytes(edid)
-                                    except FileNotFoundError:
-                                        pass
+    An EDID that says nothing about its primaries leaves the ten bytes at zero,
+    and one written carelessly can put a corner outside the chromaticity
+    diagram or collapse the three primaries onto a line. None of those is a
+    gamut, so a block like that is read as absent rather than repaired into
+    something plausible.
+    """
+    for x, y in points.values():
+        if not (0.0 < x < 1.0 and 0.0 < y < 1.0) or x + y > 1.0:
+            return False
+    red = points["red"]
+    green = points["green"]
+    blue = points["blue"]
+    area = abs((green[0] - red[0]) * (blue[1] - red[1]) - (blue[0] - red[0]) * (green[1] - red[1]))
+    return area >= _MIN_GAMUT_AREA
 
-                                except OSError:
-                                    break
 
-                except OSError:
-                    break
+def parse_edid_chromaticity(edid: bytes) -> dict[str, tuple[float, float]] | None:
+    """Read the primaries and white point an EDID declares, or None.
 
-    except Exception:
-        pass
+    Bytes 25 through 34 carry eight ten-bit fractions: the two low bits of each
+    are packed into bytes 25 and 26, and the remaining eight sit one to a byte
+    from 27 onward. Every value is a fraction of 1024, so the block is exact
+    within about a thousandth and nothing here is rounded further.
 
-    return None
+    What comes back is what the manufacturer wrote, which is a claim about the
+    model rather than a measurement of the unit on the desk. Callers label it
+    that way. A block that names no gamut answers None, and no caller then has
+    to decide whether eight zeros meant anything.
+    """
+    if not edid or len(edid) < 35:
+        return None
+    raw = {
+        name: ((edid[high] << 2) | ((edid[low] >> shift) & 0x03)) / 1024.0
+        for name, high, low, shift in _CHROMATICITY_LAYOUT
+    }
+    points = {
+        "red": (raw["red_x"], raw["red_y"]),
+        "green": (raw["green_x"], raw["green_y"]),
+        "blue": (raw["blue_x"], raw["blue_y"]),
+        "white": (raw["white_x"], raw["white_y"]),
+    }
+    return points if _chromaticity_is_declared(points) else None
 
 
 def parse_edid(edid: bytes) -> dict:
@@ -523,6 +692,8 @@ def parse_edid(edid: bytes) -> dict:
         "gamma": 0.0,
         "native_resolution": (0, 0),
         "max_refresh": 0,
+        "chromaticity": None,
+        "srgb_default": False,
     }
 
     if not edid or len(edid) < 128:
@@ -584,6 +755,16 @@ def parse_edid(edid: bytes) -> dict:
     if edid[23] != 0xFF:
         result["gamma"] = (edid[23] + 100) / 100.0
 
+    # Declared primaries and white point (bytes 25-34)
+    result["chromaticity"] = parse_edid_chromaticity(edid)
+
+    # Feature byte 24, bit 2: the display says its colours are already sRGB.
+    # A display claiming that has told the reader its chromaticity block is a
+    # copy of the sRGB primaries rather than a description of its own panel,
+    # which is the difference between a correction worth applying and an
+    # identity dressed up as one.
+    result["srgb_default"] = bool(edid[24] & 0x04)
+
     # Preferred timing (bytes 54-71) - first detailed timing descriptor
     if len(edid) >= 71:
         pixel_clock = struct.unpack("<H", edid[54:56])[0] * 10000  # kHz
@@ -622,8 +803,11 @@ def get_display_fingerprint(display: DisplayInfo) -> str:
     """
     Create a fingerprint for display identification.
 
-    Uses resolution, refresh rate, and position to create a unique identifier
-    that can be matched against known panel profiles.
+    Combines the display mode with the manufacturer read from EDID. The mode on
+    its own does not identify a panel: several vendors ship the same resolution
+    and refresh rate, so the manufacturer is the part that narrows the match.
+    A fingerprint built for a display with no manufacturer carries the mode
+    alone and is not sufficient to name a model.
 
     Args:
         display: DisplayInfo object
@@ -660,7 +844,6 @@ DISPLAY_FINGERPRINTS = {
     # Dell Alienware AW3423DW - 3440x1440 175Hz QD-OLED 34"
     "3440x1440@175_Dell": "AW3423DW",
     "3440x1440@175_DEL": "AW3423DW",
-    "3440x1440@175": "AW3423DW",
     # Gigabyte AORUS FO32U2P - 4K 240Hz QD-OLED 32"
     "3840x2160@240_Gigabyte": "FO32U2P",
     # Samsung Odyssey G95SC - 5120x1440 240Hz QD-OLED 49"
@@ -670,8 +853,6 @@ DISPLAY_FINGERPRINTS = {
     "3440x1440@175_MSI": "MEG342C",
     # Corsair Xeneon 34 - 3440x1440 175Hz QD-OLED 34"
     "3440x1440@175_Corsair": "XENEON34",
-    # Default for unidentified 4K 240Hz (assume QD-OLED)
-    "3840x2160@240": "PG27UCDM",
     # ===========================================
     # WOLED Monitors (LG Display panels)
     # ===========================================
@@ -1005,15 +1186,12 @@ def enrich_display_info(display: DisplayInfo) -> DisplayInfo:
         display.max_luminance = panel.capabilities.max_luminance_hdr
         display.native_gamma = panel.gamma_red.gamma  # Use red channel as reference
 
-    # Infer capabilities from resolution/refresh if not matched
-    if not panel:
-        # High refresh + 4K likely modern gaming monitor with HDR
-        if display.refresh_rate >= 120 and display.width >= 3840:
-            display.hdr_capable = True
-            display.wide_gamut = True
-        # 10-bit color depth suggests wide gamut
-        if display.bit_depth >= 10:
-            display.wide_gamut = True
+    # An unmatched display keeps hdr_capable and wide_gamut at False, meaning
+    # not known to be capable. Two guesses used to fill them from the mode; one
+    # read ``bit_depth >= 10`` as ten-bit colour, but that field holds DEVMODE's
+    # dmBitsPerPel, so an 8-bit sRGB desktop reports 32 and every unmatched
+    # display came back wide gamut. The gamut follows from the EDID chromaticity
+    # primaries and HDR support from the panel entry or ``display.hdr_detect``.
 
     return display
 
@@ -1070,17 +1248,15 @@ def identify_display(display: DisplayInfo) -> str | None:
         if panel:
             return panel.model_pattern.split("|")[0]
 
-    # Method 3: Try fingerprint matching
-    fingerprint = get_display_fingerprint(display)
-    if fingerprint in DISPLAY_FINGERPRINTS:
-        return DISPLAY_FINGERPRINTS[fingerprint]
+    # Method 3: Try fingerprint matching. The mode is not an identity on its
+    # own: the table above holds four panels at 3440x1440@175 and five at
+    # 3840x2160@240, so the manufacturer is the part that narrows the match.
+    # Callers read the returned panel's gamma and peak luminance as the
+    # display's own, so an unknown manufacturer stays unidentified.
+    if not display.manufacturer:
+        return None
 
-    # Try partial fingerprint (without manufacturer)
-    base_fingerprint = f"{display.width}x{display.height}@{display.refresh_rate}"
-    if base_fingerprint in DISPLAY_FINGERPRINTS:
-        return DISPLAY_FINGERPRINTS[base_fingerprint]
-
-    return None
+    return DISPLAY_FINGERPRINTS.get(get_display_fingerprint(display))
 
 
 def get_enhanced_display_info(display_number: int | None = None) -> list[dict]:

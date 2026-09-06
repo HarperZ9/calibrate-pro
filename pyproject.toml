@@ -38,8 +38,8 @@ gui = ["PySide6-Essentials>=6.11.1,<7", "build-ui>=2,<3"]
 tray = ["pystray>=0.19.4", "Pillow>=10.0,<11"]
 sensor = ["hidapi>=0.14,<1"]
 macos = ["pyobjc-framework-Quartz>=9.0,<11", "pyobjc-framework-CoreFoundation>=9.0,<11"]
-test = ["pytest>=8.0", "pytest-cov>=5", "tomli>=2; python_version<'3.11'"]
-dev = ["pytest>=8.0", "pytest-cov>=5", "tomli>=2; python_version<'3.11'", "ruff>=0.6", "mypy>=1.10", "build>=1.2"]
+test = ["pytest>=8.0", "pytest-cov>=5", "pytest-xdist>=3.6,<4", "pyyaml>=6", "tomli>=2; python_version<'3.11'"]
+dev = ["pytest>=8.0", "pytest-cov>=5", "pytest-xdist>=3.6,<4", "pyyaml>=6", "tomli>=2; python_version<'3.11'", "ruff>=0.6", "mypy>=1.10", "build>=1.2"]
 all = [
     "PySide6-Essentials>=6.11.1,<7",
     "build-ui>=2,<3",
@@ -58,7 +58,11 @@ version = {attr = "calibrate_pro.__version__"}
 include = ["calibrate_pro*"]
 
 [tool.setuptools.package-data]
-calibrate_pro = ["resources/*.ico", "resources/*.png"]
+# Every file under resources/ is package data. The action manifest is read on
+# every startup through importlib.resources, so an extension-by-extension list
+# is what left it out of the wheel: the package imported and then could not
+# build a surface.
+calibrate_pro = ["resources/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -69,6 +73,16 @@ markers = [
 [tool.coverage.run]
 source = ["calibrate_pro"]
 omit = ["*/gui/*", "*/tray/*"]  # GUI/tray are exercised manually, not in headless CI
+# A coverage run used to die with an access violation instead of reporting a
+# failure. Both causes were test-side rather than native: a test that installs
+# its own trace function while a settrace core holds the interpreter's, and an
+# owner thread outliving the test that started it while still carrying the
+# coverage tracer. See the unmeasured_tracing fixture in tests/conftest.py and
+# the owner retirement in tests/test_windows_display_state_adapter.py.
+# The Windows lane pins COVERAGE_CORE=ctrace for a third reason: a sysmon core
+# stops delivering INSTRUCTION events at the offsets it instruments, which turns
+# the opcode-level cancellation injection into a silent no-op and reports a
+# failure the product does not have.
 
 [tool.coverage.report]
 show_missing = true

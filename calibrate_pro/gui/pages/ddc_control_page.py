@@ -25,8 +25,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from calibrate_pro import __release_series__
 from calibrate_pro.gui.theme import COLORS
 from calibrate_pro.workflow import DDC_WRITE_CODES, ApplyPlan, CalibrationMethod
+
+COLORIMETER_CLOSED = (
+    "Measured calibration is closed in this build, so no colorimeter is opened from this page. "
+    "A detect button here used to enumerate devices through ArgyllCMS and report a product name "
+    "as a found instrument. That is an instrument read taken outside the session that decides "
+    "whether a measurement may be taken, gives it a receipt, and records that it happened."
+)
 
 
 class DDCControlPage(QWidget):
@@ -593,29 +601,10 @@ class DDCControlPage(QWidget):
         colorimeter_group = QGroupBox("Measurement Device")
         colorimeter_layout = QVBoxLayout(colorimeter_group)
 
-        self.colorimeter_status = QLabel("No colorimeter detected")
-        self.colorimeter_status.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
+        self.colorimeter_status = QLabel(COLORIMETER_CLOSED)
+        self.colorimeter_status.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 8px;")
+        self.colorimeter_status.setWordWrap(True)
         colorimeter_layout.addWidget(self.colorimeter_status)
-
-        detect_btn_layout = QHBoxLayout()
-        detect_colorimeter_btn = QPushButton("Detect Colorimeter")
-        detect_colorimeter_btn.clicked.connect(self._detect_colorimeter)
-        detect_btn_layout.addWidget(detect_colorimeter_btn)
-
-        self.colorimeter_combo = QComboBox()
-        self.colorimeter_combo.addItems(
-            [
-                "Auto-detect",
-                "i1Display Pro",
-                "Spyder X",
-                "ColorChecker Display",
-                "ArgyllCMS (any device)",
-            ]
-        )
-        detect_btn_layout.addWidget(self.colorimeter_combo)
-        detect_btn_layout.addStretch()
-
-        colorimeter_layout.addLayout(detect_btn_layout)
 
         layout.addWidget(colorimeter_group)
 
@@ -736,37 +725,6 @@ class DDCControlPage(QWidget):
 
         self.control_tabs.addTab(auto_widget, "Auto Calibration")
 
-    def _detect_colorimeter(self):
-        """Detect connected colorimeter devices."""
-        self.colorimeter_status.setText("Searching for colorimeters...")
-        self.colorimeter_status.setStyleSheet(f"color: {COLORS['text_secondary']}; padding: 8px;")
-        QApplication.processEvents()
-
-        try:
-            # Try ArgyllCMS backend
-            from calibrate_pro.hardware.argyll_backend import ArgyllBackend
-
-            backend = ArgyllBackend()
-            devices = backend.enumerate_devices()
-
-            if devices:
-                device = devices[0]
-                self.colorimeter_status.setText(f"\u2713 Found: {device.name} ({device.manufacturer})")
-                self.colorimeter_status.setStyleSheet(f"color: {COLORS['success']}; padding: 8px;")
-                self._colorimeter = backend
-                return
-
-            # No devices found
-            self.colorimeter_status.setText(
-                "No colorimeter detected. Connect a device and try again.\n"
-                "Supported: i1Display Pro, Spyder X, ColorChecker Display, etc."
-            )
-            self.colorimeter_status.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
-
-        except Exception as e:
-            self.colorimeter_status.setText(f"ArgyllCMS not found. Install from argyllcms.com\nError: {e}")
-            self.colorimeter_status.setStyleSheet(f"color: {COLORS['error']}; padding: 8px;")
-
     def _start_hardware_calibration(self):
         """Build a measured-calibration preview without display writes."""
         self.auto_log.clear()
@@ -783,7 +741,7 @@ class DDCControlPage(QWidget):
         self.auto_progress.setValue(100)
         self.auto_progress.setFormat("Preview ready")
         self.auto_log.appendPlainText("Measured plan staged. No DDC/CI command was sent.")
-        self.auto_results.setText("Preview ready — review and explicit confirmation are required before apply.")
+        self.auto_results.setText("Preview ready; review and explicit confirmation are required before apply.")
         self.auto_results.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _quick_white_balance(self):
@@ -810,7 +768,7 @@ class DDCControlPage(QWidget):
         self.auto_progress.setValue(100)
         self.auto_progress.setFormat("Preview ready")
         self.auto_log.appendPlainText("Sensorless plan staged. No DDC/CI command was sent.")
-        self.auto_results.setText("Preview ready — review and explicit confirmation are required before apply.")
+        self.auto_results.setText("Preview ready; review and explicit confirmation are required before apply.")
         self.auto_results.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _stop_calibration(self):
@@ -963,7 +921,7 @@ class DDCControlPage(QWidget):
         }
         code = code_map.get(setting_name)
         if code not in DDC_WRITE_CODES:
-            self.status_label.setText(f"{setting_name} is not representable by the 1.1 ApplyPlan")
+            self.status_label.setText(f"{setting_name} is not representable by the {__release_series__} ApplyPlan")
             return
         self._pending_changes[code] = value
         self.status_label.setText(
@@ -1035,12 +993,12 @@ class DDCControlPage(QWidget):
     # =========================================================================
 
     def _scan_vcp_codes(self):
-        """Keep arbitrary VCP probing outside the 1.1 application surface."""
+        """Keep arbitrary VCP probing outside the bounded application surface."""
         self.vcp_table.setRowCount(0)
         self._discovered_vcp_codes = {}
         self.scan_progress.setValue(0)
         self.scan_progress.setFormat("Disabled")
-        self.scan_summary.setText("Raw VCP scanning is disabled in version 1.1; no command was sent.")
+        self.scan_summary.setText(f"Raw VCP scanning is disabled in version {__release_series__}; no command was sent.")
         self.scan_summary.setStyleSheet(f"color: {COLORS['warning']}; padding: 8px;")
 
     def _test_vcp_code(self, code: int, maximum: int):
@@ -1066,7 +1024,7 @@ class DDCControlPage(QWidget):
         """Reject raw VCP reads outside the bounded capability adapter."""
         try:
             code = self._parse_vcp_code(self.read_code_input.text())
-            self.read_result.setText(f"Result: VCP 0x{code:02X} raw access is disabled in 1.1")
+            self.read_result.setText(f"Result: VCP 0x{code:02X} raw access is disabled in {__release_series__}")
             self.read_result.setStyleSheet(f"color: {COLORS['warning']};")
         except ValueError:
             self.read_result.setText("Result: Invalid code format")
@@ -1077,7 +1035,9 @@ class DDCControlPage(QWidget):
         try:
             code = self._parse_vcp_code(self.write_code_input.text())
             value = int(self.write_value_input.text().strip())
-            self.write_result.setText(f"Result: VCP 0x{code:02X}={value} was not sent; disabled in 1.1")
+            self.write_result.setText(
+                f"Result: VCP 0x{code:02X}={value} was not sent; disabled in {__release_series__}"
+            )
             self.write_result.setStyleSheet(f"color: {COLORS['warning']};")
         except ValueError:
             self.write_result.setText("Result: Invalid code or value format")
@@ -1089,7 +1049,7 @@ class DDCControlPage(QWidget):
 
     def _apply_color_preset(self):
         """Keep color presets disabled until they map to ApplyPlan."""
-        self.preset_status.setText("Status: disabled in 1.1 — no command sent")
+        self.preset_status.setText(f"Status: disabled in {__release_series__}; no command sent")
         self.preset_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_color_preset(self):
@@ -1098,7 +1058,7 @@ class DDCControlPage(QWidget):
 
     def _apply_image_mode(self):
         """Keep image modes disabled until they map to ApplyPlan."""
-        self.image_mode_status.setText("Status: disabled in 1.1 — no command sent")
+        self.image_mode_status.setText(f"Status: disabled in {__release_series__}; no command sent")
         self.image_mode_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_image_mode(self):
@@ -1107,7 +1067,7 @@ class DDCControlPage(QWidget):
 
     def _apply_gamma_preset(self):
         """Keep gamma presets disabled until they map to ApplyPlan."""
-        self.gamma_status.setText("Status: disabled in 1.1 — no command sent")
+        self.gamma_status.setText(f"Status: disabled in {__release_series__}; no command sent")
         self.gamma_status.setStyleSheet(f"color: {COLORS['warning']};")
 
     def _read_gamma_preset(self):

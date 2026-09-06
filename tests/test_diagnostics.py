@@ -13,6 +13,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+#: Package data doctor requires, listed here rather than read from the module.
+#: A resource added there has to be added here too, and until it is, the
+#: complete-tree test fails and says which path is missing. Deriving the two
+#: from one list would make that test agree with any change automatically.
+PACKAGE_RESOURCE_FILES = ("calibrate_pro/resources/action-capabilities.json",)
 DWM_LUT_FILES = (
     "DwmLutGUI.exe",
     "dwm_lut.dll",
@@ -40,6 +45,10 @@ DEPENDENCY_VERSIONS = {
 
 def _complete_resource_root(root: Path) -> Path:
     (root / "LICENSE").write_text("Calibrate Pro license\n", encoding="utf-8")
+    for relative in PACKAGE_RESOURCE_FILES:
+        resource = root / relative
+        resource.parent.mkdir(parents=True, exist_ok=True)
+        resource.write_text(relative, encoding="utf-8")
     dwm_lut = root / "dwm_lut"
     dwm_lut.mkdir()
     for name in DWM_LUT_FILES:
@@ -70,8 +79,10 @@ def _complete_resource_root(root: Path) -> Path:
     return root
 
 
-def _fake_dependency_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+def _fake_dependency_versions(monkeypatch: pytest.MonkeyPatch, *, absent: frozenset[str] = frozenset()) -> None:
     def fake_version(distribution: str) -> str:
+        if distribution in absent:
+            raise metadata.PackageNotFoundError(distribution)
         try:
             return DEPENDENCY_VERSIONS[distribution]
         except KeyError as exc:  # pragma: no cover - makes tuple drift explicit
@@ -161,6 +172,96 @@ def test_doctor_report_is_complete_byte_stable_and_does_not_probe_devices(
         "hid",
     )
     assert not any(any(name == prefix or name.startswith(prefix + ".") for prefix in blocked) for name in imported)
+
+
+def _report_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    absent: frozenset[str],
+    frozen: bool = False,
+) -> dict[str, object]:
+    """A report built with named distributions removed from the environment."""
+    import calibrate_pro.diagnostics as diagnostics
+
+    root = _complete_resource_root(tmp_path)
+    _fake_dependency_versions(monkeypatch, absent=absent)
+    monkeypatch.setattr(diagnostics, "_windows_symbol", lambda dll, symbol: True)
+    monkeypatch.setattr(diagnostics, "_is_windows", lambda: True)
+    monkeypatch.setattr(diagnostics.importlib.util, "find_spec", lambda name: object() if name == "hid" else None)
+    return diagnostics.build_doctor_report(root=root, frozen=frozen)
+
+
+def test_a_missing_optional_dependency_names_the_extra_that_installs_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source install without the window still has a next action to run.
+
+    Installing the base package alone leaves four distributions absent and the
+    verdict at NOT OK, which is what a first-time tester sees. Without the
+    command spelled out, the report describes a broken state and stops.
+    """
+    report = _report_missing(
+        tmp_path,
+        monkeypatch,
+        absent=frozenset({"build-ui", "QtPy", "PySide6-Essentials", "shiboken6"}),
+    )
+    remediation = report["remediation"]
+
+    assert report["ok"] is False
+    assert remediation["missing"] == ["PySide6-Essentials", "QtPy", "build-ui", "shiboken6"]
+    assert remediation["extras"] == ["gui"]
+    assert remediation["command"] == 'pip install "calibrate-pro[gui]"'
+    assert remediation["note"] is None
+
+
+def test_a_missing_base_dependency_says_the_installation_is_incomplete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No extra carries numpy, so adding one would not put it back."""
+    report = _report_missing(tmp_path, monkeypatch, absent=frozenset({"numpy"}))
+    remediation = report["remediation"]
+
+    assert remediation["extras"] == []
+    assert remediation["command"] == "pip install --force-reinstall calibrate-pro"
+    assert "base install" in str(remediation["note"])
+
+
+def test_a_packaged_build_is_not_told_to_run_pip(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """pip cannot repair a frozen build, so it is not offered as the fix.
+
+    The frozen desktop package ships its own interpreter and its own site
+    directory. A pip command printed there would either fail or repair some
+    other interpreter on the machine.
+    """
+    report = _report_missing(
+        tmp_path,
+        monkeypatch,
+        absent=frozenset({"PySide6-Essentials"}),
+        frozen=True,
+    )
+    remediation = report["remediation"]
+
+    assert remediation["command"] is None
+    assert "packaged build" in str(remediation["note"])
+    assert "pip" in str(remediation["note"])
+
+
+def test_a_healthy_installation_is_given_nothing_to_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The control on the three tests above: a complete install offers no fix."""
+    report = _report_missing(tmp_path, monkeypatch, absent=frozenset())
+    remediation = report["remediation"]
+
+    assert report["ok"] is True
+    assert remediation == {"missing": [], "extras": [], "command": None, "note": None}
 
 
 def test_missing_resource_is_reported_truthfully_and_exits_one(

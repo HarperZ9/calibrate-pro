@@ -129,11 +129,28 @@ print(API_NAME)
     assert result.stdout.strip() == "PySide6"
 
 
-def test_active_window_constructs_with_pyside(qapp, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_active_window_constructs_with_pyside(
+    qapp,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Build the real window against a session that touches no hardware.
+
+    The window is a composition root, so the session it drives is injected. The
+    proof composition reads a bundled fixture and writes only inside the
+    directory it is given, which is what lets the active window be constructed
+    in a test without reading a display or writing to the operator's journal.
+    """
+    from calibrate_pro.application.composition import build_fake_acceptance_service
     from calibrate_pro.gui.app import CalibrateProWindow
 
     monkeypatch.setattr(CalibrateProWindow, "_start_services", lambda self: setattr(self, "_guard", None))
     monkeypatch.setattr(CalibrateProWindow, "_check_first_run", lambda self: None)
-    window = CalibrateProWindow()
+    window = CalibrateProWindow(service=build_fake_acceptance_service(tmp_path / "session"))
     assert type(window).__module__.startswith("calibrate_pro")
+
+    # Startup detection ran through the session, so the window opens describing
+    # displays it actually observed rather than an empty session.
+    assert window.dashboard is not None
+    assert window.service.stage is not None
     window.close()

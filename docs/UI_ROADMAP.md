@@ -2,9 +2,14 @@
 
 ## Current State
 
-A functional but minimal GUI: sidebar navigation, dashboard with real display detection, proper color palette (navy + olive), custom app icon, menu bar with connected actions. Five placeholder pages. The backend has 82K lines of proven calibration logic, native colorimeter communication, and 24 CLI commands -- none of which are accessible through the GUI yet.
+This roadmap predates the 2.0 release and is kept for the design direction below.
+For what 2.0 actually does, read `RELEASE_NOTES.md`. `PRODUCT.md` states the rule
+the release serves.
 
-The gap: the backend is professional-grade, the frontend is a skeleton.
+Two assumptions here read differently against the shipped product. Measured
+calibration is closed in 2.0, so a phase showing live colorimeter readings
+describes a capability no surface opens. The headless session also drives the same
+actions the window drives, which answers the gap this document opened with.
 
 ---
 

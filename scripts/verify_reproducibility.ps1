@@ -6,6 +6,15 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).ProviderPath
+# One declaration of the version, in calibrate_pro/__init__.py, names the
+# artifacts this script compares between the two builds.
+$versionDeclaration = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'calibrate_pro\__init__.py')
+$versionMatch = [regex]::Match($versionDeclaration, '(?m)^__version__\s*=\s*"([^"]+)"')
+if (-not $versionMatch.Success) { throw 'calibrate_pro/__init__.py declares no __version__' }
+$productVersion = $versionMatch.Groups[1].Value
+$portableName = "CalibratePro-$productVersion-win64.zip"
+$wheelName = "calibrate_pro-$productVersion-py3-none-any.whl"
+$sdistName = "calibrate_pro-$productVersion.tar.gz"
 $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
 $roots = @(
     (Join-Path $tempRoot ('calibrate-pro-output-' + [guid]::NewGuid().ToString('N'))),
@@ -30,11 +39,7 @@ try {
     & (Join-Path $PSScriptRoot 'build_windows.ps1') -Unsigned -SkipInstaller -SkipSourceProvenance -OutputRoot $roots[1]
 
     $artifactHashes = @{}
-    foreach ($name in @(
-        'CalibratePro-1.1.0-win64.zip',
-        'calibrate_pro-1.1.0-py3-none-any.whl',
-        'calibrate_pro-1.1.0.tar.gz'
-    )) {
+    foreach ($name in @($portableName, $wheelName, $sdistName)) {
         $pathA = Join-Path $roots[0] "release\$name"
         $pathB = Join-Path $roots[1] "release\$name"
         $hashA = (Get-FileHash -LiteralPath $pathA -Algorithm SHA256).Hash
@@ -48,9 +53,9 @@ try {
     if ($inventoryA -cne $inventoryB) { throw 'Canonical staged-inventory.json bytes differ' }
     Write-Output (
         'reproducibility=pass portable_sha256={0} wheel_sha256={1} sdist_sha256={2}' -f
-        $artifactHashes['CalibratePro-1.1.0-win64.zip'],
-        $artifactHashes['calibrate_pro-1.1.0-py3-none-any.whl'],
-        $artifactHashes['calibrate_pro-1.1.0.tar.gz']
+        $artifactHashes[$portableName],
+        $artifactHashes[$wheelName],
+        $artifactHashes[$sdistName]
     )
     $succeeded = $true
 }

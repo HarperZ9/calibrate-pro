@@ -145,7 +145,52 @@ def test_ci_runs_only_portable_tests_on_linux_and_the_complete_suite_on_windows(
     assert '-m "not windows"' in linux
     assert "if: runner.os == 'Windows'" in windows
     assert '-m "not windows"' not in windows
-    assert "COVERAGE_CORE: ${{ matrix.python-version == '3.12' && 'sysmon' || 'ctrace' }}" in windows
+    assert "COVERAGE_CORE: ctrace" in windows
+    assert "COVERAGE_CORE: sysmon" not in windows
+
+
+def test_ci_holds_a_coverage_floor_both_lanes_clear_by_a_real_margin() -> None:
+    """A floor far below the measured number cannot fail, so it measures nothing.
+
+    Both lanes are held to the same figure. The portable lane deselects the Windows
+    suite and lands lower, so it sets the ceiling on how high this can go: 37.86
+    percent measured against 53.27 on the complete lane.
+    """
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    floors = re.findall(r"--cov-fail-under=(\d+)", text)
+
+    assert floors == ["30", "30"]
+
+
+def test_ci_reports_every_matrix_job_rather_than_cancelling_on_the_first_red() -> None:
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    strategy = text.split("    strategy:", 1)[1].split("    steps:", 1)[0]
+
+    assert "fail-fast: false" in strategy
+    assert "ubuntu-latest, windows-latest" in strategy
+
+
+def test_the_ci_matrix_covers_every_interpreter_the_package_advertises() -> None:
+    """The matrix and the classifiers were two hand-written lists of the same fact.
+
+    Both were correct, which is the only reason this reads as a precaution. It is not:
+    a version listed in the classifiers and absent from the matrix is a version the
+    package promises and never runs, and the promise is what a user installs against.
+    Deriving one list from the other means adding an interpreter to either place fails
+    here until it is added to both.
+    """
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    pyproject = PYPROJECT.read_text(encoding="utf-8")
+
+    tested = re.search(r"python-version: \[([^\]]+)\]", workflow)
+    assert tested is not None
+    matrix = [entry.strip().strip('"') for entry in tested.group(1).split(",")]
+    advertised = re.findall(r"Programming Language :: Python :: (\d+\.\d+)", pyproject)
+    floor = re.search(r'requires-python = ">=(\d+\.\d+)"', pyproject)
+    assert floor is not None
+
+    assert matrix == advertised
+    assert floor.group(1) == min(advertised, key=lambda version: tuple(int(part) for part in version.split(".")))
 
 
 def test_ci_pins_static_analysis_and_type_checks_the_windows_target() -> None:

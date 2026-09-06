@@ -11,6 +11,9 @@ capabilities. Multi-display matching finds the common ground.
 
 from dataclasses import dataclass
 
+#: Shared brightness used when no display reports a peak to match against.
+DEFAULT_MATCHED_LUMINANCE = 120.0
+
 
 @dataclass
 class DisplayTarget:
@@ -26,7 +29,7 @@ class DisplayTarget:
     target_gamma: float
 
     # Per-display adjustments needed
-    brightness_adjustment: float  # DDC-CI brightness (0-100)
+    brightness_adjustment: float | None  # DDC-CI brightness (0-100), None if the peak is unknown
     rgb_gain_r: float  # DDC-CI red gain
     rgb_gain_g: float  # DDC-CI green gain
     rgb_gain_b: float  # DDC-CI blue gain
@@ -63,7 +66,7 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
     if not panels:
         return MatchingResult(
             matched_white=(0.3127, 0.3290),
-            matched_luminance=120.0,
+            matched_luminance=DEFAULT_MATCHED_LUMINANCE,
             matched_gamma=2.2,
             per_display=[],
             notes=["No displays provided"],
@@ -77,23 +80,35 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
     # Target gamma: 2.2 (universal)
     target_gamma = 2.2
 
-    # Target luminance: constrained to the lowest SDR peak
-    sdr_peaks = []
-    for p in panels:
-        panel = p["panel"]
-        sdr_peak = panel.capabilities.max_luminance_sdr
-        sdr_peaks.append(sdr_peak)
+    # Target luminance: constrained to the lowest SDR peak that is known. Zero
+    # marks a panel with no photometry, which is what a characterization built
+    # from EDID chromaticity reports, and such a display constrains nothing.
+    sdr_peaks = [p["panel"].capabilities.max_luminance_sdr for p in panels]
+    known_peaks = [peak for peak in sdr_peaks if peak > 0]
 
-    # Use 80% of the weakest display's peak as the matching target
-    # This ensures all displays can sustain the target brightness
-    min_peak = min(sdr_peaks)
-    matched_luminance = min_peak * 0.8
+    if known_peaks:
+        # Use 80% of the weakest display's peak as the matching target
+        # This ensures all displays can sustain the target brightness
+        min_peak = min(known_peaks)
+        matched_luminance = min_peak * 0.8
 
-    if max(sdr_peaks) / min_peak > 1.5:
+        if max(known_peaks) / min_peak > 1.5:
+            notes.append(
+                f"Large brightness difference between displays "
+                f"({min(known_peaks):.0f} vs {max(known_peaks):.0f} cd/m2). "
+                f"Matching to {matched_luminance:.0f} cd/m2."
+            )
+    else:
+        matched_luminance = DEFAULT_MATCHED_LUMINANCE
         notes.append(
-            f"Large brightness difference between displays "
-            f"({min(sdr_peaks):.0f} vs {max(sdr_peaks):.0f} cd/m2). "
-            f"Matching to {matched_luminance:.0f} cd/m2."
+            f"No display reports a peak brightness, so the target is the "
+            f"{DEFAULT_MATCHED_LUMINANCE:.0f} cd/m2 default and not a matched value."
+        )
+
+    unknown = len(sdr_peaks) - len(known_peaks)
+    if unknown and known_peaks:
+        notes.append(
+            f"{unknown} of {len(sdr_peaks)} displays report no peak brightness and do not constrain the shared target."
         )
 
     # Per-display targets
@@ -103,8 +118,10 @@ def analyze_matching(panels: list[dict]) -> MatchingResult:
         idx = p["index"]
         name = p["name"]
 
-        # Calculate DDC-CI brightness for this display to hit target luminance
-        brightness_pct = min(100, (matched_luminance / panel.capabilities.max_luminance_sdr) * 100)
+        # Calculate DDC-CI brightness for this display to hit target luminance.
+        # Without a peak there is no percentage, and None says so.
+        peak = panel.capabilities.max_luminance_sdr
+        brightness_pct = min(100, (matched_luminance / peak) * 100) if peak > 0 else None
 
         # White point: all displays target D65
         # RGB gains to correct native white to D65
@@ -182,7 +199,10 @@ def print_matching_plan(result: MatchingResult):
 
     for dt in result.per_display:
         print(f"\n  {dt.display_name} ({dt.panel_type}):")
-        print(f"    Brightness: {dt.brightness_adjustment:.0f}%")
+        if dt.brightness_adjustment is None:
+            print("    Brightness: unchanged (panel peak brightness unknown)")
+        else:
+            print(f"    Brightness: {dt.brightness_adjustment:.0f}%")
         print(f"    RGB gains:  R={dt.rgb_gain_r:.3f} G={dt.rgb_gain_g:.3f} B={dt.rgb_gain_b:.3f}")
 
     for note in result.notes:

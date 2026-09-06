@@ -78,6 +78,46 @@ ILLUMINANT_CCT: dict[str, int] = {
     "ACES": 6000,
 }
 
+#: Which illuminant each preset names, keyed the way the two tables above are.
+#: The map exists because a preset's value is the string a menu shows and the
+#: tables are keyed by the illuminant's short name, and for three presets those
+#: are different strings. Reading ``preset.value`` against the tables missed on
+#: every one of them and fell through to the daylight default below, so the
+#: catalogue published Illuminant A as 6505 K and handed out D65's chromaticity
+#: for tungsten. A preset absent from this map names no fixed white.
+ILLUMINANT_KEY: dict["WhitepointPreset", str] = {}
+
+
+def _build_illuminant_key() -> None:
+    """Fill the map and refuse a preset naming an illuminant with no data.
+
+    Built rather than written out so a preset added to the enum without a
+    matching row in both tables fails at import instead of at the call that
+    reads it. The three presets whose value is not their key are the reason:
+    they were wrong for as long as nothing looked, and a table maintained by
+    hand beside an enum drifts the same way again.
+    """
+    named = {
+        WhitepointPreset.D50: "D50",
+        WhitepointPreset.D55: "D55",
+        WhitepointPreset.D60: "D60",
+        WhitepointPreset.D65: "D65",
+        WhitepointPreset.D75: "D75",
+        WhitepointPreset.D93: "D93",
+        WhitepointPreset.DCI: "DCI-P3",
+        WhitepointPreset.ACES: "ACES",
+        WhitepointPreset.A: "A",
+        WhitepointPreset.B: "B",
+        WhitepointPreset.C: "C",
+    }
+    for preset, key in named.items():
+        if key not in ILLUMINANT_XY or key not in ILLUMINANT_CCT:
+            raise RuntimeError(f"{preset.name} names illuminant {key!r}, which carries no chromaticity or no CCT")
+    ILLUMINANT_KEY.update(named)
+
+
+_build_illuminant_key()
+
 
 def planckian_locus_xy(cct: float) -> tuple[float, float]:
     """
@@ -299,27 +339,33 @@ class WhitepointTarget:
         if self.cct is not None:
             return cct_to_xy(self.cct, self.use_daylight_locus, self.duv)
 
-        # Preset lookup
-        preset_name = self.preset.value
-        if preset_name in ILLUMINANT_XY:
-            x, y = ILLUMINANT_XY[preset_name]
-            if self.duv != 0.0 and preset_name in ILLUMINANT_CCT:
-                x, y = apply_duv_offset(x, y, ILLUMINANT_CCT[preset_name], self.duv)
+        key = ILLUMINANT_KEY.get(self.preset)
+        if key is not None:
+            x, y = ILLUMINANT_XY[key]
+            if self.duv != 0.0:
+                x, y = apply_duv_offset(x, y, ILLUMINANT_CCT[key], self.duv)
             return (x, y)
 
-        # Default to D65
-        return ILLUMINANT_XY["D65"]
+        # Native and the two custom presets name no fixed white, and the caller
+        # supplied neither a chromaticity nor a temperature, so there is nothing
+        # to return. Answering D65 here is what published tungsten as daylight:
+        # the number looked like an answer and named a white nobody asked for.
+        raise ValueError(
+            f"{self.preset.value} has no chromaticity of its own. "
+            "Give the target an xy or a cct, or measure the display's native white."
+        )
 
     def get_cct(self) -> float:
         """Get target CCT."""
         if self.cct is not None:
             return self.cct
 
-        preset_name = self.preset.value
-        if preset_name in ILLUMINANT_CCT:
-            return ILLUMINANT_CCT[preset_name]
+        key = ILLUMINANT_KEY.get(self.preset)
+        if key is not None:
+            return ILLUMINANT_CCT[key]
 
-        # Calculate from xy
+        # Reached only for a target carrying an explicit xy, since every other
+        # preset either resolved above or raised in get_xy.
         xy = self.get_xy()
         cct, _ = xy_to_cct(xy[0], xy[1])
         return cct

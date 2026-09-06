@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v1.1.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
 </p>
 <!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
 
@@ -9,9 +9,9 @@
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
 
-[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE)
+[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![version](https://img.shields.io/badge/version-1.1.0-informational.svg)
+![version](https://img.shields.io/badge/version-2.0.0-informational.svg)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
 [![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
@@ -21,12 +21,12 @@ Calibrate Pro is a Windows display-calibration toolkit for characterized and mea
 
 ```bash
 calibrate-pro doctor
-calibrate-pro list-targets
-calibrate-pro list-panels
+calibrate-pro detect
+calibrate-pro status
 calibrate-pro gui
 ```
 
-Install from the Windows release build or run from source with `pip install -e ".[all]"`.
+Install from the Windows release build or run from source with `pip install -e ".[all]"`. Those four names answer in both. The packaged binary ships a subset of the command line and refuses the rest by saying they are in the developer wheel, so the two lists are kept apart under [Usage](#usage) rather than presented as one surface.
 
 ## Why it matters
 
@@ -34,14 +34,34 @@ Display color is part of the creative pipeline. If the screen is wrong, every de
 
 ## What to test first
 
+The terminal reads and plans, and it writes only files you name. A display change is
+proposed by the window and by nothing else.
+
+- Run `calibrate-pro detect` for the displays this machine presents and the source of each characterization.
+- Run `calibrate-pro status` for the actions this session can run, each closed one carrying the reason it is closed.
+- Run `calibrate-pro verify --target srgb_web` to generate a sealed plan and read its predicted accuracy. The command prints the display's distance from the target with no correction applied beside the distance the generated correction leaves, so the pair says what the correction changed. Both figures are estimated from the panel characterization, and the command prints that beneath them.
 - Launch `calibrate-pro gui`, select a display, and inspect the detected identity and available capabilities.
 - Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
 - Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
 
+### Reporting what you find
+
+Open a [bug report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=bug_report.yml)
+when the product did something other than what it said it would do, or a
+[display compatibility report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=display_report.yml)
+for what worked and what refused on a specific monitor. A control that failed closed on a panel
+advertising it is worth reporting; so is a number that reads as a measurement when nothing was
+measured, which is a defect in this product whatever the number says.
+
+Both forms ask for `calibrate-pro doctor --json`. It reports installed versions and which
+capabilities are present, probes no hardware, and reads no display identity. For a suspected
+vulnerability use [Security Advisories](https://github.com/HarperZ9/calibrate-pro/security/advisories/new)
+instead of a public issue.
+
 ## Current status
 
-- **Release:** Calibrate Pro 1.1.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
-- **Operator surface:** a PySide6 desktop workflow plus read-only CLI diagnostics, target and panel listings, HDR status, patterns, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the GUI rather than changing display state.
+- **Release:** Calibrate Pro 2.0.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
+- **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
 - **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
 - **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
 
@@ -51,7 +71,7 @@ Display color is part of the creative pipeline. If the screen is wrong, every de
 
 Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated; unavailable hardware or operating-system capabilities fail closed and are reported by `calibrate-pro doctor`.
 
-The 1.1.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
+The 2.0.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
 
 ### From source
 
@@ -66,22 +86,40 @@ Requires Python 3.10+ and Windows 10/11.
 
 ## Usage
 
-Launch the installed application or run `calibrate-pro gui`. Read-only CLI surfaces include:
+Launch the installed application or run `calibrate-pro gui`. The calibration session runs headless over the same actions the window calls:
 
 ```bash
-calibrate-pro doctor            # Read-only installation/capability diagnostics
-calibrate-pro doctor --json     # Stable machine-readable diagnostics
-calibrate-pro list-targets      # List calibration targets
+calibrate-pro detect                                  # Displays observed, with characterization sources
+calibrate-pro status --closed                         # Actions this session cannot run, and why
+calibrate-pro verify --target srgb_web                # Sealed plan and its predicted accuracy
+calibrate-pro generate-profiles out --target srgb_web # Publish one sealed bundle into 'out'
+calibrate-pro profiles out                            # Re-check the seal on published bundles
+calibrate-pro diagnostics                             # List what a support bundle would carry
+calibrate-pro doctor                                  # Read-only installation and capability diagnostics
+calibrate-pro list-targets                            # Targets a calibration can be aimed at, and the axes behind them
+calibrate-pro doctor --json                           # Stable machine-readable diagnostics
+calibrate-pro hdr                                     # Open the HDR proposal application
+calibrate-pro gui                                     # Launch the calibration workflow
+```
+
+`CalibrateProCLI.exe` answers every name above, so a headless run needs no Python installation.
+
+These names exist only in the developer wheel, and the packaged binary answers each of them with `This command is available only in the developer wheel` and exit code 2:
+
+```bash
 calibrate-pro list-panels       # List characterized panel profiles
 calibrate-pro info <panel>      # Show stored characterization evidence
 calibrate-pro hdr-status        # Query Windows HDR state
-calibrate-pro patterns          # Display visual test patterns
-calibrate-pro gui               # Launch the calibration workflow
+calibrate-pro plugins           # List discovered plugins
+calibrate-pro tray              # Open the read-only system tray
+calibrate-pro mcp               # Serve the MCP endpoint
 ```
 
-Run `calibrate-pro --help` for the complete command list. Old direct-action names such as `auto`, `calibrate`, `restore`, and `verify` are proposal-only in 1.1: they do not mutate the display and instead direct the operator to preview and confirm through the GUI.
+The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in none of its lists reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list.
 
-See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v1.1.0/examples).
+Old direct-action names such as `auto`, `calibrate`, and `restore` are declined in 2.0 by the packaged binary and by the wheel alike. Neither changes display state, and the packaged binary says what it will not do rather than recommending an install that would end at the same refusal. Both point to the window, where a change is previewed and confirmed.
+
+See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.0/examples).
 
 ## How It Works
 
@@ -91,36 +129,44 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/USAG
 4. **Confirms** the exact plan with a one-use confirmation before the first write.
 5. **Applies** only supported operations after capturing restorable prior state; failures trigger verified compensation.
 6. **Verifies** the result and labels every performance value by evidence kind.
-7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 1.1.
+7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 2.0.
 
 ## Calibration Modes
 
 | Mode | Requires | Evidence |
 |------|----------|----------|
 | Sensorless | A characterized panel profile or EDID-derived inputs | Estimated; never presented as a measurement of the attached unit |
-| Measured | A supported colorimeter | Instrument observations with source/provenance attached |
+| Measured | A supported colorimeter and a display loading no correction | Instrument observations of the attached unit |
 
 Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
-### Native USB Colorimeter
+Measured calibration runs in the desktop window. The measured method opens once a supported colorimeter answers on USB and a display is selected. Starting a run needs the display's video card gamma table to read back as identity, because an instrument pointed at a corrected display characterizes the panel together with whatever correction is loaded, and a second correction built from those numbers doubles the first. Calibrate Pro reads that table and refuses the run rather than clearing it, so removing a loaded correction stays something the operator does in the tool that loaded it. The check covers one layer, and the sentence it records names what it did not look at: a DWM LUT, a colour-managed application's own profile, and a correction running inside the monitor.
 
-Built-in USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display). No ArgyllCMS required.
+A run opens a patch window on the selected display and walks four 17-step ramps, neutral and then each channel, for 68 patches at full field. It records the reading with the instrument's identity and the patch geometry, since a luminance read at one window size is not the same number at another. The result becomes the session's characterization, so a plan generated afterwards is derived from the reading instead of from the panel database, and a bundle sealed before the run is dropped. Measured verification reads the display again once a plan is confirmed or applied and reports the result from that second reading; a session holding a measured result is refused sensorless verification, because a model writing into the same accuracy field would replace what the instrument found. The terminal has no measure command in 2.0, and `native-calibrate` and `refine` decline there and name the action behind them.
 
-Native USB HID driver for the i1Display3 family reads per-unit calibration matrices from each device's EEPROM - 9 stored matrices for different display technologies (OLED, WhiteLED, CCFL, WideGamut, etc.). Falls back to approximate constants if EEPROM reading fails.
+### Native USB colorimeter driver
+
+The package carries a USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display), which reads each unit's own calibration matrices from its EEPROM and needs no ArgyllCMS install. The device holds nine matrices for different display technologies, and the driver falls back to approximate constants when the EEPROM read fails.
+
+This is what a measured run reads the light through. Enumeration and connection are separate calls: the read-only capability probe walks USB descriptors and opens no device session, while opening the instrument runs the unit's own dark calibration, which costs the operator time and is asked for by name.
 
 ## Supported Displays
 
-58 characterized panels with DDC/CI recommendations:
+59 characterized panels with DDC/CI recommendations:
 
 - **QD-OLED (17)**: ASUS PG27UCDM, Samsung G6/G7/G8/G9, Dell AW3423DW/DWF/AW2725DF/AW3225QF, MSI 321URX
 - **WOLED (10)**: LG C2/C3/C4/G4, ASUS PG27AQDP/PG34WCDM, LG 34GS95QE
-- **IPS (20)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
+- **IPS (21)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
 - **Nano-IPS (2)**: LG UltraGear 27GP950-B, LG UltraGear 27GP850-B
 - **Mini-LED (4)**: ASUS PG32UCDM, Apple Pro Display XDR
 - **VA (3)**: Samsung Odyssey G7, Sony INZONE M9
-- **RGB OLED (2)**: ASUS ProArt PA32DC
+- **OLED (2)**: ASUS ProArt PA32DC
 
-Unknown monitors are calibrated using EDID chromaticity data.
+A monitor the database does not name is held uncharacterized until you say what it
+stands on. The session offers the primaries and gamma the display declares in its EDID,
+and falls back to a nominal sRGB record where the display declares nothing readable.
+A declaration is labelled `edid_declared` and its evidence stays estimated, because the
+numbers describe the model rather than the unit on the desk.
 
 ## Output Files
 
@@ -181,7 +227,7 @@ powershell -File scripts/build_windows.ps1
 
 ## License
 
-FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v1.1.0/LICENSE).
+FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE).
 
 ## For developers
 

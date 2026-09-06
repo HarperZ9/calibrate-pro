@@ -1,34 +1,45 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
-    "doctor",
-    "gui",
-    "hdr"
-  ],
-  "developer_only_commands": [
-    "auto",
-    "calibrate",
     "ddc-calibrate",
     "ddc-info",
     "detect",
+    "diagnostics",
+    "doctor",
+    "generate-profiles",
+    "gui",
+    "hdr",
+    "install-profile",
+    "list-targets",
+    "patterns",
+    "profiles",
+    "remove-profile",
+    "restore-profiles",
+    "show-pattern",
+    "status",
+    "switch-profile",
+    "system-profiles",
+    "verify"
+  ],
+  "developer_only_commands": [
+    "hdr-status",
+    "info",
+    "list-panels",
+    "mcp",
+    "plugins",
+    "tray"
+  ],
+  "declined_commands": [
+    "auto",
+    "calibrate",
     "disable-startup",
     "enable-startup",
     "export-panel",
-    "hdr-status",
     "import-panel",
-    "info",
-    "list-panels",
-    "list-targets",
     "match",
     "native-calibrate",
-    "patterns",
-    "plugins",
-    "profiles-generate",
     "refine",
     "restore",
-    "status",
-    "tray",
-    "uniformity",
-    "verify"
+    "uniformity"
   ]
 }

@@ -732,8 +732,6 @@ def generate_mhc2_profile(
     panel_primaries: tuple[tuple[float, float], tuple[float, float], tuple[float, float]],
     panel_white: tuple[float, float],
     target_white: tuple[float, float] = (0.3127, 0.3290),
-    peak_luminance: float = 1000.0,
-    min_luminance: float = 0.0001,
     description: str = "Calibrate Pro HDR",
     output_path: str | Path | None = None,
 ) -> bytes:
@@ -744,6 +742,12 @@ def generate_mhc2_profile(
     The MHC2 tag carries a 3x4 matrix that Windows applies in the HDR
     compositing pipeline to transform display-referred linear RGB to XYZ.
 
+    That layout, matrix type 1, holds the matrix and nothing else. This
+    function used to accept a peak and a black luminance, document them as
+    the display luminance written into the profile, and read neither. The
+    layout that does carry luminance is the version 2 tag built by
+    :class:`MHC2Tag` in this module, which is a separate path.
+
     The profile also includes the standard ICC tags (desc, cprt, wtpt,
     rXYZ, gXYZ, bXYZ, rTRC, gTRC, bTRC, chad) so it is recognized by
     any ICC-aware application.
@@ -753,8 +757,6 @@ def generate_mhc2_profile(
                          chromaticity coordinates.
         panel_white:     (wx, wy) measured panel white point.
         target_white:    (wx, wy) desired white point (default D65).
-        peak_luminance:  Display peak luminance in cd/m².
-        min_luminance:   Display minimum luminance in cd/m².
         description:     Profile description string.
         output_path:     If given, write profile bytes to this file.
 

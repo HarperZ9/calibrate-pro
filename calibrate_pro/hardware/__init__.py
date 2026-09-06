@@ -245,7 +245,12 @@ def __getattr__(name):
         from calibrate_pro.hardware.ddc_ci import HardwareCalibrationTarget
 
         return HardwareCalibrationTarget
-    elif name == "HardwareCalibrationResult":
+    # The DDC/CI white point loop and the calibration engine each define a class
+    # named HardwareCalibrationResult, and they hold different fields. Exporting
+    # both under that one name left this branch unreachable, so the package
+    # handed out the engine's class under a name __all__ listed beside the DDC/CI
+    # calibrator. The DDC/CI one is exported as DDCCalibrationResult.
+    elif name == "DDCCalibrationResult":
         from calibrate_pro.hardware.ddc_ci import HardwareCalibrationResult
 
         return HardwareCalibrationResult
@@ -300,6 +305,7 @@ __all__ = [
     "auto_connect",
     # Hardware Calibration Engine
     "HardwareCalibrationEngine",
+    "HardwareCalibrationResult",
     "CalibrationTargets",
     "CalibrationPhase",
     "MeasurementResult",
@@ -324,7 +330,7 @@ __all__ = [
     "MonitorSettings",
     "HardwareCalibrator",
     "HardwareCalibrationTarget",
-    "HardwareCalibrationResult",
+    "DDCCalibrationResult",
     "detect_ddc_monitors",
 ]
 
