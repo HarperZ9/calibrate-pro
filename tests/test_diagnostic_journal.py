@@ -784,6 +784,54 @@ def test_live_malformed_or_ambiguous_reservation_fails_closed_and_is_retained(
 
 
 @pytest.mark.parametrize(
+    ("busy_seconds", "acquires"),
+    [(1.5, True), (7.5, True), (8.5, False)],
+)
+def test_a_busy_root_lock_is_waited_out_across_the_queue_the_design_admits(
+    monkeypatch: pytest.MonkeyPatch,
+    busy_seconds: float,
+    acquires: bool,
+) -> None:
+    """A lock held by another process is contention, not an unavailable journal.
+
+    Each holder stages a journal-sized reservation and fsyncs it before it
+    releases, so a caller behind a full queue waits for every one of them. A
+    deadline that expires first is reported to the operator as an unavailable
+    journal, and the action that wanted a receipt does not get one.
+
+    The wait is driven off a clock the test owns rather than a real disk, so
+    the case names the duration it is asserting about. The 1.5 s case is the
+    one that matters for the regression: it is inside the queue the design
+    admits and outside a flat one-second deadline.
+    """
+
+    class _Clock:
+        def __init__(self) -> None:
+            self.now = 0.0
+
+        def monotonic(self) -> float:
+            return self.now
+
+        def sleep(self, seconds: float) -> None:
+            self.now += seconds
+
+    clock = _Clock()
+    monkeypatch.setattr(journal_module, "time", clock)
+    monkeypatch.setattr(
+        journal_module,
+        "_lock_file_descriptor_once",
+        lambda file_descriptor: "busy" if clock.now < busy_seconds else "acquired",
+    )
+
+    if acquires:
+        assert journal_module._lock_file_descriptor(-1) is None
+        assert clock.now >= busy_seconds
+    else:
+        with pytest.raises(TimeoutError):
+            journal_module._lock_file_descriptor(-1)
+
+
+@pytest.mark.parametrize(
     ("fault", "call_number"),
     [("write", 1), ("fsync", 1), ("fsync", 2), ("truncate", 1), ("replace", 1)],
 )

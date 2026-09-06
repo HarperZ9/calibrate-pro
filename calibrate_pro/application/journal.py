@@ -57,9 +57,18 @@ _JOURNAL_LOCK = threading.RLock()
 _PRIVATE_SALT_LOCK = threading.RLock()
 _ROOT_COORDINATORS_LOCK = threading.RLock()
 _ROOT_LOCK_BASENAME = ".diagnostics.lock"
-_ROOT_LOCK_TIMEOUT_SECONDS = 1.0
 _RESERVATION_STAGE_BYTES = DIAGNOSTIC_JOURNAL_MAX_BYTES
 _MAX_LIVE_RESERVATIONS = 8
+# A holder of the root lock stages a journal-sized reservation and fsyncs it
+# before releasing, and the design admits one holder per live reservation. A
+# deadline shorter than that queue turns ordinary contention into a refusal to
+# journal, which is what the caller reads as an unavailable journal. Measured
+# on an NVMe desktop, eight concurrent processes each waited at most 0.13 s for
+# the lock; a Windows CI runner exceeded a flat one-second deadline with four.
+# The budget below is what one holder is allowed, and the deadline covers the
+# whole queue rather than a single holder.
+_ROOT_LOCK_HOLDER_BUDGET_SECONDS = 1.0
+_ROOT_LOCK_TIMEOUT_SECONDS = _ROOT_LOCK_HOLDER_BUDGET_SECONDS * _MAX_LIVE_RESERVATIONS
 _MAX_RESERVATION_IDENTITY_BYTES = 512
 _MAX_TERMINAL_RESERVATION_KEYS = 1_024
 _RESERVATION_RE = re.compile(r"\.diagnostics\.reserve\.[0-9a-f]{32}\.tmp\Z")
