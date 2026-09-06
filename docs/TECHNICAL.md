@@ -140,7 +140,7 @@ exit without changing display state.
 |--------|----------|---------|
 | `.cube` (33³) | DaVinci Resolve, dwm_lut | Standard 3D LUT |
 | `.3dlut` | MadVR | Binary LUT for video playback |
-| `.icc` (v4) | Windows, macOS, Linux | ICC color profile with TRC curves |
+| `.icc` (v4) | Windows, macOS, Linux | Panel primaries at the target white and tone response, gamma table embedded |
 | `_mhc2.icc` | Windows HDR | MHC2 matrix for DWM compositor |
 | `_reshade.png` | ReShade | Strip texture LUT |
 | `_specialk.png` | SpecialK | Strip texture LUT |

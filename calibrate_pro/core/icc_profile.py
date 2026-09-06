@@ -15,10 +15,11 @@ import numpy as np
 
 from calibrate_pro.core.color_math import (
     D50_WHITE,
-    D65_WHITE,
+    Illuminant,
     bradford_adapt,
     get_adaptation_matrix,
     primaries_to_xyz_matrix,
+    xy_to_cct,
 )
 
 # =============================================================================
@@ -324,10 +325,25 @@ class ICCProfile:
 
         return tag
 
+    def _profile_illuminant(self) -> Illuminant:
+        """The white this profile declares, as the source of its own adaptation.
+
+        Every tag that leaves this class for the PCS is adapted from here. The
+        source used to be the constant D65, which is invisible on the shipped
+        panel database because all fifty-nine records are D65 panels. A D50
+        profile built that way carried an adaptation matrix and a set of
+        colorants that both described a display it was not, while the
+        description string and the manifest beside it said D50.
+        """
+        x, y = self.white_point
+        # The name is the chromaticity, so two different declared whites never
+        # compare equal and never take the identity short circuit in
+        # ``bradford_adapt``. The temperature is descriptive only.
+        return Illuminant(f"{x:.4f},{y:.4f}", x / y, 1.0, (1.0 - x - y) / y, round(xy_to_cct(x, y)))
+
     def _build_chad_tag(self) -> bytes:
-        """Build chromatic adaptation tag (Bradford D65 to D50)."""
-        # Get Bradford matrix from D65 (display) to D50 (PCS)
-        matrix = get_adaptation_matrix(D65_WHITE, D50_WHITE)
+        """Build chromatic adaptation tag (Bradford declared white to D50)."""
+        matrix = get_adaptation_matrix(self._profile_illuminant(), D50_WHITE)
 
         def to_s15f16(v):
             return struct.pack(">i", int(v * 65536))
@@ -343,7 +359,15 @@ class ICCProfile:
         return tag
 
     def _build_vcgt_tag(self) -> bytes:
-        """Build VCGT (Video Card Gamma Table) tag."""
+        """Build the VCGT (Video Card Gamma Table) tag.
+
+        The header is three 16 bit fields: channel count, entries per channel,
+        and the width of one entry in BYTES. It used to be written as four
+        fields holding ``count, count, count, 16``, which told a reader the
+        tag had 1024 channels and pushed the table two bytes past where the
+        reader looked for it. Every profile Calibrate Pro shipped carried a
+        gamma table that littleCMS, ArgyllCMS and ColorSync could not parse.
+        """
         if self.vcgt is None:
             return b""
 
@@ -353,10 +377,10 @@ class ICCProfile:
         tag = TYPE_VCGT
         tag += b"\x00\x00\x00\x00"  # Reserved
         tag += struct.pack(">I", 0)  # Type: table
-        tag += struct.pack(">HHH", count, count, count)  # Table sizes
-        tag += struct.pack(">H", 16)  # Entry size (16-bit)
+        tag += struct.pack(">HHH", 3, count, 2)  # Channels, entries, bytes per entry
 
-        # Write tables as 16-bit values
+        # One channel after another, not interleaved: a reader walks the whole
+        # red curve before it reaches green.
         for curve in [red, green, blue]:
             values = np.clip(curve * 65535, 0, 65535).astype(np.uint16)
             tag += struct.pack(f">{count}H", *values)
@@ -368,19 +392,22 @@ class ICCProfile:
         return tag
 
     def _calculate_xyz_primaries(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Calculate XYZ values for primaries adapted to D50."""
-        # Build RGB to XYZ matrix from primaries
+        """Calculate XYZ values for primaries adapted to D50.
+
+        The matrix is normalized to the declared white, so the three colorants
+        sum to it before adaptation and to the PCS white after. A reader that
+        adds them up is therefore reading back the white this profile claims.
+        """
         rgb_to_xyz = primaries_to_xyz_matrix(self.red_primary, self.green_primary, self.blue_primary, self.white_point)
 
-        # Get individual primary XYZ values
         red_xyz = rgb_to_xyz[:, 0]
         green_xyz = rgb_to_xyz[:, 1]
         blue_xyz = rgb_to_xyz[:, 2]
 
-        # Adapt from D65 to D50 (ICC PCS)
-        red_xyz_d50 = bradford_adapt(red_xyz, D65_WHITE, D50_WHITE)
-        green_xyz_d50 = bradford_adapt(green_xyz, D65_WHITE, D50_WHITE)
-        blue_xyz_d50 = bradford_adapt(blue_xyz, D65_WHITE, D50_WHITE)
+        source = self._profile_illuminant()
+        red_xyz_d50 = bradford_adapt(red_xyz, source, D50_WHITE)
+        green_xyz_d50 = bradford_adapt(green_xyz, source, D50_WHITE)
+        blue_xyz_d50 = bradford_adapt(blue_xyz, source, D50_WHITE)
 
         return red_xyz_d50, green_xyz_d50, blue_xyz_d50
 

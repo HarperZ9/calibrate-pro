@@ -34,7 +34,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from calibrate_pro import __version__
 from calibrate_pro.application.actions import PRESET_TARGETS
@@ -50,6 +50,10 @@ from calibrate_pro.panels.database import (
 )
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.verification.provenance import EvidenceKind
+
+if TYPE_CHECKING:  # pragma: no cover - import cost is paid by the writers, not here
+    from calibrate_pro.core.icc_profile import ICCProfile
+    from calibrate_pro.core.vcgt import VCGTTable
 
 #: ICC profiles carry a creation stamp. A wall-clock value would make every
 #: generated profile a different file, so the stamp is fixed and the real
@@ -301,6 +305,38 @@ class ExportBundle:
         return (self.manifest_filename, self.manifest_sha256)
 
 
+@dataclass(frozen=True)
+class _Target:
+    """One declared preset, translated into the units the generators take.
+
+    Built in one place so the cube, the gamma table and the profile are aimed
+    by the same three values. Splitting the translation is how a bundle came
+    to hold a D50 manifest beside a D65 correction.
+    """
+
+    gamut_mode: str
+    exponent: float
+    white: tuple[float, float]
+    label: str
+
+
+@dataclass(frozen=True)
+class _Render:
+    """Everything a writer is allowed to read, so each one takes the same thing.
+
+    The gamma table rides along because two artifacts carry it: the .cal an
+    apply loads, and the VCGT tag inside the profile. Handing both the same
+    object is what keeps them from being two curves computed separately from
+    one input.
+    """
+
+    request: AssetRequest
+    panel: PanelCharacterization
+    lut: LUT3D
+    target: _Target
+    gamma_table: VCGTTable
+
+
 class AssetGenerator:
     """Turn a request into byte-exact artifacts without touching a display."""
 
@@ -364,51 +400,49 @@ class AssetGenerator:
             characterization_kind = CharacterizationKind.MEASURED
             evidence_kind = EvidenceKind.MEASURED
         gamut_label, white_point, tone_response, target_hdr = PRESET_TARGETS[request.preset_id]
-        gamut_mode = _resolve(_GAMUT_MODES, gamut_label, "gamut")
-        exponent = _resolve(_TONE_RESPONSE_EXPONENTS, tone_response, "tone response")
-        target_white = _resolve(_TARGET_WHITES, white_point, "white point")
+        target = _Target(
+            gamut_mode=_resolve(_GAMUT_MODES, gamut_label, "gamut"),
+            exponent=_resolve(_TONE_RESPONSE_EXPONENTS, tone_response, "tone response"),
+            white=_resolve(_TARGET_WHITES, white_point, "white point"),
+            label=f"{gamut_label} {white_point} {tone_response}",
+        )
 
         lut = self._engine.create_3d_lut(
             panel,
             size=request.lut_size,
             lut_name=f"Calibrate Pro - {panel_label} ({gamut_label} {tone_response})",
             hdr_mode=bool(target_hdr),
-            target=gamut_mode,
-            target_gamma=exponent,
-            target_white=target_white,
+            target=target.gamut_mode,
+            target_gamma=target.exponent,
+            target_white=target.white,
         )
 
-        gamma_table, gamma_moves = _render_gamma_table(lut)
-        payloads = self._render(request, panel, lut)
+        table = _gamma_table(lut)
+        payloads = self._render(_Render(request, panel, lut, target, table))
         return GeneratedAssets(
             request=request,
             assets=MappingProxyType(payloads),
             panel_name=panel_label,
             characterization_kind=characterization_kind,
             evidence_kind=evidence_kind,
-            gamut_mode=gamut_mode,
+            gamut_mode=target.gamut_mode,
             tone_response=tone_response,
-            applied_gamma_exponent=exponent,
+            applied_gamma_exponent=target.exponent,
             white_point=white_point,
-            gamma_table=gamma_table,
+            gamma_table=_render_gamma_table(table),
             cube_changes_output=_cube_changes_output(lut),
-            gamma_table_changes_output=gamma_moves,
+            gamma_table_changes_output=_curve_changes_output(table),
             measurement=measured,
         )
 
-    def _render(
-        self,
-        request: AssetRequest,
-        panel: PanelCharacterization,
-        lut: LUT3D,
-    ) -> dict[AssetFormat, bytes]:
+    def _render(self, inputs: _Render) -> dict[AssetFormat, bytes]:
         """Write each format through its tested writer, then read it back."""
         payloads: dict[AssetFormat, bytes] = {}
         staging = Path(tempfile.mkdtemp(prefix="calibrate-pro-render-"))
         try:
-            for fmt in request.formats:
-                path = staging / request.filename_for(fmt)
-                self._write_one(fmt, path, request, panel, lut)
+            for fmt in inputs.request.formats:
+                path = staging / inputs.request.filename_for(fmt)
+                self._write_one(fmt, path, inputs)
                 if not path.is_file():
                     raise AssetGenerationError(f"{fmt.value} writer produced no file")
                 raw = path.read_bytes()
@@ -419,17 +453,10 @@ class AssetGenerator:
             shutil.rmtree(staging, ignore_errors=True)
         return payloads
 
-    def _write_one(
-        self,
-        fmt: AssetFormat,
-        path: Path,
-        request: AssetRequest,
-        panel: PanelCharacterization,
-        lut: LUT3D,
-    ) -> None:
+    def _write_one(self, fmt: AssetFormat, path: Path, inputs: _Render) -> None:
+        lut = inputs.lut
         if fmt is AssetFormat.ICC:
-            profile = self._engine.create_icc_profile(panel)
-            profile.header.creation_date = FIXED_ICC_CREATION_DATE
+            profile = self._write_profile(inputs)
             profile.save(path)
         elif fmt is AssetFormat.CUBE:
             lut.save(path, LUTFormat.CUBE)
@@ -449,29 +476,66 @@ class AssetGenerator:
             # Reference the sibling files by name so the snippet keeps working
             # wherever the bundle is copied, and so no local path is embedded.
             lut.save_mpv_config(
-                lut_path=request.filename_for(AssetFormat.CUBE),
-                icc_path=request.filename_for(AssetFormat.ICC),
+                lut_path=inputs.request.filename_for(AssetFormat.CUBE),
+                icc_path=inputs.request.filename_for(AssetFormat.ICC),
                 output_path=path,
             )
         else:  # pragma: no cover - the enum is closed and validated on request
             raise AssetGenerationError(f"no writer is registered for {fmt!r}")
 
+    def _write_profile(self, inputs: _Render) -> ICCProfile:
+        """Build the profile that describes the display this bundle leaves.
 
-def _render_gamma_table(lut: LUT3D) -> tuple[bytes, bool]:
-    """Extract the neutral axis of one 3D LUT as an ArgyllCMS .cal payload.
+        The primaries stay the panel's own, because the gamma table an apply
+        loads is a per-channel curve and no per-channel curve moves a primary.
+        The white and the tone response are the target's, because the curve
+        does move those and lands on them. The table itself goes in as the
+        VCGT, so the tag inside the profile and the .cal beside it are the
+        same numbers.
 
-    A graphics card applies a per-channel curve, not a cube, so the gamma table
-    is what an apply actually loads. Taking it from the same LUT the bundle
+        The bounded cost of describing the calibrated display rather than the
+        cube: under a curve-only apply, a panel wider than its target still
+        shows its own gamut, and this profile reports that gamut honestly. A
+        colour-managed application then converts into it correctly. An
+        application that ignores the profile stays oversaturated, which is
+        what the cube in the same bundle is for.
+
+        The description names the target as well as the display, because four
+        presets for one monitor install four profiles and the operator picks
+        between them by the string Windows shows.
+        """
+        profile = self._engine.create_icc_profile(
+            inputs.panel,
+            f"Calibrate Pro: {inputs.panel.name} ({inputs.target.label})",
+            target_white=inputs.target.white,
+            target_gamma=inputs.target.exponent,
+            vcgt=(inputs.gamma_table.red, inputs.gamma_table.green, inputs.gamma_table.blue),
+        )
+        profile.header.creation_date = FIXED_ICC_CREATION_DATE
+        return profile
+
+
+def _gamma_table(lut: LUT3D) -> VCGTTable:
+    """Extract the neutral axis of one 3D LUT, at the size an apply loads.
+
+    A graphics card applies a per-channel curve, not a cube, so this table is
+    what an apply actually loads. Taking it from the same LUT the bundle
     exports is what keeps the loaded curve and the published cube describing one
     calibration rather than two computed from the same inputs at different
-    times.
+    times. The profile writer is handed this object too, for the same reason.
 
     The output is 1024 entries. Windows resamples to 256 on load, and starting
     above that leaves the resample interpolating a curve rather than a curve
     already quantized to the destination grid.
     """
     vcgt = importlib.import_module("calibrate_pro.core.vcgt")
-    table = vcgt.lut3d_to_vcgt(lut.data, output_size=_GAMMA_TABLE_ENTRIES)
+    table: VCGTTable = vcgt.lut3d_to_vcgt(lut.data, output_size=_GAMMA_TABLE_ENTRIES)
+    return table
+
+
+def _render_gamma_table(table: VCGTTable) -> bytes:
+    """Write one gamma table out as an ArgyllCMS .cal payload."""
+    vcgt = importlib.import_module("calibrate_pro.core.vcgt")
     staging = Path(tempfile.mkdtemp(prefix="calibrate-pro-gamma-"))
     try:
         path = staging / "gamma.cal"
@@ -481,7 +545,7 @@ def _render_gamma_table(lut: LUT3D) -> tuple[bytes, bool]:
         shutil.rmtree(staging, ignore_errors=True)
     if not raw:
         raise AssetGenerationError("gamma table writer produced an empty file")
-    return _normalize_newlines(raw), _curve_changes_output(table)
+    return _normalize_newlines(raw)
 
 
 def _curve_changes_output(table: object) -> bool:

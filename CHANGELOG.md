@@ -2,6 +2,36 @@
 
 ## v2.0.0 (2026-09-05)
 
+- Made the ICC in a bundle describe the display that bundle leaves behind. `create_icc_profile`
+  took no target, so all four presets emitted byte-identical profiles on every panel in the
+  database. Its tone curve came from `generate_trc_curves`, which returned `x ** (1 / panel_gamma)`.
+  That is the encoding direction, so a decoded profile read 0.5318 at 0.25 where 0.0474 was
+  wanted, and a colour-managed application asking for mid grey was sent 0.0334. The chromatic
+  adaptation tag and the three colorants were both computed from a hardcoded D65 source, which
+  is invisible on the shipped panel database because all 59 records are D65 panels, so the
+  photography preset carried numbers describing a D65 display beside a manifest saying D50.
+  `generate_vcgt` hardcoded a 2.2 exponent, so a BT.1886 or DCI-P3 bundle shipped a profile
+  calibrating to 2.2. Nothing referenced any of those three methods, which is how the direction
+  of a tone curve went unchecked. Which display the profile should describe was settled by
+  measurement rather than by argument: driving the database through the bundle's own 1024 entry
+  gamma table lands white on the declared target to four places and grey on the declared
+  exponent, and leaves AW3423DW red at 0.6780, 0.3080 under every preset, because a per-channel
+  curve cannot move a primary. The profile now carries the panel's own primaries, the target
+  white, the target tone response, and the same gamma table the `.cal` beside it carries. Its
+  description names the target, since four presets for one monitor install four profiles and
+  Windows lists them by that string.
+- Fixed a video card gamma table that no reader could decode. The `vcgt` header is three 16 bit
+  fields holding the channel count, the entries per channel, and the width of one entry in
+  bytes. The writer in `core/icc_profile.py` packed four fields holding the entry count three
+  times followed by the number 16, so a reader saw 1024 channels and looked for the table two
+  bytes before it starts. A second writer in `core/vcgt.py` wrote a correct header over
+  interleaved data, which decodes as a single channel of alternating red, green and blue values.
+  A third writer in `profiles/icc_v4.py` was already correct, and the other two now match it.
+  No test had ever asserted on the tag's bytes, which is how three implementations of one
+  structure came to disagree. The new tests decode the artifact the way a colour management
+  module would, and one of them rebuilds the header that shipped and requires the reader to
+  reject it, so the strictness those tests depend on is itself checked.
+
 - Stopped `verify` reporting a constant as a predicted accuracy. The sensorless figure
   was the distance between the simulated output and the ColorChecker's own Lab column,
   and that column does not round-trip through the model's 2.2 power law, so a residual

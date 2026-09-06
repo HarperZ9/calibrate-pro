@@ -172,14 +172,28 @@ class SensorlessEngine:
         return correction_matrix
 
     def generate_trc_curves(
-        self, panel: PanelCharacterization | None = None, points: int = 1024
+        self,
+        panel: PanelCharacterization | None = None,
+        points: int = 1024,
+        target_gamma: float = 2.2,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Generate per-channel TRC curves for panel.
+        """Tone reproduction curves for the calibrated display, device to linear.
+
+        An ICC TRC answers one question: for this device value, how much light.
+        So it runs device to linear and it describes the display after the
+        calibration is loaded, which is the target tone response on all three
+        channels. The per-channel difference the panel record carries is the
+        thing the gamma table removes, so writing it here would describe the
+        uncalibrated panel and describe it backwards.
+
+        This returned ``x ** (1 / panel_gamma)`` until 2.0.0. That is the
+        encoding direction, and shipping it in an ICC told a colour-managed
+        application to send 0.0334 where 0.5 was wanted.
 
         Args:
             panel: Panel characterization (uses current if None)
             points: Number of curve points
+            target_gamma: Tone response the calibration drives the display to
 
         Returns:
             Tuple of (red, green, blue) TRC curves
@@ -188,25 +202,33 @@ class SensorlessEngine:
         if panel is None:
             raise ValueError("No panel set.")
 
-        # Generate per-channel curves
         x = np.linspace(0, 1, points)
+        curve = np.power(x, target_gamma)
 
-        # Apply inverse gamma to linearize
-        red_curve = np.power(x, 1.0 / panel.gamma_red.gamma)
-        green_curve = np.power(x, 1.0 / panel.gamma_green.gamma)
-        blue_curve = np.power(x, 1.0 / panel.gamma_blue.gamma)
-
-        return red_curve, green_curve, blue_curve
+        return curve, curve.copy(), curve.copy()
 
     def generate_vcgt(
-        self, panel: PanelCharacterization | None = None, points: int = 256
+        self,
+        panel: PanelCharacterization | None = None,
+        points: int = 256,
+        target_gamma: float = 2.2,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate VCGT (Video Card Gamma Table) for calibration loader.
 
+        The exponent was fixed at 2.2 here, so a bundle aiming at BT.1886 or
+        DCI-P3 carried a profile whose gamma table calibrated to 2.2 while its
+        manifest reported 2.4.
+
+        This curve corrects tone response and nothing else. It leaves white
+        where the panel already sits, so a session that has a target-aware
+        table should hand that one to ``create_icc_profile`` instead of
+        letting this build one.
+
         Args:
             panel: Panel characterization (uses current if None)
             points: Number of LUT points
+            target_gamma: Tone response the calibration drives the display to
 
         Returns:
             Tuple of (red, green, blue) VCGT curves
@@ -219,8 +241,6 @@ class SensorlessEngine:
 
         # Correction curves that compensate for panel gamma
         # Output = Input^(target_gamma / panel_gamma)
-        target_gamma = 2.2
-
         red_curve = np.power(x, target_gamma / panel.gamma_red.gamma)
         green_curve = np.power(x, target_gamma / panel.gamma_green.gamma)
         blue_curve = np.power(x, target_gamma / panel.gamma_blue.gamma)
@@ -228,14 +248,39 @@ class SensorlessEngine:
         return red_curve, green_curve, blue_curve
 
     def create_icc_profile(
-        self, panel: PanelCharacterization | None = None, profile_name: str | None = None
+        self,
+        panel: PanelCharacterization | None = None,
+        profile_name: str | None = None,
+        *,
+        target_white: tuple[float, float] = D65_XY,
+        target_gamma: float = 2.2,
+        vcgt: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
     ) -> ICCProfile:
-        """
-        Create calibrated ICC profile for panel.
+        """Describe the display this calibration leaves behind, once loaded.
+
+        A profile is a description, so the question is which display it should
+        describe. The gamma table is what an apply loads, and a per-channel
+        curve moves white and tone response while it leaves every primary
+        exactly where the panel put it. Driving the shipped database through
+        the generated table and reading the result back says so: white lands on
+        the declared target to four places, grey tracks the declared exponent,
+        and AW3423DW red stays at 0.6780, 0.3080 under every preset.
+
+        So the primaries are the panel's own, the white is the one the
+        calibration drives to, and the tone response is the one it lands on.
+
+        The white and the tone response used to be read off the panel record,
+        which described the display before any correction and made all four
+        presets emit byte-identical profiles.
 
         Args:
             panel: Panel characterization (uses current if None)
             profile_name: Custom profile name
+            target_white: Chromaticity the calibration drives white to
+            target_gamma: Tone response the calibration drives the display to
+            vcgt: Gamma table to embed. A session holding the table it already
+                exports should pass it, so the profile and the .cal carry the
+                same numbers rather than two curves computed from one input.
 
         Returns:
             Configured ICC profile
@@ -249,20 +294,17 @@ class SensorlessEngine:
         if profile_name is None:
             profile_name = f"Calibrate Pro: {panel.name}"
 
-        # Generate TRC curves
-        trc_red, trc_green, trc_blue = self.generate_trc_curves(panel, points=1024)
-
-        # Generate VCGT
-        vcgt = self.generate_vcgt(panel, points=256)
+        if vcgt is None:
+            vcgt = self.generate_vcgt(panel, points=256, target_gamma=target_gamma)
 
         profile = create_display_profile(
             description=profile_name,
             red_primary=primaries.red.as_tuple(),
             green_primary=primaries.green.as_tuple(),
             blue_primary=primaries.blue.as_tuple(),
-            white_point=primaries.white.as_tuple(),
-            gamma=(panel.gamma_red.gamma, panel.gamma_green.gamma, panel.gamma_blue.gamma),
-            trc_curves=(trc_red, trc_green, trc_blue),
+            white_point=target_white,
+            gamma=target_gamma,
+            trc_curves=self.generate_trc_curves(panel, points=1024, target_gamma=target_gamma),
             vcgt=vcgt,
             copyright="Copyright Zain Dana Harper 2022-2026 - Calibrate Pro",
         )
