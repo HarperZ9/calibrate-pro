@@ -2,6 +2,15 @@
 
 ## v2.0.0 (2026-09-06)
 
+- Widened the diagnostic journal's root lock deadline to cover the queue the design
+  admits. `_ROOT_LOCK_TIMEOUT_SECONDS` was a flat one second, and it guards a lock a
+  holder keeps across a journal-sized staging write and an `os.fsync`, while
+  `_MAX_LIVE_RESERVATIONS` admits eight holders in turn. A caller behind a full queue
+  ran past the deadline and read `DIAGNOSTIC_JOURNAL_UNAVAILABLE`, so an action that had
+  already run did not get its receipt. The deadline is now one holder's budget times the
+  number of holders the design admits. Measured on an NVMe desktop, eight concurrent
+  processes waited at most 0.13 s for the lock, which is why the old constant held there
+  and expired on a Windows CI runner.
 - Shipped the listing the packaged binary's own refusal names. `verify` and
   `generate-profiles` require `--target`, and a line without one was refused with a sentence
   saying to run `list-targets`, which the same binary answered with "This command is available
