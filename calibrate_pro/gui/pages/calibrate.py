@@ -51,12 +51,14 @@ from PySide6.QtWidgets import (
 )
 
 from calibrate_pro.application.actions import PRESET_TARGETS
+from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.results import (
     AppliedPlanResult,
     DetectionSummary,
     DisplaySelection,
     GenerationResult,
+    MeasurementSummary,
     MethodSelection,
     PlanDecision,
     PlanPreview,
@@ -64,6 +66,7 @@ from calibrate_pro.application.results import (
 )
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
 from calibrate_pro.gui.app import C, Card, Heading, Stat
+from calibrate_pro.verification.provenance import EvidenceKind
 
 #: What the page says once a receipt reports the display was written. The
 #: routes, the phases the adapter reached and the recovery guarantee follow
@@ -114,6 +117,12 @@ NO_METHOD_NOTE = "No profiling method selected in this session."
 
 #: Beside the generated bundle. Generation seals files and changes no display.
 GENERATED_NOTE = "Generated and sealed in memory. No display state was changed."
+
+#: Beside a finished instrument run. The sentence names what the run replaced,
+#: because the record it wrote is what every later figure in the session is
+#: derived from, and an operator who does not know that reads the next bundle
+#: as though the panel database had still produced it.
+MEASURED_NOTE = "Display measured. This session now generates from the reading rather than from a panel record."
 
 #: After the operator accepts a previewed plan. The sentence stays about the
 #: display, because a workflow step called "confirm" beside a list of profile
@@ -354,6 +363,14 @@ class CalibratePage(QWidget):
     def _build_actions_row(self) -> None:
         row = QHBoxLayout()
         row.addStretch()
+        # Measuring comes before generating because that is the order the two
+        # happen in: a run writes the record, and generation reads it.
+        self._btn_measure = QPushButton("Measure Display")
+        self._btn_measure.setStyleSheet(self._secondary_style())
+        self._btn_measure.setFixedHeight(44)
+        self._btn_measure.setFixedWidth(180)
+        row.addWidget(self._btn_measure)
+
         self._btn_generate = QPushButton("Generate Calibration")
         self._btn_generate.setStyleSheet(self._primary_style())
         self._btn_generate.setFixedHeight(44)
@@ -488,8 +505,10 @@ class CalibratePage(QWidget):
         *,
         select_display: Callable[[str], ActionOutcome[Any]],
         select_sensorless: Operation,
+        select_measured: Operation,
         set_target: Callable[[str], ActionOutcome[Any]],
         unhandled: Callable[[str], ActionOutcome[Any]],
+        measure: Operation,
         generate: Operation,
         preview: Operation,
         apply_plan: Operation,
@@ -497,11 +516,13 @@ class CalibratePage(QWidget):
     ) -> None:
         """Hand every control here to the action it stands for.
 
-        The measured and hybrid cards are bound to actions this build has no
-        handler for, so what appears on them is the manifest's reason for
-        holding measured calibration closed. That reason used to be contradicted
-        by the page, which enabled both after finding a colorimeter on the bus
-        and then performed one.
+        The hybrid card is bound to an action this build has no handler for, so
+        what appears on it is the manifest's reason for holding hybrid
+        calibration closed. The measured card and the measure button perform,
+        and what decides whether either is offered is the resolver rather than
+        the page. The page used to decide it, by asking the USB bus what was
+        attached and enabling both cards on the answer, which is how it came to
+        offer a method the manifest was holding shut.
 
         A target selector renders one action and performs another, which the
         binding keeps as two separate fields for exactly this case. The control
@@ -530,9 +551,19 @@ class CalibratePage(QWidget):
             on_success=self.render_method,
             hides=False,
         )
-        for card, method in ((self._mode_measured, "measured"), (self._mode_hybrid, "hybrid")):
-            action_id = f"calibration.method.{method}"
-            binder.bind(action_id, card, _closed(unhandled, action_id), hides=False)
+        binder.bind(
+            "calibration.method.measured",
+            self._mode_measured,
+            select_measured,
+            on_success=self.render_method,
+            hides=False,
+        )
+        binder.bind(
+            "calibration.method.hybrid",
+            self._mode_hybrid,
+            _closed(unhandled, "calibration.method.hybrid"),
+            hides=False,
+        )
 
         for field, combo in self._target_combos.items():
             action_id = f"calibration.target.{('gamut', 'whitepoint', 'gamma')[field]}"
@@ -557,6 +588,13 @@ class CalibratePage(QWidget):
             )
             binder.bind(preset_id, button, operation, on_success=self.render_target, hides=False)
 
+        binder.bind(
+            "calibration.measure",
+            self._btn_measure,
+            measure,
+            on_success=self.render_measurement,
+            hides=False,
+        )
         binder.bind(
             "calibration.generate",
             self._btn_generate,
@@ -718,6 +756,29 @@ class CalibratePage(QWidget):
             f"Target: {label}. {selection.gamut} primaries, {selection.white_point} white point, "
             f"{selection.tone_response} tone response."
         )
+        self._progress_bar.setValue(2)
+
+    def render_measurement(self, summary: MeasurementSummary) -> None:
+        """Report the run the instrument took, in the terms the session recorded.
+
+        The result card is cleared first. A run replaces the record the next
+        generation builds from, so a bundle sealed against the record it
+        replaced no longer describes this session, and its digest would sit on
+        screen naming a plan nothing downstream can still cite.
+
+        The target survives a run, so the workflow returns to the step it was
+        on rather than to the start. What the display was loading when the run
+        was taken goes on the line under the reading, because a measurement is
+        only reproducible next to that state.
+        """
+        self._clear_result()
+        self._result_heading.setText(MEASURED_NOTE)
+        self._result_heading.setStyleSheet(f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI};")
+        self._stat_panel.set_value(summary.characterization.panel.name)
+        self._stat_characterization.set_value(CharacterizationKind.MEASURED.value)
+        self._stat_evidence.set_value(EvidenceKind.MEASURED.value)
+        self._digest_label.setText(summary.summary)
+        self._files_label.setText(summary.correction_state)
         self._progress_bar.setValue(2)
 
     def render_generation(self, result: GenerationResult) -> None:

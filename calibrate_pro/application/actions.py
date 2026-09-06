@@ -506,6 +506,54 @@ def _sensorless_ready(context: ActionContext) -> bool:
     )
 
 
+def _measured_ready(context: ActionContext) -> bool:
+    """Report whether a target choice would be recorded against a real reading.
+
+    The characterization test is the strict one. ``measured_qualified`` says an
+    instrument is present, which is what opens the measured method; this says a
+    run of the selected display was actually taken, which is what a target and
+    a bundle built from it would describe.
+    """
+    return (
+        context.selected_display_id is not None
+        and context.characterization_kind is CharacterizationKind.MEASURED
+        and context.selected_method is CalibrationMethod.MEASURED
+        and not context.target_hdr
+    )
+
+
+def _target_ready(context: ActionContext) -> bool:
+    """Report whether either method has reached the point of choosing a target."""
+    return _sensorless_ready(context) or _measured_ready(context)
+
+
+def _verification_reachable(context: ActionContext) -> bool:
+    """Report whether a verification would describe something that happened.
+
+    Both verifications share this. A result is only about a calibration once a
+    plan is sealed against the current machine and the operator either stands
+    at a live confirmation or already applied the plan that was sealed.
+    """
+    if context.sealed_plan_sha256 is None or not _generation_matches(context):
+        return False
+    production_confirmed = not context.fake_acceptance and context.confirmation_state == "confirmed"
+    # An apply spends the confirmation, so a session that just changed a
+    # display no longer answers the confirmed test. Verification is what
+    # reports the result of that change, and refusing it here would leave
+    # the operator holding an applied calibration with no way to see it.
+    applied = (
+        not context.fake_acceptance
+        and context.confirmation_state == "consumed"
+        and context.applied_plan_sha256 == context.sealed_plan_sha256
+    )
+    fake_applied = (
+        context.fake_acceptance
+        and context.confirmation_state == "consumed"
+        and context.fake_applied_plan_sha256 == context.sealed_plan_sha256
+    )
+    return production_confirmed or applied or fake_applied
+
+
 def _verified_export_source(context: ActionContext) -> bool:
     return (
         context.sealed_plan_sha256 is not None
@@ -530,18 +578,45 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             CharacterizationKind.MATCHED,
             CharacterizationKind.EXPLICIT_GENERIC,
         }
+    if action_id == "calibration.method.measured":
+        # Measured is offered from every characterization sensorless is offered
+        # from, plus a display already measured in this session, so re-entering
+        # the method after a run does not require measuring again. UNKNOWN is
+        # left out for the reason it is left out of sensorless: accepting the
+        # generic record stays an act the operator performs.
+        return (
+            context.selected_display_id is not None
+            and context.measured_qualified
+            and context.characterization_kind
+            in {
+                CharacterizationKind.MATCHED,
+                CharacterizationKind.EXPLICIT_GENERIC,
+                CharacterizationKind.MEASURED,
+            }
+        )
+    if action_id == "calibration.measure":
+        # Offered only while nothing is sealed. Recording a run breaks the
+        # seal, so allowing it afterwards would drop a bundle the operator is
+        # holding without asking, which is why generate refuses to run twice.
+        return (
+            context.selected_display_id is not None
+            and context.measured_qualified
+            and context.selected_method is CalibrationMethod.MEASURED
+            and context.sealed_plan_sha256 is None
+            and context.journal_ready
+        )
     if action_id in {
         "calibration.target.gamut",
         "calibration.target.whitepoint",
         "calibration.target.custom_cct",
         "calibration.target.gamma",
     }:
-        return _sensorless_ready(context)
+        return _target_ready(context)
     if action_id in PRESET_TARGETS:
-        return _sensorless_ready(context)
+        return _target_ready(context)
     if action_id == "calibration.generate":
         return (
-            _sensorless_ready(context)
+            _target_ready(context)
             and context.target_valid
             and (context.selected_preset_id is None or context.selected_preset_id in PRESET_TARGETS)
             and context.sealed_plan_sha256 is None
@@ -584,28 +659,19 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             and context.journal_ready
         )
     if action_id == "verification.sensorless":
-        production_confirmed = not context.fake_acceptance and context.confirmation_state == "confirmed"
-        # An apply spends the confirmation, so a session that just changed a
-        # display no longer answers the confirmed test. Verification is what
-        # reports the result of that change, and refusing it here would leave
-        # the operator holding an applied calibration with no way to see it.
-        applied = (
-            not context.fake_acceptance
-            and context.confirmation_state == "consumed"
-            and context.applied_plan_sha256 == context.sealed_plan_sha256
-        )
-        fake_applied = (
-            context.fake_acceptance
-            and context.confirmation_state == "consumed"
-            and context.fake_applied_plan_sha256 == context.sealed_plan_sha256
-        )
+        # A session holding a measured result is refused the predicted one.
+        # Simulating over a reading would replace what an instrument found with
+        # what a model expects, and report it in the same accuracy field.
         return (
             _sensorless_ready(context)
-            and context.sealed_plan_sha256 is not None
-            and _generation_matches(context)
-            and (production_confirmed or applied or fake_applied)
+            and _verification_reachable(context)
             and context.verification_evidence is not EvidenceKind.MEASURED
         )
+    if action_id == "verification.measured":
+        # No evidence test here. Reading the display again over an earlier
+        # result replaces one instrument run with another, which is a repeat
+        # rather than the downgrade the sensorless branch refuses.
+        return context.measured_qualified and _measured_ready(context) and _verification_reachable(context)
     if action_id == "report.save":
         return _verified_export_source(context) and context.configured_export_directory_valid and context.journal_ready
     if action_id.startswith("export.active."):
@@ -646,14 +712,12 @@ def _disabled_reason(spec: ActionSpec, context: ActionContext) -> str:
         if not context.physical_apply_qualified:
             return "Physical mutation is not qualified."
         return "Physical mutation remains disabled pending the Phase 2 transactional contract."
-    if action_id in {
-        "calibration.method.measured",
-        "calibration.method.hybrid",
-        "verification.measured",
-    }:
-        if not context.measured_qualified:
-            return "Measured calibration requires a distinct qualified measurement contract."
-        return "Measured calibration remains disabled pending its distinct evidence contract."
+    if action_id == "calibration.method.hybrid":
+        return (
+            "Hybrid calibration remains disabled. It would build one bundle from a panel "
+            "record and an instrument run together, and this build cannot state which of "
+            "the two each published value came from."
+        )
     if action_id in {"calibration.target.hdr", "calibration.preset.hdr10", "settings.hdr"}:
         if not context.target_hdr:
             return "HDR requires an explicitly selected HDR target and distinct evidence contract."

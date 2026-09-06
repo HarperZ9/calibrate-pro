@@ -136,17 +136,19 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/USAG
 | Mode | Requires | Evidence |
 |------|----------|----------|
 | Sensorless | A characterized panel profile or EDID-derived inputs | Estimated; never presented as a measurement of the attached unit |
-| Measured | A supported colorimeter | Closed in 2.0. See below. |
+| Measured | A supported colorimeter and a display loading no correction | Instrument observations of the attached unit |
 
 Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
-**Measured calibration is closed in 2.0.** The action manifest declares `calibration.method.measured` and `verification.measured` disabled in the wheel and in the frozen binary alike, for the reason it prints when asked: measured calibration is disabled pending a distinct qualified measurement contract. No setting opens it. `calibrate-pro status --closed` reports it, the method control in the window is disabled rather than hidden, and `native-calibrate` and `refine` decline at the terminal and name that action. Everything 2.0 produces is sensorless, and it is labelled estimated.
+Measured calibration runs in the desktop window. The measured method opens once a supported colorimeter answers on USB and a display is selected. Starting a run needs the display's video card gamma table to read back as identity, because an instrument pointed at a corrected display characterizes the panel together with whatever correction is loaded, and a second correction built from those numbers doubles the first. Calibrate Pro reads that table and refuses the run rather than clearing it, so removing a loaded correction stays something the operator does in the tool that loaded it. The check covers one layer, and the sentence it records names what it did not look at: a DWM LUT, a colour-managed application's own profile, and a correction running inside the monitor.
+
+A run opens a patch window on the selected display and walks four 17-step ramps, neutral and then each channel, for 68 patches at full field. It records the reading with the instrument's identity and the patch geometry, since a luminance read at one window size is not the same number at another. The result becomes the session's characterization, so a plan generated afterwards is derived from the reading instead of from the panel database, and a bundle sealed before the run is dropped. Measured verification reads the display again once a plan is confirmed or applied and reports the result from that second reading; a session holding a measured result is refused sensorless verification, because a model writing into the same accuracy field would replace what the instrument found. The terminal has no measure command in 2.0, and `native-calibrate` and `refine` decline there and name the action behind them.
 
 ### Native USB colorimeter driver
 
 The package carries a USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display), which reads each unit's own calibration matrices from its EEPROM and needs no ArgyllCMS install. The device holds nine matrices for different display technologies, and the driver falls back to approximate constants when the EEPROM read fails.
 
-No surface in 2.0 opens it. It is the implementation measured calibration will use once that contract exists, and until then it is code the release ships rather than a capability an operator can reach. Nothing in the window or the terminal enumerates or opens a colorimeter, so no product screen reports a device that the session never observed.
+This is what a measured run reads the light through. Enumeration and connection are separate calls: the read-only capability probe walks USB descriptors and opens no device session, while opening the instrument runs the unit's own dark calibration, which costs the operator time and is asked for by name.
 
 ## Supported Displays
 

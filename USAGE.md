@@ -265,12 +265,17 @@ if panel is not None:
   on PyPI and verify its SHA-256 against `SHA256SUMS.txt`.
 - If a display control is unavailable, treat that as a capability result; do not run the
   whole application as administrator to bypass it.
-- Measured calibration is closed in 2.0, so owning a colorimeter does not open it. The
-  action manifest declares `calibration.method.measured` and `verification.measured`
-  disabled in the wheel and in the packaged binary alike, pending a distinct qualified
-  measurement contract. `calibrate-pro status --closed` prints the reason. Everything
-  2.0 produces is sensorless and labelled estimated, and a missing observation is
-  reported as **Not measured** rather than replaced with a fabricated reading.
+- If the measured method will not open, check that a supported colorimeter is attached and
+  that a display is selected. `calibrate-pro status --closed` prints the reason the
+  resolver gave for every action that is currently unavailable.
+- A measurement run that refuses before it starts is reporting that the display is loading
+  a gamma table other than identity. Clear the correction in whatever loaded it and start
+  the run again. Calibrate Pro reads that table and never writes to it, and the check does
+  not cover a DWM LUT, a colour-managed application's own profile, or a correction running
+  inside the monitor.
+- Sensorless results remain estimates derived from a panel record rather than measurements
+  of the attached unit, and a missing observation is reported as **Not measured** rather
+  than replaced with a fabricated reading.
 - Report defects through [GitHub Issues](https://github.com/HarperZ9/calibrate-pro/issues)
   and suspected vulnerabilities through the repository's private Security Advisory
   form.

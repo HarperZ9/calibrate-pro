@@ -289,3 +289,30 @@ to print a number it cannot source. The launch test confirmed it holds under rea
 conditions on an unrecognized panel. That discipline is why findings 1 through 3 are
 visible from inside the product rather than hidden behind plausible defaults, and it is
 the reason the loop is closed rather than shipped unqualified.
+
+## Addendum, 2026-09-05: what the branch changed after this test ran
+
+Everything above describes the frozen `CalibratePro-2.0.0-win64.zip` built from `979bf55`,
+and it is left as the record of that artifact. `feat/flagship-completion-20260904` has since
+built the qualification the two hardcoded literals were standing in for, so the following
+statements in the body no longer describe the tree.
+
+- `session.py` no longer hardcodes `measured_qualified=False`. The property now reads a
+  wired measurement port together with what the capability probe found on the selected
+  display, so a session answers True when an instrument actually answered on USB.
+- `action-capabilities.json` declares `calibration.method.measured`, `calibration.measure`
+  and `verification.measured` conditional in the wheel and in the frozen binary. Their
+  reasons name the conditions rather than a pending contract.
+- The measured path exists end to end: `application/measurement.py` runs the ramps,
+  `adapters/qt_patch_presenter.py` puts the patches on the selected screen,
+  `application/correction_state.py` refuses a run against a display that is loading a gamma
+  table other than identity, and `application/measured_verification.py` reports the result
+  from a second reading.
+- The window carries a Measure Display control and a measured method card that perform.
+  The terminal still has no measure command, so item 7's observation about CLI reach is
+  unchanged for the measured path.
+
+Item 4 of the recommendations is therefore closed by construction rather than by deriving
+the literals: there are no literals left to derive. Items 5 through 7 remain open. The
+acceptance run against a real display and a real colorimeter has not been performed, so
+nothing here reports an instrument result.

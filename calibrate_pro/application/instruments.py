@@ -39,6 +39,12 @@ NO_PORT_REASON = "this session was built without an instrument port"
 #: names what was searched, so the operator knows the search happened.
 NO_DEVICE_REASON = "no supported colorimeter answered on USB"
 
+#: Most negative tristimulus value a reading may carry. A dark-calibrated
+#: sensor subtracts its own floor, so its noise crosses zero on a black patch
+#: and a small negative is a real reading rather than a fault. Refusing those
+#: would fail the first patch of every run on a display with a deep black.
+MINIMUM_TRISTIMULUS = -0.01
+
 #: Largest tristimulus value a reading may carry, in cd/m2 for Y. A real panel
 #: tops out far below this. The bound exists so a driver returning a garbage
 #: word is refused at the boundary rather than travelling into a report.
@@ -79,8 +85,8 @@ class InstrumentReading:
                 raise InstrumentError("xyz values must be exact floats")
             if not math.isfinite(value):
                 raise InstrumentError("xyz values must be finite")
-            if value < 0.0 or value > MAXIMUM_TRISTIMULUS:
-                raise InstrumentError(f"xyz values must fall within 0 and {MAXIMUM_TRISTIMULUS}")
+            if value < MINIMUM_TRISTIMULUS or value > MAXIMUM_TRISTIMULUS:
+                raise InstrumentError(f"xyz values must fall within {MINIMUM_TRISTIMULUS} and {MAXIMUM_TRISTIMULUS}")
         if isinstance(self.integration_seconds, bool) or not isinstance(self.integration_seconds, float):
             raise InstrumentError("integration_seconds must be an exact float")
         if not math.isfinite(self.integration_seconds) or self.integration_seconds < 0.0:
@@ -281,6 +287,7 @@ class UsbInstrumentSource:
 
 __all__ = [
     "MAXIMUM_TRISTIMULUS",
+    "MINIMUM_TRISTIMULUS",
     "NO_DEVICE_REASON",
     "NO_PORT_REASON",
     "ConnectedInstrument",

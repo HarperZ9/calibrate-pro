@@ -24,9 +24,14 @@ from calibrate_pro.commands.catalog import banner, list_panels, list_targets, pa
 #: What a declined command exits with, matching the session driver.
 REFUSED = 2
 
-#: Names whose work is one declared action this build has not qualified. Pairing
-#: them is what lets a refusal cite the resolver rather than restate a policy,
-#: which would give the same decision two places to drift from.
+#: Names whose work is one declared action no command here drives. Pairing them
+#: is what lets a refusal cite the resolver rather than restate a policy, which
+#: would give the same decision two places to drift from.
+#:
+#: 'native-calibrate' and 'refine' are the two whose action the window does
+#: perform. A terminal declining them is reporting the absence of a command
+#: rather than a closed capability, which is why the sentence below names the
+#: terminal and the resolver line is qualified by the session it was read from.
 #:
 #: 'patterns' is here for that reason rather than as a name from an earlier
 #: release. The window routes patterns.open through the resolver and the frozen
@@ -69,8 +74,9 @@ def _declared_refusal(command: str, action_id: str) -> int:
 
     resolved = build_production_service().resolve(action_id)
     print(banner())
-    print(f"\n'{command}' depends on {action_id}, which this build does not perform.")
-    print(f"Declared reason: {resolved.reason}")
+    print(f"\n'{command}' was a direct action in an earlier release. Its work is now")
+    print(f"{action_id}, which no command in this terminal drives.")
+    print(f"Declared reason, read from a session that has taken no steps: {resolved.reason}")
     print(f"\n{_UNTOUCHED}")
     return REFUSED
 

@@ -14,10 +14,18 @@ from calibrate_pro.workflow import CapabilityState
 
 
 class CharacterizationKind(str, Enum):
-    """The source of a display characterization used by Phase 0/1."""
+    """Where a session's description of a display came from.
+
+    The first three describe a model. A matched record names the product, the
+    generic record names a nominal sRGB panel, and unknown names nothing.
+    MEASURED is the one member that describes the unit on the desk, and it is
+    reachable only through an instrument run, so no path that resolves a panel
+    from a database can produce it.
+    """
 
     MATCHED = "matched"
     EXPLICIT_GENERIC = "explicit_generic"
+    MEASURED = "measured"
     UNKNOWN = "unknown"
 
 

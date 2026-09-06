@@ -33,6 +33,7 @@ EXPECTED_ACTION_IDS = {
     "calibration.target.gamma", "calibration.target.hdr",
     "calibration.preset.srgb_web", "calibration.preset.rec709", "calibration.preset.dci_p3",
     "calibration.preset.hdr10", "calibration.preset.photography",
+    "calibration.measure",
     "calibration.generate", "calibration.preview", "calibration.confirm_plan",
     "calibration.decline_plan", "calibration.apply", "fake_acceptance.apply",
     "calibration.all",
@@ -66,22 +67,22 @@ EXPECTED_ENABLED_POLICY_IDS = {
 
 EXPECTED_CONDITIONAL_POLICY_IDS = {
     "calibration.open_for_display", "display.characterization.use_generic", "workflow.select_display",
-    "calibration.method.sensorless",
+    "calibration.method.sensorless", "calibration.method.measured",
     "calibration.target.gamut", "calibration.target.whitepoint", "calibration.target.custom_cct",
     "calibration.target.gamma",
     "calibration.preset.srgb_web", "calibration.preset.rec709", "calibration.preset.dci_p3",
     "calibration.preset.photography",
-    "calibration.generate", "calibration.preview", "calibration.confirm_plan",
+    "calibration.measure", "calibration.generate", "calibration.preview", "calibration.confirm_plan",
     "calibration.decline_plan", "calibration.apply", "fake_acceptance.apply",
-    "verification.sensorless", "report.save",
+    "verification.sensorless", "verification.measured", "report.save",
     "export.active.cube", "export.active.3dlut", "export.active.png", "export.active.icc",
     "export.active.mpv", "export.active.obs", "profile.export",
     "settings.lut_size", "settings.output_directory", "diagnostics.bundle.create",
 }
 
 EXPECTED_DISABLED_POLICY_IDS = {
-    "calibration.method.measured", "calibration.method.hybrid", "calibration.target.hdr",
-    "calibration.preset.hdr10", "verification.measured", "settings.hdr",
+    "calibration.method.hybrid", "calibration.target.hdr",
+    "calibration.preset.hdr10", "settings.hdr",
     "panel_profile.edid.create", "panel_profile.import", "display.restore_defaults",
     "profile.install", "profile.rename", "profile.generate_all", "profile.activate", "profile.delete",
     "patterns.open",
@@ -142,6 +143,7 @@ EXPECTED_SURFACES_BY_ACTION = {
     "calibration.preset.dci_p3": {"calibrate.preset.dci_p3"},
     "calibration.preset.hdr10": {"calibrate.preset.hdr10"},
     "calibration.preset.photography": {"calibrate.preset.photography"},
+    "calibration.measure": {"calibrate.measure"},
     "calibration.generate": {"calibrate.generate"},
     "calibration.preview": {"calibrate.preview"},
     "calibration.confirm_plan": {"dialog.plan.accept"},
@@ -223,8 +225,8 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 30,
-        "disabled": 33,
+        "conditional": 33,
+        "disabled": 31,
         "hidden": 10,
     }
     assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
@@ -1003,14 +1005,82 @@ def test_all_seventeen_ddc_actions_remain_phase_two_disabled_when_qualified():
         assert registry.resolve(action_id, context).disposition is ActionDisposition.DISABLED
 
 
-def test_phase_two_import_measured_and_physical_actions_remain_disabled_when_qualified():
+def test_phase_two_import_and_physical_actions_remain_disabled_when_qualified():
     registry = ActionRegistry.load_default()
     context = _context(validated_import_ready=True, physical_apply_qualified=True, measured_qualified=True)
 
     for action_id in (
         "panel_profile.import",
         "display.restore_defaults",
-        "calibration.method.measured",
-        "verification.measured",
+        "calibration.method.hybrid",
     ):
         assert registry.resolve(action_id, context).disposition is ActionDisposition.DISABLED
+
+
+def test_measured_method_and_run_are_offered_to_a_session_holding_an_instrument():
+    registry = ActionRegistry.load_default()
+    context = _context(stage=WorkflowStage.METHOD, measured_qualified=True, sealed_plan_sha256=None)
+
+    assert registry.resolve("calibration.method.measured", context).disposition is ActionDisposition.ENABLED
+    measuring = replace(context, stage=WorkflowStage.PREVIEW, selected_method=CalibrationMethod.MEASURED)
+    assert registry.resolve("calibration.measure", measuring).disposition is ActionDisposition.ENABLED
+
+
+def test_measured_run_is_withheld_from_a_session_holding_a_sealed_plan():
+    """A run records a characterization, which breaks the seal it would drop."""
+    registry = ActionRegistry.load_default()
+    context = _context(selected_method=CalibrationMethod.MEASURED, sealed_plan_sha256="b" * 64)
+
+    assert registry.resolve("calibration.measure", context).disposition is ActionDisposition.DISABLED
+
+
+def test_measured_run_is_withheld_without_an_instrument():
+    registry = ActionRegistry.load_default()
+    context = _context(
+        selected_method=CalibrationMethod.MEASURED,
+        sealed_plan_sha256=None,
+        measured_qualified=False,
+    )
+
+    assert registry.resolve("calibration.measure", context).disposition is ActionDisposition.DISABLED
+
+
+def test_measured_verification_needs_a_measured_run_rather_than_only_an_instrument():
+    """An instrument alone does not make a session's characterization measured."""
+    registry = ActionRegistry.load_default()
+    predicted = _context(
+        stage=WorkflowStage.VERIFY,
+        selected_method=CalibrationMethod.MEASURED,
+        characterization_kind=CharacterizationKind.MATCHED,
+        confirmation_state="confirmed",
+    )
+    assert registry.resolve("verification.measured", predicted).disposition is ActionDisposition.DISABLED
+
+    measured = replace(predicted, characterization_kind=CharacterizationKind.MEASURED)
+    assert registry.resolve("verification.measured", measured).disposition is ActionDisposition.ENABLED
+
+
+def test_predicted_verification_is_withheld_once_a_measured_result_exists():
+    """A model may not overwrite an instrument reading in the accuracy field."""
+    registry = ActionRegistry.load_default()
+    context = _context(
+        stage=WorkflowStage.VERIFY,
+        confirmation_state="confirmed",
+        verification_evidence=EvidenceKind.MEASURED,
+    )
+
+    assert registry.resolve("verification.sensorless", context).disposition is ActionDisposition.DISABLED
+
+
+def test_measured_verification_repeats_over_its_own_earlier_result():
+    """Reading the display twice is a repeat, not the downgrade the other way is."""
+    registry = ActionRegistry.load_default()
+    context = _context(
+        stage=WorkflowStage.VERIFY,
+        selected_method=CalibrationMethod.MEASURED,
+        characterization_kind=CharacterizationKind.MEASURED,
+        confirmation_state="confirmed",
+        verification_evidence=EvidenceKind.MEASURED,
+    )
+
+    assert registry.resolve("verification.measured", context).disposition is ActionDisposition.ENABLED

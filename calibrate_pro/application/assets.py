@@ -11,8 +11,13 @@ it places nothing. Files are staged inside the destination, renamed into place,
 and rolled back when any rename fails. A caller never sees a half-written
 bundle reported as a success.
 
-The generated model is sensorless. Every artifact this module produces is
-labeled ``EvidenceKind.ESTIMATED`` and never ``MEASURED``.
+Evidence follows the characterization, not the request. A bundle built from a
+panel record is labeled ``EvidenceKind.ESTIMATED``, because the record
+describes a product rather than the unit in front of the operator. A bundle
+built from an instrument run is labeled ``MEASURED``, and the only way to reach
+that label is to hand ``generate`` the measurement itself. The manifest then
+carries what the run read, so a measured bundle can be told from a sensorless
+one by its contents and not only by a word.
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from types import MappingProxyType
 from calibrate_pro import __version__
 from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.contracts import CharacterizationKind
+from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.core.lut_engine import LUT3D, LUTFormat
 from calibrate_pro.panels.database import (
     GENERIC_PANEL_KEY,
@@ -182,6 +188,30 @@ class GeneratedAssets:
     cube_changes_output: bool = False
     gamma_table_changes_output: bool = False
 
+    #: The instrument run these artifacts were computed from, when there was
+    #: one. Held rather than summarized so the manifest can name the sensor,
+    #: the patch count and the geometry that produced every measured number.
+    measurement: MeasuredCharacterization | None = None
+
+    def __post_init__(self) -> None:
+        """Keep the two measured labels and the measurement itself together.
+
+        A bundle can be labeled measured, be labeled estimated, or carry a
+        measurement. Left independent, a caller assembling this value by hand
+        could set the labels without the run, which is exactly the claim the
+        product must not be able to make. Binding all three here means the
+        label cannot exist without the reading behind it.
+        """
+        measured = self.measurement is not None
+        if measured and type(self.measurement) is not MeasuredCharacterization:
+            raise TypeError("measurement must be a MeasuredCharacterization or None")
+        if (self.characterization_kind is CharacterizationKind.MEASURED) != measured:
+            raise ValueError(
+                "a MEASURED characterization requires the measurement it came from, and nothing else may carry one"
+            )
+        if (self.evidence_kind is EvidenceKind.MEASURED) != measured:
+            raise ValueError("MEASURED evidence requires the measurement it came from, and nothing else may claim it")
+
     def digest_for(self, fmt: AssetFormat) -> str:
         return hashlib.sha256(self.assets[fmt]).hexdigest()
 
@@ -259,12 +289,42 @@ class AssetGenerator:
             return panel, CharacterizationKind.MATCHED
         return self._database.get_fallback(), CharacterizationKind.EXPLICIT_GENERIC
 
-    def generate(self, request: AssetRequest) -> GeneratedAssets:
-        """Generate every requested format from one characterization."""
+    def generate(
+        self,
+        request: AssetRequest,
+        *,
+        measured: MeasuredCharacterization | None = None,
+    ) -> GeneratedAssets:
+        """Generate every requested format from one characterization.
+
+        Without `measured` the characterization comes from the panel database,
+        which describes a product. With it the characterization is the unit the
+        instrument read, and the bundle is labeled MEASURED. There is no third
+        way to reach that label: it is the argument that carries the evidence,
+        so a caller cannot ask for measured artifacts without holding a run.
+
+        `request.panel_key` is left alone on a measured build. The measurement
+        refined a record rather than replacing it, and the manifest naming that
+        record is how a reader knows which starting point was corrected.
+        """
         if not isinstance(request, AssetRequest):
             raise TypeError("request must be an AssetRequest")
+        if measured is not None and type(measured) is not MeasuredCharacterization:
+            raise TypeError("measured must be a MeasuredCharacterization or None")
 
-        panel, characterization_kind = self.resolve_panel(request.panel_key)
+        if measured is None:
+            panel, characterization_kind = self.resolve_panel(request.panel_key)
+            panel_label = panel.name
+            evidence_kind = EvidenceKind.ESTIMATED
+        else:
+            panel = measured.panel
+            # The label carries the marker, not the record. A panel's name is
+            # built from its manufacturer and product fields, so writing a
+            # measured suffix into the record would put it in the field that
+            # names which product this is.
+            panel_label = f"{panel.name} (measured)"
+            characterization_kind = CharacterizationKind.MEASURED
+            evidence_kind = EvidenceKind.MEASURED
         gamut_label, white_point, tone_response, target_hdr = PRESET_TARGETS[request.preset_id]
         gamut_mode = _GAMUT_MODES.get(gamut_label, "native")
         exponent = _TONE_RESPONSE_EXPONENTS.get(tone_response, 2.2)
@@ -272,7 +332,7 @@ class AssetGenerator:
         lut = self._engine.create_3d_lut(
             panel,
             size=request.lut_size,
-            lut_name=f"Calibrate Pro - {panel.name} ({gamut_label} {tone_response})",
+            lut_name=f"Calibrate Pro - {panel_label} ({gamut_label} {tone_response})",
             hdr_mode=bool(target_hdr),
             target=gamut_mode,
             target_gamma=exponent,
@@ -283,9 +343,9 @@ class AssetGenerator:
         return GeneratedAssets(
             request=request,
             assets=MappingProxyType(payloads),
-            panel_name=panel.name,
+            panel_name=panel_label,
             characterization_kind=characterization_kind,
-            evidence_kind=EvidenceKind.ESTIMATED,
+            evidence_kind=evidence_kind,
             gamut_mode=gamut_mode,
             tone_response=tone_response,
             applied_gamma_exponent=exponent,
@@ -293,6 +353,7 @@ class AssetGenerator:
             gamma_table=gamma_table,
             cube_changes_output=_cube_changes_output(lut),
             gamma_table_changes_output=gamma_moves,
+            measurement=measured,
         )
 
     def _render(
@@ -457,7 +518,36 @@ def build_manifest(generated: GeneratedAssets) -> bytes:
             for fmt in sorted(generated.assets, key=lambda member: member.value)
         ],
     }
+    if generated.measurement is not None:
+        document["measurement"] = _manifest_measurement(generated.measurement)
     return (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _manifest_measurement(measured: MeasuredCharacterization) -> dict[str, object]:
+    """Describe the run a measured bundle came from, in the manifest.
+
+    This is the difference between a bundle that says measured and a bundle
+    that shows it. A reader gets the device, how many patches it read, the
+    geometry those patches were shown at, and the numbers that came back, which
+    is enough to repeat the run and disagree with it.
+
+    Values are rounded because the manifest is compared by digest. Sixteen
+    significant figures of sensor noise would make two runs of the same display
+    differ in a field nobody reads, and the rounding keeps the precision a
+    colorimeter actually delivers.
+    """
+    contrast = measured.contrast_ratio
+    return {
+        "instrument": measured.instrument,
+        "ramp_steps": measured.steps,
+        "patch_count": measured.patch_count,
+        "patch_geometry": measured.patch_geometry,
+        "white_luminance_cd_m2": round(measured.white_luminance, 4),
+        "black_luminance_cd_m2": round(measured.black_luminance, 4),
+        "contrast_ratio": None if contrast is None else round(contrast, 1),
+        "white_xy": [round(value, 6) for value in measured.white_xy],
+        "gamma": [round(value, 4) for value in measured.gamma],
+    }
 
 
 def _write_durable(path: Path, payload: bytes) -> None:

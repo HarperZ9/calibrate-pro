@@ -87,6 +87,15 @@ Four defects moved pixels rather than a readout.
 
 ## New in this release
 
+- Measured calibration, end to end. With a supported colorimeter attached, the window
+  measures the selected display over four 17-step ramps at full field, records the reading
+  as the session's characterization, and generates every later plan from it. The run is
+  qualified first: the display's video card gamma table has to read back as identity, or
+  the run refuses and says how far from identity the table sat.
+- Measured verification. Once a plan is confirmed or applied, the instrument reads the
+  display again and the accuracy figures come from that reading. A session holding a
+  measured result is refused sensorless verification, so a model cannot write over an
+  instrument's answer in the same field.
 - A headless calibration session. `detect`, `status`, `verify`, `generate-profiles`, and
   `profiles` drive the same actions the window drives, over one service, and a refusal
   arrives in the words the session refused it in. `CalibrateProCLI.exe` answers nine
@@ -164,6 +173,7 @@ Sensorless results are estimates derived from characterization inputs; they are 
 
 - The packaged desktop release targets Windows x64.
 - Display controls differ by monitor and driver; unsupported controls fail closed.
-- Measured calibration is closed in 2.0. The action manifest declares `calibration.method.measured` and `verification.measured` disabled in both builds, pending a distinct qualified measurement contract, so a supported colorimeter does not open it. Every result 2.0 produces is sensorless and labelled estimated.
+- Measured calibration runs from the desktop window only. The terminal has no measure command in 2.0, and `native-calibrate` and `refine` decline there and name the action behind them.
+- A measurement run is refused while the display is loading a gamma table other than identity, and clearing that table is left to whatever loaded it. The check reads the video card table, not a DWM LUT, a colour-managed application's own profile, or a correction running inside the monitor.
 - DWM LUT application remains unavailable unless authoritative prior-state capture is possible.
 - Calibrate Pro does not promise a particular accuracy, gamut, or luminance result without recorded measurements from the attached display.

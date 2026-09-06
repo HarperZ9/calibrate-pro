@@ -63,10 +63,29 @@ def adopt(state: SessionState, display_id: str | None) -> WorkflowController:
             state.characterization_kind = CharacterizationKind.MATCHED
         else:
             state.characterization_kind = CharacterizationKind.UNKNOWN
+    _carry_or_drop_measurement(state)
     controller = WorkflowController(state.capabilities or DENIED_CAPABILITIES)
     if state.selected_display_id is not None:
         controller.detect_complete()
     return controller
+
+
+def _carry_or_drop_measurement(state: SessionState) -> None:
+    """Keep a run only while the display it was taken on is still selected.
+
+    A measurement describes one unit. Selecting a different display and keeping
+    the record would let the next bundle be built from another monitor's light
+    and still be labeled measured, which is the specific false claim the
+    measured path exists to make impossible. Re-selecting the same display
+    keeps the run and restores the kind that goes with it, because adopting a
+    display resets the characterization to whatever detection alone can say.
+    """
+    if state.measured_characterization is None:
+        return
+    if state.measured_display_id == state.selected_display_id:
+        state.characterization_kind = CharacterizationKind.MEASURED
+        return
+    state.discard_measurement()
 
 
 def current_selection(state: SessionState) -> DisplaySelection:

@@ -45,15 +45,19 @@ PUBLIC_SURFACES = (
     "docs/index.html",
 )
 
-#: The two actions that decide whether this build measures anything.
-MEASURED_ACTIONS = frozenset({"calibration.method.measured", "verification.measured"})
+#: The three actions that decide whether this build measures anything: the
+#: method that opens the path, the run that reads the display, and the
+#: verification that reads it again.
+MEASURED_ACTIONS = frozenset({"calibration.method.measured", "calibration.measure", "verification.measured"})
 
 #: Said on a page where a reader will meet the measured mode. The wording differs
 #: per page; this is the part every one of them shares.
 CLOSURE_MARKER = f"closed in {SERIES}"
 
-#: Reads as though buying the instrument is what stands between a reader and a
-#: measured result. It is not: both actions are disabled whatever is plugged in.
+#: Reads as though buying the instrument is the whole of what stands between a
+#: reader and a measured result. That was false while the actions were declared
+#: disabled, and it is still incomplete now that they are conditional, because a
+#: run is refused against a display that is loading a correction.
 HARDWARE_IS_THE_ONLY_GATE = re.compile(
     r"(?:requires|needs)\s+a\s+supported\s+(?:colorimeter|instrument|sensor)",
     re.IGNORECASE,
@@ -403,11 +407,10 @@ def measured_policies() -> set[str]:
 def test_no_public_page_makes_owning_an_instrument_the_thing_that_opens_measurement() -> None:
     """Four pages said a measured workflow requires a supported instrument.
 
-    Each was true of the design and false of the build. Both measured actions are
-    declared disabled in the wheel and in the frozen binary, so an operator who
-    bought the colorimeter the page named would find the method still closed,
-    with a reason that never mentions hardware. The gate is conditional on the
-    manifest so that the sentence becomes sayable again on the day it is true.
+    Each was true of the design and false of the build it shipped in, where both
+    measured actions were declared disabled whatever was plugged in. The gate
+    reads the manifest rather than a date so that the sentence became sayable
+    again on the day it was true, and closes again if the actions are ever shut.
     """
     if measured_policies() != {"disabled"}:
         return

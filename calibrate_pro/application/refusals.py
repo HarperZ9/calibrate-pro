@@ -22,6 +22,8 @@ NOT_A_UI_ACTION = "NOT_A_UI_ACTION"
 NO_SELECTED_PROFILE = "NO_SELECTED_PROFILE"
 PROFILE_SEAL_BROKEN = "PROFILE_SEAL_BROKEN"
 PROFILE_UNREADABLE = "PROFILE_UNREADABLE"
+NO_MEASUREMENT = "NO_MEASUREMENT"
+MEASUREMENT_REFUSED = "MEASUREMENT_REFUSED"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -157,6 +159,38 @@ def transition_rejected(reason: str) -> ActionFailure:
     return policy_refusal(SESSION_TRANSITION_REJECTED, reason, _COMPLETE_EARLIER_STEPS)
 
 
+def no_measurement() -> ActionFailure:
+    """Refuse measured artifacts to a session that holds no run for its display.
+
+    This covers two states with one answer, because the operator's next move is
+    the same for both: no measurement has been taken, or one was taken on a
+    display that is no longer selected and was dropped with it.
+    """
+    return policy_refusal(
+        NO_MEASUREMENT,
+        "This session holds no instrument measurement of the selected display.",
+        "Run a measurement on this display, or choose the sensorless method.",
+    )
+
+
+def measurement_refused(reason: str) -> ActionFailure:
+    """Report a run the instrument or the operator stopped.
+
+    Retryable, unlike most refusals here. A run ends early for reasons that
+    pass: an unplugged sensor, a patch window the operator closed, a reading
+    the arithmetic could not turn into a display. The reason comes from the
+    measurement core and is passed through rather than summarized, because a
+    generic message would hide which of those it was.
+    """
+    return ActionFailure(
+        code=MEASUREMENT_REFUSED,
+        summary=reason,
+        retryable=True,
+        next_action="Check the instrument and the patch window, then measure again.",
+        category="measurement",
+    )
+
+
 def export_failed() -> ActionFailure:
     """Report a publish the filesystem refused, which a retry might fix."""
     return ActionFailure(
@@ -170,10 +204,12 @@ def export_failed() -> ActionFailure:
 
 __all__ = [
     "EXPORT_FAILED",
+    "MEASUREMENT_REFUSED",
     "NO_DETECTION",
     "NOT_A_UI_ACTION",
     "NO_EXPORT_DIRECTORY",
     "NO_HANDLER",
+    "NO_MEASUREMENT",
     "NO_SEALED_PLAN",
     "NO_SELECTED_PROFILE",
     "PROFILE_SEAL_BROKEN",
@@ -182,9 +218,11 @@ __all__ = [
     "UNKNOWN_DISPLAY",
     "export_failed",
     "incomplete_setup",
+    "measurement_refused",
     "no_display_selected",
     "no_export_directory",
     "no_handler",
+    "no_measurement",
     "no_sealed_plan",
     "no_such_asset",
     "no_such_profile",

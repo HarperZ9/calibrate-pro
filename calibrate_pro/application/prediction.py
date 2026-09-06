@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from calibrate_pro.application.actions import PRESET_TARGETS
-from calibrate_pro.application.results import PredictedPatch, VerificationResult
+from calibrate_pro.application.results import VerificationResult, VerifiedPatch
 from calibrate_pro.panels.panel_types import PanelCharacterization
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
@@ -68,7 +68,7 @@ def _colour(patch: dict[str, Any], key: str) -> tuple[float, float, float]:
     return (float(value[0]), float(value[1]), float(value[2]))
 
 
-def _predicted_patch(patch: object) -> PredictedPatch:
+def _predicted_patch(patch: object) -> VerifiedPatch:
     """Restate one simulated patch, refusing a shape a surface cannot render.
 
     The check is here rather than in the surface because a missing field means
@@ -83,7 +83,7 @@ def _predicted_patch(patch: object) -> PredictedPatch:
     delta_e = patch.get("delta_e")
     if type(delta_e) is not float:
         raise ValueError(f"accuracy model returned no delta_e for {name}")
-    return PredictedPatch(
+    return VerifiedPatch(
         name=name,
         reference_srgb=_colour(patch, "ref_srgb"),
         displayed_lab=_colour(patch, "displayed_lab"),

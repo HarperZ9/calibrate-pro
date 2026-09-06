@@ -26,6 +26,7 @@ from calibrate_pro.core.color_math import (
     xyz_to_cam16,
     xyz_to_lab,
 )
+from calibrate_pro.core.colorchecker import COLORCHECKER_PATCHES
 from calibrate_pro.core.icc_profile import ICCProfile, create_display_profile
 from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
 from calibrate_pro.panels.database import (
@@ -48,35 +49,11 @@ class ColorPatch:
     srgb: tuple[float, float, float]  # sRGB values [0, 1]
 
 
-# X-Rite ColorChecker Classic reference values
-# Lab values are CIE D50 illuminant (standard for color science)
-# sRGB values precisely computed via Lab D50 -> XYZ D50 -> Bradford D65 -> sRGB
-COLORCHECKER_CLASSIC = [
-    ColorPatch("Dark Skin", (37.986, 13.555, 14.059), (0.453, 0.317, 0.264)),
-    ColorPatch("Light Skin", (65.711, 18.130, 17.810), (0.779, 0.577, 0.505)),
-    ColorPatch("Blue Sky", (49.927, -4.880, -21.925), (0.355, 0.480, 0.611)),
-    ColorPatch("Foliage", (43.139, -13.095, 21.905), (0.352, 0.422, 0.253)),
-    ColorPatch("Blue Flower", (55.112, 8.844, -25.399), (0.508, 0.502, 0.691)),
-    ColorPatch("Bluish Green", (70.719, -33.397, -0.199), (0.362, 0.745, 0.675)),
-    ColorPatch("Orange", (62.661, 36.067, 57.096), (0.879, 0.485, 0.183)),
-    ColorPatch("Purplish Blue", (40.020, 10.410, -45.964), (0.266, 0.358, 0.667)),
-    ColorPatch("Moderate Red", (51.124, 48.239, 16.248), (0.778, 0.321, 0.381)),
-    ColorPatch("Purple", (30.325, 22.976, -21.587), (0.367, 0.227, 0.414)),
-    ColorPatch("Yellow Green", (72.532, -23.709, 57.255), (0.623, 0.741, 0.246)),
-    ColorPatch("Orange Yellow", (71.941, 19.363, 67.857), (0.904, 0.634, 0.154)),
-    ColorPatch("Blue", (28.778, 14.179, -50.297), (0.139, 0.248, 0.577)),
-    ColorPatch("Green", (55.261, -38.342, 31.370), (0.262, 0.584, 0.291)),
-    ColorPatch("Red", (42.101, 53.378, 28.190), (0.705, 0.191, 0.223)),
-    ColorPatch("Yellow", (81.733, 4.039, 79.819), (0.934, 0.778, 0.077)),
-    ColorPatch("Magenta", (51.935, 49.986, -14.574), (0.757, 0.329, 0.590)),
-    ColorPatch("Cyan", (51.038, -28.631, -28.638), (0.000, 0.534, 0.665)),
-    ColorPatch("White", (96.539, -0.425, 1.186), (0.961, 0.962, 0.952)),
-    ColorPatch("Neutral 8", (81.257, -0.638, -0.335), (0.786, 0.793, 0.794)),
-    ColorPatch("Neutral 6.5", (66.766, -0.734, -0.504), (0.630, 0.639, 0.640)),
-    ColorPatch("Neutral 5", (50.867, -0.153, -0.270), (0.473, 0.475, 0.477)),
-    ColorPatch("Neutral 3.5", (35.656, -0.421, -1.231), (0.323, 0.330, 0.336)),
-    ColorPatch("Black", (20.461, -0.079, -0.973), (0.191, 0.194, 0.199)),
-]
+# The chart is defined once, in calibrate_pro.core.colorchecker, because a
+# patch's reference Lab and the signal that drives a display to it are derived
+# from each other. Copies of the pair had drifted apart on ten patches, which
+# graded a display reproducing sRGB exactly at 2.27 dE2000 average.
+COLORCHECKER_CLASSIC = [ColorPatch(patch.name, patch.lab_d50, patch.srgb) for patch in COLORCHECKER_PATCHES]
 
 
 def get_colorchecker_reference() -> list[ColorPatch]:

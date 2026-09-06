@@ -140,6 +140,33 @@
       "unavailable_reason": "Declining requires a live one-use token for the current capability generation."
     },
     {
+      "action_id": "calibration.measure",
+      "surfaces": [
+        "calibrate.measure"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "preview"
+      ],
+      "required_capabilities": [
+        "measured_qualified",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "calibration_measure",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "measured"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Measuring the display requires the measured method, a connected colorimeter, no live plan, and a ready journal."
+    },
+    {
       "action_id": "calibration.generate",
       "surfaces": [
         "calibrate.generate"
@@ -160,10 +187,11 @@
       "required_resources": [],
       "receipt_required": true,
       "evidence_modes": [
-        "estimated"
+        "estimated",
+        "measured"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Generation requires a selected characterized display, a valid sensorless non-HDR target, no live plan, and a ready journal."
+      "unavailable_reason": "Generation requires a selected characterized display, a valid non-HDR target, no live plan, and a ready journal."
     },
     {
       "action_id": "calibration.method.hybrid",
@@ -201,10 +229,10 @@
         "method"
       ],
       "required_capabilities": [
-        "measured_contract"
+        "measured_qualified"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "calibration_method_measured",
       "required_modules": [
         "calibrate_pro.application.service"
@@ -215,7 +243,7 @@
         "measured"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Measured calibration is disabled pending a distinct qualified measurement contract."
+      "unavailable_reason": "Measured calibration requires a selected characterized display and a connected colorimeter."
     },
     {
       "action_id": "calibration.method.sensorless",
@@ -2550,21 +2578,22 @@
         "verify"
       ],
       "required_capabilities": [
-        "measured_contract"
+        "measured_qualified",
+        "journal_ready"
       ],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "verification_measured",
       "required_modules": [
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "read_only"
+        "measured"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Measured calibration is disabled pending a distinct qualified measurement contract."
+      "unavailable_reason": "Measured verification requires a connected colorimeter, a measured plan generated for the selected display, and truthful confirmation or apply evidence."
     },
     {
       "action_id": "verification.sensorless",

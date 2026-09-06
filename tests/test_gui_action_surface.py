@@ -518,13 +518,15 @@ def test_the_verify_page_lists_the_display_the_session_observed(window: object) 
     assert [combo.itemText(index) for index in range(combo.count())] == [FIXTURE_LABEL]
 
 
-def test_measured_verification_states_why_it_is_closed_rather_than_offering_it(window: object) -> None:
+def test_measured_verification_states_why_this_session_cannot_run_it(window: object) -> None:
     """The page used to announce measured verification when a sensor answered.
 
-    The session refuses it in every state, by manifest instruction, so that
-    line said the opposite of what the build does. Reaching past the disabled
-    button is deliberate: a disabled control emits nothing, so invoking its
-    binding is the only way to see what a click would have done.
+    It announced availability from a bus scan of its own, which is a different
+    question from whether the session would perform the action. Nothing is wired
+    to an instrument in this fixture, so the resolver closes it and the button
+    carries that reason. Reaching past the disabled button is deliberate: a
+    disabled control emits nothing, so invoking its binding is the only way to
+    see what a click would have done.
     """
     binding = verify_controls(window)["verification.measured"]
     reason = window.service.resolve("verification.measured").reason

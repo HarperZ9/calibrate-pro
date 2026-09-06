@@ -125,12 +125,12 @@ inspectable, but its model score does not establish the accuracy of the attached
 
 **What sensorless calibration CANNOT do:** Guarantee measured accuracy. Only a colorimeter measurement on YOUR specific panel tells you the actual result.
 
-**Recommendation:** Use the GUI to review the assumptions and exact plan. Measured results are
-closed in 2.0, and a colorimeter does not open them: the action manifest declares
-`calibration.method.measured` and `verification.measured` disabled in the wheel and in the
-packaged binary, pending a distinct qualified measurement contract. Generate and explicitly
-confirm a fresh plan for every display change; legacy direct-action CLI names are proposal-only
-and exit without changing display state.
+**Recommendation:** Use the window to review the assumptions and the exact plan before
+generating. With a supported colorimeter attached, measure the display first. The run
+replaces the panel record the plan is derived from, and measured verification then reports
+the result from a second reading rather than from a model. Generate and explicitly confirm
+a fresh plan for every display change; legacy direct-action CLI names are proposal-only and
+exit without changing display state.
 
 ---
 

@@ -22,13 +22,14 @@ from collections.abc import Callable
 
 from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.assets import AssetGenerator, AssetRequest, GeneratedAssets
+from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.planning import (
     DEFAULT_ASSET_FORMATS,
     build_apply_plan,
     output_filenames,
     plan_digest,
 )
-from calibrate_pro.application.refusals import incomplete_setup
+from calibrate_pro.application.refusals import incomplete_setup, no_measurement
 from calibrate_pro.application.results import GenerationResult
 from calibrate_pro.application.session import SessionState
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY
@@ -57,6 +58,24 @@ def publishing_plan(
     )
 
 
+def _measurement_for(state: SessionState, method: CalibrationMethod) -> MeasuredCharacterization | None:
+    """Decide which characterization this bundle is allowed to be built from.
+
+    The measured method must hand the generator a run of the display that is
+    selected right now, and it refuses rather than falling back. A fallback is
+    what would make the failure invisible: the session would keep the word
+    measured on the button it was asked from and publish an estimate.
+
+    The sensorless method passes None even when a run is held, so choosing it
+    after measuring produces a sensorless bundle labeled as one.
+    """
+    if method is not CalibrationMethod.MEASURED:
+        return None
+    if not state.measurement_matches_selection:
+        raise no_measurement()
+    return state.measured_characterization
+
+
 def generate_bundle(
     state: SessionState,
     generator: AssetGenerator,
@@ -82,7 +101,7 @@ def generate_bundle(
         formats=DEFAULT_ASSET_FORMATS,
         lut_size=lut_size,
     )
-    generated = generator.generate(request)
+    generated = generator.generate(request, measured=_measurement_for(state, method))
     filenames = output_filenames(request)
     build = publishing_plan if plan_builder is None else plan_builder
     plan = build(display_id, method, preset_id, filenames, generated)

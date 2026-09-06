@@ -100,7 +100,11 @@
       </div>
       <div class="card">
         <h3>Sensorless Mode</h3>
-        <p>Build an estimated plan from panel characterization without claiming measured accuracy. Measured calibration is closed in 2.0, so every result this release produces is sensorless and labelled estimated.</p>
+        <p>Build an estimated plan from panel characterization when no instrument is attached. Sensorless results are labelled estimated and are never presented as measurements of the attached unit.</p>
+      </div>
+      <div class="card">
+        <h3>Measured Mode</h3>
+        <p>With a supported colorimeter attached, read the selected display over four 17-step ramps and generate from that reading. A run is refused while the display is loading a correction, so the numbers describe the panel rather than the panel plus somebody else's calibration.</p>
       </div>
       <div class="card">
         <h3>Read-Only Monitoring</h3>

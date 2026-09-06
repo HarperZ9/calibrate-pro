@@ -170,6 +170,11 @@ def characterization_note(selection: DisplaySelection | None) -> str:
             "This session is using the generic characterization. It describes a nominal sRGB panel "
             "rather than this unit, and every figure derived from it carries that provenance."
         )
+    if kind is CharacterizationKind.MEASURED:
+        return (
+            "This display was measured in this session, so what the session holds describes the unit "
+            "on the desk rather than the product. Selecting another display drops the run with it."
+        )
     return (
         f"Characterized from the bundled panel record {selection.panel_key}, which describes the "
         "product rather than the unit on the desk."
@@ -1499,8 +1504,10 @@ class CalibrateProWindow(QMainWindow):
                     self._binder,
                     select_display=self.service.select_display,
                     select_sensorless=partial(self.service.select_method, CalibrationMethod.SENSORLESS),
+                    select_measured=partial(self.service.select_method, CalibrationMethod.MEASURED),
                     set_target=self.service.set_target,
                     unhandled=self.service.unhandled,
+                    measure=self.service.measure,
                     generate=self.service.generate,
                     preview=self.service.preview,
                     apply_plan=_apply_operation(self.service),
@@ -1520,7 +1527,7 @@ class CalibrateProWindow(QMainWindow):
                     self._binder,
                     select_display=self.service.select_display,
                     run_sensorless=self.service.verify,
-                    run_measured=partial(self.service.unhandled, "verification.measured"),
+                    run_measured=self.service.verify_measured,
                     save_report=self.service.export,
                 )
                 self.stack.addWidget(self.verify_page)  # 2

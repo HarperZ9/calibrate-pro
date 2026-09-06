@@ -734,10 +734,12 @@ class VerifyPage(QWidget):
     ) -> None:
         """Hand every control here to the action it stands for.
 
-        The measured button is bound to an action this build has no handler
-        for. That is the point: what appears on it is the manifest's reason for
-        holding measured verification closed, in place of the availability
-        claim the page used to make after finding a sensor on the bus.
+        Both verification buttons perform, and both draw into the same figures,
+        so whichever ran last is what the page shows. Which one is offered is
+        the resolver's answer rather than the page's: a session holding a
+        measured result is refused the predicted one, because a model writing
+        over a reading would replace what an instrument found with what a
+        calculation expects, in the same accuracy field.
 
         The save button opens no dialog. Saving requires an output directory
         that has already been configured and checked, which is a separate
@@ -761,7 +763,13 @@ class VerifyPage(QWidget):
             on_success=self.render_verification,
             hides=False,
         )
-        binder.bind("verification.measured", self._btn_measured, run_measured, hides=False)
+        binder.bind(
+            "verification.measured",
+            self._btn_measured,
+            run_measured,
+            on_success=self.render_verification,
+            hides=False,
+        )
         binder.bind(
             "report.save",
             self._btn_export,

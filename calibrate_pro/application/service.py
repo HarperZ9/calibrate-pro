@@ -5,12 +5,20 @@ detector, a generator, an exporter, or the workflow state machine on its own,
 so every state change in a session passes through one resolver, one action
 boundary, and one journal.
 
-This class performs no physical mutation. It holds no adapter, it has no method
-that writes to a display, and the module imports nothing that can. Two
-subclasses add one. The fake composition records what an apply would do, and
-the calibration composition sends it to the display. Both adapters arrive from
-the composition layer, so a session built without one is never handed one, and
-a build with no write route runs this class as written.
+This class performs no physical mutation. It holds no adapter that writes to a
+display and it has no method that does. Two subclasses add one. The fake
+composition records what an apply would do, and the calibration composition
+sends it to the display. Both adapters arrive from the composition layer, so a
+session built without one is never handed one, and a build with no write route
+runs this class as written.
+
+A measurement run is the one place this class reaches outside the process. It
+opens the colorimeter the composition wired and puts a patch window on the
+display being measured. Neither changes display state: the window paints a
+colour and the instrument reads the light, and both close before the run
+returns. The Qt window and the platform gamma table reader are imported inside
+the method bodies that need them, so a session that only publishes files never
+loads either, and the shipped build can still prove that.
 """
 
 from __future__ import annotations
@@ -20,19 +28,36 @@ from pathlib import Path
 
 from calibrate_pro.application.assets import AssetGenerator, ExportBundle
 from calibrate_pro.application.contracts import CharacterizationKind
+from calibrate_pro.application.correction_state import qualify_uncorrected
 from calibrate_pro.application.detection import DisplayDetector
 from calibrate_pro.application.diagnostics import DiagnosticsActions
 from calibrate_pro.application.exporting import export_bundle, export_single_format
 from calibrate_pro.application.generation import generate_bundle
-from calibrate_pro.application.instruments import InstrumentSource, NoInstrumentSource
+from calibrate_pro.application.instruments import (
+    InstrumentPort,
+    InstrumentSource,
+    InstrumentUnavailable,
+    NoInstrumentSource,
+)
 from calibrate_pro.application.journal import DiagnosticBundleManager
+from calibrate_pro.application.measured_verification import uncovered_result
+from calibrate_pro.application.measured_verification import verify_measured as measured_accuracy
+from calibrate_pro.application.measurement import (
+    DEFAULT_RAMP_STEPS,
+    SETTLE_SECONDS,
+    MeasuredCharacterization,
+    MeasurementRefused,
+    PatchPort,
+    measure_characterization,
+)
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.panel_profiles import PanelProfileActions
 from calibrate_pro.application.planning import target_for
-from calibrate_pro.application.prediction import predict_accuracy
+from calibrate_pro.application.prediction import predict_accuracy, target_is_modelled
 from calibrate_pro.application.preferences import PreferenceActions
 from calibrate_pro.application.profile_actions import ProfileActions
 from calibrate_pro.application.refusals import (
+    measurement_refused,
     no_display_selected,
     no_sealed_plan,
     transition_rejected,
@@ -43,6 +68,7 @@ from calibrate_pro.application.results import (
     GenerationResult,
     HdrDisplayState,
     HdrStatus,
+    MeasurementSummary,
     MethodSelection,
     PlanDecision,
     PlanPreview,
@@ -53,7 +79,7 @@ from calibrate_pro.application.runner import SessionActionRunner
 from calibrate_pro.application.selection import DENIED_CAPABILITIES, adopt, current_selection
 from calibrate_pro.application.session import SessionState
 from calibrate_pro.application.surface import SurfaceActions
-from calibrate_pro.panels.database import GENERIC_PANEL_KEY
+from calibrate_pro.panels.database import GENERIC_PANEL_KEY, PanelCharacterization
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
 
@@ -211,6 +237,125 @@ class FunctionalRecoveryService(
             tone_response=tone_response,
         )
 
+    # -- measurement --------------------------------------------------------
+
+    def measure(
+        self,
+        *,
+        steps: int = DEFAULT_RAMP_STEPS,
+        window_fraction: float = 1.0,
+        progress: Callable[[str, float], None] | None = None,
+    ) -> ActionOutcome[MeasurementSummary]:
+        """Read the selected display with the instrument this session found.
+
+        The run replaces the panel record this session would otherwise generate
+        from, so it breaks any seal the session was holding. That is why the
+        gate offers it only while nothing is sealed: a run taken afterwards
+        would drop a bundle the operator is standing in front of.
+        """
+        return self._runner.run(
+            "calibration.measure",
+            lambda: self._measure(steps=steps, window_fraction=window_fraction, progress=progress),
+        )
+
+    def _measure(
+        self,
+        *,
+        steps: int,
+        window_fraction: float,
+        progress: Callable[[str, float], None] | None,
+    ) -> MeasurementSummary:
+        state = self._state
+        display_id = state.selected_display_id
+        if display_id is None:
+            raise no_display_selected()
+        panel, _kind = self._generator.resolve_panel(state.selected_panel_key or GENERIC_PANEL_KEY)
+        try:
+            correction_state = qualify_uncorrected(display_id)
+            measured = self._run_measurement(
+                display_id=display_id,
+                panel=panel,
+                steps=steps,
+                window_fraction=window_fraction,
+                progress=progress,
+            )
+        except MeasurementRefused as exc:
+            # A run that stopped is a refusal carrying a reason, not a defect.
+            # Letting it out as an unexpected error would journal an unplugged
+            # sensor and a closed window the way a crash is journaled.
+            raise measurement_refused(str(exc)) from exc
+        state.record_measurement(measured)
+        self._sealed_plan = None
+        self._transition(self._controller.invalidate_preview)
+        return MeasurementSummary(
+            display_id=display_id,
+            characterization=measured,
+            correction_state=correction_state,
+        )
+
+    def _run_measurement(
+        self,
+        *,
+        display_id: str,
+        panel: PanelCharacterization,
+        steps: int,
+        window_fraction: float,
+        progress: Callable[[str, float], None] | None,
+    ) -> MeasuredCharacterization:
+        """Hold both ports open for one run and close them however it ends.
+
+        The instrument opens first and closes last. Opening it runs the device's
+        own dark calibration, which the operator waits through, and running that
+        behind a fullscreen patch window would black the display out with
+        nothing on it to explain the wait and no event loop pumping to notice an
+        Escape. Opening it first also puts the common failure first: a
+        colorimeter that is not plugged in refuses before anything covers the
+        screen.
+        """
+        instrument = self._open_instrument()
+        try:
+            patches, settle = self._open_patches(display_id, window_fraction)
+            try:
+                return measure_characterization(
+                    instrument=instrument,
+                    patches=patches,
+                    base=panel,
+                    steps=steps,
+                    settle=settle,
+                    progress=progress,
+                )
+            finally:
+                patches.close()
+        finally:
+            instrument.close()
+
+    def _open_instrument(self) -> InstrumentPort:
+        """Open the colorimeter, reporting a missing one as a retryable refusal."""
+        try:
+            return self._instruments.open()
+        except InstrumentUnavailable as exc:
+            raise measurement_refused(str(exc)) from exc
+
+    def _open_patches(self, display_id: str, fraction: float) -> tuple[PatchPort, Callable[[], None]]:
+        """Open a patch window on the display being measured.
+
+        The presenter is imported here rather than at module scope. Importing it
+        above would pull Qt into every session that only publishes files, and
+        the read-only build's import probe reports on exactly that.
+
+        The settle function comes back with the port because waiting has to pump
+        the window's event loop. A plain sleep would leave the requested patch
+        unpainted, and the instrument would read whichever colour was on screen
+        before it.
+        """
+        from calibrate_pro.adapters.qt_patch_presenter import PatchWindowUnavailable, open_patch_window
+
+        try:
+            presenter = open_patch_window(device_name=display_id, fraction=fraction)
+        except PatchWindowUnavailable as exc:
+            raise measurement_refused(str(exc)) from exc
+        return presenter, lambda: presenter.settle(SETTLE_SECONDS)
+
     # -- generation, preview, decision --------------------------------------
 
     def generate(self) -> ActionOutcome[GenerationResult]:
@@ -271,6 +416,83 @@ class FunctionalRecoveryService(
         state.verification_evidence = result.evidence
         self._transition(self._controller.verify_complete)
         return result
+
+    def verify_measured(
+        self,
+        *,
+        window_fraction: float = 1.0,
+        progress: Callable[[str, float], None] | None = None,
+    ) -> ActionOutcome[VerificationResult]:
+        """Read the reference chart off the display and report what it measured."""
+        return self._runner.run(
+            "verification.measured",
+            lambda: self._verify_measured(window_fraction=window_fraction, progress=progress),
+        )
+
+    def _verify_measured(
+        self,
+        *,
+        window_fraction: float,
+        progress: Callable[[str, float], None] | None,
+    ) -> VerificationResult:
+        state = self._state
+        preset_id = state.selected_preset_id
+        if preset_id is None:
+            raise no_sealed_plan()
+        display_id = state.selected_display_id
+        if display_id is None:
+            raise no_display_selected()
+        if not target_is_modelled(preset_id):
+            # Answered without opening anything. The reference chart describes
+            # one target, so a run against any other one reports no figure, and
+            # reaching that answer through the ports would cost the operator a
+            # dark calibration and a blacked-out screen to arrive where the
+            # preset already arrives.
+            result = uncovered_result()
+        else:
+            try:
+                result = self._run_verification(
+                    display_id=display_id,
+                    preset_id=preset_id,
+                    window_fraction=window_fraction,
+                    progress=progress,
+                )
+            except MeasurementRefused as exc:
+                raise measurement_refused(str(exc)) from exc
+        state.verification_evidence = result.evidence
+        self._transition(self._controller.verify_complete)
+        return result
+
+    def _run_verification(
+        self,
+        *,
+        display_id: str,
+        preset_id: str,
+        window_fraction: float,
+        progress: Callable[[str, float], None] | None,
+    ) -> VerificationResult:
+        """Hold both ports open for one chart reading.
+
+        Nothing qualifies the display's correction here, and that is the
+        difference between this and a characterization run. A verification is
+        supposed to read whatever correction is loaded, because that correction
+        is the thing being checked.
+        """
+        instrument = self._open_instrument()
+        try:
+            patches, settle = self._open_patches(display_id, window_fraction)
+            try:
+                return measured_accuracy(
+                    instrument=instrument,
+                    patches=patches,
+                    preset_id=preset_id,
+                    settle=settle,
+                    progress=progress,
+                )
+            finally:
+                patches.close()
+        finally:
+            instrument.close()
 
     def hdr_status(self) -> ActionOutcome[HdrStatus]:
         """Report the HDR switch positions the last detection pass observed."""

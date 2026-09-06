@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel
+from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.recovery import ApplyReceipt
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowStage
@@ -77,6 +78,35 @@ class GenerationResult:
     characterization_kind: CharacterizationKind
     evidence_kind: EvidenceKind
     apply_note: str | None = None
+
+
+@dataclass(frozen=True)
+class MeasurementSummary:
+    """One instrument run of one display, and the state it was taken in.
+
+    ``characterization`` is the record itself rather than a copy of its
+    numbers, so a surface rendering a run and the generator building from it
+    read the same values. It is frozen, which is what lets it leave the session
+    without giving a surface a way back into one.
+
+    ``correction_state`` is what qualified the run. A measurement is only
+    reproducible next to what the display was loading when it was taken, so the
+    sentence that established it travels with the result instead of being left
+    in a log the report cannot reach.
+    """
+
+    display_id: str
+    characterization: MeasuredCharacterization
+    correction_state: str
+
+    @property
+    def instrument(self) -> str:
+        return self.characterization.instrument
+
+    @property
+    def summary(self) -> str:
+        """One line naming the instrument and what it read."""
+        return self.characterization.summary
 
 
 @dataclass(frozen=True)
@@ -163,42 +193,61 @@ class AppliedPlanResult:
 
 
 @dataclass(frozen=True)
-class PredictedPatch:
-    """One reference patch as the accuracy model simulated it.
+class VerifiedPatch:
+    """One reference patch, as this verification found it.
 
-    ``reference_srgb`` is the ColorChecker swatch, ``displayed_lab`` is where
-    the simulated correction chain landed, and ``delta_e`` is the difference the
-    model reported between them. The delta is carried rather than derived
-    because a surface that recomputed it would be showing its own arithmetic
-    under the model's name.
+    ``reference_srgb`` is the ColorChecker swatch and ``displayed_lab`` is where
+    the display landed: simulated through the correction chain on the predicted
+    path, read from the instrument on the measured one. Which of the two it is
+    comes from ``delta_e.evidence`` rather than from the type, so a surface
+    drawing a grid states the origin out of the same field it draws the number
+    from.
+
+    The delta is carried rather than derived because a surface that recomputed
+    it would be showing its own arithmetic under the source's name.
+
+    ``within_target_gamut`` is False for a chart patch the target cannot
+    reproduce. One ColorChecker swatch sits outside sRGB, so the signal sent for
+    it is the clipped one and the difference read back is a property of the
+    chart rather than of the calibration. The patch is still reported, because
+    dropping a named swatch would quietly change what the chart covered.
     """
 
     name: str
     reference_srgb: tuple[float, float, float]
     displayed_lab: tuple[float, float, float]
     delta_e: MetricValue
+    within_target_gamut: bool = True
 
 
 @dataclass(frozen=True)
 class VerificationResult:
     """Accuracy figures and the plain statement of where they came from.
 
-    ``source`` names what was examined. Nothing in this phase examines a
-    display, so the value is the generated plan and the numbers are model
-    output. A target the model does not cover reports no number at all rather
-    than a number carrying a caveat.
+    ``source`` names what was examined. The predicted path examines the plan the
+    session generated and its numbers are model output; the measured path
+    examines the display itself. A target the reference does not cover reports
+    no number at all rather than a number carrying a caveat.
 
-    ``patches`` carries what the model produced per patch. A surface that shows
-    a patch grid draws it from here, which is what keeps the grid describing
-    this result instead of a second simulation the surface ran on its own.
+    ``patches`` carries what the verification produced per patch. A surface that
+    shows a patch grid draws it from here, which is what keeps the grid
+    describing this result instead of a second computation the surface ran on
+    its own.
+
+    ``detail`` is the line a measured run needs and a predicted one does not:
+    the instrument, how many patches it read, and the geometry it read them at.
+    A luminance-derived figure is only reproducible next to those, so they
+    travel with the result rather than being looked up afterwards from a session
+    that may have moved on.
     """
 
     source: str
     evidence: EvidenceKind
     average_delta_e: MetricValue
     maximum_delta_e: MetricValue
-    patches: tuple[PredictedPatch, ...]
+    patches: tuple[VerifiedPatch, ...]
     limitation: str | None = None
+    detail: str | None = None
 
     @property
     def covered(self) -> bool:
@@ -213,13 +262,17 @@ def verification_note(result: VerificationResult) -> str:
     """One sentence saying what produced these figures, for any surface.
 
     A figure carries its limitation when the result records one. Otherwise the
-    sentence names the model and says plainly that nothing was measured, which
-    is the statement that has to sit beside a predicted number wherever it is
-    rendered. Keeping it here is what stops a window and a terminal from
-    wording the same disclosure two ways.
+    sentence names the origin, and on the predicted path it says plainly that
+    nothing was measured. That statement has to sit beside a predicted number
+    wherever it is rendered and would be a false one beside a measured number,
+    so both wordings live here instead of at each surface.
     """
     if result.limitation:
         return result.limitation
+    if result.evidence is EvidenceKind.MEASURED:
+        instrument = result.average_delta_e.source or "an unnamed instrument"
+        detail = f" {result.detail}" if result.detail else ""
+        return f"Measured on this display by {instrument}.{detail}"
     model = result.average_delta_e.source or "an unnamed model"
     return f"Predicted by {model} from the plan this session generated. No display was measured and no sensor was read."
 
@@ -277,11 +330,12 @@ __all__ = [
     "GenerationResult",
     "HdrDisplayState",
     "HdrStatus",
+    "MeasurementSummary",
     "MethodSelection",
     "PlanDecision",
     "PlanPreview",
-    "PredictedPatch",
     "TargetSelection",
     "VerificationResult",
+    "VerifiedPatch",
     "verification_note",
 ]

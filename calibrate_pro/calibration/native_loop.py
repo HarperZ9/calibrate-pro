@@ -31,6 +31,8 @@ from calibrate_pro.core.color_math import (
     srgb_gamma_expand,
     xyz_to_lab,
 )
+from calibrate_pro.core.colorchecker import COLORCHECKER_REF_LAB as _CHART_LAB
+from calibrate_pro.core.colorchecker import COLORCHECKER_SRGB as _CHART_SIGNALS
 from calibrate_pro.core.lut_engine import LUT3D
 
 
@@ -75,61 +77,12 @@ class PatchMeasurement:
     de: float
 
 
-# ColorChecker Classic reference Lab values (D50-adapted)
-COLORCHECKER_REF_LAB = {
-    "Dark Skin": (37.986, 13.555, 14.059),
-    "Light Skin": (65.711, 18.130, 17.810),
-    "Blue Sky": (49.927, -4.880, -21.925),
-    "Foliage": (43.139, -13.095, 21.905),
-    "Blue Flower": (55.112, 8.844, -25.399),
-    "Bluish Green": (70.719, -33.397, -0.199),
-    "Orange": (62.661, 36.067, 57.096),
-    "Purplish Blue": (40.020, 10.410, -45.964),
-    "Moderate Red": (51.124, 48.239, 16.248),
-    "Purple": (30.325, 22.976, -21.587),
-    "Yellow Green": (72.532, -23.709, 57.255),
-    "Orange Yellow": (71.941, 19.363, 67.857),
-    "Blue": (28.778, 14.179, -50.297),
-    "Green": (55.261, -38.342, 31.370),
-    "Red": (42.101, 53.378, 28.190),
-    "Yellow": (81.733, 4.039, 79.819),
-    "Magenta": (51.935, 49.986, -14.574),
-    "Cyan": (51.038, -28.631, -28.638),
-    "White": (96.539, -0.425, 1.186),
-    "Neutral 8": (81.257, -0.638, -0.335),
-    "Neutral 6.5": (66.766, -0.734, -0.504),
-    "Neutral 5": (50.867, -0.153, -0.270),
-    "Neutral 3.5": (35.656, -0.421, -1.231),
-    "Black": (20.461, -0.079, -0.973),
-}
-
-# ColorChecker Classic sRGB values
-COLORCHECKER_SRGB = [
-    ("Dark Skin", 0.453, 0.317, 0.264),
-    ("Light Skin", 0.779, 0.577, 0.505),
-    ("Blue Sky", 0.355, 0.480, 0.611),
-    ("Foliage", 0.352, 0.422, 0.253),
-    ("Blue Flower", 0.508, 0.502, 0.691),
-    ("Bluish Green", 0.362, 0.745, 0.675),
-    ("Orange", 0.879, 0.485, 0.183),
-    ("Purplish Blue", 0.266, 0.358, 0.667),
-    ("Moderate Red", 0.778, 0.321, 0.381),
-    ("Purple", 0.367, 0.227, 0.414),
-    ("Yellow Green", 0.623, 0.741, 0.246),
-    ("Orange Yellow", 0.904, 0.634, 0.154),
-    ("Blue", 0.139, 0.248, 0.577),
-    ("Green", 0.262, 0.584, 0.291),
-    ("Red", 0.752, 0.197, 0.178),
-    ("Yellow", 0.938, 0.857, 0.159),
-    ("Magenta", 0.752, 0.313, 0.577),
-    ("Cyan", 0.121, 0.544, 0.659),
-    ("White", 0.961, 0.961, 0.961),
-    ("Neutral 8", 0.784, 0.784, 0.784),
-    ("Neutral 6.5", 0.584, 0.584, 0.584),
-    ("Neutral 5", 0.420, 0.420, 0.420),
-    ("Neutral 3.5", 0.258, 0.258, 0.258),
-    ("Black", 0.085, 0.085, 0.085),
-]
+# The chart is defined once, in calibrate_pro.core.colorchecker, because a
+# patch's reference Lab and the signal that drives a display to it are derived
+# from each other. Copies of the pair had drifted apart on ten patches, which
+# graded a display reproducing sRGB exactly at 2.27 dE2000 average.
+COLORCHECKER_REF_LAB = _CHART_LAB
+COLORCHECKER_SRGB = _CHART_SIGNALS
 
 
 def compute_ccmx(

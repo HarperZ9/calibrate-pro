@@ -95,6 +95,7 @@ _SOURCE_SENTENCES = {
     CharacterizationKind.MATCHED: "Matched panel characterization.",
     CharacterizationKind.EXPLICIT_GENERIC: "Generic characterization, chosen for this display.",
     CharacterizationKind.UNKNOWN: "No panel matched, so nothing colorimetric is claimed here.",
+    CharacterizationKind.MEASURED: "Measured on this display by an instrument in this session.",
 }
 
 _DIALOG_STYLE = (

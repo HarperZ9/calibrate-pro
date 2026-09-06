@@ -22,6 +22,7 @@ from typing import Literal
 from calibrate_pro.application.actions import ActionContext, ExportFormat, RuntimeMode
 from calibrate_pro.application.assets import AssetFormat, GeneratedAssets
 from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel, EvidenceKind
+from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.profiles import ProfileInspection, ProfileRecord
 from calibrate_pro.workflow import CalibrationMethod, CapabilityState, WorkflowStage
 
@@ -100,6 +101,14 @@ class SessionState:
     actuation_route: bool = False
     measurement_route: bool = False
     instrument_identity: str | None = None
+
+    #: The instrument run this session took, and the display it was taken on.
+    #: The pair is stored rather than the record alone because a measurement
+    #: describes one unit. Carrying the display id alongside it is what lets a
+    #: later generate refuse to build measured artifacts for a display the
+    #: instrument never saw.
+    measured_characterization: MeasuredCharacterization | None = None
+    measured_display_id: str | None = None
 
     def __post_init__(self) -> None:
         if type(self.fake_acceptance) is not bool:
@@ -191,6 +200,38 @@ class SessionState:
         than to the intention to take one.
         """
         return self.measurement_route and self.capabilities is not None and self.capabilities.sensor_available
+
+    @property
+    def measurement_matches_selection(self) -> bool:
+        """Report whether this session holds a run of the display it selected."""
+        return (
+            self.measured_characterization is not None
+            and self.measured_display_id is not None
+            and self.measured_display_id == self.selected_display_id
+        )
+
+    def record_measurement(self, measured: MeasuredCharacterization) -> None:
+        """Take an instrument run as this session's characterization.
+
+        The record, the display it belongs to and the characterization kind are
+        set together, because any two of them without the third describe a
+        session that measured one display and claims another. The seal breaks
+        for the same reason a target change breaks it: whatever was generated
+        before this run described the panel record, not the unit.
+        """
+        if type(measured) is not MeasuredCharacterization:
+            raise TypeError("measured must be a MeasuredCharacterization")
+        if self.selected_display_id is None:
+            raise ValueError("a measurement cannot be recorded before a display is selected")
+        self.measured_characterization = measured
+        self.measured_display_id = self.selected_display_id
+        self.characterization_kind = CharacterizationKind.MEASURED
+        self.invalidate_seal()
+
+    def discard_measurement(self) -> None:
+        """Forget a run, used when the display it described is no longer selected."""
+        self.measured_characterization = None
+        self.measured_display_id = None
 
     @property
     def seal_intact(self) -> bool:
