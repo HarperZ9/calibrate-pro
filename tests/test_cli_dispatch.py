@@ -99,6 +99,8 @@ def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_ow
 
 def test_listing_the_patterns_answers_from_the_catalogue_and_not_the_viewer(
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """The catalogue is a table of numbers, so listing it needs no machine.
 
@@ -109,6 +111,12 @@ def test_listing_the_patterns_answers_from_the_catalogue_and_not_the_viewer(
     legacy viewer stays unimported, so a later reader can tell which surface
     answered rather than guessing from the printed lines.
     """
+    # The command journals the action it ran, and the journal root is read
+    # from LOCALAPPDATA with no working-directory fallback. Pointing it at a
+    # temporary directory keeps the run off the operator's real diagnostics
+    # inventory and lets the case run where that variable is absent.
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
     code = main.main(["patterns"])
 
     printed = capsys.readouterr().out
