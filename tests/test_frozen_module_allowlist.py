@@ -294,6 +294,13 @@ def _import_refusing(refused: set[str], modules: list[str]) -> dict[str, Any]:
     return json.loads(completed.stdout.strip().splitlines()[-1])
 
 
+# Imports the frozen closure for real, and nine of its modules read winreg or
+# ctypes.windll while being imported. On another platform they fail on that
+# before any excluded name is asked for, so the measurement below cannot be
+# taken there. Reporting the excluded names that were reached instead would run
+# anywhere and would have missed the f2py bug outright, because a module that
+# dies at "import winreg" never gets far enough to ask numpy for anything.
+@pytest.mark.windows
 def test_no_module_the_frozen_build_imports_needs_a_name_the_spec_excludes() -> None:
     """The gates above walk first-party imports, which is not where this lives.
 
