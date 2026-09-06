@@ -28,6 +28,8 @@ MONITOR_CONTROL_REFUSED = "MONITOR_CONTROL_REFUSED"
 MONITOR_VALUE_REJECTED = "MONITOR_VALUE_REJECTED"
 NO_MONITOR_READING = "NO_MONITOR_READING"
 NO_STAGED_CONTROL = "NO_STAGED_CONTROL"
+SYSTEM_PROFILE_REFUSED = "SYSTEM_PROFILE_REFUSED"
+NO_PROFILE_READING = "NO_PROFILE_READING"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -238,6 +240,34 @@ def no_staged_control() -> ActionFailure:
     )
 
 
+def system_profile_refused(reason: str) -> ActionFailure:
+    """Report a colour profile store that was addressed and did not carry it through.
+
+    Retryable for the same reason the display control refusal is: almost
+    everything that stops this lane is a state of the machine rather than of
+    the session. An install into the system colour directory wants an elevated
+    account, a profile another application holds open cannot be replaced, and
+    a display reconnected since the last read may no longer be the one the
+    store was asked about. The reason comes through unchanged, because a
+    generic message would hide which of those it was.
+    """
+    return ActionFailure(
+        code=SYSTEM_PROFILE_REFUSED,
+        summary=reason,
+        retryable=True,
+        next_action="Read the system profiles again, and run as administrator if the store refused a write.",
+        category="system_profile",
+    )
+
+
+def no_profile_reading() -> ActionFailure:
+    return policy_refusal(
+        NO_PROFILE_READING,
+        "This session has not read what the system colour profile store holds.",
+        "Read the system profiles before installing, activating, or removing one.",
+    )
+
+
 def export_failed() -> ActionFailure:
     """Report a publish the filesystem refused, which a retry might fix."""
     return ActionFailure(
@@ -260,12 +290,14 @@ __all__ = [
     "NO_HANDLER",
     "NO_MEASUREMENT",
     "NO_MONITOR_READING",
+    "NO_PROFILE_READING",
     "NO_SEALED_PLAN",
     "NO_SELECTED_PROFILE",
     "NO_STAGED_CONTROL",
     "PROFILE_SEAL_BROKEN",
     "PROFILE_UNREADABLE",
     "SESSION_TRANSITION_REJECTED",
+    "SYSTEM_PROFILE_REFUSED",
     "UNKNOWN_DISPLAY",
     "export_failed",
     "incomplete_setup",
@@ -277,6 +309,7 @@ __all__ = [
     "no_handler",
     "no_measurement",
     "no_monitor_reading",
+    "no_profile_reading",
     "no_sealed_plan",
     "no_staged_control",
     "no_such_asset",
@@ -286,6 +319,7 @@ __all__ = [
     "policy_refusal",
     "profile_seal_broken",
     "profile_unreadable",
+    "system_profile_refused",
     "transition_rejected",
     "unknown_display",
 ]

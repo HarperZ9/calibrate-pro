@@ -30,8 +30,13 @@ if feature_policy.get("commands") != [
     "generate-profiles",
     "gui",
     "hdr",
+    "install-profile",
     "profiles",
+    "remove-profile",
+    "restore-profiles",
     "status",
+    "switch-profile",
+    "system-profiles",
     "verify",
 ]:
     raise SystemExit("frozen feature policy is not the approved command set")

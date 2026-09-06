@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -64,6 +65,8 @@ from calibrate_pro.application.detection import panel_key_from_provenance
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
 from calibrate_pro.application.results import DetectionSummary, DisplaySelection, HdrStatus, PlanPreview
 from calibrate_pro.application.service import FunctionalRecoveryService
+from calibrate_pro.application.system_profile_results import ProfileActivation
+from calibrate_pro.application.system_profile_session import ProfileOutcome
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, refusal_message
 from calibrate_pro.gui.add_display import AddDisplayDialog
 from calibrate_pro.gui.plan_dialog import PlanConfirmationDialog
@@ -1395,13 +1398,15 @@ class CalibrateProWindow(QMainWindow):
         self._binder.bind(
             "display.restore_defaults",
             menu_action(menu, "&Restore Defaults", self),
-            partial(self.service.unhandled, "display.restore_defaults"),
+            self.service.restore_display_profiles,
+            on_success=self._report_profile_write,
         )
         menu.addSeparator()
         self._binder.bind(
             "profile.install",
-            menu_action(menu, "&Install ICC Profile...", self),
-            partial(self.service.unhandled, "profile.install"),
+            menu_action(menu, "&Install Checked Profile", self),
+            self.service.install_selected_profile,
+            on_success=self._report_profile_write,
         )
 
     def _build_tools_menu(self, menu: QMenu) -> None:
@@ -1549,6 +1554,9 @@ class CalibrateProWindow(QMainWindow):
                     refresh=self.service.list_profiles,
                     inspect_profile=self.service.inspect_profile,
                     export_profile=self.service.export_profile,
+                    read_system=self.service.read_system_profiles,
+                    activate_profile=self.service.activate_selected_profile,
+                    delete_profile=self.service.remove_selected_profile,
                     unhandled=self.service.unhandled,
                 )
                 self.stack.addWidget(self.profiles_page)  # 3
@@ -1633,7 +1641,8 @@ class CalibrateProWindow(QMainWindow):
         self._binder.bind(
             "display.restore_defaults",
             menu_action(menu, "Restore Defaults", self),
-            partial(self.service.unhandled, "display.restore_defaults"),
+            self.service.restore_display_profiles,
+            on_success=self._announce_profile_write,
         )
 
         menu.addSeparator()
@@ -1646,7 +1655,8 @@ class CalibrateProWindow(QMainWindow):
         self._binder.bind(
             "tray.switch_profile",
             menu_action(menu, "Switch Profile", self),
-            partial(self.service.unhandled, "tray.switch_profile"),
+            self._switch_to_chosen_profile,
+            on_success=self._announce_profile_write,
         )
 
         menu.addSeparator()
@@ -1948,6 +1958,52 @@ class CalibrateProWindow(QMainWindow):
         if isinstance(chosen, ActionError):
             return chosen
         return self.service.export_format(export_name)
+
+    def _switch_to_chosen_profile(self) -> "ActionOutcome[ProfileActivation] | None":
+        """Ask which installed profile this display should hand out, then switch.
+
+        The list is the one the session's reading found registered, so nothing
+        is offered that the store did not answer with. Closing the dialog
+        reports nothing, so a withdrawn choice never reaches the journal.
+
+        With nothing to choose from the action is asked for anyway. The session
+        refuses it and says why, which is a better answer than a menu entry
+        that appears to do nothing when it is used.
+        """
+        installed = self.service.installed_system_profiles
+        if not installed:
+            return self.service.switch_display_profile("")
+        name, chosen = QInputDialog.getItem(
+            self,
+            "Switch profile",
+            "Hand this display:",
+            list(installed),
+            0,
+            False,
+        )
+        if not chosen or not name:
+            return None
+        return self.service.switch_display_profile(name)
+
+    def _report_profile_write(self, outcome: ProfileOutcome) -> None:
+        """Say what one colour profile write did, in the result's own words."""
+        self._status.setText(outcome.summary)
+
+    def _announce_profile_write(self, outcome: ProfileOutcome) -> None:
+        """Report a write started from the tray, where the window may be hidden.
+
+        The status line is written either way, so an operator who opens the
+        window afterwards reads the same sentence. The balloon is what reaches
+        somebody who used the tray and never opened it.
+        """
+        self._report_profile_write(outcome)
+        if hasattr(self, "_tray") and self._tray.isVisible():
+            self._tray.showMessage(
+                APP_NAME,
+                outcome.summary,
+                QSystemTrayIcon.MessageIcon.Information,
+                4000,
+            )
 
     def _report_export(self, bundle: ExportBundle) -> None:
         """Name what was written, taken from the manifest that seals it."""

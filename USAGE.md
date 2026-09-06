@@ -126,7 +126,8 @@ These drive the actions the window drives, over the same session, and print what
 action returned. A refusal is printed in the words the session refused it in. Two of
 them write to a path you name: `generate-profiles` writes a calibration bundle into a
 directory, and `diagnostics --bundle` writes a support bundle at a file path. One
-changes the display itself, and only when you pass `--confirm`.
+changes the display itself and four change this machine's colour management, and each
+of those five writes only when you pass `--confirm`.
 
 | Command | Purpose |
 |---|---|
@@ -137,6 +138,11 @@ changes the display itself, and only when you pass `--confirm`.
 | `calibrate-pro verify --target NAME` | Generate a sealed plan and report its predicted accuracy |
 | `calibrate-pro generate-profiles DIR --target NAME [--dry-run]` | Write one calibration bundle into `DIR` |
 | `calibrate-pro profiles DIR` | List the bundles published under a directory and check each one's seal |
+| `calibrate-pro system-profiles [--display ID]` | Read what Windows colour management holds, and which profile the display uses |
+| `calibrate-pro install-profile BUNDLE [--activate] [--confirm]` | Register a published bundle's profile and attach it to the display |
+| `calibrate-pro switch-profile NAME [--confirm]` | Make an installed profile the display's default |
+| `calibrate-pro remove-profile BUNDLE [--confirm]` | Detach a published bundle's profile and unregister it |
+| `calibrate-pro restore-profiles [--confirm]` | Take every profile this product attached back off the display |
 | `calibrate-pro diagnostics [--bundle PATH] [--open]` | List the session journal, and publish it for support |
 
 `--target` is required rather than defaulted; `calibrate-pro list-targets` prints the
@@ -150,7 +156,21 @@ calibrate-pro detect
 calibrate-pro verify --target srgb_web
 calibrate-pro generate-profiles profiles/srgb --target srgb_web
 calibrate-pro profiles profiles/srgb
+calibrate-pro install-profile profiles/srgb --activate --confirm
 ```
+
+`install-profile` takes the bundle directory rather than a profile name. The name a
+bundle is registered under is derived from its manifest digest, so the command prints
+it and you never have to copy it out of a dialog. Attaching is not activating: Windows
+lets a display carry several profiles and hands one of them to colour-managed software,
+which is why `--activate` is a separate word. Every command in this family reads the
+store before it writes and reads it back afterwards, and reports what the second reading
+found rather than whether the call returned.
+
+`remove-profile` takes back what `install-profile` put into colour management and leaves
+the bundle directory alone. `restore-profiles` detaches every profile this product
+attached to the display and leaves the files registered, so a bundle attached to a
+second monitor keeps working. Neither will touch a profile this product did not publish.
 
 `verify` prints a plan digest, the panel and target the plan was built for, and an
 average dE. That figure is **estimated** from the panel characterization: no display was

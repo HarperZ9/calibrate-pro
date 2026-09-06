@@ -25,6 +25,8 @@ from calibrate_pro.application.contracts import CharacterizationKind, DashboardM
 from calibrate_pro.application.control_session import MonitorControlSession
 from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.profiles import ProfileInspection, ProfileRecord
+from calibrate_pro.application.system_profile_session import SystemProfileSession
+from calibrate_pro.application.system_profiles import SystemProfileError, installed_name_for
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY
 from calibrate_pro.workflow import CalibrationMethod, CapabilityState, WorkflowStage
 
@@ -116,6 +118,13 @@ class SessionState:
     #: across this dataclass, because a reading, the values staged against it
     #: and the transaction that wrote them are only meaningful together.
     monitor_controls: MonitorControlSession = field(default_factory=MonitorControlSession)
+
+    #: What this session has read out of the machine's colour profile store for
+    #: the selected display, and whichever write it performed against that
+    #: reading. Kept apart from the bundles on disk, because a published bundle
+    #: and an installed profile are different objects and an operator acts on
+    #: the difference.
+    system_profiles: SystemProfileSession = field(default_factory=SystemProfileSession)
 
     def __post_init__(self) -> None:
         if type(self.fake_acceptance) is not bool:
@@ -237,6 +246,69 @@ class SessionState:
         session without one is offered nothing to write.
         """
         return self.monitor_controls_qualified and self.monitor_controls.reading is not None
+
+    @property
+    def system_profiles_qualified(self) -> bool:
+        """Report whether this session may read the machine's colour profile store.
+
+        The route says a profile port was wired. `profile_write_available` says
+        a probe found the colour directory this build would write into. A
+        session missing either has proved nothing about what the machine holds,
+        and is offered no reading it could then act on.
+        """
+        return (
+            self.system_profiles.route and self.capabilities is not None and self.capabilities.profile_write_available
+        )
+
+    @property
+    def system_profile_writes_qualified(self) -> bool:
+        """Report whether this session may change the store.
+
+        Every profile write is reported by comparing the store before it with
+        the store after it, and the first of those has to already be in hand.
+        A session that has not read is offered nothing to write, for the same
+        reason a display whose controls were never read is offered no stage.
+        """
+        return self.system_profiles_qualified and self.system_profiles.reading is not None
+
+    @property
+    def selected_profile_installed_name(self) -> str | None:
+        """The name the inspected bundle installs under, when one is sealed.
+
+        Derived from the manifest digest rather than from the bundle's
+        filename, because every bundle this build publishes carries the same
+        filename. A selection that is missing or has drifted names nothing,
+        which closes every action that would act on the machine's copy.
+        """
+        inspection = self.selected_profile
+        if inspection is None or not inspection.sealed:
+            return None
+        try:
+            return installed_name_for(inspection.record.manifest_sha256)
+        except SystemProfileError:
+            return None
+
+    @property
+    def selected_profile_installed(self) -> bool:
+        """Whether the machine holds the inspected bundle's profile."""
+        name = self.selected_profile_installed_name
+        return name is not None and self.system_profiles.holds(name)
+
+    @property
+    def selected_profile_active(self) -> bool:
+        """Whether the selected display hands the inspected bundle out."""
+        name = self.selected_profile_installed_name
+        return name is not None and self.system_profiles.is_default(name)
+
+    @property
+    def restorable_system_profiles(self) -> bool:
+        """Whether the selected display carries anything this product attached."""
+        return bool(self.system_profiles.ours)
+
+    @property
+    def switchable_system_profiles(self) -> bool:
+        """Whether the machine holds any profile a display could be switched to."""
+        return bool(self.system_profiles.installed)
 
     @property
     def measurement_matches_selection(self) -> bool:
@@ -363,6 +435,11 @@ class SessionState:
             measured_qualified=self.measured_qualified,
             monitor_controls_qualified=self.monitor_controls_qualified,
             monitor_writes_qualified=self.monitor_writes_qualified,
+            system_profiles_qualified=self.system_profiles_qualified,
+            system_profile_writes_qualified=self.system_profile_writes_qualified,
+            selected_profile_installed=self.selected_profile_installed,
+            restorable_system_profiles=self.restorable_system_profiles,
+            switchable_system_profiles=self.switchable_system_profiles,
         )
 
 

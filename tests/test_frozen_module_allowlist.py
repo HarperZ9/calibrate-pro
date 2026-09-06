@@ -47,8 +47,13 @@ EXPECTED_FEATURES = {
         "generate-profiles",
         "gui",
         "hdr",
+        "install-profile",
         "profiles",
+        "remove-profile",
+        "restore-profiles",
         "status",
+        "switch-profile",
+        "system-profiles",
         "verify",
     ],
     "developer_only_commands": [

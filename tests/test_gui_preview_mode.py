@@ -140,7 +140,7 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
             "&Calibrate All",
             ".cube (Resolve / dwm_lut)",
             "&Restore Defaults",
-            "&Install ICC Profile...",
+            "&Install Checked Profile",
             "&Test Patterns",
             "&HDR Status",
         ):
@@ -156,7 +156,7 @@ def test_preview_window_bypasses_hardware_and_disables_mutation_actions(
         # Every disabled control explains itself in the session's own words.
         # Qt answers an empty tooltip with the entry's own text, so a reason is
         # present only when the tooltip says something the label does not.
-        for label in ("&Restore Defaults", "&Install ICC Profile...", "&Test Patterns", "&HDR Status"):
+        for label in ("&Restore Defaults", "&Install Checked Profile", "&Test Patterns", "&HDR Status"):
             assert actions[label].toolTip() not in ("", label)
 
         assert window.stack.count() == 6

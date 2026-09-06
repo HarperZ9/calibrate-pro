@@ -11,8 +11,8 @@ before building anything when Qt reports no system tray and the offscreen
 platform reports none. These tests build the window where one exists and read
 what it made. Four properties are held down: every entry stands for an action
 the manifest declares on the tray, the entries are the same whatever is on
-disk, the profile mutation this build does not perform carries the reason the
-session gives for it, and the entry that navigates arrives at the Profiles
+disk, the profile switch stays closed until the session has read the store it
+would switch within, and the entry that navigates arrives at the Profiles
 page.
 """
 
@@ -143,14 +143,16 @@ def test_the_tray_is_the_same_whatever_the_folder_it_used_to_read_holds(
         assert texts(built) == [text for text, _ in TRAY_ENTRIES]
 
 
-def test_the_profile_mutation_this_build_does_not_perform_carries_its_reason(tray_window: object) -> None:
+def test_the_profile_switch_is_closed_until_the_store_it_switches_within_is_read(
+    tray_window: object,
+) -> None:
     """The entry stays, closed, showing the sentence the session gives for it.
 
-    Dropping it would hide a decision an operator can otherwise read. Leaving
-    it open over a handler that changes nothing is what the tray did before.
+    This window has read no colour profile store, so there is no list of
+    installed profiles to switch between and nothing to judge a switch against.
     The wording is the resolver's rather than the tray's. The manifest records
-    why the action is unavailable at all, the session narrows that to the state
-    it is in, and a sentence written beside the widget would drift from both.
+    what the action needs, the session narrows that to the state it is in, and
+    a sentence written beside the widget would drift from both.
     """
     action = named(tray_window, "Switch Profile")
     resolved = tray_window.service.resolve("tray.switch_profile")
@@ -211,8 +213,10 @@ def test_a_window_that_has_not_detected_reports_no_observation(
 def test_using_the_closed_switch_is_refused_rather_than_performed(tray_window: object) -> None:
     """A disabled control emits nothing, so the action is asked for directly.
 
-    What answers is the session. The refusal is the guarantee that the entry
-    would still change nothing if a surface reached past the disabled state.
+    What answers is the session, which refuses before the store is opened. The
+    refusal is the guarantee that the entry would still change nothing if a
+    surface reached past the disabled state, and it is what stops this lane
+    from writing to Windows colour management on a window that has read none.
     """
     binding = binding_for(tray_window, named(tray_window, "Switch Profile"))
 

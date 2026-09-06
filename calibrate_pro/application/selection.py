@@ -68,6 +68,10 @@ def adopt(state: SessionState, display_id: str | None) -> WorkflowController:
     # does, so adopting a different display drops it and everything staged
     # against the ranges it reported.
     state.monitor_controls.retain_for(state.selected_display_id)
+    # The store's per-display half is the associated list and the default, and
+    # neither survives adopting a different monitor. Keeping the machine-wide
+    # half alone would offer an activation judged against another display.
+    state.system_profiles.retain_for(state.selected_display_id)
     controller = WorkflowController(state.capabilities or DENIED_CAPABILITIES)
     if state.selected_display_id is not None:
         controller.detect_complete()

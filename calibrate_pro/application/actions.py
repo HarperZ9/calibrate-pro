@@ -97,6 +97,32 @@ class ActionContext:
     #: reading has nothing to check a write against and is offered none.
     monitor_writes_qualified: bool
 
+    #: Whether a system profile port was wired and a probe found the colour
+    #: directory this build installs into. This gates reading the machine's
+    #: profile store, which is a different thing from the panel's own controls
+    #: and from the LUT route: it changes what colour-managed software is
+    #: handed rather than what the panel or the signal is doing.
+    system_profiles_qualified: bool
+
+    #: The read qualification plus a reading of the store in hand. Every write
+    #: here reports itself by the difference between two readings, so a session
+    #: holding none of the first is offered no write.
+    system_profile_writes_qualified: bool
+
+    #: Whether the machine already holds the inspected bundle's profile. What
+    #: separates activating a calibration from asking a display for one the
+    #: store has never been given.
+    selected_profile_installed: bool
+
+    #: Whether the selected display carries any profile this product attached.
+    #: A restore with nothing of this product's on the display would open the
+    #: store, write nothing, and report an undo the operator never asked for.
+    restorable_system_profiles: bool
+
+    #: Whether the machine holds any profile at all a display could be moved
+    #: to, including the ones this product had no part in.
+    switchable_system_profiles: bool
+
     def __post_init__(self) -> None:
         if not isinstance(self.stage, WorkflowStage):
             raise TypeError("stage must be a WorkflowStage")
@@ -117,6 +143,11 @@ class ActionContext:
             "measured_qualified",
             "monitor_controls_qualified",
             "monitor_writes_qualified",
+            "system_profiles_qualified",
+            "system_profile_writes_qualified",
+            "selected_profile_installed",
+            "restorable_system_profiles",
+            "switchable_system_profiles",
         ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be an exact boolean")
@@ -733,6 +764,53 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         # not read the display is refused it: there would be nothing to compare
         # the display's state against afterwards.
         return not context.fake_acceptance and context.monitor_writes_qualified and context.journal_ready
+    if action_id == "profile.system.read":
+        # Reading the store is gated the way reading the display's controls is:
+        # a port this composition wired, and a probe that found the colour
+        # directory. Neither is a value a surface can set.
+        return context.selected_display_id is not None and context.system_profiles_qualified
+    if action_id == "profile.install":
+        # A bundle whose files no longer match its manifest is not offered.
+        # What gets registered with the machine outlives this session, so the
+        # gate is the same seal the export path requires.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.selected_profile_reparsed
+            and context.journal_ready
+        )
+    if action_id in {"profile.activate", "profile.delete"}:
+        # Both act on the machine's copy of the inspected bundle, so both are
+        # closed until a reading found one. Windows accepts a default naming a
+        # profile it does not hold, and a display pointed at a missing file is
+        # met as colour management that quietly stopped rather than as an error.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.selected_profile_installed
+            and context.journal_ready
+        )
+    if action_id == "tray.switch_profile":
+        # Any profile the machine holds may be chosen here, the vendor's own
+        # included. Choosing which of the installed profiles is in effect takes
+        # nothing away, and an operator moving between a daylight profile and a
+        # print profile is doing the ordinary thing this control is for.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.switchable_system_profiles
+            and context.journal_ready
+        )
+    if action_id == "display.restore_defaults":
+        # Offered only with something of this product's on the display. A
+        # restore is bounded to the profiles this build installed, so on a
+        # display carrying none of them it would have nothing to take off.
+        return (
+            not context.fake_acceptance
+            and context.system_profile_writes_qualified
+            and context.restorable_system_profiles
+            and context.journal_ready
+        )
     if action_id == "profile.export":
         return context.selected_profile_reparsed and context.journal_ready
     if action_id in {"settings.lut_size", "settings.output_directory"}:
@@ -761,16 +839,6 @@ def _disabled_reason(spec: ActionSpec, context: ActionContext) -> str:
             "value. What each numbered mode does is decided by the manufacturer and is "
             "not readable over DDC/CI, so this build cannot report what a write to it did."
         )
-    if action_id in {
-        "display.restore_defaults",
-        "profile.install",
-        "profile.activate",
-        "profile.delete",
-        "tray.switch_profile",
-    }:
-        if not context.physical_apply_qualified:
-            return "Physical mutation is not qualified."
-        return "Physical mutation remains disabled pending the Phase 2 transactional contract."
     if action_id == "calibration.method.hybrid":
         return (
             "Hybrid calibration remains disabled. It would build one bundle from a panel "

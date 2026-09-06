@@ -1296,20 +1296,25 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "restorable_system_profiles",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "display_restore_defaults",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Physical display mutation is disabled pending the Phase 2 transactional qualification contract."
+      "unavailable_reason": "Restoring this display requires a reading that found a profile this product attached to it, and a diagnostic journal that will take the record."
     },
     {
       "action_id": "export.active.3dlut",
@@ -1959,20 +1964,25 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_installed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "profile_activate",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+      "unavailable_reason": "Activating a profile requires the store to hold this bundle's profile, so install it first, and a diagnostic journal that will take the record."
     },
     {
       "action_id": "profile.delete",
@@ -1988,20 +1998,25 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_installed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "profile_delete",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+      "unavailable_reason": "Removing a profile requires the store to hold this bundle's profile, and a diagnostic journal that will take the record."
     },
     {
       "action_id": "profile.export",
@@ -2109,20 +2124,25 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "selected_profile_reparsed",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "profile_install",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+      "unavailable_reason": "Installing a profile requires a selected display, a colour profile store that answered, a bundle whose seal was read back, and a diagnostic journal that will take the record."
     },
     {
       "action_id": "profile.list.refresh",
@@ -2183,6 +2203,38 @@
       ],
       "unavailable_disposition": "disabled",
       "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+    },
+    {
+      "action_id": "profile.system.read",
+      "surfaces": [
+        "profiles.system.read"
+      ],
+      "classification": "read_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [
+        "system_profiles_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "profile_system_read",
+      "required_modules": [
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "read_only"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Reading the system colour profile store requires a selected display and a profile port in this build."
     },
     {
       "action_id": "report.save",
@@ -2557,20 +2609,25 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "system_profile_writes_qualified",
+        "switchable_system_profiles",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "tray_switch_profile",
       "required_modules": [
-        "calibrate_pro.application.service"
+        "calibrate_pro.application.service",
+        "calibrate_pro.application.system_profile_actions"
       ],
       "required_resources": [],
-      "receipt_required": false,
+      "receipt_required": true,
       "evidence_modes": [
-        "measured"
+        "read_only"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Profile mutation is disabled pending the Phase 2 transactional profile contract."
+      "unavailable_reason": "Switching this display's profile requires a reading that found at least one installed profile, and a diagnostic journal that will take the record."
     },
     {
       "action_id": "verification.measured",

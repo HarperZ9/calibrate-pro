@@ -171,11 +171,18 @@ def build_calibration_service() -> CalibrationApplyService:
     Wiring the source widens nothing on its own. It says a port exists, and
     the reading a session takes says whether a display answered. A control is
     offered only when both are true.
+
+    The system profile source is wired on the same terms. It is what puts a
+    published bundle into Windows colour management, which is the step that
+    makes a finished calibration take effect for colour-managed software, and
+    it stays out of the read-only session for the same reason the control
+    source does.
     """
     from calibrate_pro.adapters.monitor_control_source import (
         WindowsMonitorControlSource,
         ddc_control_present,
     )
+    from calibrate_pro.adapters.system_profile_source import WindowsSystemProfileSource
     from calibrate_pro.adapters.windows_display_state import (
         DefaultWindowsDisplayPorts,
         WindowsDisplayStateAdapter,
@@ -200,6 +207,7 @@ def build_calibration_service() -> CalibrationApplyService:
         engine=engine,
         instruments=UsbInstrumentSource(),
         monitor_controls=WindowsMonitorControlSource(),
+        system_profiles=WindowsSystemProfileSource(),
     )
 
 

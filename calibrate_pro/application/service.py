@@ -89,6 +89,8 @@ from calibrate_pro.application.runner import SessionActionRunner
 from calibrate_pro.application.selection import DENIED_CAPABILITIES, adopt, current_selection
 from calibrate_pro.application.session import SessionState
 from calibrate_pro.application.surface import SurfaceActions
+from calibrate_pro.application.system_profile_actions import SystemProfileActions
+from calibrate_pro.application.system_profiles import NoSystemProfileSource, SystemProfileSource
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY, PanelCharacterization
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
@@ -101,6 +103,7 @@ class FunctionalRecoveryService(
     DiagnosticsActions,
     PreferenceActions,
     MonitorControlActions,
+    SystemProfileActions,
 ):
     """One calibration session, driven one action at a time."""
 
@@ -116,6 +119,7 @@ class FunctionalRecoveryService(
         bundles: DiagnosticBundleManager | None = None,
         instruments: InstrumentSource | None = None,
         monitor_controls: MonitorControlSource | None = None,
+        system_profiles: SystemProfileSource | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
@@ -129,6 +133,10 @@ class FunctionalRecoveryService(
             monitor_controls if monitor_controls is not None else NoMonitorControlSource()
         )
         state.monitor_controls.route = monitor_controls is not None
+        self._system_profiles: SystemProfileSource = (
+            system_profiles if system_profiles is not None else NoSystemProfileSource()
+        )
+        state.system_profiles.route = system_profiles is not None
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 
@@ -241,6 +249,23 @@ class FunctionalRecoveryService(
         state.invalidate_measurement()
         self._sealed_plan = None
         self._transition(self._controller.invalidate_preview)
+
+    def _invalidate_after_profile_write(self) -> None:
+        """Drop the instrument run a change of the display's default invalidated.
+
+        Narrower than the monitor write above, and deliberately so. Registering
+        a profile and attaching it to a display changes which profiles
+        colour-managed software may be handed and changes nothing about the
+        light the panel emits, so nothing measured is stale. Naming a profile
+        as the default can change that light, because Windows loads that
+        profile's calibration curve when the machine is set to, and a run taken
+        before it would be reported against a transfer curve that has moved.
+
+        The seal is kept. The plan that is sealed is what produced the bundle
+        being installed, and breaking it here would leave an operator unable to
+        install the calibration they just generated.
+        """
+        self._state.invalidate_measurement()
 
     # -- method and target --------------------------------------------------
 

@@ -24,8 +24,13 @@ COMMANDS = frozenset(
         "detect",
         "diagnostics",
         "generate-profiles",
+        "install-profile",
         "profiles",
+        "remove-profile",
+        "restore-profiles",
         "status",
+        "switch-profile",
+        "system-profiles",
         "verify",
     }
 )
@@ -80,6 +85,41 @@ def _add_display_control_parsers(subparsers: argparse._SubParsersAction) -> None
     )
 
 
+def _add_system_profile_parsers(subparsers: argparse._SubParsersAction) -> None:
+    """Offer the family that puts a published bundle into Windows colour management.
+
+    Every one of these takes ``--display``, because the store answers the
+    associated list and the default per display and answers the installed list
+    for the machine. Every one that writes takes ``--confirm``, and a run
+    without it reads the store, prints what it would do, and stops.
+
+    Install and remove are named by the bundle directory rather than by the
+    profile name they occupy. That name is derived from the manifest digest, so
+    asking the operator to type it would be asking them to copy a hash out of a
+    dialog to describe a folder they already have.
+    """
+    read = subparsers.add_parser("system-profiles", help="Read what Windows colour management holds for a display")
+    install = subparsers.add_parser("install-profile", help="Register a published bundle's profile and attach it")
+    install.add_argument("bundle", help="Directory holding the published bundle")
+    install.add_argument("--activate", action="store_true", help="Also make it the display's default profile")
+    switch = subparsers.add_parser("switch-profile", help="Make an installed profile the display's default")
+    switch.add_argument("name", help="Installed profile name; 'system-profiles' prints them")
+    remove = subparsers.add_parser("remove-profile", help="Detach a published bundle's profile and unregister it")
+    remove.add_argument("bundle", help="Directory holding the published bundle")
+    restore = subparsers.add_parser(
+        "restore-profiles",
+        help="Take every profile this product attached off the display",
+    )
+    for command in (install, switch, remove, restore):
+        command.add_argument(
+            "--confirm",
+            action="store_true",
+            help="Write to this machine's colour management; without this the run stops after reading",
+        )
+    for command in (read, install, switch, remove, restore):
+        command.add_argument("--display", help=_DISPLAY_HELP)
+
+
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     """Give every session command the arguments it needs, and nothing spare.
 
@@ -106,6 +146,7 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     bundle.add_argument("--bundle", help="File path to publish the diagnostic bundle at")
     bundle.add_argument("--open", action="store_true", help="Open the folder the journal is kept in")
     _add_display_control_parsers(subparsers)
+    _add_system_profile_parsers(subparsers)
 
 
 def parse(command: str, argv: Sequence[str]) -> argparse.Namespace:

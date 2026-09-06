@@ -143,9 +143,15 @@ class ProfileDetail(Card):
     def _button_row(self) -> QHBoxLayout:
         """Lay out the four controls, one per action this pane offers.
 
-        Copy is the only one this build performs. The other three are bound to
-        actions it has no handler for, so each carries the manifest's reason for
-        holding profile mutation closed instead of doing the work unasked.
+        Copy writes a folder, activate and delete write to the Windows colour
+        profile store, and the page they sit on renders what each one did.
+        Rename is bound to an action this build has no handler for, so it
+        carries the manifest's reason rather than doing the work unasked.
+
+        Delete removes the profile from Windows colour management and leaves
+        the bundle where it is. The word is the one the manifest uses for the
+        action behind the button, and the pane says which of the two it means
+        when the removal reports itself.
         """
         row = QHBoxLayout()
         row.setSpacing(10)

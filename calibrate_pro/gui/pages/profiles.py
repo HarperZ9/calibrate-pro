@@ -9,9 +9,13 @@ about, and the page reported the deletion by removing its own card.
 
 What is here now reads the export directory the session recorded, finds bundles
 by the manifest each one carries, and hands every control to the action it
-stands for. Mutation stays closed: activate, rename, delete, and generate are
-bound to actions this build has no handler for, so each button carries the
-manifest's reason rather than doing the work.
+stands for.
+
+Activate and delete reach the Windows colour profile store. Both are judged
+against a reading of that store rather than against the bundle on disk, so the
+page carries a control that takes one and a line saying what it found. Rename
+and generate remain bound to actions this build has no handler for, and each of
+those buttons carries the manifest's reason instead of doing the work.
 
 Nothing is read until an action reads it. The page opens saying so, and the
 first listing is one the operator asked for.
@@ -38,6 +42,8 @@ from PySide6.QtWidgets import (
 
 from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.profiles import ProfileInspection, ProfileListing, ProfileRecord
+from calibrate_pro.application.system_profile_session import ProfileOutcome
+from calibrate_pro.application.system_profiles import SystemProfileReading
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
 from calibrate_pro.gui.app import C, Heading
 from calibrate_pro.gui.pages.profile_detail import ProfileDetail, action_button, note_style
@@ -62,9 +68,14 @@ FOUND = "{count} published bundle(s) under {directory}."
 #: Above the directories whose manifest this build could not read.
 UNREADABLE = "Holds a manifest this build cannot read:"
 
-#: The mutations the manifest holds closed, each bound so its button explains
-#: itself with the resolver's own sentence.
-CLOSED_MUTATIONS = ("profile.activate", "profile.rename", "profile.delete")
+#: The mutations the manifest still holds closed, each bound so its button
+#: explains itself with the resolver's own sentence.
+CLOSED_MUTATIONS = ("profile.rename",)
+
+#: Drawn before the system profile store has been read in this session. The
+#: page says what it does not know rather than showing an empty list, which
+#: would read as a machine holding no profiles.
+STORE_NOT_READ = "The Windows colour profile store has not been read in this session."
 
 
 def _item_text(record: ProfileRecord) -> str:
@@ -118,6 +129,9 @@ class ProfilesPage(QWidget):
         refresh: Operation,
         inspect_profile: Callable[[str], ActionOutcome[Any]],
         export_profile: Callable[[str], ActionOutcome[Any]],
+        read_system: Operation,
+        activate_profile: Operation,
+        delete_profile: Operation,
         unhandled: Callable[[str], ActionOutcome[Any]],
     ) -> None:
         """Hand every control here to the action it stands for.
@@ -127,10 +141,15 @@ class ProfilesPage(QWidget):
         so the selection signal drives the invocation instead and both routes
         arrive at the same place.
 
-        Copy is the one write this page performs, and it is bound to the export
-        action rather than to the no-handler path: the manifest enables it once
-        a profile has been checked, and a control bound to a refusal would still
-        look ready at that point.
+        Copy is the one write this page performs against the filesystem, and it
+        is bound to the export action rather than to the no-handler path: the
+        manifest enables it once a profile has been checked, and a control bound
+        to a refusal would still look ready at that point.
+
+        Activate and delete write to the colour profile store, and both render
+        their result into the same line the reading is drawn on. The write has
+        already read the store back, so that line is current, and an operator
+        does not have to read again to see whether the profile took effect.
         """
         self._binder = binder
         self._inspect_profile = inspect_profile
@@ -140,6 +159,27 @@ class ProfilesPage(QWidget):
             self._refresh_button,
             refresh,
             on_success=self.render_listing,
+            hides=False,
+        )
+        binder.bind(
+            "profile.system.read",
+            self._system_button,
+            read_system,
+            on_success=self.render_system_reading,
+            hides=False,
+        )
+        binder.bind(
+            "profile.activate",
+            self._detail.activate_button,
+            activate_profile,
+            on_success=self._render_store_write,
+            hides=False,
+        )
+        binder.bind(
+            "profile.delete",
+            self._detail.delete_button,
+            delete_profile,
+            on_success=self._render_store_write,
             hides=False,
         )
         binder.bind(
@@ -163,12 +203,16 @@ class ProfilesPage(QWidget):
             on_success=self._detail.render_export,
             hides=False,
         )
-        for action_id, button in zip(
-            CLOSED_MUTATIONS,
-            (self._detail.activate_button, self._detail.rename_button, self._detail.delete_button),
-            strict=True,
-        ):
+        for action_id, button in zip(CLOSED_MUTATIONS, (self._detail.rename_button,), strict=True):
             binder.bind(action_id, button, partial(unhandled, action_id), hides=False)
+
+    def render_system_reading(self, reading: SystemProfileReading) -> None:
+        """Say what the store held for this display when it was read."""
+        self._system.setText(reading.summary)
+
+    def _render_store_write(self, outcome: ProfileOutcome) -> None:
+        """Say what one write did, in the sentence the result writes itself."""
+        self._system.setText(outcome.summary)
 
     def render_listing(self, listing: ProfileListing) -> None:
         """Redraw the list from one reading, keeping a selection that survived.
@@ -272,6 +316,11 @@ class ProfilesPage(QWidget):
         self._unreadable.setStyleSheet(note_style(C.YELLOW, mono=True))
         layout.addWidget(self._unreadable)
 
+        self._system = QLabel(STORE_NOT_READ)
+        self._system.setWordWrap(True)
+        self._system.setStyleSheet(note_style(C.TEXT2))
+        layout.addWidget(self._system)
+
         self._detail = ProfileDetail()
         layout.addWidget(self._detail)
         layout.addStretch()
@@ -282,8 +331,10 @@ class ProfilesPage(QWidget):
         row.addWidget(Heading("Profiles"))
         row.addStretch()
         self._generate_button = action_button("Generate All", 140)
+        self._system_button = action_button("Read System", 140)
         self._refresh_button = action_button("Refresh", 110, primary=True)
         row.addWidget(self._generate_button)
+        row.addWidget(self._system_button)
         row.addWidget(self._refresh_button)
         return row
 
@@ -294,6 +345,7 @@ __all__ = [
     "NOT_READ",
     "NOT_THERE",
     "NOWHERE_TO_LOOK",
+    "STORE_NOT_READ",
     "UNREADABLE",
     "ProfilesPage",
 ]

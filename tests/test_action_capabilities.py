@@ -17,6 +17,7 @@ from calibrate_pro.application.actions import (
 from calibrate_pro.application.contracts import CharacterizationKind, EvidenceKind
 from calibrate_pro.application.monitor_controls import STAGE_ACTION_CODES
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
+from tests.action_context_support import action_context as _context
 
 # fmt: off
 EXPECTED_ACTION_IDS = {
@@ -42,6 +43,7 @@ EXPECTED_ACTION_IDS = {
     "export.active.cube", "export.active.3dlut", "export.active.png", "export.active.icc",
     "export.active.mpv", "export.active.obs",
     "profile.list.refresh", "profile.inspect", "profile.rename", "profile.generate_all",
+    "profile.system.read",
     "profile.activate", "profile.export", "profile.delete", "patterns.open",
     "ddc.stage.brightness", "ddc.stage.contrast", "ddc.stage.red_gain",
     "ddc.stage.green_gain", "ddc.stage.blue_gain", "ddc.stage.red_black_level",
@@ -83,17 +85,19 @@ EXPECTED_CONDITIONAL_POLICY_IDS = {
     "ddc.stage.brightness", "ddc.stage.contrast", "ddc.stage.red_gain", "ddc.stage.green_gain",
     "ddc.stage.blue_gain", "ddc.stage.red_black_level", "ddc.stage.green_black_level",
     "ddc.stage.blue_black_level",
+    "profile.system.read", "profile.install", "profile.activate", "profile.delete",
+    "tray.switch_profile", "display.restore_defaults",
 }
 
 EXPECTED_DISABLED_POLICY_IDS = {
     "calibration.method.hybrid", "calibration.target.hdr",
     "calibration.preset.hdr10", "settings.hdr",
-    "panel_profile.edid.create", "panel_profile.import", "display.restore_defaults",
-    "profile.install", "profile.rename", "profile.generate_all", "profile.activate", "profile.delete",
+    "panel_profile.edid.create", "panel_profile.import",
+    "profile.rename", "profile.generate_all",
     "patterns.open",
     "ddc.unsupported.image_mode", "ddc.unsupported.color_preset",
     "ddc.unsupported.gamma", "ddc.unsupported.factory_color_reset",
-    "ddc.raw_write", "tray.switch_profile",
+    "ddc.raw_write",
 }
 
 EXPECTED_HIDDEN_POLICY_IDS = {
@@ -164,6 +168,7 @@ EXPECTED_SURFACES_BY_ACTION = {
     "export.active.mpv": {"menu.export.mpv"},
     "export.active.obs": {"menu.export.obs"},
     "profile.list.refresh": {"profiles.refresh"},
+    "profile.system.read": {"profiles.system.read"},
     "profile.inspect": {"profiles.card.inspect"},
     "profile.rename": {"profiles.rename"},
     "profile.generate_all": {"profiles.generate_all"},
@@ -228,8 +233,8 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 45,
-        "disabled": 19,
+        "conditional": 51,
+        "disabled": 14,
         "hidden": 10,
     }
     assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
@@ -276,43 +281,6 @@ def _manifest_bytes(*records: dict[str, object]) -> bytes:
         {"schema_version": 1, "default": "disabled", "actions": list(records)},
         separators=(",", ":"),
     ).encode("utf-8")
-
-
-def _context(**changes: object) -> ActionContext:
-    context = ActionContext(
-        stage=WorkflowStage.PREVIEW,
-        runtime_mode="source",
-        fake_acceptance=False,
-        selected_display_id="display-1",
-        characterization_kind=CharacterizationKind.MATCHED,
-        selected_method=CalibrationMethod.SENSORLESS,
-        target_valid=True,
-        selected_preset_id="calibration.preset.srgb_web",
-        target_hdr=False,
-        generated_asset_kinds=frozenset({"ICC", "CUBE"}),
-        sealed_plan_sha256="a" * 64,
-        sealed_plan_actuatable=True,
-        confirmation_state="live",
-        fake_applied_plan_sha256=None,
-        applied_plan_sha256=None,
-        capability_generation=7,
-        sealed_capability_generation=7,
-        verification_evidence=EvidenceKind.ESTIMATED,
-        export_source_ready=True,
-        configured_export_directory_valid=True,
-        available_export_formats=frozenset({"cube", "3dlut", "png", "icc", "mpv", "obs"}),
-        selected_profile_reparsed=True,
-        validated_import_ready=True,
-        supported_vcp_codes=frozenset({0x10, 0x12}),
-        staged_vcp_codes=frozenset({0x10}),
-        diagnostic_bundle_preview_live=True,
-        journal_ready=True,
-        physical_apply_qualified=True,
-        measured_qualified=True,
-        monitor_controls_qualified=True,
-        monitor_writes_qualified=True,
-    )
-    return replace(context, **changes)
 
 
 def test_manifest_root_and_action_schema_are_exact_and_sequences_are_frozen():
@@ -520,6 +488,11 @@ def test_action_context_shape_includes_plan_bound_fake_apply_evidence():
         "measured_qualified",
         "monitor_controls_qualified",
         "monitor_writes_qualified",
+        "system_profiles_qualified",
+        "system_profile_writes_qualified",
+        "selected_profile_installed",
+        "restorable_system_profiles",
+        "switchable_system_profiles",
     )
 
 
@@ -1208,7 +1181,6 @@ def test_phase_two_import_and_physical_actions_remain_disabled_when_qualified():
 
     for action_id in (
         "panel_profile.import",
-        "display.restore_defaults",
         "calibration.method.hybrid",
     ):
         assert registry.resolve(action_id, context).disposition is ActionDisposition.DISABLED

@@ -9,10 +9,11 @@ the same sentence.
 
 Two commands write to a path the operator named on the command line: a
 calibration bundle into a directory, and a diagnostic bundle at a file path.
-Two more speak to the display over its own control bus, and one of those is the
-only command here that changes hardware. It is refused unless the operator
-passes ``--confirm``, and it is built from a composition that holds a control
-port, which the read-only one deliberately does not.
+Two more speak to the display over its own control bus, and five reach the
+Windows colour profile store. Each of those two groups holds one command that
+only reads and the rest that change the machine, and a change is refused unless
+the operator passes ``--confirm``. Both groups are built from a composition
+holding the port they address, which the read-only one deliberately does not.
 """
 
 from __future__ import annotations
@@ -24,6 +25,13 @@ from calibrate_pro.application.actions import ActionDisposition
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, refusal_message
 from calibrate_pro.commands.session_ddc import ddc_calibrate, ddc_info
 from calibrate_pro.commands.session_diagnostics import diagnostics
+from calibrate_pro.commands.session_profiles import (
+    install_profile,
+    remove_profile,
+    restore_profiles,
+    switch_profile,
+    system_profiles,
+)
 
 if TYPE_CHECKING:
     from calibrate_pro.application.assets import ExportBundle
@@ -47,6 +55,25 @@ REFUSED = 2
 #: port and says so. These two are built from the composition this machine can
 #: honestly offer, because a port is the thing they exist to use.
 DISPLAY_CONTROL_COMMANDS = frozenset({"ddc-calibrate", "ddc-info"})
+
+#: The commands that address the Windows colour profile store. They are routed
+#: the same way the control commands are and for the same reason: the store is
+#: the thing they exist to read and write, and a composition that wired no
+#: profile port answers them by saying so rather than by failing at a call.
+SYSTEM_PROFILE_COMMANDS = frozenset(
+    {
+        "install-profile",
+        "remove-profile",
+        "restore-profiles",
+        "switch-profile",
+        "system-profiles",
+    }
+)
+
+#: Every command that needs a port into the machine. Built from the two groups
+#: rather than typed out again, so a command added to either is routed by that
+#: alone.
+HARDWARE_COMMANDS = DISPLAY_CONTROL_COMMANDS | SYSTEM_PROFILE_COMMANDS
 
 
 class CommandError(Exception):
@@ -270,8 +297,13 @@ COMMANDS = {
     "detect": detect,
     "diagnostics": diagnostics,
     "generate-profiles": generate,
+    "install-profile": install_profile,
     "profiles": profiles,
+    "remove-profile": remove_profile,
+    "restore-profiles": restore_profiles,
     "status": status,
+    "switch-profile": switch_profile,
+    "system-profiles": system_profiles,
     "verify": verify,
 }
 
@@ -280,13 +312,14 @@ def build_service(command: str) -> FunctionalRecoveryService:
     """Build the composition one command needs, which is not the same for all of them.
 
     A command that never touches a display is answered by the read-only
-    composition, so nothing it does can reach one. The two that address a
-    display need a build with a control port in it, and asking for that build
-    per command is what keeps the port out of the six that have no use for it.
+    composition, so nothing it does can reach one. The commands that address a
+    display's control bus or the machine's colour profile store need a build
+    holding those ports, and asking for that build per command is what keeps
+    both ports out of the commands that have no use for them.
     """
     from calibrate_pro.application.composition import build_default_service, build_production_service
 
-    if command in DISPLAY_CONTROL_COMMANDS:
+    if command in HARDWARE_COMMANDS:
         return build_default_service()
     return build_production_service()
 
@@ -322,8 +355,10 @@ def run_argv(command: str, argv: Sequence[str]) -> int:
 __all__ = [
     "COMMANDS",
     "DISPLAY_CONTROL_COMMANDS",
+    "HARDWARE_COMMANDS",
     "PRESET_PREFIX",
     "REFUSED",
+    "SYSTEM_PROFILE_COMMANDS",
     "CommandError",
     "Refused",
     "build_service",
