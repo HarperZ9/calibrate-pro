@@ -18,6 +18,7 @@
     "calibrate_pro.application.exporting",
     "calibrate_pro.application.fake_acceptance",
     "calibrate_pro.application.generation",
+    "calibrate_pro.application.instruments",
     "calibrate_pro.application.journal",
     "calibrate_pro.application.outcomes",
     "calibrate_pro.application.panel_profiles",

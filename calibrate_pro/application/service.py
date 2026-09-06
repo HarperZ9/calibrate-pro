@@ -24,6 +24,7 @@ from calibrate_pro.application.detection import DisplayDetector
 from calibrate_pro.application.diagnostics import DiagnosticsActions
 from calibrate_pro.application.exporting import export_bundle, export_single_format
 from calibrate_pro.application.generation import generate_bundle
+from calibrate_pro.application.instruments import InstrumentSource, NoInstrumentSource
 from calibrate_pro.application.journal import DiagnosticBundleManager
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.panel_profiles import PanelProfileActions
@@ -76,6 +77,7 @@ class FunctionalRecoveryService(
         engine: SensorlessEngine,
         lut_size: int = 33,
         bundles: DiagnosticBundleManager | None = None,
+        instruments: InstrumentSource | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
@@ -84,6 +86,7 @@ class FunctionalRecoveryService(
         self._engine = engine
         self._lut_size = lut_size
         self._bundles = bundles
+        self._instruments = instruments if instruments is not None else NoInstrumentSource()
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 
@@ -118,6 +121,7 @@ class FunctionalRecoveryService(
         state = self._state
         state.dashboard = result.dashboard
         state.capability_generation += 1
+        state.instrument_identity = self._instrument_identity()
         self._reset_downstream()
         self._adopt(result.dashboard.selected_display_id)
         return DetectionSummary(
@@ -125,6 +129,24 @@ class FunctionalRecoveryService(
             rejected=tuple((entry.platform_display_id, entry.reason) for entry in result.rejected),
             capability_generation=state.capability_generation,
         )
+
+    def _instrument_identity(self) -> str | None:
+        """Name the instrument the source found, or None when it found none.
+
+        A source that raises has not found a device. The identity is read at
+        detection so that it moves with the rest of the machine picture rather
+        than being resolved later against a colorimeter that has since been
+        unplugged.
+        """
+        try:
+            if not self._instruments.present():
+                return None
+            described = self._instruments.describe()
+        except Exception:
+            return None
+        if type(described) is not str or not described.strip():
+            return None
+        return described
 
     def select_display(self, display_id: str) -> ActionOutcome[DisplaySelection]:
         return self._runner.run("workflow.select_display", lambda: self._select_display(display_id))

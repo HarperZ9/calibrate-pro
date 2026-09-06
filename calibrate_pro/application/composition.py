@@ -40,6 +40,11 @@ from calibrate_pro.application.detection import (
 )
 from calibrate_pro.application.diagnostics import windows_folder_opener
 from calibrate_pro.application.fake_acceptance import FakeAcceptanceService, RecordingFakeAdapter
+from calibrate_pro.application.instruments import (
+    NoInstrumentSource,
+    UsbInstrumentSource,
+    usb_instrument_present,
+)
 from calibrate_pro.application.journal import DiagnosticBundleManager, DiagnosticJournal
 from calibrate_pro.application.outcomes import ActionBoundary
 from calibrate_pro.application.runner import IssuedCorrelationId, SessionActionRunner
@@ -60,6 +65,7 @@ FAKE_DISPLAY_RESOURCE = "fake-acceptance-display.json"
 FAKE_JOURNAL_DIRNAME = "diagnostics"
 
 _FAKE_PROBE_REASON = "the fake-acceptance composition probes no hardware"
+_FAKE_INSTRUMENT_REASON = "the fake-acceptance composition opens no instrument"
 
 
 class CompositionMode(str, Enum):
@@ -160,12 +166,12 @@ def build_calibration_service() -> CalibrationApplyService:
         WindowsDisplayStateAdapter,
     )
 
-    state = SessionState(actuation_route=True)
+    state = SessionState(actuation_route=True, measurement_route=True)
     journal = DiagnosticJournal()
     database = get_database()
     engine, generator = _engine_and_generator(database)
     detector = DisplayDetector(
-        capability_probe=windows_read_only_probe(),
+        capability_probe=windows_read_only_probe(sensor=usb_instrument_present),
         hdr_reader=read_hdr_states,
         database=database,
     )
@@ -177,17 +183,18 @@ def build_calibration_service() -> CalibrationApplyService:
         detector=detector,
         generator=generator,
         engine=engine,
+        instruments=UsbInstrumentSource(),
     )
 
 
 def build_production_service() -> FunctionalRecoveryService:
     """Build the session this product ships, which holds no display adapter."""
-    state = SessionState()
+    state = SessionState(measurement_route=True)
     journal = DiagnosticJournal()
     database = get_database()
     engine, generator = _engine_and_generator(database)
     detector = DisplayDetector(
-        capability_probe=windows_read_only_probe(),
+        capability_probe=windows_read_only_probe(sensor=usb_instrument_present),
         hdr_reader=read_hdr_states,
         database=database,
     )
@@ -198,6 +205,7 @@ def build_production_service() -> FunctionalRecoveryService:
         detector=detector,
         generator=generator,
         engine=engine,
+        instruments=UsbInstrumentSource(),
     )
 
 
@@ -244,6 +252,7 @@ def build_fake_acceptance_service(output_root: Path) -> FakeAcceptanceService:
         detector=detector,
         generator=generator,
         engine=engine,
+        instruments=NoInstrumentSource(_FAKE_INSTRUMENT_REASON),
     )
 
 
