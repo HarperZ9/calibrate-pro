@@ -206,7 +206,12 @@ def test_spec_excludes_only_proven_unused_heavy_qt_surfaces_and_keeps_printsuppo
     }
 
     assert unused_heavy_qt <= fixed_excludes
-    assert {"charset_normalizer", "numpy.f2py"} <= fixed_excludes
+    assert {"charset_normalizer"} <= fixed_excludes
+    # numpy.f2py was excluded here as unused and it is not. scipy.special
+    # clones numpy with "from numpy import *", and numpy imports f2py to
+    # answer that name, so excluding it stopped the frozen build importing
+    # scipy at all. The window exited 1 before it drew anything.
+    assert "numpy.f2py" not in fixed_excludes
     assert "PySide6.QtPrintSupport" in hidden_imports
     assert "PySide6.QtPrintSupport" not in fixed_excludes
 

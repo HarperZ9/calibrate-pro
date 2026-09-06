@@ -100,9 +100,32 @@ def test_frozen_smoke_is_offscreen_and_read_only() -> None:
     assert "--help" in text
     assert "--version" in text
     assert "doctor" in text
-    assert "if ($probe.Arguments.Count -gt 0)" in text
+    assert "if ($Arguments.Count -gt 0)" in text
     assert "Start-Process @start" in text
     assert re.search(r"&\s+\$cli\s+calibrate(?:\s|$)", text, re.I) is None
+
+
+def test_the_frozen_smoke_can_report_why_a_probe_exited_and_with_what_code() -> None:
+    """A build failed here saying a number and nothing else, and the number was 1.
+
+    Finding the cause meant rebuilding the packaged graph by hand, because the
+    windowed executable writes its reason to a stream the graded launch does not
+    hold. Two lines carry the fix. The re-run captures both streams, and the
+    handle read keeps the exit code readable across it: a redirected
+    ``Start-Process`` returns an object that closes its handle when the process
+    ends, which leaves ``ExitCode`` empty and prints the reason line with the
+    number missing. Neither line has a caller that would fail without it, so
+    both are held here.
+    """
+    text = (ROOT / "scripts/smoke_frozen.ps1").read_text(encoding="utf-8")
+
+    assert "$null = $process.Handle" in text
+    assert "RedirectStandardOutput" in text and "RedirectStandardError" in text
+    assert "Re-run exit code $($process.ExitCode)." in text
+    # The graded launch is the one with no streams. Redirecting it would change
+    # what the gate measures, because a windowed build behaves differently when
+    # it is handed usable handles.
+    assert "$process = Start-Probe -File $probe.File -Arguments $probe.Arguments" in text
 
 
 def test_reproducibility_uses_two_isolated_unsigned_builds() -> None:

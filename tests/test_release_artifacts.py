@@ -595,7 +595,7 @@ def test_upx_and_forbidden_toc_modules_fail_closed(tmp_path: Path) -> None:
     [
         "_internal/api-ms-win-core-file-l1-1-0.dll",
         "_internal/charset_normalizer/md.cp312-win_amd64.pyd",
-        "_internal/numpy/f2py/rules.py",
+        "_internal/psutil/_psutil_windows.pyd",
         "_internal/PySide6/opengl32sw.dll",
         "_internal/PySide6/plugins/imageformats/qpdf.dll",
         "_internal/PySide6/translations/qt_en.qm",
