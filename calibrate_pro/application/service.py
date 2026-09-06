@@ -6,9 +6,11 @@ so every state change in a session passes through one resolver, one action
 boundary, and one journal.
 
 This class performs no physical mutation. It holds no adapter, it has no method
-that writes to a display, and the module imports nothing that can. The fake
-composition subclasses it to prove an apply path end to end; production runs the
-class as written, and confirmation is an acknowledgement rather than a write.
+that writes to a display, and the module imports nothing that can. Two
+subclasses add one. The fake composition records what an apply would do, and
+the calibration composition sends it to the display. Both adapters arrive from
+the composition layer, so a session built without one is never handed one, and
+a build with no write route runs this class as written.
 """
 
 from __future__ import annotations

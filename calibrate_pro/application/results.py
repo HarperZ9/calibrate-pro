@@ -63,13 +63,20 @@ class TargetSelection:
 
 @dataclass(frozen=True)
 class GenerationResult:
-    """A sealed bundle held in memory, named by digest and by file."""
+    """A sealed bundle held in memory, named by digest and by file.
+
+    ``apply_note`` carries why the sealed plan requests no display route,
+    and is None when it requests one. A session that only publishes files
+    leaves it None too, because nothing was withheld there: no route was
+    ever asked for.
+    """
 
     plan_sha256: str
     filenames: tuple[str, ...]
     panel_name: str
     characterization_kind: CharacterizationKind
     evidence_kind: EvidenceKind
+    apply_note: str | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +110,42 @@ class FakeApplyResult:
     plan_sha256: str
     receipt: ApplyReceipt
     physical_apply_performed: bool = False
+
+    @property
+    def apply_phase_flags(self) -> tuple[tuple[str, bool], ...]:
+        return (
+            ("captured", self.receipt.captured),
+            ("applied", self.receipt.applied),
+            ("verified", self.receipt.verified),
+            ("restore_attempted", self.receipt.restore_attempted),
+            ("restored", self.receipt.restored),
+        )
+
+    @property
+    def recovery_guarantee(self) -> str:
+        return self.receipt.recovery_guarantee.value
+
+
+@dataclass(frozen=True)
+class AppliedPlanResult:
+    """A physical apply, reporting the receipt exactly as it came back.
+
+    ``physical_apply_performed`` reads the receipt rather than the composition.
+    A session built to drive a display still returns False for an apply that
+    refused before the write, because what the field answers is whether this
+    display was changed and not whether this session was able to change one.
+
+    ``routes`` names what the plan requested, so a report can say a compositor
+    LUT was loaded without re-deriving that from the plan it no longer holds.
+    """
+
+    plan_sha256: str
+    receipt: ApplyReceipt
+    routes: tuple[str, ...] = ()
+
+    @property
+    def physical_apply_performed(self) -> bool:
+        return self.receipt.applied
 
     @property
     def apply_phase_flags(self) -> tuple[tuple[str, bool], ...]:
@@ -226,6 +269,7 @@ class HdrStatus:
 
 
 __all__ = [
+    "AppliedPlanResult",
     "DetectionSummary",
     "DisplaySelection",
     "ExportDirectory",

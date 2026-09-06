@@ -72,9 +72,22 @@ class SessionState:
     selected_preset_id: str | None = None
     generated: GeneratedAssets | None = None
     sealed_plan_sha256: str | None = None
+
+    #: Whether the sealed plan requests a route the adapter would take. A
+    #: bundle can seal cleanly and still ask for nothing, either because the
+    #: characterization already matches the target or because no route this
+    #: build can capture and restore was detected. Apply reads this rather
+    #: than the capability state, so a control is offered for a plan that
+    #: would change an output code and for no other.
+    sealed_plan_actuatable: bool = False
     sealed_capability_generation: int | None = None
     confirmation_state: ConfirmationState = "none"
     fake_applied_plan_sha256: str | None = None
+    #: Digest of the plan this session applied to a display, once one has
+    #: been applied. Kept apart from the fake composition's answer so a
+    #: condition asking whether a display was changed cannot be satisfied by a
+    #: recorded apply.
+    applied_plan_sha256: str | None = None
     verification_evidence: EvidenceKind | None = None
     export_directory: str | None = None
     export_directory_valid: bool = False
@@ -84,10 +97,20 @@ class SessionState:
     selected_profile: ProfileInspection | None = None
     validated_import_ready: bool = False
     supported_vcp_codes: frozenset[int] = frozenset()
+    actuation_route: bool = False
+    measurement_route: bool = False
+    instrument_identity: str | None = None
 
     def __post_init__(self) -> None:
         if type(self.fake_acceptance) is not bool:
             raise TypeError("fake_acceptance must be an exact boolean")
+        for name in ("actuation_route", "measurement_route"):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be an exact boolean")
+        if self.instrument_identity is not None and (
+            type(self.instrument_identity) is not str or not self.instrument_identity.strip()
+        ):
+            raise TypeError("instrument_identity must be a nonblank exact string or None")
         if self.runtime_mode not in {"source", "frozen"}:
             raise ValueError("runtime_mode must be source or frozen")
 
@@ -146,6 +169,30 @@ class SessionState:
         return self.generated is not None and self.sealed_plan_sha256 is not None
 
     @property
+    def physical_apply_qualified(self) -> bool:
+        """Report whether this session may change the display it selected.
+
+        Two facts have to hold together. The session must hold an actuation
+        route, which only a composition that wired a display adapter sets, and
+        the selected display must have reported at least one detected write.
+        A read-only session answers False because it has no route, and a
+        session whose probe proved nothing answers False because it has no
+        capability. Neither answer is a setting a surface can reach.
+        """
+        return self.actuation_route and self.capabilities is not None and self.capabilities.writes_available
+
+    @property
+    def measured_qualified(self) -> bool:
+        """Report whether this session may take an instrument measurement.
+
+        The route says a measurement port was wired. `sensor_available` says a
+        probe opened a device and found one. Requiring both is what keeps a
+        MEASURED evidence kind attached to a reading a device produced rather
+        than to the intention to take one.
+        """
+        return self.measurement_route and self.capabilities is not None and self.capabilities.sensor_available
+
+    @property
     def seal_intact(self) -> bool:
         """Report whether the sealed plan still matches the current machine."""
         return (
@@ -165,8 +212,10 @@ class SessionState:
         had_seal = self.sealed_plan_sha256 is not None
         self.generated = None
         self.sealed_plan_sha256 = None
+        self.sealed_plan_actuatable = False
         self.sealed_capability_generation = None
         self.fake_applied_plan_sha256 = None
+        self.applied_plan_sha256 = None
         self.verification_evidence = None
         self.confirmation_state = "expired" if had_seal else "none"
 
@@ -184,8 +233,10 @@ class SessionState:
             target_hdr=self.target_hdr,
             generated_asset_kinds=self.generated_asset_kinds,
             sealed_plan_sha256=self.sealed_plan_sha256,
+            sealed_plan_actuatable=self.sealed_plan_actuatable,
             confirmation_state=self.confirmation_state,
             fake_applied_plan_sha256=self.fake_applied_plan_sha256,
+            applied_plan_sha256=self.applied_plan_sha256,
             capability_generation=self.capability_generation,
             sealed_capability_generation=self.sealed_capability_generation,
             verification_evidence=self.verification_evidence,
@@ -197,13 +248,12 @@ class SessionState:
             supported_vcp_codes=self.supported_vcp_codes,
             diagnostic_bundle_preview_live=self.diagnostic_bundle_preview_live,
             journal_ready=self.journal_ready,
-            # Both qualifications are false for the whole of this phase and are
-            # not session state. No physical mutation path has passed its
-            # acceptance evidence, and measured calibration needs an instrument
-            # this build does not drive. Reading them from the session would
-            # let a caller talk itself into a qualification it does not have.
-            physical_apply_qualified=False,
-            measured_qualified=False,
+            # Both qualifications are derived, never set. Each requires a
+            # wired route and a capability a probe actually proved, so a
+            # session that holds neither answers False for the same reason it
+            # always did rather than because the value was hardcoded.
+            physical_apply_qualified=self.physical_apply_qualified,
+            measured_qualified=self.measured_qualified,
         )
 
 

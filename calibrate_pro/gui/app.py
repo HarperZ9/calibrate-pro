@@ -54,7 +54,7 @@ from PySide6.QtWidgets import (
 
 from calibrate_pro.application.actions import ActionClassification, ActionDisposition, ResolvedAction
 from calibrate_pro.application.assets import ExportBundle
-from calibrate_pro.application.composition import build_production_service
+from calibrate_pro.application.composition import build_default_service
 from calibrate_pro.application.contracts import (
     CharacterizationKind,
     DisplayObservation,
@@ -64,7 +64,7 @@ from calibrate_pro.application.detection import panel_key_from_provenance
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
 from calibrate_pro.application.results import DetectionSummary, DisplaySelection, HdrStatus, PlanPreview
 from calibrate_pro.application.service import FunctionalRecoveryService
-from calibrate_pro.gui.action_binding import ActionBinder, refusal_message
+from calibrate_pro.gui.action_binding import ActionBinder, Operation, refusal_message
 from calibrate_pro.gui.add_display import AddDisplayDialog
 from calibrate_pro.gui.plan_dialog import PlanConfirmationDialog
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
@@ -990,6 +990,21 @@ class DashboardPage(QWidget):
 # Placeholder Pages (to be rebuilt individually)
 
 
+def _apply_operation(service: FunctionalRecoveryService) -> Operation:
+    """Give the apply control an operation on a session that cannot apply.
+
+    The read-only session carries no apply method, and the control is still
+    bound so the manifest's reason is what the operator reads on it rather
+    than an absence. Nothing here decides whether the control is live: the
+    resolver disables it on a session with no actuation route, so the refusal
+    below is a floor and not the path anyone takes.
+    """
+    apply_confirmed = getattr(service, "apply_confirmed_plan", None)
+    if apply_confirmed is None:
+        return partial(service.unhandled, "calibration.apply")
+    return apply_confirmed
+
+
 class PlaceholderPage(QWidget):
     def __init__(self, title: str, parent=None):
         super().__init__(parent)
@@ -1039,7 +1054,7 @@ class CalibrateProWindow(QMainWindow):
         """
         super().__init__()
         self.preview_mode = preview_mode
-        self.service = service if service is not None else build_production_service()
+        self.service = service if service is not None else build_default_service()
         #: The last detection pass this session answered with, or None before one
         #: has run. The tray reports this and nothing else, so a window that has
         #: observed nothing says so rather than describing an earlier run.
@@ -1488,6 +1503,7 @@ class CalibrateProWindow(QMainWindow):
                     unhandled=self.service.unhandled,
                     generate=self.service.generate,
                     preview=self.service.preview,
+                    apply_plan=_apply_operation(self.service),
                     confirm_plan=self._open_plan_dialog,
                 )
                 self.stack.addWidget(self.calibrate_page)  # 1

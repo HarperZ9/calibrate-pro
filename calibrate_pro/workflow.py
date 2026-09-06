@@ -167,6 +167,18 @@ class CapabilityState:
             if type(value) is not bool:
                 raise TypeError(f"{name} must be an exact boolean")
 
+    @property
+    def writes_available(self) -> bool:
+        """Report whether any route that changes display state was detected.
+
+        A write capability is not one capability. Four of them mutate the
+        machine and a session that detected none of them can offer no apply at
+        all, so the coarse answer belongs here rather than in each caller.
+        Which specific write a plan may perform is still decided by `validate`,
+        which refuses a plan whose requested writes exceed what was detected.
+        """
+        return self.ddc_available or self.dwm_lut_available or self.profile_write_available or self.vcgt_available
+
     def disabled_reason(self, method: CalibrationMethod) -> str | None:
         if not isinstance(method, CalibrationMethod):
             raise TypeError("method must be a CalibrationMethod")

@@ -57,8 +57,15 @@ class ActionContext:
     target_hdr: bool
     generated_asset_kinds: frozenset[Literal["ICC", "CUBE"]]
     sealed_plan_sha256: str | None
+
+    #: Whether the sealed plan asks for a display route at all. A plan that
+    #: asks for none is a complete bundle an operator can export; it is not
+    #: something an apply can carry out, so the apply predicate reads this
+    #: beside the qualification rather than inferring it from the digest.
+    sealed_plan_actuatable: bool
     confirmation_state: Literal["none", "live", "confirmed", "consumed", "expired"]
     fake_applied_plan_sha256: str | None
+    applied_plan_sha256: str | None
     capability_generation: int
     sealed_capability_generation: int | None
     verification_evidence: EvidenceKind | None
@@ -88,6 +95,7 @@ class ActionContext:
             "validated_import_ready",
             "diagnostic_bundle_preview_live",
             "journal_ready",
+            "sealed_plan_actuatable",
             "physical_apply_qualified",
             "measured_qualified",
         ):
@@ -110,6 +118,7 @@ class ActionContext:
         }:
             raise ValueError("confirmation_state is invalid")
         _validate_optional_sha256(self.fake_applied_plan_sha256, "fake_applied_plan_sha256")
+        _validate_optional_sha256(self.applied_plan_sha256, "applied_plan_sha256")
         _validate_generation(self.capability_generation, "capability_generation")
         if self.sealed_capability_generation is not None:
             _validate_generation(self.sealed_capability_generation, "sealed_capability_generation")
@@ -553,6 +562,19 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             and context.confirmation_state == "live"
             and context.journal_ready
         )
+    if action_id == "calibration.apply":
+        # A recorded apply and a real one are separate actions with separate
+        # ids, so the fake composition is excluded here rather than left to the
+        # qualification check that would also refuse it.
+        return (
+            not context.fake_acceptance
+            and context.physical_apply_qualified
+            and context.sealed_plan_actuatable
+            and context.sealed_plan_sha256 is not None
+            and _generation_matches(context)
+            and context.confirmation_state == "confirmed"
+            and context.journal_ready
+        )
     if action_id == "fake_acceptance.apply":
         return (
             context.fake_acceptance
@@ -563,6 +585,15 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         )
     if action_id == "verification.sensorless":
         production_confirmed = not context.fake_acceptance and context.confirmation_state == "confirmed"
+        # An apply spends the confirmation, so a session that just changed a
+        # display no longer answers the confirmed test. Verification is what
+        # reports the result of that change, and refusing it here would leave
+        # the operator holding an applied calibration with no way to see it.
+        applied = (
+            not context.fake_acceptance
+            and context.confirmation_state == "consumed"
+            and context.applied_plan_sha256 == context.sealed_plan_sha256
+        )
         fake_applied = (
             context.fake_acceptance
             and context.confirmation_state == "consumed"
@@ -572,7 +603,7 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             _sensorless_ready(context)
             and context.sealed_plan_sha256 is not None
             and _generation_matches(context)
-            and (production_confirmed or fake_applied)
+            and (production_confirmed or applied or fake_applied)
             and context.verification_evidence is not EvidenceKind.MEASURED
         )
     if action_id == "report.save":

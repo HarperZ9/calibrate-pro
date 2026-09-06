@@ -64,6 +64,34 @@
       "unavailable_reason": "This surface is hidden until its product workflow is specified."
     },
     {
+      "action_id": "calibration.apply",
+      "surfaces": [
+        "calibrate.apply"
+      ],
+      "classification": "physical_mutation",
+      "required_stages": [
+        "preview",
+        "apply"
+      ],
+      "required_capabilities": [
+        "physical_apply_qualification",
+        "journal_ready"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "apply_confirmed_plan",
+      "required_modules": [
+        "calibrate_pro.application.calibration"
+      ],
+      "required_resources": [],
+      "receipt_required": true,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Apply needs a confirmed current plan that requests a write route this display reported and this build can capture."
+    },
+    {
       "action_id": "calibration.confirm_plan",
       "surfaces": [
         "dialog.plan.accept"

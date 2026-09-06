@@ -18,6 +18,7 @@ labeled ``EvidenceKind.ESTIMATED`` and never ``MEASURED``.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import shutil
@@ -52,6 +53,14 @@ MANIFEST_FILENAME = "calibrate-pro-manifest.json"
 MANIFEST_SCHEMA = 1
 
 _STAGING_PREFIX = ".calibrate-pro-staging-"
+
+#: Entries in the gamma table an apply loads, before the platform resamples it.
+_GAMMA_TABLE_ENTRIES = 1024
+
+#: One 8-bit output code. A correction smaller than this is lost when the
+#: display pipeline quantizes, so a table or cube that stays inside it changes
+#: no pixel a viewer can see.
+_ONE_OUTPUT_CODE = 1.0 / 255.0
 _BACKUP_DIRNAME = "replaced"
 
 
@@ -169,9 +178,24 @@ class GeneratedAssets:
     tone_response: str
     applied_gamma_exponent: float
     white_point: str
+    gamma_table: bytes = b""
+    cube_changes_output: bool = False
+    gamma_table_changes_output: bool = False
 
     def digest_for(self, fmt: AssetFormat) -> str:
         return hashlib.sha256(self.assets[fmt]).hexdigest()
+
+    @property
+    def gamma_table_sha256(self) -> str:
+        """Digest the gamma table, refusing to digest an absent one.
+
+        A caller reaching for this is about to pin the table into an apply plan.
+        Answering the digest of empty bytes would seal a plan whose gamma file
+        holds nothing, so the absence is raised where it can still be handled.
+        """
+        if not self.gamma_table:
+            raise AssetGenerationError("this bundle carries no gamma table")
+        return hashlib.sha256(self.gamma_table).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -254,6 +278,7 @@ class AssetGenerator:
             target_gamma=exponent,
         )
 
+        gamma_table, gamma_moves = _render_gamma_table(lut)
         payloads = self._render(request, panel, lut)
         return GeneratedAssets(
             request=request,
@@ -265,6 +290,9 @@ class AssetGenerator:
             tone_response=tone_response,
             applied_gamma_exponent=exponent,
             white_point=white_point,
+            gamma_table=gamma_table,
+            cube_changes_output=_cube_changes_output(lut),
+            gamma_table_changes_output=gamma_moves,
         )
 
     def _render(
@@ -326,6 +354,70 @@ class AssetGenerator:
             )
         else:  # pragma: no cover - the enum is closed and validated on request
             raise AssetGenerationError(f"no writer is registered for {fmt!r}")
+
+
+def _render_gamma_table(lut: LUT3D) -> tuple[bytes, bool]:
+    """Extract the neutral axis of one 3D LUT as an ArgyllCMS .cal payload.
+
+    A graphics card applies a per-channel curve, not a cube, so the gamma table
+    is what an apply actually loads. Taking it from the same LUT the bundle
+    exports is what keeps the loaded curve and the published cube describing one
+    calibration rather than two computed from the same inputs at different
+    times.
+
+    The output is 1024 entries. Windows resamples to 256 on load, and starting
+    above that leaves the resample interpolating a curve rather than a curve
+    already quantized to the destination grid.
+    """
+    vcgt = importlib.import_module("calibrate_pro.core.vcgt")
+    table = vcgt.lut3d_to_vcgt(lut.data, output_size=_GAMMA_TABLE_ENTRIES)
+    staging = Path(tempfile.mkdtemp(prefix="calibrate-pro-gamma-"))
+    try:
+        path = staging / "gamma.cal"
+        vcgt.export_vcgt_cal(table, str(path))
+        raw = path.read_bytes()
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    if not raw:
+        raise AssetGenerationError("gamma table writer produced an empty file")
+    return _normalize_newlines(raw), _curve_changes_output(table)
+
+
+def _curve_changes_output(table: object) -> bool:
+    """Answer whether loading this curve would move any 8-bit output code.
+
+    A gamut clamp corrects saturated colour and leaves neutral grey where it
+    already sits, so the curve it yields is frequently an exact ramp. Loading
+    one of those and reporting an applied calibration would claim a change the
+    panel never made, which is the case this answer exists to catch.
+    """
+    numpy = importlib.import_module("numpy")
+    for name in ("red", "green", "blue"):
+        channel = numpy.asarray(getattr(table, name), dtype=float)
+        reference = numpy.linspace(0.0, 1.0, channel.size)
+        if float(numpy.abs(channel - reference).max()) > _ONE_OUTPUT_CODE:
+            return True
+    return False
+
+
+def _cube_changes_output(lut: LUT3D) -> bool:
+    """Answer whether loading this cube would move any 8-bit output code.
+
+    The generic characterization carries exact sRGB primaries, an exact D65
+    white, and an exact 2.2 response, so every target it can reach resolves to
+    the identity cube. Publishing that as a calibration is the failure this
+    guards. The same answer covers a matched panel already sitting on target.
+    """
+    numpy = importlib.import_module("numpy")
+    axis = numpy.linspace(0.0, 1.0, lut.size)
+    identity = numpy.stack(numpy.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    measured = numpy.asarray(lut.data, dtype=float)
+    return bool(float(numpy.abs(measured - identity).max()) > _ONE_OUTPUT_CODE)
+
+
+def _normalize_newlines(raw: bytes) -> bytes:
+    """Give one newline convention to a writer that emits the platform's own."""
+    return raw.replace(bytes([13, 10]), bytes([10]))
 
 
 def _normalize(fmt: AssetFormat, raw: bytes) -> bytes:

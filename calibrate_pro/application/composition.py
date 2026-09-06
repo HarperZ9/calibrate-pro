@@ -1,19 +1,27 @@
 """Where a session is assembled, and the only place a composition is chosen.
 
-Two compositions exist and neither can turn into the other. The production
-composition wires read-only detection and holds no display adapter, so no
-argument, environment variable, or plugin can give it one. The fake-acceptance
-composition wires a recording adapter and a bundled synthetic display, so its
-apply path proves ordering and gating while touching no hardware.
+Three compositions exist and none can turn into another. The calibration
+composition wires a Windows display adapter and is what the product runs when
+the operator means to change a display. The diagnostic composition wires the
+same read-only detection and holds no adapter, and nothing a caller passes in
+can hand one to a session built for reading. The fake-acceptance composition
+wires a recording adapter and a bundled synthetic display, so its apply path
+proves ordering and gating while touching nothing.
 
 The mode is a value a caller reads, not a switch a caller sets. Each builder
-constructs its own collaborators, which is what keeps the two paths from
-sharing a seam an adapter could be injected through.
+constructs its own collaborators, which is what keeps the paths from sharing a
+seam an adapter could be injected through.
+
+Only the calibration builder imports an adapter, and it imports one inside the
+function body. A module-level import would pull the writer into every process
+that loads this module, including the diagnostic path whose whole claim is
+that it never loaded one.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Sequence
 from enum import Enum
 from importlib import resources
@@ -23,6 +31,7 @@ from uuid import uuid4
 
 from calibrate_pro.application.actions import ActionRegistry
 from calibrate_pro.application.assets import AssetGenerator
+from calibrate_pro.application.calibration import CalibrationApplyService
 from calibrate_pro.application.detection import (
     DeniedCapabilityProbe,
     DisplayDetector,
@@ -56,6 +65,7 @@ _FAKE_PROBE_REASON = "the fake-acceptance composition probes no hardware"
 class CompositionMode(str, Enum):
     """Which session was built, reported rather than selected."""
 
+    CALIBRATION = "calibration"
     PRODUCTION = "production"
     FAKE_ACCEPTANCE = "fake_acceptance"
 
@@ -132,6 +142,44 @@ def _engine_and_generator(database: PanelDatabase) -> tuple[SensorlessEngine, As
     return engine, AssetGenerator(engine, database)
 
 
+def build_calibration_service() -> CalibrationApplyService:
+    """Build the session that can change the display it detected.
+
+    The adapter is imported here rather than at module scope. Importing it at
+    module scope would load the platform writer into any process that reads
+    this module, and the diagnostic session's guarantee is that no such module
+    was ever loaded in its process.
+
+    ``actuation_route`` is set by this builder alone, and it is one half of the
+    apply qualification. The other half is what the probe found on the
+    selected display. A session built here still refuses to apply to a
+    display that reported no writable route.
+    """
+    from calibrate_pro.adapters.windows_display_state import (
+        DefaultWindowsDisplayPorts,
+        WindowsDisplayStateAdapter,
+    )
+
+    state = SessionState(actuation_route=True)
+    journal = DiagnosticJournal()
+    database = get_database()
+    engine, generator = _engine_and_generator(database)
+    detector = DisplayDetector(
+        capability_probe=windows_read_only_probe(),
+        hdr_reader=read_hdr_states,
+        database=database,
+    )
+    return CalibrationApplyService(
+        adapter=WindowsDisplayStateAdapter(DefaultWindowsDisplayPorts()),
+        state=state,
+        runner=_runner(state, journal),
+        bundles=_bundles(journal),
+        detector=detector,
+        generator=generator,
+        engine=engine,
+    )
+
+
 def build_production_service() -> FunctionalRecoveryService:
     """Build the session this product ships, which holds no display adapter."""
     state = SessionState()
@@ -151,6 +199,23 @@ def build_production_service() -> FunctionalRecoveryService:
         generator=generator,
         engine=engine,
     )
+
+
+def build_default_service() -> FunctionalRecoveryService:
+    """Build the composition this machine can honestly offer.
+
+    A calibration session is built where a display write route can exist at
+    all. Elsewhere the read-only session is the correct answer rather than a
+    leftover: there is no route for an adapter to take, so a control offered
+    for applying would stand for something that could not happen.
+
+    Which one was built is still not the whole apply qualification. A
+    calibration session refuses a display whose probe found no writable
+    route, so this choice widens nothing on its own.
+    """
+    if os.name != "nt":
+        return build_production_service()
+    return build_calibration_service()
 
 
 def build_fake_acceptance_service(output_root: Path) -> FakeAcceptanceService:
@@ -186,6 +251,8 @@ __all__ = [
     "FAKE_DISPLAY_RESOURCE",
     "FAKE_JOURNAL_DIRNAME",
     "CompositionMode",
+    "build_calibration_service",
+    "build_default_service",
     "build_fake_acceptance_service",
     "build_production_service",
     "contained_path",

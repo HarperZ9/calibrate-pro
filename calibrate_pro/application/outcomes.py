@@ -17,7 +17,12 @@ from calibrate_pro.application.journal import JournalRecord, JournalSink
 from calibrate_pro.workflow import WorkflowStage
 
 T = TypeVar("T")
-EffectState = Literal["none", "local_write_published", "fake_apply_attempted"]
+EffectState = Literal[
+    "none",
+    "local_write_published",
+    "fake_apply_attempted",
+    "physical_apply_attempted",
+]
 
 # JSON can expand each one-byte control character to six ASCII bytes. Even when
 # every bounded field takes that worst case, these combined limits plus schema
@@ -455,7 +460,12 @@ class ActionBoundary:
         spec = self._registry._spec_for(action_id)
         if spec is None or not spec.receipt_required:
             return False
-        return spec.classification is ActionClassification.LOCAL_FILE_WRITE or action_id == "fake_acceptance.apply"
+        # A physical apply is preflighted for the same reason a local write
+        # is: an action whose effect cannot be recorded does not start.
+        return (
+            spec.classification in {ActionClassification.LOCAL_FILE_WRITE, ActionClassification.PHYSICAL_MUTATION}
+            or action_id == "fake_acceptance.apply"
+        )
 
     def _preflight(self, action_id: str, stage: WorkflowStage, correlation_id: str) -> ActionError | None:
         try:
@@ -509,6 +519,13 @@ class ActionBoundary:
             recovery_guarantee = _read_recovery_guarantee(value)
             return "fake_apply_attempted", None, phase_flags, recovery_guarantee
         spec = self._registry._spec_for(action_id)
+        if spec is not None and spec.classification is ActionClassification.PHYSICAL_MUTATION:
+            # Reached only by an action that ran, so the display was addressed
+            # whatever the receipt goes on to say about how far it got.
+            phase_flags = _read_apply_phase_flags(value)
+            recovery_guarantee = _read_recovery_guarantee(value)
+            return "physical_apply_attempted", None, phase_flags, recovery_guarantee
+        spec = self._registry._spec_for(action_id)
         if spec is not None and spec.classification is ActionClassification.LOCAL_FILE_WRITE:
             published_artifact = _read_published_artifact(value)
             if published_artifact is not None:
@@ -545,6 +562,16 @@ class ActionBoundary:
             spec = self._registry._spec_for(action_id)
         except Exception:
             return "none", None, (), None
+        if spec is not None and spec.classification is ActionClassification.PHYSICAL_MUTATION:
+            try:
+                phase_flags = _read_apply_phase_flags(outcome.value)
+            except Exception:
+                phase_flags = ()
+            try:
+                recovery_guarantee = _read_recovery_guarantee(outcome.value)
+            except Exception:
+                recovery_guarantee = None
+            return "physical_apply_attempted", None, phase_flags, recovery_guarantee
         if spec is not None and spec.classification is ActionClassification.LOCAL_FILE_WRITE:
             try:
                 published_artifact = _read_published_artifact(outcome.value)

@@ -8,12 +8,20 @@ together with the capability generation current at the time.
 Sealing here rather than at the call site is deliberate. The digest, the bytes,
 and the capability generation are written in one place, so a later step cannot
 find a plan whose seal was recorded without the bundle it describes.
+
+What the plan requests is the one decision left to the caller. A session that
+only publishes files builds a plan requesting nothing; a session composed to
+apply builds one that pins staged assets and names the routes it will use. The
+plan builder is passed in so both go through this same sealing step rather than
+growing a second one.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from calibrate_pro.application.actions import PRESET_TARGETS
-from calibrate_pro.application.assets import AssetGenerator, AssetRequest
+from calibrate_pro.application.assets import AssetGenerator, AssetRequest, GeneratedAssets
 from calibrate_pro.application.planning import (
     DEFAULT_ASSET_FORMATS,
     build_apply_plan,
@@ -24,13 +32,37 @@ from calibrate_pro.application.refusals import incomplete_setup
 from calibrate_pro.application.results import GenerationResult
 from calibrate_pro.application.session import SessionState
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY
-from calibrate_pro.workflow import ApplyPlan
+from calibrate_pro.workflow import ApplyPlan, CalibrationMethod
+
+#: Build the plan one generated bundle belongs to. The publishing builder
+#: ignores the bundle because it requests nothing; an applying builder reads it
+#: to decide which routes would change an output code.
+PlanBuilder = Callable[[str, CalibrationMethod, str, tuple[str, ...], GeneratedAssets], ApplyPlan]
+
+
+def publishing_plan(
+    display_id: str,
+    method: CalibrationMethod,
+    preset_id: str,
+    filenames: tuple[str, ...],
+    generated: GeneratedAssets,
+) -> ApplyPlan:
+    """Build the plan that names files and requests no capability."""
+    _ = generated
+    return build_apply_plan(
+        display_id=display_id,
+        method=method,
+        preset_id=preset_id,
+        output_files=filenames,
+    )
 
 
 def generate_bundle(
     state: SessionState,
     generator: AssetGenerator,
     lut_size: int,
+    *,
+    plan_builder: PlanBuilder | None = None,
 ) -> tuple[GenerationResult, ApplyPlan]:
     """Generate and seal one bundle, returning what to report and what to hold."""
     display_id = state.selected_display_id
@@ -52,18 +84,16 @@ def generate_bundle(
     )
     generated = generator.generate(request)
     filenames = output_filenames(request)
-    plan = build_apply_plan(
-        display_id=display_id,
-        method=method,
-        preset_id=preset_id,
-        output_files=filenames,
-    )
+    build = publishing_plan if plan_builder is None else plan_builder
+    plan = build(display_id, method, preset_id, filenames, generated)
     digest = plan_digest(plan)
     state.generated = generated
     state.sealed_plan_sha256 = digest
     state.sealed_capability_generation = state.capability_generation
+    state.sealed_plan_actuatable = False
     state.confirmation_state = "none"
     state.fake_applied_plan_sha256 = None
+    state.applied_plan_sha256 = None
     state.verification_evidence = None
     result = GenerationResult(
         plan_sha256=digest,
@@ -75,4 +105,4 @@ def generate_bundle(
     return result, plan
 
 
-__all__ = ["generate_bundle"]
+__all__ = ["PlanBuilder", "generate_bundle", "publishing_plan"]

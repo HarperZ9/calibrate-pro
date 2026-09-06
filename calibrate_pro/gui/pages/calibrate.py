@@ -53,6 +53,7 @@ from PySide6.QtWidgets import (
 from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.outcomes import ActionOutcome
 from calibrate_pro.application.results import (
+    AppliedPlanResult,
     DetectionSummary,
     DisplaySelection,
     GenerationResult,
@@ -63,6 +64,15 @@ from calibrate_pro.application.results import (
 )
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
 from calibrate_pro.gui.app import C, Card, Heading, Stat
+
+#: What the page says once a receipt reports the display was written. The
+#: routes, the phases the adapter reached and the recovery guarantee follow
+#: it on the line below, so the claim and its detail are read together.
+APPLIED_NOTE = "Calibration applied to the display."
+
+#: What the page says when an apply returned a receipt that never reached the
+#: write. The phases below it name how far the adapter got.
+NOT_APPLIED_NOTE = "Apply did not change the display."
 
 #: Offered in the selector when the last detection pass observed no display.
 NO_DISPLAY_ITEM = "No display in this session"
@@ -355,6 +365,11 @@ class CalibratePage(QWidget):
         self._btn_preview.setFixedHeight(44)
         self._btn_preview.setFixedWidth(180)
         row.addWidget(self._btn_preview)
+        self._btn_apply = QPushButton("Apply to Display")
+        self._btn_apply.setStyleSheet(self._secondary_style())
+        self._btn_apply.setFixedHeight(44)
+        self._btn_apply.setFixedWidth(180)
+        row.addWidget(self._btn_apply)
         row.addStretch()
         self._layout.addLayout(row)
 
@@ -477,6 +492,7 @@ class CalibratePage(QWidget):
         unhandled: Callable[[str], ActionOutcome[Any]],
         generate: Operation,
         preview: Operation,
+        apply_plan: Operation,
         confirm_plan: Callable[[PlanPreview], None],
     ) -> None:
         """Hand every control here to the action it stands for.
@@ -553,6 +569,13 @@ class CalibratePage(QWidget):
             self._btn_preview,
             preview,
             on_success=self.render_preview,
+            hides=False,
+        )
+        binder.bind(
+            "calibration.apply",
+            self._btn_apply,
+            apply_plan,
+            on_success=self.render_apply,
             hides=False,
         )
 
@@ -705,7 +728,9 @@ class CalibratePage(QWidget):
         self._stat_characterization.set_value(result.characterization_kind.value)
         self._stat_evidence.set_value(result.evidence_kind.value)
         self._digest_label.setText(f"plan sha256: {result.plan_sha256}")
-        self._files_label.setText("Files: " + ", ".join(result.filenames))
+        files = "Files: " + ", ".join(result.filenames)
+        note = result.apply_note
+        self._files_label.setText(files if note is None else f"{files}. {note}")
         self._progress_bar.setValue(3)
 
     def render_preview(self, preview: PlanPreview) -> None:
@@ -728,6 +753,29 @@ class CalibratePage(QWidget):
         self._progress_bar.setValue(3)
         if self._confirm_plan is not None:
             self._confirm_plan(preview)
+
+    def render_apply(self, result: AppliedPlanResult) -> None:
+        """Report what the display did, reading the receipt and not the intent.
+
+        The heading answers one question: was this display changed. It comes
+        from the receipt, so a session built to drive a display still reports
+        an apply that stopped before the write as one that changed nothing.
+
+        The phases follow it in the order the adapter takes them, which is
+        what lets an operator see where a partial apply stopped instead of
+        reading a single word that flattens capture, write, verify and
+        restore into one.
+        """
+        applied = result.physical_apply_performed
+        self._result_heading.setText(APPLIED_NOTE if applied else NOT_APPLIED_NOTE)
+        self._result_heading.setStyleSheet(
+            f"font-size: 13px; font-weight: 500; color: {C.GREEN_HI if applied else C.TEXT2};"
+        )
+        routes = ", ".join(result.routes) or "none"
+        phases = ", ".join(f"{name}={'yes' if done else 'no'}" for name, done in result.apply_phase_flags)
+        self._files_label.setText(f"Routes: {routes}. Phases: {phases}. Recovery: {result.recovery_guarantee}.")
+        self._digest_label.setText(f"plan sha256: {result.plan_sha256}")
+        self._progress_bar.setValue(4)
 
     def render_decision(self, decision: PlanDecision) -> None:
         """Report which way the plan went, naming the plan it went for.
@@ -827,10 +875,12 @@ def _select(set_target: Callable[[str], ActionOutcome[Any]], preset_id: str) -> 
 
 
 __all__ = [
+    "APPLIED_NOTE",
     "CONFIRMED_NOTE",
     "DECLINED_NOTE",
     "GENERATED_NOTE",
     "HDR_PRESET_ACTION",
+    "NOT_APPLIED_NOTE",
     "NOT_GENERATED_NOTE",
     "NO_DISPLAY_ITEM",
     "NO_METHOD_NOTE",
