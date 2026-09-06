@@ -87,6 +87,7 @@ EXPECTED_CONDITIONAL_POLICY_IDS = {
     "ddc.stage.blue_black_level",
     "profile.system.read", "profile.install", "profile.activate", "profile.delete",
     "tray.switch_profile", "display.restore_defaults",
+    "patterns.open",
 }
 
 EXPECTED_DISABLED_POLICY_IDS = {
@@ -94,7 +95,6 @@ EXPECTED_DISABLED_POLICY_IDS = {
     "calibration.preset.hdr10", "settings.hdr",
     "panel_profile.edid.create", "panel_profile.import",
     "profile.rename", "profile.generate_all",
-    "patterns.open",
     "ddc.unsupported.image_mode", "ddc.unsupported.color_preset",
     "ddc.unsupported.gamma", "ddc.unsupported.factory_color_reset",
     "ddc.raw_write",
@@ -233,8 +233,8 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 51,
-        "disabled": 14,
+        "conditional": 52,
+        "disabled": 13,
         "hidden": 10,
     }
     assert set().union(*expected_by_policy.values()) == EXPECTED_ACTION_IDS
@@ -486,6 +486,7 @@ def test_action_context_shape_includes_plan_bound_fake_apply_evidence():
         "journal_ready",
         "physical_apply_qualified",
         "measured_qualified",
+        "patterns_qualified",
         "monitor_controls_qualified",
         "monitor_writes_qualified",
         "system_profiles_qualified",

@@ -9,8 +9,9 @@ the same sentence.
 
 Two commands write to a path the operator named on the command line: a
 calibration bundle into a directory, and a diagnostic bundle at a file path.
-Two more speak to the display over its own control bus, and five reach the
-Windows colour profile store. Each of those two groups holds one command that
+Two more speak to the display over its own control bus, five reach the Windows
+colour profile store, and one opens a window on the display and waits there
+while the operator looks at it. Each of those two groups holds one command that
 only reads and the rest that change the machine, and a change is refused unless
 the operator passes ``--confirm``. Both groups are built from a composition
 holding the port they address, which the read-only one deliberately does not.
@@ -25,6 +26,8 @@ from calibrate_pro.application.actions import ActionDisposition
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, refusal_message
 from calibrate_pro.commands.session_ddc import ddc_calibrate, ddc_info
 from calibrate_pro.commands.session_diagnostics import diagnostics
+from calibrate_pro.commands.session_patterns import patterns as show_patterns
+from calibrate_pro.commands.session_patterns import show_pattern
 from calibrate_pro.commands.session_profiles import (
     install_profile,
     remove_profile,
@@ -70,10 +73,17 @@ SYSTEM_PROFILE_COMMANDS = frozenset(
     }
 )
 
-#: Every command that needs a port into the machine. Built from the two groups
-#: rather than typed out again, so a command added to either is routed by that
-#: alone.
-HARDWARE_COMMANDS = DISPLAY_CONTROL_COMMANDS | SYSTEM_PROFILE_COMMANDS
+#: The command that opens a window on the operator's own display. It is routed
+#: with the hardware commands because it needs the composition that wired a
+#: pattern surface, and for no other reason: it reads nothing off the machine
+#: and changes nothing on it. Listing the patterns needs no port at all and is
+#: deliberately not here.
+PATTERN_COMMANDS = frozenset({"show-pattern"})
+
+#: Every command that needs a port into the machine. Built from the three
+#: groups rather than typed out again, so a command added to any of them is
+#: routed by that alone.
+HARDWARE_COMMANDS = DISPLAY_CONTROL_COMMANDS | SYSTEM_PROFILE_COMMANDS | PATTERN_COMMANDS
 
 
 class CommandError(Exception):
@@ -298,9 +308,11 @@ COMMANDS = {
     "diagnostics": diagnostics,
     "generate-profiles": generate,
     "install-profile": install_profile,
+    "patterns": show_patterns,
     "profiles": profiles,
     "remove-profile": remove_profile,
     "restore-profiles": restore_profiles,
+    "show-pattern": show_pattern,
     "status": status,
     "switch-profile": switch_profile,
     "system-profiles": system_profiles,

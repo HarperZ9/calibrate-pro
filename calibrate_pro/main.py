@@ -36,11 +36,6 @@ REFUSED = 2
 #: perform. A terminal declining them is reporting the absence of a command
 #: rather than a closed capability, which is why the sentence below names the
 #: terminal and the resolver line is qualified by the session it was read from.
-#:
-#: 'patterns' is here for that reason rather than as a name from an earlier
-#: release. The window routes patterns.open through the resolver and the frozen
-#: binary does not ship the name at all, so a terminal that opened the viewer
-#: anyway was a second answer to one question about what this build performs.
 _DECLARED_REFUSALS = MappingProxyType(
     {
         "calibrate": "calibration.all",
@@ -49,7 +44,6 @@ _DECLARED_REFUSALS = MappingProxyType(
         "export-panel": "panel_profile.edid.create",
         "import-panel": "panel_profile.import",
         "native-calibrate": "calibration.method.measured",
-        "patterns": "patterns.open",
         "refine": "calibration.method.measured",
         "restore": "display.restore_defaults",
     }

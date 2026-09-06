@@ -30,6 +30,8 @@ NO_MONITOR_READING = "NO_MONITOR_READING"
 NO_STAGED_CONTROL = "NO_STAGED_CONTROL"
 SYSTEM_PROFILE_REFUSED = "SYSTEM_PROFILE_REFUSED"
 NO_PROFILE_READING = "NO_PROFILE_READING"
+PATTERN_SURFACE_REFUSED = "PATTERN_SURFACE_REFUSED"
+NO_SUCH_PATTERN = "NO_SUCH_PATTERN"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -224,6 +226,33 @@ def monitor_value_rejected(reason: str) -> ActionFailure:
     )
 
 
+def pattern_surface_refused(reason: str) -> ActionFailure:
+    """Report a surface that could not carry the pattern it was handed.
+
+    Retryable, because every way this fails is a state of the machine an
+    operator can change: a display scaled above 100%, a window too small for
+    the bars to be judged at, a session that reached for a screen the desktop
+    no longer has. The reason arrives from the surface unchanged, because it
+    names which of those it was and a generic message would not.
+    """
+    return ActionFailure(
+        code=PATTERN_SURFACE_REFUSED,
+        summary=reason,
+        retryable=True,
+        next_action="Change what the message names, then show the pattern again.",
+        category="pattern_surface",
+    )
+
+
+def no_such_pattern(reason: str) -> ActionFailure:
+    """Report a pattern id this build does not carry, and list the ones it does."""
+    return policy_refusal(
+        NO_SUCH_PATTERN,
+        reason,
+        "Choose one of the patterns this build offers.",
+    )
+
+
 def no_monitor_reading() -> ActionFailure:
     return policy_refusal(
         NO_MONITOR_READING,
@@ -294,6 +323,8 @@ __all__ = [
     "NO_SEALED_PLAN",
     "NO_SELECTED_PROFILE",
     "NO_STAGED_CONTROL",
+    "NO_SUCH_PATTERN",
+    "PATTERN_SURFACE_REFUSED",
     "PROFILE_SEAL_BROKEN",
     "PROFILE_UNREADABLE",
     "SESSION_TRANSITION_REJECTED",
@@ -313,9 +344,11 @@ __all__ = [
     "no_sealed_plan",
     "no_staged_control",
     "no_such_asset",
+    "no_such_pattern",
     "no_such_profile",
     "no_verified_profile",
     "not_a_ui_action",
+    "pattern_surface_refused",
     "policy_refusal",
     "profile_seal_broken",
     "profile_unreadable",

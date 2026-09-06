@@ -25,9 +25,11 @@ COMMANDS = frozenset(
         "diagnostics",
         "generate-profiles",
         "install-profile",
+        "patterns",
         "profiles",
         "remove-profile",
         "restore-profiles",
+        "show-pattern",
         "status",
         "switch-profile",
         "system-profiles",
@@ -120,6 +122,21 @@ def _add_system_profile_parsers(subparsers: argparse._SubParsersAction) -> None:
         command.add_argument("--display", help=_DISPLAY_HELP)
 
 
+def _add_pattern_parsers(subparsers: argparse._SubParsersAction) -> None:
+    """Offer the two commands that put a test pattern in front of a person.
+
+    The pattern is named by a positional rather than a flag, because a run of
+    this command with nothing to show has nothing to do. The names are not
+    offered to argparse as a choice list: reading them would load the
+    catalogue into every ``--help``, and the session already prints the whole
+    list when it is handed a name it does not carry.
+    """
+    subparsers.add_parser("patterns", help="List the test patterns this build carries")
+    show = subparsers.add_parser("show-pattern", help="Hold one test pattern on the selected display")
+    show.add_argument("pattern", help="Pattern name; 'patterns' prints them")
+    show.add_argument("--display", help=_DISPLAY_HELP)
+
+
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     """Give every session command the arguments it needs, and nothing spare.
 
@@ -147,6 +164,7 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     bundle.add_argument("--open", action="store_true", help="Open the folder the journal is kept in")
     _add_display_control_parsers(subparsers)
     _add_system_profile_parsers(subparsers)
+    _add_pattern_parsers(subparsers)
 
 
 def parse(command: str, argv: Sequence[str]) -> argparse.Namespace:

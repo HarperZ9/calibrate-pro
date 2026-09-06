@@ -1935,11 +1935,17 @@
         "verify",
         "save_report"
       ],
-      "required_capabilities": [],
-      "source_policy": "disabled",
-      "frozen_policy": "disabled",
+      "required_capabilities": [
+        "patterns_qualified"
+      ],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
       "handler": "patterns_open",
       "required_modules": [
+        "calibrate_pro.application.pattern_actions",
+        "calibrate_pro.application.pattern_catalogue",
+        "calibrate_pro.application.pattern_surface",
+        "calibrate_pro.application.patterns",
         "calibrate_pro.application.service"
       ],
       "required_resources": [],
@@ -1948,7 +1954,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Pattern output is disabled pending the Phase 2 output qualification contract."
+      "unavailable_reason": "Showing a test pattern requires a selected display and a pattern surface in this build."
     },
     {
       "action_id": "profile.activate",

@@ -34,6 +34,11 @@ DEVELOPER_ONLY_INTRO = "These names exist only in the developer wheel"
 #: The heading over the table of commands that drive a session from a terminal.
 HEADLESS_HEADING = "## Headless calibration commands"
 
+#: The heading over the two commands that put a pattern in front of a person.
+#: Held apart from the headless table because one of them opens a window, and a
+#: reader looking for it would not find it under a heading that says headless.
+PATTERN_HEADING = "## Test patterns"
+
 #: Every page a reader outside the repository can reach. A claim about what this
 #: build does has to hold on all of them, because a reader arrives at one.
 PUBLIC_SURFACES = (
@@ -214,6 +219,63 @@ def test_the_usage_guide_lists_exactly_the_names_this_build_declines() -> None:
     listed = section.split("```text", 1)[1].split("```", 1)[0]
 
     assert set(listed.split()) == set(_CONFIRMATION_COMMANDS)
+
+
+def usage_table_commands() -> tuple[frozenset[str], frozenset[str]]:
+    """Every command named in a USAGE.md table, split by which build answers it.
+
+    Read off the table rows rather than off a sentence, because the sentence was
+    the part that drifted. A row marked developer wheel only is one the frozen
+    binary declines, and everything else in a table is a name it carries.
+    """
+    rows = re.findall(
+        r"^\| `calibrate-pro ([a-z0-9][a-z0-9-]*)[^|]*\|([^|]*)\|$",
+        (ROOT / "USAGE.md").read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    )
+    assert rows, "USAGE.md no longer holds a command table"
+    # The two rows for --help and --version are dropped by the pattern rather
+    # than filtered here: a name has to start with a letter or a digit, and a
+    # flag is not a command the frozen binary carries a handler for.
+    shipped = {name for name, purpose in rows if "Developer wheel only" not in purpose}
+    developer = {name for name, purpose in rows if "Developer wheel only" in purpose}
+    return frozenset(shipped), frozenset(developer)
+
+
+def test_the_usage_tables_name_the_commands_the_frozen_binary_carries() -> None:
+    """The guide's tables are the shipped command list, checked against the build.
+
+    The sentence above them said nine and the build shipped sixteen, because the
+    count was carried by hand across two lanes that each added commands. A reader
+    who trusts it runs a working command expecting exit 2, so this reads the rows
+    off the page and the names off the file the binary is built from.
+
+    Both directions fail. A command added to the build without a row here is
+    undocumented, and a row for a name the binary does not carry is advice to run
+    something that exits 2.
+    """
+    shipped, developer = usage_table_commands()
+    features = frozen_features()
+
+    assert shipped == set(features["commands"])
+    assert developer == set(features["developer_only_commands"])
+
+
+def test_the_usage_guide_documents_every_pattern_the_catalogue_offers() -> None:
+    """The count of patterns on the page is read back off the catalogue.
+
+    Ten is written out in words, which is the shape a number drifts in. A pattern
+    added to the catalogue without a mention here ships unfindable, and a page
+    naming a pattern the build dropped sends an operator to a refusal.
+    """
+    from calibrate_pro.application.pattern_catalogue import CATALOGUE, PATTERN_IDS
+
+    text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
+    section = text.split("## Test patterns", 1)[1].split("\n## ", 1)[0]
+
+    assert f"carries {len(CATALOGUE)} patterns" in section
+    for pattern_id in PATTERN_IDS:
+        assert f"`{pattern_id}`" in section, f"{pattern_id} is not named in the guide"
 
 
 def test_enterprise_readiness_describes_the_shipped_boundary() -> None:
@@ -439,18 +501,25 @@ def test_every_public_page_says_measured_calibration_is_closed_while_it_is() -> 
 
 
 def test_the_usage_guide_documents_every_command_a_terminal_can_run() -> None:
-    """The headless table is read back off the table the parsers are built from.
+    """The session tables are read back off the table the parsers are built from.
 
     Every check above this one asks whether a sentence is still there. This asks
     the other question, which is whether a command that now runs has a row at all.
     A command absent from the guide is a command an operator never learns about,
     and the guide has no way to notice that it went quiet.
+
+    Two tables are read rather than one. The pattern commands sit under their own
+    heading because one of them opens a window, and filing that under a heading
+    that says headless would be the guide describing the wrong thing to save a
+    check the union does just as well.
     """
     from calibrate_pro.commands.session_args import COMMANDS
 
     text = (ROOT / "USAGE.md").read_text(encoding="utf-8")
 
-    assert table_commands(text, HEADLESS_HEADING) == set(COMMANDS)
+    documented = table_commands(text, HEADLESS_HEADING) | table_commands(text, PATTERN_HEADING)
+
+    assert documented == set(COMMANDS)
 
 
 def test_the_headless_table_reader_reports_a_command_with_no_row() -> None:

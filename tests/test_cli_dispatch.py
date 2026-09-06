@@ -35,6 +35,7 @@ import pytest
 from calibrate_pro import main
 from calibrate_pro.application.actions import ActionDisposition, ActionRegistry
 from calibrate_pro.application.composition import build_production_service
+from calibrate_pro.application.pattern_catalogue import CATALOGUE
 from calibrate_pro.commands import session, session_args, session_ddc
 from calibrate_pro.commands.catalog import REFERENCE_HEADING
 
@@ -96,26 +97,25 @@ def test_a_declined_command_quotes_the_resolver_rather_than_a_sentence_of_its_ow
     assert main._UNTOUCHED in printed
 
 
-@pytest.mark.windows
-def test_the_pattern_viewer_is_declined_rather_than_opened(
+def test_listing_the_patterns_answers_from_the_catalogue_and_not_the_viewer(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Asking a terminal about patterns.open gets the answer the window gives.
+    """The catalogue is a table of numbers, so listing it needs no machine.
 
-    This name opened a fullscreen viewer while the manifest declared patterns.open
-    disabled, the window routed the action through the resolver, and the frozen
-    binary did not ship the name. One question had two answers, and the surface
-    that acted was the one with no resolver in front of it.
-
-    The viewer module is checked for its absence afterwards, because a refusal
-    that had already imported it would read the same way in the captured output.
+    This name used to be declined while a fullscreen tkinter viewer sat behind
+    the window menu with no resolver in front of it. One question had two
+    answers and the surface that acted was the ungated one. The name now runs
+    the shipped lane, and the assertion that kept the two apart is kept: the
+    legacy viewer stays unimported, so a later reader can tell which surface
+    answered rather than guessing from the printed lines.
     """
     code = main.main(["patterns"])
 
     printed = capsys.readouterr().out
-    assert code == main.REFUSED
-    assert "patterns.open" in printed
-    assert main._UNTOUCHED in printed
+    assert code == 0
+    for pattern in CATALOGUE:
+        assert pattern.pattern_id in printed
+        assert pattern.decision in printed
     assert "calibrate_pro.patterns.display" not in sys.modules
 
 

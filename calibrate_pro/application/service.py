@@ -62,6 +62,11 @@ from calibrate_pro.application.monitor_controls import (
 )
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
 from calibrate_pro.application.panel_profiles import PanelProfileActions
+from calibrate_pro.application.pattern_actions import PatternActions
+from calibrate_pro.application.pattern_surface import (
+    NoPatternSurfaceSource,
+    PatternSurfaceSource,
+)
 from calibrate_pro.application.planning import target_for
 from calibrate_pro.application.prediction import predict_accuracy, target_is_modelled
 from calibrate_pro.application.preferences import PreferenceActions
@@ -104,6 +109,7 @@ class FunctionalRecoveryService(
     PreferenceActions,
     MonitorControlActions,
     SystemProfileActions,
+    PatternActions,
 ):
     """One calibration session, driven one action at a time."""
 
@@ -120,6 +126,7 @@ class FunctionalRecoveryService(
         instruments: InstrumentSource | None = None,
         monitor_controls: MonitorControlSource | None = None,
         system_profiles: SystemProfileSource | None = None,
+        patterns: PatternSurfaceSource | None = None,
     ) -> None:
         self._state = state
         self._runner = runner
@@ -137,6 +144,8 @@ class FunctionalRecoveryService(
             system_profiles if system_profiles is not None else NoSystemProfileSource()
         )
         state.system_profiles.route = system_profiles is not None
+        self._patterns: PatternSurfaceSource = patterns if patterns is not None else NoPatternSurfaceSource()
+        state.patterns_route = patterns is not None
         self._controller = WorkflowController(DENIED_CAPABILITIES)
         self._sealed_plan: ApplyPlan | None = None
 

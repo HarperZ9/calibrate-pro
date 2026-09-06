@@ -52,6 +52,7 @@ def action_context(**changes: object) -> ActionContext:
         journal_ready=True,
         physical_apply_qualified=True,
         measured_qualified=True,
+        patterns_qualified=True,
         monitor_controls_qualified=True,
         monitor_writes_qualified=True,
         system_profiles_qualified=True,

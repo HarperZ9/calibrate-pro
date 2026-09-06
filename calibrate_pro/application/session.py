@@ -103,6 +103,13 @@ class SessionState:
     validated_import_ready: bool = False
     actuation_route: bool = False
     measurement_route: bool = False
+
+    #: Whether a pattern surface was wired into this session. No capability
+    #: probe sits beside this route, because a display has nothing to be asked
+    #: about a window before one is opened. What a surface can claim about
+    #: scaling is established from the surface itself and travels with the
+    #: pattern shown on it.
+    patterns_route: bool = False
     instrument_identity: str | None = None
 
     #: The instrument run this session took, and the display it was taken on.
@@ -129,7 +136,7 @@ class SessionState:
     def __post_init__(self) -> None:
         if type(self.fake_acceptance) is not bool:
             raise TypeError("fake_acceptance must be an exact boolean")
-        for name in ("actuation_route", "measurement_route"):
+        for name in ("actuation_route", "measurement_route", "patterns_route"):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be an exact boolean")
         if self.instrument_identity is not None and (
@@ -216,6 +223,21 @@ class SessionState:
         than to the intention to take one.
         """
         return self.measurement_route and self.capabilities is not None and self.capabilities.sensor_available
+
+    @property
+    def patterns_qualified(self) -> bool:
+        """Report whether this session may put a pattern on a display.
+
+        Only two facts, and neither of them is a probe. A pattern surface has
+        to have been wired, and a display has to have been selected for the
+        window to open on. There is no third condition of the kind the other
+        lanes carry because there is nothing to ask a display beforehand: a
+        control bus either answers or it does not, an instrument is either
+        present or it is not, and a window is neither until it exists. What a
+        surface turns out to be able to carry is established from the surface
+        once it is open, and refused there.
+        """
+        return self.patterns_route and self.selected_display_id is not None
 
     @property
     def supported_vcp_codes(self) -> frozenset[int]:
@@ -433,6 +455,7 @@ class SessionState:
             # always did rather than because the value was hardcoded.
             physical_apply_qualified=self.physical_apply_qualified,
             measured_qualified=self.measured_qualified,
+            patterns_qualified=self.patterns_qualified,
             monitor_controls_qualified=self.monitor_controls_qualified,
             monitor_writes_qualified=self.monitor_writes_qualified,
             system_profiles_qualified=self.system_profiles_qualified,

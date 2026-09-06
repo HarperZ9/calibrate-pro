@@ -93,11 +93,14 @@ session gives, which is the answer `import-panel` gives at the command line.
 
 ## Read-only commands
 
-The Python package exposes the commands below. The frozen Windows CLI ships nine of
-them: `detect`, `diagnostics`, `doctor`, `generate-profiles`, `gui`, `hdr`, `profiles`,
-`status`, and `verify`. Naming any other command there exits 2 with a sentence about that name rather
-than an unknown-command error. Seven of them run in the developer wheel and say so. The rest are
-declined by the wheel as well, and the binary reports that instead of recommending an install.
+The Python package exposes the commands below. The frozen Windows CLI ships every name
+in the tables that follow except the seven marked developer wheel only, and
+`packaging/frozen-features.json` is the list the binary is built from. That list is read
+back against these tables by a test, because the count here was hand-kept and fell seven
+commands behind the build twice. Naming a command the binary does not carry exits 2 with
+a sentence about that name rather than an unknown-command error. The seven run in the
+developer wheel and say so. The rest are declined by the wheel as well, and the binary
+reports that instead of recommending an install.
 
 | Command | Purpose |
 |---|---|
@@ -109,6 +112,7 @@ declined by the wheel as well, and the binary reports that instead of recommendi
 | `calibrate-pro info <panel>` | Developer wheel only. Show one stored characterization |
 | `calibrate-pro hdr-status` | Developer wheel only. Query the operating-system HDR state |
 | `calibrate-pro plugins [--plugin-dir PATH]` | Developer wheel only. List discovered plugin metadata |
+| `calibrate-pro mcp` | Developer wheel only. Serve the read-only catalogue and doctor over MCP stdio |
 | `calibrate-pro tray` | Developer wheel only. Launch the read-only tray monitor |
 | `calibrate-pro gui` | Launch the main preview-and-confirm workflow |
 | `calibrate-pro hdr` | Launch the HDR target/proposal workflow |
@@ -237,6 +241,40 @@ draws the listing, Save bundle asks where the archive goes and writes exactly th
 above it, and Open folder opens the journal directory. A preview goes stale once the
 session records another action, so take a fresh one if a publish is refused.
 
+## Test patterns
+
+A test pattern is the one thing here judged by eye rather than read off a report, and
+the two panel controls it sets sit upstream of every table this build writes. Set them
+before generating a plan.
+
+| Command | Purpose |
+|---|---|
+| `calibrate-pro patterns` | List the test patterns this build carries and the decision each one is for |
+| `calibrate-pro show-pattern NAME [--display ID]` | Hold one pattern fullscreen on the selected display until you dismiss it |
+
+```powershell
+calibrate-pro patterns
+calibrate-pro show-pattern pluge
+```
+
+`patterns` reads a table of exact code values and needs no display, no instrument, and
+no window toolkit. `show-pattern` opens a frameless fullscreen window on the display you
+selected, prints what the pattern decides and what to watch for before the window covers
+the terminal, and returns when you press Escape.
+
+This build carries 10 patterns. `pluge` sets the display's brightness control and `white-clip` sets
+its contrast, which are the two an operator sets first. `black`, `white`, and `grey` show
+uniformity and cast at one level each. `grey-ramp` shows the tone response, `primaries`
+and `colour-bars` show channel drive, and `colorchecker` draws the chart the rest of this
+package grades against. `crosshatch` draws one-pixel lines and is refused on a scaled
+surface rather than drawn blurred, because a blurred line there would be this program's
+resampling read as the display's.
+
+Nothing is antialiased, no text is drawn inside the pattern, and every rectangle is one
+flat 8-bit triple. What the window cannot establish is whether Windows is applying a
+colour transform between these values and the cable. No process can read that about
+itself, so it is reported as unestablished with every pattern rather than assumed absent.
+
 ## Settings
 
 The settings page holds what the session can be asked for, and each control on it goes
@@ -265,14 +303,14 @@ their product workflow is not specified.
 
 ## Commands this build declines
 
-Most of these are retained so an older script fails safely rather than appearing to
-work. `patterns` is a current name whose action this build has not qualified:
+These are 1.x names, retained so an older script fails safely rather than appearing to
+work:
 
 ```text
 auto                 calibrate             disable-startup
 enable-startup       export-panel          import-panel
-match                native-calibrate      patterns
-refine               restore               uniformity
+match                native-calibrate      refine
+restore              uniformity
 ```
 
 Each returns exit code 2 without changing display state. A name with a declared action

@@ -177,11 +177,18 @@ def build_calibration_service() -> CalibrationApplyService:
     makes a finished calibration take effect for colour-managed software, and
     it stays out of the read-only session for the same reason the control
     source does.
+
+    The pattern surface is wired here for a different reason than the other
+    three. It changes nothing, writes nothing, and needs no probe. What it
+    needs is a display of the operator's to open a fullscreen window on, and
+    the read-only session is the one a caller runs when they mean to touch
+    that display as little as possible.
     """
     from calibrate_pro.adapters.monitor_control_source import (
         WindowsMonitorControlSource,
         ddc_control_present,
     )
+    from calibrate_pro.adapters.pattern_surface_source import WindowsPatternSurfaceSource
     from calibrate_pro.adapters.system_profile_source import WindowsSystemProfileSource
     from calibrate_pro.adapters.windows_display_state import (
         DefaultWindowsDisplayPorts,
@@ -208,6 +215,7 @@ def build_calibration_service() -> CalibrationApplyService:
         instruments=UsbInstrumentSource(),
         monitor_controls=WindowsMonitorControlSource(),
         system_profiles=WindowsSystemProfileSource(),
+        patterns=WindowsPatternSurfaceSource(),
     )
 
 

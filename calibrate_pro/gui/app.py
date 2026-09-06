@@ -63,6 +63,8 @@ from calibrate_pro.application.contracts import (
 )
 from calibrate_pro.application.detection import panel_key_from_provenance
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome, ActionSuccess
+from calibrate_pro.application.pattern_catalogue import CATALOGUE as PATTERN_CATALOGUE
+from calibrate_pro.application.pattern_surface import PatternPresentation
 from calibrate_pro.application.results import DetectionSummary, DisplaySelection, HdrStatus, PlanPreview
 from calibrate_pro.application.service import FunctionalRecoveryService
 from calibrate_pro.application.system_profile_results import ProfileActivation
@@ -1410,11 +1412,21 @@ class CalibrateProWindow(QMainWindow):
         )
 
     def _build_tools_menu(self, menu: QMenu) -> None:
-        self._binder.bind(
-            "patterns.open",
-            menu_action(menu, "&Test Patterns", self),
-            partial(self.service.unhandled, "patterns.open"),
-        )
+        patterns = menu.addMenu("&Test Patterns")
+        # The submenu header stands for the same action its entries do, so a
+        # session that cannot show a pattern greys the whole menu rather than
+        # opening onto a list where every line is greyed for the same reason.
+        # Nothing is connected: opening a submenu is not performing an action.
+        self._binder.bind("patterns.open", patterns.menuAction(), lambda: None, connect=False)
+        for pattern in PATTERN_CATALOGUE:
+            entry = menu_action(patterns, pattern.name, self)
+            entry.setStatusTip(pattern.decision)
+            self._binder.bind(
+                "patterns.open",
+                entry,
+                partial(self._show_pattern, pattern.pattern_id),
+                on_success=self._report_pattern,
+            )
         self._binder.bind(
             "display.hdr_status",
             menu_action(menu, "&HDR Status", self),
@@ -2004,6 +2016,25 @@ class CalibrateProWindow(QMainWindow):
                 QSystemTrayIcon.MessageIcon.Information,
                 4000,
             )
+
+    def _show_pattern(self, pattern_id: str) -> ActionOutcome[PatternPresentation]:
+        """Hold one pattern on the selected display with the window inert.
+
+        The surface pumps this application's event loop rather than entering one
+        of its own, which is what keeps a Qt shell alive while a pattern is up.
+        It also means a second entry could fire while the first pattern is still
+        on screen, so the window is switched off for the duration and switched
+        back on however the presentation ends.
+        """
+        self.setEnabled(False)
+        try:
+            return self.service.show_test_pattern(pattern_id)
+        finally:
+            self.setEnabled(True)
+
+    def _report_pattern(self, presentation: PatternPresentation) -> None:
+        """Say which pattern was shown, where, and how the operator ended it."""
+        self._status.setText(presentation.summary)
 
     def _report_export(self, bundle: ExportBundle) -> None:
         """Name what was written, taken from the manifest that seals it."""

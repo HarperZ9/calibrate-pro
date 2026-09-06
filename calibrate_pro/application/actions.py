@@ -86,6 +86,13 @@ class ActionContext:
     physical_apply_qualified: bool
     measured_qualified: bool
 
+    #: Whether a pattern surface was wired and a display was selected to open
+    #: one on. There is no probed capability in this pair, because nothing can
+    #: be asked of a display about a window that does not exist yet. A surface
+    #: too small or too scaled for the pattern asked for refuses at the
+    #: surface, which is the only place that fact is knowable.
+    patterns_qualified: bool
+
     #: Whether a monitor control port was wired and a probe found a display
     #: that answers on it. This gates reading the display's own controls, and
     #: it is separate from the apply qualification above because DDC/CI writes
@@ -141,6 +148,7 @@ class ActionContext:
             "sealed_plan_actuatable",
             "physical_apply_qualified",
             "measured_qualified",
+            "patterns_qualified",
             "monitor_controls_qualified",
             "monitor_writes_qualified",
             "system_profiles_qualified",
@@ -735,6 +743,14 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             and _verified_export_source(context)
             and context.journal_ready
         )
+    if action_id == "patterns.open":
+        # A pattern opens a window on the selected display and nothing else.
+        # It writes no file, changes no panel control, and produces no
+        # evidence, so the gate is only that there is a surface to open and a
+        # display to open it on. Whether the surface can carry the pattern is
+        # settled when the window exists, which is the earliest anything can
+        # be said about its geometry.
+        return context.patterns_qualified
     if action_id == "ddc.read_current":
         # Reading opens a device session, so it is gated on the same two facts
         # a measurement is: a port this composition wired, and a display that
