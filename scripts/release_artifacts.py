@@ -26,7 +26,6 @@ _FORBIDDEN_PATH_PARTS = {
     "_internal/ada92cb5d92a588d1b93__mypyc",
     "_internal/api-ms-win-",
     "_internal/charset_normalizer/",
-    "_internal/numpy/f2py/",
     "_internal/psutil",
     "_internal/pyside6/opengl32sw.dll",
     "_internal/pyside6/plugins/iconengines/qsvgicon.dll",

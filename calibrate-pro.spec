@@ -118,7 +118,6 @@ fixed_excludes = {
     "jupyter",
     "matplotlib",
     "notebook",
-    "numpy.f2py",
     "pandas",
     "pymupdf",
     "reportlab",

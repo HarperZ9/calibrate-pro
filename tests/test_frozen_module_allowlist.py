@@ -5,11 +5,15 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import re
+import subprocess
 import sys
+import textwrap
 from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -238,6 +242,89 @@ def test_a_module_the_build_cannot_supply_is_only_imported_behind_a_handler() ->
     reachable, blocked = frozen_closure()
 
     assert unguarded_importers(ROOT, set(reachable), set(blocked)) == {}
+
+
+#: Imports each named module in an interpreter that refuses the spec's excludes.
+#: Run out of process because refusing a name means letting scipy and numpy load
+#: against a meta path finder, and a suite that did that in its own interpreter
+#: would hand every later test a partially imported third-party graph.
+_REFUSAL_PROBE = textwrap.dedent(
+    """
+    import importlib
+    import importlib.abc
+    import json
+    import sys
+
+    payload = json.loads(sys.stdin.read())
+    refused_names = set(payload["refused"])
+    reached = []
+
+
+    class Refuse(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path=None, target=None):
+            parts = fullname.split(".")
+            if any(".".join(parts[: depth + 1]) in refused_names for depth in range(len(parts))):
+                reached.append(fullname)
+                raise ImportError(f"No module named {fullname!r}")
+            return None
+
+
+    sys.meta_path.insert(0, Refuse())
+    failures = {}
+    for name in payload["modules"]:
+        try:
+            importlib.import_module(name)
+        except Exception as exc:
+            failures[name] = f"{type(exc).__name__}: {exc}"
+    print(json.dumps({"failures": failures, "reached": sorted(set(reached))}))
+    """
+)
+
+
+def _import_refusing(refused: set[str], modules: list[str]) -> dict[str, Any]:
+    """Import each module where the named ones are unavailable, and report both."""
+    completed = subprocess.run(
+        [sys.executable, "-c", _REFUSAL_PROBE],
+        input=json.dumps({"refused": sorted(refused), "modules": modules}),
+        capture_output=True,
+        text=True,
+        check=True,
+        env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
+    )
+    return json.loads(completed.stdout.strip().splitlines()[-1])
+
+
+def test_no_module_the_frozen_build_imports_needs_a_name_the_spec_excludes() -> None:
+    """The gates above walk first-party imports, which is not where this lives.
+
+    An exclude only third-party code reaches is invisible to a source walk.
+    ``numpy.f2py`` was excluded as unused on exactly that reading: no module
+    here imports it, and ``scipy.special`` clones numpy with a star import,
+    which makes numpy import f2py to answer the name. Excluding it left a build
+    that could not import scipy, so the packaged window returned 1 before it
+    drew anything, and the build gate reported the exit code without the
+    reason. This runs the imports a shipped binary runs with each excluded name
+    refused, which is the interpreter that can see it.
+    """
+    reachable, blocked = frozen_closure()
+
+    result = _import_refusing(spec_excludes(SPEC), sorted(set(reachable) - set(blocked)))
+
+    assert result["failures"] == {}
+    assert result["reached"], "no excluded name was asked for, so nothing was measured"
+
+
+def test_the_refusal_probe_fails_when_a_needed_module_is_taken_away() -> None:
+    """The control for the gate above, which a dead probe would pass silently.
+
+    A finder that matched nothing, or one that never reached the meta path,
+    would report an empty failure set and read as a build that needs none of
+    its excludes. scipy is a module the window does need, so refusing it has to
+    come back as a failure naming it.
+    """
+    result = _import_refusing({"scipy"}, [f"{PACKAGE}.gui.app"])
+
+    assert "scipy" in result["failures"][f"{PACKAGE}.gui.app"]
 
 
 def test_frozen_dispatcher_imports_only_the_selected_shared_command(monkeypatch) -> None:
