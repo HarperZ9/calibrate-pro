@@ -37,7 +37,7 @@ from calibrate_pro.application.actions import ActionDisposition, ActionRegistry
 from calibrate_pro.application.composition import build_production_service
 from calibrate_pro.application.pattern_catalogue import CATALOGUE
 from calibrate_pro.commands import session, session_args, session_ddc
-from calibrate_pro.commands.catalog import REFERENCE_HEADING
+from calibrate_pro.commands.list_targets import REFERENCE_HEADING
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -45,13 +45,12 @@ LIVE_SENSOR_ACTION = "measurement.live.toggle"
 CALIBRATE_SURFACE = "calibrate."
 
 #: Declared with a calibrate-page surface and given no control on that page.
-#: The action is conditional, so a session could enable it, and this build
-#: presents nothing that reaches it. The four presets set every field of a
-#: target between them, and a custom correlated colour temperature has no preset
-#: behind it, so a control here would submit a number the page invented rather
-#: than one the session holds. The null is recorded rather than closed by
-#: inventing the control that would make the two sets match.
-DECLARED_WITHOUT_A_CONTROL = frozenset({"calibration.target.custom_cct"})
+#: Empty, and the assertion below is written to keep it that way rather than to
+#: read a table. An entry earns its place by being a null this build cannot
+#: close, and the one that used to sit here was closed instead: the session
+#: performs the custom colour temperature now, so the page has a control that
+#: sends a number the session answers for.
+DECLARED_WITHOUT_A_CONTROL: frozenset[str] = frozenset()
 
 
 def calibrate_page_actions() -> set[str]:

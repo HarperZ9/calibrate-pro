@@ -34,10 +34,11 @@ from pathlib import Path
 from calibrate_pro.application.assets import AssetGenerator, ExportBundle
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.correction_state import qualify_uncorrected
+from calibrate_pro.application.declaration import DeclarationRefused, declared_from
 from calibrate_pro.application.detection import DisplayDetector
 from calibrate_pro.application.diagnostics import DiagnosticsActions
 from calibrate_pro.application.exporting import export_bundle, export_single_format
-from calibrate_pro.application.generation import generate_bundle
+from calibrate_pro.application.generation import generate_bundle, verification_panel
 from calibrate_pro.application.instruments import (
     InstrumentPort,
     InstrumentSource,
@@ -72,10 +73,13 @@ from calibrate_pro.application.prediction import predict_accuracy, target_is_mod
 from calibrate_pro.application.preferences import PreferenceActions
 from calibrate_pro.application.profile_actions import ProfileActions
 from calibrate_pro.application.refusals import (
+    declaration_refused,
     measurement_refused,
+    no_declaration,
     no_display_selected,
     no_sealed_plan,
     transition_rejected,
+    unknown_target,
 )
 from calibrate_pro.application.results import (
     DetectionSummary,
@@ -96,6 +100,8 @@ from calibrate_pro.application.session import SessionState
 from calibrate_pro.application.surface import SurfaceActions
 from calibrate_pro.application.system_profile_actions import SystemProfileActions
 from calibrate_pro.application.system_profiles import NoSystemProfileSource, SystemProfileSource
+from calibrate_pro.application.target_editing import GAMUT_AXIS, TONE_AXIS, WHITE_AXIS, with_axis
+from calibrate_pro.application.target_selection import TargetSelectionError, custom_cct_slug
 from calibrate_pro.panels.database import GENERIC_PANEL_KEY, PanelCharacterization
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowController, WorkflowStage
@@ -220,7 +226,36 @@ class FunctionalRecoveryService(
 
     def _use_generic(self) -> DisplaySelection:
         self._state.selected_panel_key = GENERIC_PANEL_KEY
+        # A declaration held from an earlier acceptance would outrank the key
+        # this line just set, and the session would keep reporting declared
+        # after the operator asked for the nominal record instead.
+        self._state.discard_declaration()
         self._state.characterization_kind = CharacterizationKind.EXPLICIT_GENERIC
+        return current_selection(self._state)
+
+    def use_edid_characterization(self) -> ActionOutcome[DisplaySelection]:
+        """Accept what the selected display declared about itself."""
+        return self._runner.run("display.characterization.use_edid", self._use_edid)
+
+    def _use_edid(self) -> DisplaySelection:
+        """Turn the display's offer into the record this session builds from.
+
+        The generic record is the starting point rather than a bare set of
+        defaults. Only the fields the descriptor covered are replaced, so every
+        capability this session goes on to report is the same conservative
+        value the generic path already reports, and nothing about HDR, bit
+        depth or contrast is invented from a descriptor that never mentioned
+        them.
+        """
+        offer = self._state.declaration_offer
+        if offer is None:
+            raise no_declaration()
+        base, _kind = self._generator.resolve_panel(GENERIC_PANEL_KEY)
+        try:
+            declared = declared_from(base, offer)
+        except DeclarationRefused as error:
+            raise declaration_refused(str(error)) from error
+        self._state.record_declaration(declared)
         return current_selection(self._state)
 
     def open_calibration(self) -> ActionOutcome[DisplaySelection]:
@@ -294,18 +329,78 @@ class FunctionalRecoveryService(
         return self._runner.run(preset_id, lambda: self._set_target(preset_id))
 
     def _set_target(self, preset_id: str) -> TargetSelection:
+        """Hold one target, after reading what its three parts are.
+
+        The read comes first. A target this build cannot resolve would
+        otherwise be held by the session and reported by every surface that
+        prints what is selected, with the refusal arriving alongside it.
+        """
+        try:
+            gamut, white_point, tone_response = target_for(preset_id)
+        except TargetSelectionError as exc:
+            raise unknown_target(str(exc)) from exc
         state = self._state
         state.selected_preset_id = preset_id
         state.invalidate_seal()
         self._sealed_plan = None
         self._transition(self._controller.invalidate_preview)
-        gamut, white_point, tone_response = target_for(preset_id)
         return TargetSelection(
             preset_id=preset_id,
             gamut=gamut,
             white_point=white_point,
             tone_response=tone_response,
         )
+
+    def select_target_gamut(self, slug: str) -> ActionOutcome[TargetSelection]:
+        """Aim at one gamut, leaving the white point and tone response held."""
+        return self._edit_target("calibration.target.gamut", GAMUT_AXIS, slug)
+
+    def select_target_white_point(self, slug: str) -> ActionOutcome[TargetSelection]:
+        """Aim at one named illuminant, leaving the other two parts held."""
+        return self._edit_target("calibration.target.whitepoint", WHITE_AXIS, slug)
+
+    def select_target_tone_response(self, slug: str) -> ActionOutcome[TargetSelection]:
+        """Aim at one transfer curve, leaving the other two parts held."""
+        return self._edit_target("calibration.target.gamma", TONE_AXIS, slug)
+
+    def select_custom_white_point(self, kelvin: int) -> ActionOutcome[TargetSelection]:
+        """Aim at a colour temperature no standard illuminant names.
+
+        The temperature is turned into a slug inside the action rather than
+        before it, so a number outside the range this build calibrates to
+        comes back as the refusal that names the range.
+        """
+        return self._runner.run(
+            "calibration.target.custom_cct",
+            lambda: self._set_target(self._composed(WHITE_AXIS, self._custom_white(kelvin))),
+        )
+
+    def _edit_target(self, action_id: str, axis: str, slug: str) -> ActionOutcome[TargetSelection]:
+        """Run one axis action, which sets the whole target it composes.
+
+        An edit names one part. The other two are whatever the session already
+        holds, so what the operator ends up with is a target the generator can
+        be pointed at rather than a fragment of one.
+        """
+        return self._runner.run(action_id, lambda: self._set_target(self._composed(axis, slug)))
+
+    def _composed(self, axis: str, slug: str) -> str:
+        """The target this edit names, or the refusal that lists what exists.
+
+        The resolver raises for a slug no axis carries, and a raw exception
+        would reach the operator as "the action could not be completed". What
+        they need is the sentence naming the axis and what it does carry.
+        """
+        try:
+            return with_axis(self._state.selected_preset_id, axis, slug)
+        except TargetSelectionError as exc:
+            raise unknown_target(str(exc)) from exc
+
+    def _custom_white(self, kelvin: int) -> str:
+        try:
+            return custom_cct_slug(kelvin)
+        except TargetSelectionError as exc:
+            raise unknown_target(str(exc)) from exc
 
     # -- measurement --------------------------------------------------------
 
@@ -443,7 +538,15 @@ class FunctionalRecoveryService(
         plan = self._require_sealed_plan()
         self._transition(lambda: self._controller.set_preview(plan))
         self._state.confirmation_state = "live"
-        return PlanPreview(plan=plan, plan_sha256=self._require_digest())
+        # Read off the bundle this plan was sealed over rather than recomputed
+        # here, so the figure the operator confirms describes the artifacts the
+        # plan names and cannot drift from them.
+        generated = self._state.generated
+        return PlanPreview(
+            plan=plan,
+            plan_sha256=self._require_digest(),
+            gamut_reach=None if generated is None else generated.gamut_reach,
+        )
 
     def confirm_plan(self, *, accepted: bool = True) -> ActionOutcome[PlanDecision]:
         if accepted:
@@ -481,7 +584,7 @@ class FunctionalRecoveryService(
         preset_id = state.selected_preset_id
         if preset_id is None:
             raise no_sealed_plan()
-        panel, _kind = self._generator.resolve_panel(state.selected_panel_key or GENERIC_PANEL_KEY)
+        panel = verification_panel(state, self._generator)
         result = predict_accuracy(self._engine, panel, preset_id)
         state.verification_evidence = result.evidence
         self._transition(self._controller.verify_complete)

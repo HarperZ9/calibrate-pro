@@ -504,68 +504,167 @@ def parse_device_id(device_id: str) -> tuple[str, str]:
 # =============================================================================
 
 
-def get_edid_from_registry(device_id: str) -> bytes | None:
-    """
-    Read raw EDID data from Windows registry.
+#: Where Windows records what each attached display said about itself.
+EDID_ENUM_PATH = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
 
-    This works even when Windows shows "Generic PnP Monitor" because
-    the raw EDID is still stored in the registry.
+
+def edid_registry_lookup(device_id: str) -> tuple[str, str | None] | None:
+    """Split one device id into the registry key it names and the instance under it.
+
+    Windows writes the same display two ways, and both reach this function.
+    ``MONITOR\\SPT0C98\\{guid}_0`` names the hardware key and then a class
+    id, so the instance has to be searched for. The interface path
+    ``\\\\?\\DISPLAY#SPT0C98#5&5ebaf23&0&UID4352#{guid}`` names the
+    hardware key and then the instance, which is the key itself.
+
+    The instance is worth carrying. Two units of one model sit under a single
+    hardware key as two instances, and so does a model attached today beside
+    the same model attached to another port last year. Reading whichever
+    instance the registry lists first would answer for a display that is not
+    the one asked about.
+    """
+    interface = re.search(r"DISPLAY#([^#\\]+)#([^#\\]+)#", device_id, re.IGNORECASE)
+    if interface:
+        return interface.group(1).upper(), interface.group(2)
+    legacy = re.search(r"MONITOR\\([A-Z]{3}[A-F0-9]{4})", device_id, re.IGNORECASE)
+    if legacy:
+        return legacy.group(1).upper(), None
+    return None
+
+
+def _read_edid_value(winreg: Any, instance_path: str) -> bytes | None:
+    """Read the EDID one instance key carries, or None where it carries none."""
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, f"{instance_path}\\Device Parameters") as params:
+            edid, _ = winreg.QueryValueEx(params, "EDID")
+    except OSError:
+        return None
+    return bytes(edid) if edid and len(edid) >= 128 else None
+
+
+def _search_edid_value(winreg: Any, hardware_id: str) -> bytes | None:
+    """Find an EDID under one hardware key when the device id named no instance.
+
+    The legacy device id form carries a class id where the instance would be,
+    so there is nothing to open directly and the instances are walked. What
+    comes back describes the model rather than one attached unit, which is what
+    an id that does not name a unit can answer.
+    """
+    base = f"{EDID_ENUM_PATH}\\{hardware_id}"
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as hardware_key:
+            instances = _subkey_names(winreg, hardware_key)
+    except OSError:
+        return None
+    for instance in instances:
+        edid = _read_edid_value(winreg, f"{base}\\{instance}")
+        if edid is not None:
+            return edid
+    return None
+
+
+def _subkey_names(winreg: Any, key: Any) -> list[str]:
+    """Every subkey under one open key, in the order the registry lists them."""
+    names: list[str] = []
+    index = 0
+    while True:
+        try:
+            names.append(winreg.EnumKey(key, index))
+        except OSError:
+            return names
+        index += 1
+
+
+def get_edid_from_registry(device_id: str) -> bytes | None:
+    """Read the EDID a display reported, out of the registry Windows kept.
+
+    This answers where the desktop shows "Generic PnP Monitor", because the
+    bytes the display sent are stored whether or not Windows found a driver
+    that names the model.
 
     Args:
         device_id: PnP device ID string
 
     Returns:
-        Raw EDID bytes (128 or 256 bytes) or None
+        Raw EDID bytes (at least 128) or None
     """
+    if sys.platform != "win32":
+        return None
     import winreg
 
-    try:
-        # Extract the monitor key from device ID
-        # Format: MONITOR\XXX####\{guid}_##
-        match = re.search(r"MONITOR\\([A-Z]{3}[A-F0-9]{4})\\", device_id, re.IGNORECASE)
-        if not match:
-            return None
+    lookup = edid_registry_lookup(device_id)
+    if lookup is None:
+        return None
+    hardware_id, instance_id = lookup
+    if instance_id is not None:
+        return _read_edid_value(winreg, f"{EDID_ENUM_PATH}\\{hardware_id}\\{instance_id}")
+    return _search_edid_value(winreg, hardware_id)
 
-        monitor_key = match.group(1).upper()
 
-        # Search in HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\DISPLAY
-        base_path = r"SYSTEM\CurrentControlSet\Enum\DISPLAY"
+#: Twice the area of a triangle too small to be a display gamut. sRGB measures
+#: 0.2241 by the same cross product, so this admits a gamut a tenth its size
+#: and rejects three primaries that have collapsed onto a line.
+_MIN_GAMUT_AREA = 0.02
 
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base_path) as display_key:
-            # Enumerate display subkeys
-            for i in range(100):
-                try:
-                    subkey_name = winreg.EnumKey(display_key, i)
+#: The corners an EDID chromaticity block names, each as the byte holding its
+#: top eight bits and the pair of low bits packed into byte 25 or 26.
+_CHROMATICITY_LAYOUT = (
+    ("red_x", 27, 25, 6),
+    ("red_y", 28, 25, 4),
+    ("green_x", 29, 25, 2),
+    ("green_y", 30, 25, 0),
+    ("blue_x", 31, 26, 6),
+    ("blue_y", 32, 26, 4),
+    ("white_x", 33, 26, 2),
+    ("white_y", 34, 26, 0),
+)
 
-                    # Check if this matches our monitor
-                    if monitor_key in subkey_name.upper():
-                        subkey_path = f"{base_path}\\{subkey_name}"
 
-                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, subkey_path) as monitor_type_key:
-                            # Enumerate instance subkeys
-                            for j in range(10):
-                                try:
-                                    instance_name = winreg.EnumKey(monitor_type_key, j)
-                                    instance_path = f"{subkey_path}\\{instance_name}\\Device Parameters"
+def _chromaticity_is_declared(points: dict[str, tuple[float, float]]) -> bool:
+    """Whether this block is a declaration rather than an unwritten one.
 
-                                    try:
-                                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, instance_path) as params_key:
-                                            edid, _ = winreg.QueryValueEx(params_key, "EDID")
-                                            if edid and len(edid) >= 128:
-                                                return bytes(edid)
-                                    except FileNotFoundError:
-                                        pass
+    An EDID that says nothing about its primaries leaves the ten bytes at zero,
+    and one written carelessly can put a corner outside the chromaticity
+    diagram or collapse the three primaries onto a line. None of those is a
+    gamut, so a block like that is read as absent rather than repaired into
+    something plausible.
+    """
+    for x, y in points.values():
+        if not (0.0 < x < 1.0 and 0.0 < y < 1.0) or x + y > 1.0:
+            return False
+    red = points["red"]
+    green = points["green"]
+    blue = points["blue"]
+    area = abs((green[0] - red[0]) * (blue[1] - red[1]) - (blue[0] - red[0]) * (green[1] - red[1]))
+    return area >= _MIN_GAMUT_AREA
 
-                                except OSError:
-                                    break
 
-                except OSError:
-                    break
+def parse_edid_chromaticity(edid: bytes) -> dict[str, tuple[float, float]] | None:
+    """Read the primaries and white point an EDID declares, or None.
 
-    except Exception:
-        pass
+    Bytes 25 through 34 carry eight ten-bit fractions: the two low bits of each
+    are packed into bytes 25 and 26, and the remaining eight sit one to a byte
+    from 27 onward. Every value is a fraction of 1024, so the block is exact
+    within about a thousandth and nothing here is rounded further.
 
-    return None
+    What comes back is what the manufacturer wrote, which is a claim about the
+    model rather than a measurement of the unit on the desk. Callers label it
+    that way. A block that names no gamut answers None, and no caller then has
+    to decide whether eight zeros meant anything.
+    """
+    if not edid or len(edid) < 35:
+        return None
+    raw = {
+        name: ((edid[high] << 2) | ((edid[low] >> shift) & 0x03)) / 1024.0
+        for name, high, low, shift in _CHROMATICITY_LAYOUT
+    }
+    points = {
+        "red": (raw["red_x"], raw["red_y"]),
+        "green": (raw["green_x"], raw["green_y"]),
+        "blue": (raw["blue_x"], raw["blue_y"]),
+        "white": (raw["white_x"], raw["white_y"]),
+    }
+    return points if _chromaticity_is_declared(points) else None
 
 
 def parse_edid(edid: bytes) -> dict:
@@ -593,6 +692,8 @@ def parse_edid(edid: bytes) -> dict:
         "gamma": 0.0,
         "native_resolution": (0, 0),
         "max_refresh": 0,
+        "chromaticity": None,
+        "srgb_default": False,
     }
 
     if not edid or len(edid) < 128:
@@ -653,6 +754,16 @@ def parse_edid(edid: bytes) -> dict:
     # Gamma (byte 23) - stored as (gamma * 100) - 100
     if edid[23] != 0xFF:
         result["gamma"] = (edid[23] + 100) / 100.0
+
+    # Declared primaries and white point (bytes 25-34)
+    result["chromaticity"] = parse_edid_chromaticity(edid)
+
+    # Feature byte 24, bit 2: the display says its colours are already sRGB.
+    # A display claiming that has told the reader its chromaticity block is a
+    # copy of the sRGB primaries rather than a description of its own panel,
+    # which is the difference between a correction worth applying and an
+    # identity dressed up as one.
+    result["srgb_default"] = bool(edid[24] & 0x04)
 
     # Preferred timing (bytes 54-71) - first detailed timing descriptor
     if len(edid) >= 71:

@@ -830,6 +830,9 @@ class DashboardPage(QWidget):
 
         # Enabled state and reason belong to the binder in the window that owns
         # this page, which resolves them against the session.
+        self.use_edid_btn = QPushButton("Use Display's Own Data")
+        self.use_edid_btn.setFixedHeight(32)
+        row.addWidget(self.use_edid_btn)
         self.use_generic_btn = QPushButton("Use Generic Panel")
         self.use_generic_btn.setFixedHeight(32)
         row.addWidget(self.use_generic_btn)
@@ -1504,6 +1507,17 @@ class CalibrateProWindow(QMainWindow):
         # without this control that display reached the Calibrate page and was
         # refused by everything on it. The row is disabled in place rather than
         # hidden, matching the disposition the manifest declares for it.
+        # Offered above the generic control and bound the same way. It is the
+        # better answer where it is available, because the numbers describe the
+        # model on the desk rather than a nominal sRGB panel, and it disappears
+        # into a disabled state on a display that declared nothing readable.
+        self._binder.bind(
+            "display.characterization.use_edid",
+            self.dashboard.use_edid_btn,
+            self.service.use_edid_characterization,
+            on_success=self.dashboard.render_characterization,
+            hides=False,
+        )
         self._binder.bind(
             "display.characterization.use_generic",
             self.dashboard.use_generic_btn,
@@ -1528,6 +1542,10 @@ class CalibrateProWindow(QMainWindow):
                     select_sensorless=partial(self.service.select_method, CalibrationMethod.SENSORLESS),
                     select_measured=partial(self.service.select_method, CalibrationMethod.MEASURED),
                     set_target=self.service.set_target,
+                    set_gamut=self.service.select_target_gamut,
+                    set_white_point=self.service.select_target_white_point,
+                    set_tone_response=self.service.select_target_tone_response,
+                    set_custom_cct=self.service.select_custom_white_point,
                     unhandled=self.service.unhandled,
                     measure=self.service.measure,
                     generate=self.service.generate,

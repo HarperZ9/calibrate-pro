@@ -16,15 +16,24 @@ from calibrate_pro.workflow import CapabilityState
 class CharacterizationKind(str, Enum):
     """Where a session's description of a display came from.
 
-    The first three describe a model. A matched record names the product, the
+    Three of these describe a model. A matched record names the product, the
     generic record names a nominal sRGB panel, and unknown names nothing.
-    MEASURED is the one member that describes the unit on the desk, and it is
-    reachable only through an instrument run, so no path that resolves a panel
-    from a database can produce it.
+
+    EDID_DECLARED sits between those and a reading. The numbers came off the
+    display over its own cable, and what they carry is what the manufacturer
+    wrote into the descriptor for the model. A panel that drifted, a monitor
+    running in a preset picture mode, and a descriptor copied across a product
+    line all produce a display that does not match its own declaration, so
+    this labels a claim by the display rather than a fact about it.
+
+    MEASURED is the one member that describes the unit on the desk. It is
+    reachable only through an instrument run, so no path that resolves a
+    record or reads a descriptor can produce it.
     """
 
     MATCHED = "matched"
     EXPLICIT_GENERIC = "explicit_generic"
+    EDID_DECLARED = "edid_declared"
     MEASURED = "measured"
     UNKNOWN = "unknown"
 
@@ -144,6 +153,14 @@ class DisplayObservation:
     capabilities: CapabilityState
     evidence: tuple[str, ...]
 
+    #: What this display declared about itself, where it declared anything.
+    #: Detection never installs it. It is carried beside the characterization
+    #: as something the operator can accept, because a descriptor is a claim by
+    #: the manufacturer and adopting one is a decision, the same decision the
+    #: generic record is adopted by. None means the display declared nothing
+    #: this build could read, and the evidence lines say which part was missing.
+    edid_characterization: PanelCharacterization | None = None
+
     def __post_init__(self) -> None:
         _require_nonblank_exact_string(self.platform_display_id, field_name="platform_display_id")
         _require_nonblank_exact_string(self.safe_label, field_name="safe_label")
@@ -160,6 +177,11 @@ class DisplayObservation:
             raise TypeError("hdr_enabled must be an exact boolean or None")
         if type(self.characterization) is not PanelCharacterization:
             raise TypeError("characterization must be PanelCharacterization")
+        if self.edid_characterization is not None:
+            if type(self.edid_characterization) is not PanelCharacterization:
+                raise TypeError("edid_characterization must be PanelCharacterization or None")
+            if self.edid_characterization.kind is not CharacterizationKind.EDID_DECLARED:
+                raise ValueError("edid_characterization must carry the EDID_DECLARED kind")
         if type(self.capabilities) is not CapabilityState:
             raise TypeError("capabilities must be the canonical CapabilityState")
         frozen_evidence = _freeze_sequence(self.evidence, field_name="evidence", member_type=str)

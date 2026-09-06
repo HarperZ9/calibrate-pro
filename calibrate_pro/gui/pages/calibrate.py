@@ -16,13 +16,17 @@ and the way it disagreed was by acting.
 
 Every control here is now bound to the action it stands for. A card that is
 closed says why in the manifest's words, and the reason arrives from the same
-resolver a terminal quotes. The target fields select among the targets this
-build has rather than composing one it does not: the session's target vocabulary
-is the preset table, so editing a field picks the preset carrying that value.
+resolver a terminal quotes. The three target selectors list the whole
+catalogue, and choosing a value replaces that one part of the target the
+session holds while the other two stay where they are. The preset buttons are
+still here, because four of these combinations are what most operators want and
+they should not have to assemble one.
 
-A custom correlated colour temperature had a slider and no target behind it. No
-preset in this build names one, so the control is gone rather than disabled,
-because a slider that moves is a claim that something reads it.
+A custom correlated colour temperature had a slider and no target behind it,
+and the slider was removed rather than left moving over nothing. It is a spin
+box now with a target behind it. The number reaches the session, which puts the
+white point on the daylight locus at that temperature and answers with the
+whole target it went on to hold.
 
 Choosing a display drops the method, the target and the seal. Choosing a method
 drops the target and the seal, and choosing a target drops the seal. The page
@@ -32,7 +36,7 @@ screen is never one the session stopped holding.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QEvent, Qt, Signal
@@ -46,6 +50,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -63,6 +68,14 @@ from calibrate_pro.application.results import (
     PlanDecision,
     PlanPreview,
     TargetSelection,
+)
+from calibrate_pro.application.target_editing import target_slugs
+from calibrate_pro.application.target_selection import (
+    CUSTOM_CCT_MAX_K,
+    CUSTOM_CCT_MIN_K,
+    selectable_gamuts,
+    selectable_tone_responses,
+    selectable_white_points,
 )
 from calibrate_pro.gui.action_binding import ActionBinder, Operation, SurfaceBinding
 from calibrate_pro.gui.app import C, Card, Heading, Stat
@@ -106,6 +119,22 @@ GAMUT, WHITE_POINT, TONE_RESPONSE = 0, 1, 2
 #: target the session was never asked for and never generated against.
 UNSET_TARGET_ITEM = "Not selected"
 
+#: What the target line calls a target no preset names. The three parts follow
+#: it in the same sentence, so the word carries no information the operator
+#: needs and is not asked to.
+COMPOSED_TARGET_LABEL = "Custom"
+
+#: Where the temperature spin box starts. It is the one temperature that also
+#: names an illuminant this build carries, so an operator who opens the control
+#: and presses the button lands on a white the catalogue can be checked against
+#: rather than on the low end of the range.
+DEFAULT_CUSTOM_CCT_K = 6500
+
+#: How far one press of the spin box moves. Fifty kelvin is under the smallest
+#: step that changes the composed white by a visible amount, so the control can
+#: be driven to a specific number rather than stepped past it.
+CUSTOM_CCT_STEP_K = 50
+
 #: Under the workflow before an action has produced anything.
 NOT_GENERATED_NOTE = "No calibration bundle has been generated in this session."
 
@@ -134,19 +163,14 @@ CONFIRMED_NOTE = "Plan confirmed. Nothing was sent to the display. Verification 
 DECLINED_NOTE = "Plan declined. Generate again to seal a new one."
 
 
-def _preset_values(field: int) -> list[str]:
-    """Every value the preset table gives one target field, in table order."""
-    seen: dict[str, None] = {}
-    for target in PRESET_TARGETS.values():
-        seen.setdefault(target[field], None)
-    return list(seen)
-
-
-def _presets_with(field: int, value: str) -> Iterator[str]:
-    """Preset ids whose target carries ``value`` in ``field``, in table order."""
-    for preset_id, target in PRESET_TARGETS.items():
-        if target[field] == value:
-            yield preset_id
+#: What each selector offers, as (slug, label) in catalogue order. The page
+#: shows the label and sends the slug, so a control never has to be read back
+#: through its own text to find out what it stands for.
+SELECTABLE = {
+    GAMUT: selectable_gamuts,
+    WHITE_POINT: selectable_white_points,
+    TONE_RESPONSE: selectable_tone_responses,
+}
 
 
 class ModeCard(Card):
@@ -241,6 +265,8 @@ class CalibratePage(QWidget):
         self._binder: ActionBinder | None = None
         self._select_display: Callable[[str], ActionOutcome[Any]] | None = None
         self._set_target: Callable[[str], ActionOutcome[Any]] | None = None
+        self._set_axis: dict[int, Callable[[str], ActionOutcome[Any]]] = {}
+        self._set_custom_cct: Callable[[int], ActionOutcome[Any]] | None = None
         self._display_binding: SurfaceBinding | None = None
         self._target_bindings: dict[int, SurfaceBinding] = {}
         self._displays: list[tuple[str, str]] = []
@@ -314,33 +340,68 @@ class CalibratePage(QWidget):
         label_style = f"font-size: 12px; color: {C.TEXT2};"
 
         self._target_combos: dict[int, QComboBox] = {}
+        #: How many items each selector was built with. Anything past it is a
+        #: value the session holds that the catalogue does not list, which is
+        #: how a colour temperature comes to be shown on the white selector.
+        self._catalogue_items: dict[int, int] = {}
         rows = ((GAMUT, "Target Gamut"), (WHITE_POINT, "White Point"), (TONE_RESPONSE, "Tone Response"))
         for row, (field, caption) in enumerate(rows):
             text = QLabel(caption)
             text.setStyleSheet(label_style)
             layout.addWidget(text, row, 0)
             combo = QComboBox()
-            combo.addItem(UNSET_TARGET_ITEM)
-            combo.addItems(_preset_values(field))
+            combo.addItem(UNSET_TARGET_ITEM, None)
+            for slug, label in SELECTABLE[field]():
+                combo.addItem(label, slug)
             combo.setStyleSheet(self._combo_style())
             combo.currentIndexChanged.connect(lambda _index, key=field: self._on_target_changed(key))
             layout.addWidget(combo, row, 1)
             self._target_combos[field] = combo
+            self._catalogue_items[field] = combo.count()
+
+        cct_caption = QLabel("Colour Temperature")
+        cct_caption.setStyleSheet(label_style)
+        layout.addWidget(cct_caption, 3, 0)
+        layout.addLayout(self._build_custom_cct_row(), 3, 1)
 
         hdr_caption = QLabel("HDR Mode")
         hdr_caption.setStyleSheet(label_style)
-        layout.addWidget(hdr_caption, 3, 0)
+        layout.addWidget(hdr_caption, 4, 0)
         self._btn_hdr = QPushButton("Enable HDR calibration")
         self._btn_hdr.setStyleSheet(self._pill_style())
         self._btn_hdr.setFixedHeight(28)
-        layout.addWidget(self._btn_hdr, 3, 1)
+        layout.addWidget(self._btn_hdr, 4, 1)
 
         self._target_label = QLabel(NO_TARGET_NOTE)
         self._target_label.setWordWrap(True)
         self._target_label.setStyleSheet(f"font-size: 11px; color: {C.TEXT2};")
-        layout.addWidget(self._target_label, 4, 0, 1, 2)
+        layout.addWidget(self._target_label, 5, 0, 1, 2)
 
         self._layout.addWidget(card)
+
+    def _build_custom_cct_row(self) -> QHBoxLayout:
+        """A number and the button that sends it, both standing for one action.
+
+        The spin box does not perform on its own. An operator scrolling through
+        temperatures would otherwise set a target on every intermediate value,
+        journalling a run of targets nobody asked for and invalidating the seal
+        each time. The button is when the number is meant.
+        """
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        self._cct_spin = QSpinBox()
+        self._cct_spin.setRange(CUSTOM_CCT_MIN_K, CUSTOM_CCT_MAX_K)
+        self._cct_spin.setSingleStep(CUSTOM_CCT_STEP_K)
+        self._cct_spin.setValue(DEFAULT_CUSTOM_CCT_K)
+        self._cct_spin.setSuffix(" K")
+        self._cct_spin.setStyleSheet(self._combo_style())
+        row.addWidget(self._cct_spin)
+        self._btn_cct = QPushButton("Use temperature")
+        self._btn_cct.setStyleSheet(self._pill_style())
+        self._btn_cct.setFixedHeight(28)
+        row.addWidget(self._btn_cct)
+        row.addStretch()
+        return row
 
     def _build_preset_row(self) -> None:
         row = QHBoxLayout()
@@ -507,6 +568,10 @@ class CalibratePage(QWidget):
         select_sensorless: Operation,
         select_measured: Operation,
         set_target: Callable[[str], ActionOutcome[Any]],
+        set_gamut: Callable[[str], ActionOutcome[Any]],
+        set_white_point: Callable[[str], ActionOutcome[Any]],
+        set_tone_response: Callable[[str], ActionOutcome[Any]],
+        set_custom_cct: Callable[[int], ActionOutcome[Any]],
         unhandled: Callable[[str], ActionOutcome[Any]],
         measure: Operation,
         generate: Operation,
@@ -524,16 +589,21 @@ class CalibratePage(QWidget):
         attached and enabling both cards on the answer, which is how it came to
         offer a method the manifest was holding shut.
 
-        A target selector renders one action and performs another, which the
-        binding keeps as two separate fields for exactly this case. The control
-        stands for editing that field of the target; what editing it does in
-        this build is select the preset carrying the chosen value, because the
-        preset table is the whole target vocabulary. Both actions carry the same
-        condition, so the sentence on a closed selector is the same either way.
+        A target selector renders the action it stands for and performs that
+        same action, which is editing one axis of the target. What comes back
+        is the whole target the session went on to hold, and all three
+        selectors are redrawn from it, so the controls and the line under them
+        cannot end up describing two different targets.
+
+        The temperature is two controls for one action. Both are bound, so a
+        session that would refuse it closes the number and the button together
+        and puts the resolver's sentence on each.
         """
         self._binder = binder
         self._select_display = select_display
         self._set_target = set_target
+        self._set_axis = {GAMUT: set_gamut, WHITE_POINT: set_white_point, TONE_RESPONSE: set_tone_response}
+        self._set_custom_cct = set_custom_cct
         self._confirm_plan = confirm_plan
 
         self._display_binding = binder.bind(
@@ -575,6 +645,20 @@ class CalibratePage(QWidget):
                 hides=False,
                 connect=False,
             )
+        binder.bind(
+            "calibration.target.custom_cct",
+            self._btn_cct,
+            self._custom_cct_operation(),
+            on_success=self.render_target,
+            hides=False,
+        )
+        binder.bind(
+            "calibration.target.custom_cct",
+            self._cct_spin,
+            self._custom_cct_operation(),
+            hides=False,
+            connect=False,
+        )
         binder.bind(
             "calibration.target.hdr",
             self._btn_hdr,
@@ -647,32 +731,32 @@ class CalibratePage(QWidget):
             self._display_combo.setCurrentIndex(index)
 
     def _target_operation(self, field: int) -> Operation:
-        """Select the preset carrying whatever value this selector now shows."""
+        """Edit this one axis of the target, leaving the other two held.
+
+        The unset item carries no slug, so landing on it asks for nothing. It
+        is what the selectors are put back to when the target is dropped, and
+        an operator choosing it is saying no more than that.
+        """
 
         def run() -> ActionOutcome[Any] | None:
-            set_target, combo = self._set_target, self._target_combos[field]
-            if set_target is None:
+            edit = self._set_axis.get(field)
+            slug = self._target_combos[field].currentData()
+            if edit is None or slug is None:
                 return None
-            preset_id = self._preset_for(field, combo.currentText())
-            if preset_id is None:
-                return None
-            return set_target(preset_id)
+            return edit(str(slug))
 
         return run
 
-    def _preset_for(self, field: int, value: str) -> str | None:
-        """Which preset the operator asked for by putting ``value`` in ``field``.
+    def _custom_cct_operation(self) -> Operation:
+        """Aim the white point at the daylight locus at the number shown."""
 
-        A preset matching every selector at once is the one they meant. Where
-        the three selectors do not name a preset together, the changed field
-        decides and the others follow it, so a selector always reaches a target
-        rather than composing one this build cannot generate.
-        """
-        chosen = tuple(self._target_combos[key].currentText() for key in (GAMUT, WHITE_POINT, TONE_RESPONSE))
-        for preset_id, target in PRESET_TARGETS.items():
-            if target[:3] == chosen:
-                return preset_id
-        return next(_presets_with(field, value), None)
+        def run() -> ActionOutcome[Any] | None:
+            edit = self._set_custom_cct
+            if edit is None:
+                return None
+            return edit(self._cct_spin.value())
+
+        return run
 
     def _on_target_changed(self, field: int) -> None:
         """Ask the session for the target the operator's edit names.
@@ -744,14 +828,10 @@ class CalibratePage(QWidget):
         """
         self._clear_result()
         self._target = selection
-        values = {
-            GAMUT: selection.gamut,
-            WHITE_POINT: selection.white_point,
-            TONE_RESPONSE: selection.tone_response,
-        }
-        for field, value in values.items():
-            self._show_target_value(field, value)
-        label = PRESET_LABELS.get(selection.preset_id, selection.preset_id)
+        labels = (selection.gamut, selection.white_point, selection.tone_response)
+        for field, slug in enumerate(target_slugs(selection.preset_id)):
+            self._show_target_value(field, slug, labels[field])
+        label = PRESET_LABELS.get(selection.preset_id, COMPOSED_TARGET_LABEL)
         self._target_label.setText(
             f"Target: {label}. {selection.gamut} primaries, {selection.white_point} white point, "
             f"{selection.tone_response} tone response."
@@ -868,7 +948,7 @@ class CalibratePage(QWidget):
         """Forget the target on screen, and the bundle generated against it."""
         self._target = None
         for field in self._target_combos:
-            self._show_target_value(field, UNSET_TARGET_ITEM)
+            self._show_target_value(field, None, UNSET_TARGET_ITEM)
         self._target_label.setText(NO_TARGET_NOTE)
         self._clear_result()
 
@@ -905,22 +985,33 @@ class CalibratePage(QWidget):
     def _restore_target(self) -> None:
         """Put every selector back on the target the session says it holds."""
         target = self._target
-        values = (
-            (GAMUT, target.gamut if target else UNSET_TARGET_ITEM),
-            (WHITE_POINT, target.white_point if target else UNSET_TARGET_ITEM),
-            (TONE_RESPONSE, target.tone_response if target else UNSET_TARGET_ITEM),
-        )
-        for field, value in values:
-            self._show_target_value(field, value)
+        if target is None:
+            for field in self._target_combos:
+                self._show_target_value(field, None, UNSET_TARGET_ITEM)
+            return
+        labels = (target.gamut, target.white_point, target.tone_response)
+        for field, slug in enumerate(target_slugs(target.preset_id)):
+            self._show_target_value(field, slug, labels[field])
 
-    def _show_target_value(self, field: int, value: str) -> None:
-        """Put one selector on a value without asking the session for it."""
+    def _show_target_value(self, field: int, slug: str | None, label: str) -> None:
+        """Put one selector on a value without asking the session for it.
+
+        A white point the catalogue does not list is added rather than dropped.
+        Every colour temperature is one of those, and a selector that quietly
+        stayed on D65 while the session held 5400 K would be the page telling
+        the operator a white the bundle is not aimed at. One trailing item is
+        kept at most, so the list does not grow a row per temperature tried.
+        """
         combo = self._target_combos[field]
         blocked = combo.blockSignals(True)
         try:
-            index = combo.findText(value)
-            if index >= 0:
-                combo.setCurrentIndex(index)
+            while combo.count() > self._catalogue_items[field]:
+                combo.removeItem(combo.count() - 1)
+            index = 0 if slug is None else combo.findData(slug)
+            if index < 0:
+                combo.addItem(label, slug)
+                index = combo.count() - 1
+            combo.setCurrentIndex(index)
         finally:
             combo.blockSignals(blocked)
 
@@ -937,8 +1028,11 @@ def _select(set_target: Callable[[str], ActionOutcome[Any]], preset_id: str) -> 
 
 __all__ = [
     "APPLIED_NOTE",
+    "COMPOSED_TARGET_LABEL",
     "CONFIRMED_NOTE",
+    "CUSTOM_CCT_STEP_K",
     "DECLINED_NOTE",
+    "DEFAULT_CUSTOM_CCT_K",
     "GENERATED_NOTE",
     "HDR_PRESET_ACTION",
     "NOT_APPLIED_NOTE",
@@ -947,6 +1041,7 @@ __all__ = [
     "NO_METHOD_NOTE",
     "NO_TARGET_NOTE",
     "PRESET_LABELS",
+    "SELECTABLE",
     "UNSET_TARGET_ITEM",
     "CalibratePage",
     "ModeCard",

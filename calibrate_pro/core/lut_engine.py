@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -30,6 +31,9 @@ from calibrate_pro.core.color_math import (
     xyz_abs_to_jzazbz,
 )
 
+if TYPE_CHECKING:
+    from calibrate_pro.core.tone_response import ToneResponse
+
 
 class LUTFormat(Enum):
     """Supported 3D LUT file formats."""
@@ -40,6 +44,26 @@ class LUTFormat(Enum):
     CSP = "csp"  # Rising Sun Research Cinespace
     ICC = "icc"  # Embedded in ICC profile
     CLF = "clf"  # SMPTE ST 2136-1 Common LUT Format (ACES)
+
+
+def _decode_target(
+    signal: np.ndarray,
+    target_gamma: float,
+    target_tone: "ToneResponse | None",
+    eps: float = 1e-10,
+) -> np.ndarray:
+    """Decode a target signal to relative light, by curve when one is given.
+
+    ``target_gamma`` covers the power laws and stays the default so a caller
+    that passes a number keeps the arithmetic it had. A ``target_tone``
+    carries the shapes an exponent cannot: sRGB is piecewise below 0.04045,
+    L* follows CIE lightness, and BT.1886 leaves the 2.4 power law as soon as
+    a panel reports a black level above zero.
+    """
+    values = np.asarray(signal, dtype=np.float64)
+    if target_tone is None:
+        return np.where(values > eps, np.power(values, target_gamma), 0.0)
+    return np.where(values > eps, target_tone.to_linear(values), 0.0)
 
 
 @dataclass
@@ -864,6 +888,7 @@ class LUTGenerator:
         color_matrix: np.ndarray | None = None,
         title: str = "Display Calibration LUT",
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
     ) -> LUT3D:
         """
         Create comprehensive calibration LUT for display.
@@ -941,9 +966,9 @@ class LUTGenerator:
                     # So: signal = (xyz_to_panel @ srgb_to_xyz @ sRGB^target_gamma)^(1/panel_gamma)
                     #     signal = (color_matrix @ sRGB^target_gamma)^(1/panel_gamma)
 
-                    # Step 1: Linearize sRGB (apply target gamma)
-                    # Use safe power that preserves zeros
-                    rgb_linear = np.where(rgb > EPS, np.power(rgb, target_gamma), 0.0)
+                    # Step 1: Linearize sRGB (apply the target tone response)
+                    # Use a safe decode that preserves zeros
+                    rgb_linear = _decode_target(rgb, target_gamma, target_tone, EPS)
 
                     # Step 2: Apply color correction matrix in LINEAR space
                     # This maps from sRGB linear to what panel needs in linear
@@ -1027,6 +1052,7 @@ class LUTGenerator:
         gamma_green: float = 2.2,
         gamma_blue: float = 2.2,
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         title: str = "Native Gamut Calibration LUT",
         oled_compensation: bool = False,
@@ -1087,7 +1113,6 @@ class LUTGenerator:
         coords = np.linspace(0, 1, self.size)
         EPS = 1e-10
         inv_gammas = np.array([1.0 / gamma_red, 1.0 / gamma_green, 1.0 / gamma_blue])
-        target_gammas = np.array([target_gamma, target_gamma, target_gamma])
 
         # Vectorized: build all grid points
         N = self.size
@@ -1099,7 +1124,7 @@ class LUTGenerator:
 
         # Step 1: The input signal is what the panel would receive.
         # Linearize with the PANEL's native gamma (undo what the panel does)
-        rgb_linear = np.where(all_rgb > EPS, np.power(all_rgb, target_gammas), 0.0)
+        rgb_linear = _decode_target(all_rgb, target_gamma, target_tone, EPS)
 
         # Step 2: Apply white point correction in linear space
         rgb_corrected = (wp_correction @ rgb_linear.T).T
@@ -1155,6 +1180,7 @@ class LUTGenerator:
         target_primaries: tuple[tuple[float, float], ...] | None = None,
         target_white: tuple[float, float] = (0.3127, 0.3290),
         target_gamma: float = 2.2,
+        target_tone: "ToneResponse | None" = None,
         title: str = "Oklab Perceptual Calibration LUT",
     ) -> LUT3D:
         """
@@ -1224,7 +1250,7 @@ class LUTGenerator:
         is_black = np.all(all_rgb == 0.0, axis=1)
 
         # 2. Linearize all points (target gamma decode), vectorized
-        rgb_linear_all = np.where(all_rgb > EPS, np.power(all_rgb, target_gamma), 0.0)
+        rgb_linear_all = _decode_target(all_rgb, target_gamma, target_tone, EPS)
 
         # 3. Convert all to panel linear RGB via combined matrix, vectorized
         #    panel_linear = target_to_panel @ rgb_linear  for each row

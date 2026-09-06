@@ -63,6 +63,10 @@ def adopt(state: SessionState, display_id: str | None) -> WorkflowController:
             state.characterization_kind = CharacterizationKind.MATCHED
         else:
             state.characterization_kind = CharacterizationKind.UNKNOWN
+    # Order matters. Both may hold a record for the same display, and a run
+    # describes the unit while a declaration only describes the model, so the
+    # measured assignment has to be the one that lands last.
+    _carry_or_drop_declaration(state)
     _carry_or_drop_measurement(state)
     # A control reading belongs to one unit for the same reason a measurement
     # does, so adopting a different display drops it and everything staged
@@ -76,6 +80,24 @@ def adopt(state: SessionState, display_id: str | None) -> WorkflowController:
     if state.selected_display_id is not None:
         controller.detect_complete()
     return controller
+
+
+def _carry_or_drop_declaration(state: SessionState) -> None:
+    """Keep an accepted declaration only while its display is still selected.
+
+    A descriptor is read from one display. Selecting a different monitor and
+    keeping the record would build the next bundle from another panel's
+    declared primaries, which is the same false claim carrying a measurement
+    across displays would make, one step weaker. Re-selecting the same display
+    restores the kind, because adopting a display resets the characterization
+    to whatever detection alone can say.
+    """
+    if state.declared_characterization is None:
+        return
+    if state.declared_display_id == state.selected_display_id:
+        state.characterization_kind = CharacterizationKind.EDID_DECLARED
+        return
+    state.discard_declaration()
 
 
 def _carry_or_drop_measurement(state: SessionState) -> None:

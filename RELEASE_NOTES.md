@@ -120,6 +120,24 @@ Four defects moved pixels rather than a readout.
 - A release version that derives from one declaration, so the build scripts, the release
   workflow, the installer, and the artifact names cannot disagree about which release
   they are.
+- A target you compose rather than name. Eleven gamuts, seven white points and eight tone
+  responses combine into 616 targets, any axis left out keeps the default its preset
+  carries, and a composed selection now reaches generation instead of stopping at the
+  session. `calibrate-pro list-targets` prints that vocabulary and runs in the packaged
+  build, so a refusal naming a target can be looked up from the binary that refused.
+- Gamut coverage measured as the clipped intersection of the two triangles. The earlier
+  figure was a ratio of areas, which credits a display for area it reaches outside the
+  target. An Adobe RGB panel scored against DCI-P3 reported 99.4% and reports 87.8% now.
+  A plan carries that coverage together with the corners the display misses and how far
+  outside each one it falls.
+- A display no panel record matches is characterized from the primaries its EDID declares.
+  The record refuses a collapsed gamut or an out-of-band gamma, names the product the
+  descriptor names and never the unit, and every surface downstream says the numbers were
+  declared rather than read.
+- `verify` reports the distance before the correction beside the distance after it. The
+  earlier single figure was the residual of the model against its own chart, which says
+  how well the model fits itself.
+- A bundle manifest records which family of tone curve the correction applied.
 
 ## Breaking changes
 

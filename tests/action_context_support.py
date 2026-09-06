@@ -28,6 +28,7 @@ def action_context(**changes: object) -> ActionContext:
         fake_acceptance=False,
         selected_display_id="display-1",
         characterization_kind=CharacterizationKind.MATCHED,
+        edid_declaration_available=True,
         selected_method=CalibrationMethod.SENSORLESS,
         target_valid=True,
         selected_preset_id="calibration.preset.srgb_web",

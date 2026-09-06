@@ -21,7 +21,12 @@ from __future__ import annotations
 from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from calibrate_pro.application.assets import ExportBundle
-from calibrate_pro.application.profiles import AssetCheck, ProfileInspection, ProfileRecord
+from calibrate_pro.application.profiles import (
+    AssetCheck,
+    ProfileInspection,
+    ProfileRecord,
+    ProfileTarget,
+)
 from calibrate_pro.gui.app import C, Card, Heading
 
 #: Drawn in place of a name before any profile has been inspected.
@@ -86,6 +91,20 @@ def _field(text: str, color: str) -> QLabel:
     return label
 
 
+def _applied_gamma(target: ProfileTarget) -> str:
+    """State the exponent, and whether it is the correction or a summary of it.
+
+    A curve target still has a nearest exponent and the pane still shows it,
+    because an operator comparing two bundles wants a number. Printing it bare
+    would report a piecewise sRGB bundle as a 2.2 power law, so the qualifier
+    rides with it wherever the applied curve is not one.
+    """
+    exponent = f"{target.applied_gamma_exponent:g}"
+    if target.applies_a_power_law:
+        return exponent
+    return f"{exponent} (nearest exponent; {target.tone_response} is not a power law)"
+
+
 def _fields(record: ProfileRecord) -> tuple[tuple[str, str], ...]:
     """Name every figure this pane shows, and where each one was read from."""
     target = record.target
@@ -96,7 +115,7 @@ def _fields(record: ProfileRecord) -> tuple[tuple[str, str], ...]:
         ("Gamut mode", target.gamut_mode),
         ("White point", target.white_point),
         ("Tone response", target.tone_response),
-        ("Applied gamma", f"{target.applied_gamma_exponent:g}"),
+        ("Applied gamma", _applied_gamma(target)),
         ("LUT size", f"{record.lut_size}³"),
         ("Characterization", record.characterization_kind),
         ("Evidence", record.evidence_kind),

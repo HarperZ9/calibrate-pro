@@ -35,6 +35,7 @@ from calibrate_pro.application.calibration import CalibrationApplyService
 from calibrate_pro.application.detection import (
     DeniedCapabilityProbe,
     DisplayDetector,
+    read_display_edid,
     read_hdr_states,
     windows_read_only_probe,
 )
@@ -202,6 +203,7 @@ def build_calibration_service() -> CalibrationApplyService:
     detector = DisplayDetector(
         capability_probe=windows_read_only_probe(sensor=usb_instrument_present, ddc=ddc_control_present),
         hdr_reader=read_hdr_states,
+        edid_reader=read_display_edid,
         database=database,
     )
     return CalibrationApplyService(
@@ -234,6 +236,7 @@ def build_production_service() -> FunctionalRecoveryService:
     detector = DisplayDetector(
         capability_probe=windows_read_only_probe(sensor=usb_instrument_present),
         hdr_reader=read_hdr_states,
+        edid_reader=read_display_edid,
         database=database,
     )
     return FunctionalRecoveryService(

@@ -40,10 +40,11 @@ from PySide6.QtWidgets import (
 )
 
 from calibrate_pro.application.outcomes import ActionError, ActionOutcome
-from calibrate_pro.application.results import PlanDecision, PlanPreview
+from calibrate_pro.application.results import PlanDecision, PlanPreview, reach_text
 from calibrate_pro.application.surface import SurfaceActions
 from calibrate_pro.gui.action_binding import ActionBinder, Restriction, refusal_message
 from calibrate_pro.gui.theme import C, primary_button_style, secondary_button_style
+from calibrate_pro.targets.coverage import GamutContainment
 from calibrate_pro.workflow import ApplyPlan
 
 #: What accepting does in this build, beside the button that does it. The
@@ -95,14 +96,17 @@ def _asset(path: str | None, digest: str | None) -> str:
     return f"{path}  {digest}"
 
 
-def plan_rows(plan: ApplyPlan) -> tuple[tuple[str, str], ...]:
+def plan_rows(plan: ApplyPlan, reach: GamutContainment | None = None) -> tuple[tuple[str, str], ...]:
     """Lay out one plan as the field-and-value pairs the terminal prints.
 
     The window and the terminal describe a plan from the same object and in the
     same order, so an operator comparing a screenshot against ``calibrate-pro
     verify`` output is reading two renderings of one thing. Every asset row is
     present whether or not the plan carries that asset, because a row that
-    appears only when a file exists makes an absent file invisible.
+    appears only when a file exists makes an absent file invisible. The reach
+    row is there for the same reason: a target this display covers and a target
+    it cannot touch have to be told apart by reading the row, not by noticing
+    that one of them printed an extra line.
     """
     return (
         ("display", plan.display_id),
@@ -110,6 +114,7 @@ def plan_rows(plan: ApplyPlan) -> tuple[tuple[str, str], ...]:
         ("white point", plan.target_whitepoint),
         ("tone response", plan.target_gamma),
         ("gamut", plan.target_gamut),
+        ("gamut reach", reach_text(reach)),
         ("ICC profile", _asset(plan.icc_profile_path, plan.icc_profile_sha256)),
         ("VCGT ramp", _asset(plan.vcgt_path, plan.vcgt_sha256)),
         ("dwm LUT", _asset(plan.dwm_lut_path, plan.dwm_lut_sha256)),
@@ -218,7 +223,7 @@ class PlanConfirmationDialog(QDialog):
         box = QVBoxLayout(card)
         box.setContentsMargins(12, 12, 12, 12)
         box.setSpacing(0)
-        for name, value in plan_rows(self.preview.plan):
+        for name, value in plan_rows(self.preview.plan, self.preview.gamut_reach):
             box.addWidget(_field(name, value))
         return card
 

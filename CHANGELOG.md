@@ -1,6 +1,147 @@
 # Changelog
 
-## v2.0.0 (2026-09-05)
+## v2.0.0 (2026-09-06)
+
+- Shipped the listing the packaged binary's own refusal names. `verify` and
+  `generate-profiles` require `--target`, and a line without one was refused with a sentence
+  saying to run `list-targets`, which the same binary answered with "This command is available
+  only in the developer wheel" and exit 2. Four argparse help strings pointed at it as well, so
+  the only way to read the vocabulary out of a shipped build was to guess a wrong value and read
+  the error, and the 616 composed targets had no listing there at all. The command is in the
+  frozen build now, and the target listing moved to its own module so that shipping it does not
+  carry the two panel listings the binary still refuses.
+- Stopped the session refusing every target an operator composed. `SessionState.target_valid`
+  tested membership of the four-entry preset table, and the gamut, white point and tone response
+  controls each answer with a composed id that is not in it. Every control reported success and
+  redrew, then generation refused with a message saying no valid target had been chosen, so the
+  eleven gamuts, seven white points and eight tone responses the catalogue offers reached
+  nothing. The layer below was covered, which is why a green suite shipped it: the tests called
+  `resolve_target` and `cube_for` directly, and both resolve a composed id correctly. The
+  property now asks `is_target_id`, which is the test the generate gate beside it already
+  applied. All 616 composed ids round trip through the session, and a composed selection naming
+  the same axes as a preset answers with that preset's own id.
+- Stopped the generator refusing seven of the eleven gamuts the selector offers. Behind the
+  refusal above sat a second one: the plan's gamut label was translated through a four-row table
+  carrying sRGB, Rec.709, DCI-P3 and Native, which refused anything else rather than defaulting,
+  so a target composed around Adobe RGB or BT.2020 would have failed at generation once the
+  session accepted it. That table also spelled the mode differently from the rest of the build:
+  DCI-P3 was written into the manifest as `p3`, while the reference primaries and the LUT builder
+  are both keyed by `DCI-P3`. The target record already carries the engine's own spelling, so the
+  generator reads it from there and the table is gone. A DCI-P3 bundle now records `gamut_mode`
+  as `DCI-P3`.
+- Corrected gamut coverage from an area ratio to a triangle intersection. `calculate_gamut_coverage`
+  divided the display triangle's area by the reference triangle's, which counts area a display has
+  outside the target as though it covered area inside. An Adobe RGB panel was reported as covering
+  99.4% of DCI-P3, a gamut it misses in the red corner by a wide margin. The triangles are now
+  clipped against each other and the intersection is divided by the reference area, which reports
+  87.8%, and a display wider than the reference is capped at 100 instead of reporting more than
+  full coverage. `calculate_gamut_volume_coverage` divided two convex hull volumes the same way
+  and is removed. It was exported from the package and called by nothing.
+- Added what the display reaches of the gamut a plan names. A plan aimed at DCI-P3 read the same
+  on a panel that covers it and on an sRGB panel that cannot, so an operator confirmed a target
+  with nothing on the page saying the display could not hit it. `reach_of_gamut_mode` intersects
+  the display's primaries with the target's and answers a `GamutContainment` record, carried on
+  `PlanPreview` and on `GenerationResult`, and rendered by `plan_rows` beside the label it
+  qualifies. It travels as the record rather than as a sentence, so a surface colours the verdict
+  without parsing prose back out of it. The manifest records it under `gamut_reach` with the
+  corners the display misses and how far outside them it falls in u'v'. Native answers None,
+  because a display reaches its own gamut by definition and there is no second triangle to
+  intersect, and both surfaces render that as no claim rather than as full coverage.
+- Fixed a gamut shortfall being reported against the wrong primary. `gamut_containment` zipped the
+  corner names against the wound triangle, and the winding step reverses a clockwise input, so on
+  such a display a blue shortfall was published as a red one. Those names travel into a hashed
+  manifest, so each corner is now read by the name it is reported under, from the same place its
+  chromaticity comes from.
+- Recorded which kind of tone curve a bundle applied. The manifest carried an exponent and a
+  label, and the sRGB piecewise curve, the L* curve and the power laws all report an exponent, so
+  a bundle built from sRGB was indistinguishable in the record from one built from a 2.2 power
+  law. Those two agree exactly at half drive, which is the one drive the 2.224 nominal exponent
+  is defined at, and near black they diverge by a factor of twenty one where the sRGB linear
+  segment lives. The manifest now carries `tone_response_kind`, naming the family the curve came
+  from.
+- Cut SciPy out of the headless startup path. Importing `calibrate_pro.calibration` ran
+  `from .native_loop import ...` eagerly and `native_loop` imports SciPy, so reading a
+  chromaticity constant out of `calibration.targets` cost 763 modules before the first line of a
+  command ran. Nothing in that package or its tests imported those names from the package itself,
+  and every caller reaches the submodule. `verification.gamut_volume` paid the same bill behind a
+  try/except that still performs the import when it succeeds, while the three call sites that
+  build a convex hull are the only ones needing it. Both resolve lazily now, so the package costs
+  8 modules and `gamut_volume` costs 123. `from calibrate_pro.calibration import native_loop` is
+  unaffected. Making the verification package lazy the same way had bound its `REPORTLAB_AVAILABLE`
+  export to SciPy's flag, so the name a caller reads to decide whether a PDF can be written
+  answered a question about convex hulls. Each name is read from the module that defines it now,
+  and `SCIPY_AVAILABLE` is exported under its own name rather than only through the other one.
+- Stopped a CIEDE2000 distance being published under a CAM16-UCS label. When the CAM16
+  conversion raised for a patch, the engine caught it, printed a line to stdout, assigned that
+  patch's CIEDE2000 distance to the CAM16 variable and carried on. The copy then travelled under
+  CAM16 names into the patch record, into the average and maximum, and into the verification
+  report's `dE CAM16-UCS` field, where a reader had no way to tell it from a real CAM16 figure.
+  The grade compounded it by taking `max(delta_e_avg, cam16_delta_e_avg)` and calling the answer
+  the stricter of two metrics, which under the substitution was one metric compared against
+  itself. A failed conversion now drops the metric. The CAM16 keys are removed rather than filled
+  in, a `cam16_unavailable` entry records the patch and the reason, and the two consumers that
+  read these figures already test for the key and render an absent one as not measured. It is
+  reported for every patch or for none, because a mean over whichever patches converged would
+  print beside the CIEDE2000 mean in the same report, computed over a different set, with nothing
+  on the page saying the denominators differ. The grade now reads the metrics that exist. The
+  exception is narrowed from bare `Exception` to what the conversion can raise, and the two
+  stdout prints in this module became log records, so a 24-patch chart with a systematic failure
+  writes one warning instead of 24 lines through the middle of a report.
+- Stopped the target catalogue publishing tungsten as daylight. A white point preset carries the
+  string a menu shows, `Illuminant A`, and the two illuminant tables are keyed by the short name,
+  `A`. `get_xy` read the preset's value against the tables, missed, and fell through to a line
+  returning D65. `get_cct` missed the same way and computed 6505 K back out of the chromaticity
+  the first miss had already substituted, so both halves of the answer agreed and both were
+  wrong. Illuminant A, B and C are the three presets whose value is not their key, and all three
+  reported D65. It reached two surfaces: `list-targets` printed `Illuminant A (6505K)` in the
+  white point reference block, and the MCP server published the same figure as structured data
+  for a caller with no way to check it. Nothing outside the module ever constructed a
+  `WhitepointTarget` and no test imported it, which is how a wrong number sat in a reference
+  table nobody read against a second source. Presets now resolve through an explicit map built at
+  import, which refuses a preset naming an illuminant that carries no chromaticity or no CCT, so
+  a preset added to the enum without table rows fails at import rather than at the call that
+  reads it. The fallback is gone. Native and the two custom presets name no fixed white, and a
+  target using one without an xy or a temperature now raises instead of answering with someone
+  else's white. Illuminant A reads 2856 K at 0.44757, 0.40745; B reads 4874 K; C reads 6774 K.
+- Stopped verification scoring a panel record no correction was built from. `_verify` resolved
+  the panel by calling `resolve_panel` on `state.selected_panel_key`, and two of the three build
+  paths replace the record before the generator sees it without touching that key. A session that
+  accepted a measurement or a declaration therefore verified against whatever record the key
+  named, which on an unmatched display is the generic one. The generic record is exact sRGB, so
+  it scores zero against an sRGB reference on every display it is ever run against, and the
+  report said the calibration was perfect on all of them. Nothing caught it because the number
+  looked correct, and a figure that is always right is indistinguishable from one that is never
+  wrong. `verification_panel` now applies the generator's own precedence, measured first, then
+  declared, then the key, and it is written beside `_measurement_for` and `_declaration_for` so a
+  fourth build path cannot be added without this seeing it. On the development display the
+  declared path moves from 0.00 to 1.12 dE2000 uncorrected, which is the display's real distance
+  from sRGB rather than the generic record's distance from itself.
+- Made `verify` report what the correction changed rather than only what it left. The figure is
+  the distance between the corrected simulation and a corrected sRGB reference, so a working
+  correction drives it to near zero by construction, and printed alone it reads the same on a
+  wide-gamut panel that needed clamping and on a panel that was already sRGB. `verify_calibration`
+  now takes the matrix it simulates, `predict_accuracy` runs the same chain a second time with an
+  identity matrix, and the result carries the uncorrected average and maximum behind an invariant
+  requiring both or neither. An identity matrix leaves the chain's encode and decode steps
+  cancelling as they already do, so the two runs differ in the matrix and nothing else. The
+  uncorrected figure tracks gamut width where the corrected one cannot: exact sRGB reads 0.00,
+  the development display 1.12, a DCI-P3 panel 2.24, and a Rec.2020 panel 5.59, each corrected
+  back to 0.04 or below. A surface reads `correction_is_established` rather than comparing the
+  numbers itself, so a display that was already right is described the same way everywhere.
+- Gave a display no panel record matches something better than the generic record. Every EDID
+  carries a chromaticity block holding the primaries and white point the manufacturer declares,
+  and the build read none of it, so an unmatched display had one answer and that answer was
+  nominal sRGB. The new path decodes the block, builds a panel record from it, and labels the
+  result `edid_declared`. Evidence stays `estimated`, because a descriptor is a claim about a
+  model and not a reading of the unit, and the bundle manifest carries a `declaration` block
+  naming the provenance and the four chromaticity pairs so the numbers a correction was built
+  from stay legible after the fact. Only the fields the descriptor covers are replaced. HDR,
+  bit depth and contrast keep the conservative values the generic path reports rather than
+  being invented from a descriptor that never mentioned them, and the colour correction matrix
+  is dropped because a declared record has not been characterized. The registry lookup this
+  depends on failed on every real display before it worked on any: it searched for a device key
+  matching the monitor id exactly, and Windows stores those under a hardware path of the form
+  `DISPLAY#SPT0C98#...`, so the exact match never fired and the descriptor was never read.
 
 - Made the ICC in a bundle describe the display that bundle leaves behind. `create_icc_profile`
   took no target, so all four presets emitted byte-identical profiles on every panel in the

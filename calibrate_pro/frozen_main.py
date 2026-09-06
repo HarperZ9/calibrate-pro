@@ -17,6 +17,7 @@ _COMMANDS = {
     "doctor": "calibrate_pro.commands.doctor",
     "gui": "calibrate_pro.commands.gui",
     "hdr": "calibrate_pro.commands.hdr",
+    "list-targets": "calibrate_pro.commands.list_targets",
 }
 
 #: Names the developer wheel runs that this build does not ship. They are
@@ -26,7 +27,6 @@ _DEVELOPER_ONLY_COMMANDS = {
     "hdr-status",
     "info",
     "list-panels",
-    "list-targets",
     "mcp",
     "plugins",
     "tray",
@@ -80,6 +80,7 @@ _USAGE_LINES = (
     "  patterns               List the test patterns this build carries",
     "  show-pattern NAME      Hold one test pattern on the selected display",
     "  status [--closed]      Report which actions this session can run",
+    "  list-targets           List what a calibration can be aimed at",
     "  verify --target NAME   Generate a plan and report its predicted accuracy",
     "  generate-profiles DIR --target NAME",
     "                         Write one calibration bundle into a directory",

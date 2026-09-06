@@ -27,13 +27,15 @@ import numpy as np
 import pytest
 
 from calibrate_pro.application.actions import PRESET_TARGETS
-from calibrate_pro.application.assets import (
-    _GAMUT_MODES,
-    _TARGET_WHITES,
-    _TONE_RESPONSE_EXPONENTS,
-    AssetGenerationError,
-    _cube_changes_output,
-    _resolve,
+from calibrate_pro.application.assets import _cube_changes_output
+from calibrate_pro.application.target_selection import (
+    GAMUT_MODES,
+    TARGET_WHITES,
+    TONE_RESPONSE_EXPONENTS,
+    TargetSelectionError,
+    compose_target_id,
+    resolve_part,
+    resolve_target,
 )
 from calibrate_pro.core.color_math import primaries_to_xyz_matrix
 from calibrate_pro.core.lut_engine import LUT3D, headroom_scale
@@ -110,16 +112,22 @@ def displayed(panel: PanelCharacterization, lut: LUT3D, level: int) -> tuple[tup
     return (float(xyz[0] / total), float(xyz[1] / total)), float(xyz[1])
 
 
-def cube_for(panel: PanelCharacterization, preset_id: str) -> LUT3D:
-    """Build one preset's cube through the same translation the generator uses."""
-    gamut_label, white_label, tone_label, target_hdr = PRESET_TARGETS[preset_id]
+def cube_for(panel: PanelCharacterization, target_id: str) -> LUT3D:
+    """Build one target's cube through the same translation the generator uses.
+
+    Takes a preset id or a composed one, because the generator does, and a
+    check that only ever saw presets would not cover the ids an operator
+    building a target from the three axes actually produces.
+    """
+    target = resolve_target(target_id)
     return engine().create_3d_lut(
         panel,
         size=GRID,
-        hdr_mode=bool(target_hdr),
-        target=_resolve(_GAMUT_MODES, gamut_label, "gamut"),
-        target_gamma=_resolve(_TONE_RESPONSE_EXPONENTS, tone_label, "tone response"),
-        target_white=_resolve(_TARGET_WHITES, white_label, "white point"),
+        hdr_mode=target.hdr,
+        target=target.gamut_mode,
+        target_gamma=target.exponent,
+        target_tone=target.engine_tone,
+        target_white=target.white,
     )
 
 
@@ -131,7 +139,7 @@ class TestTheWhiteTheCorrectionActuallyDrivesTo:
     def test_every_preset_drives_the_white_its_manifest_declares(self, preset_id: str, panel_key: str) -> None:
         """Each shipped target, on the two gamut paths, against its own label."""
         panel = panel_named(panel_key)
-        aim = _TARGET_WHITES[PRESET_TARGETS[preset_id][1]]
+        aim = TARGET_WHITES[PRESET_TARGETS[preset_id][1]]
 
         (x, y), _luminance = displayed(panel, cube_for(panel, preset_id), GRID - 1)
 
@@ -166,7 +174,7 @@ class TestTheWhiteTheCorrectionActuallyDrivesTo:
         to happen, and it happened at the top of the axis first.
         """
         panel = panel_named(NARROW)
-        aim = _TARGET_WHITES["D50"]
+        aim = TARGET_WHITES["D50"]
 
         cube = cube_for(panel, "calibration.preset.photography")
 
@@ -178,7 +186,7 @@ class TestTheWhiteTheCorrectionActuallyDrivesTo:
     def test_a_panel_whose_native_white_is_not_the_target_is_adapted_onto_it(self) -> None:
         """The case no shipped record reaches, which every measured one does."""
         panel = warm_panel()
-        aim = _TARGET_WHITES["D65"]
+        aim = TARGET_WHITES["D65"]
 
         for preset_id in ("calibration.preset.srgb_web", "calibration.preset.rec709"):
             (x, y), _luminance = displayed(panel, cube_for(panel, preset_id), GRID - 1)
@@ -254,9 +262,15 @@ class TestWhatAimingAtAnotherWhiteCosts:
 class TestATargetThisBuildCannotTranslate:
     """What happens to a label nothing maps, which used to be a silent default."""
 
+    #: A label no axis carries, so refusing it says something. It is checked
+    #: against all three tables below rather than assumed, because the label
+    #: this test used to pass was D93, and D93 became a white point an
+    #: operator can select while the assertion went on reading as a refusal.
+    UNMAPPED = "D97"
+
     @pytest.mark.parametrize(
         ("known", "part"),
-        [(_TARGET_WHITES, "white point"), (_GAMUT_MODES, "gamut"), (_TONE_RESPONSE_EXPONENTS, "tone response")],
+        [(TARGET_WHITES, "white point"), (GAMUT_MODES, "gamut"), (TONE_RESPONSE_EXPONENTS, "tone response")],
     )
     def test_an_unmapped_label_is_refused_rather_than_defaulted(self, known: object, part: str) -> None:
         """The default is how the defect arose, so there is no longer one.
@@ -265,23 +279,105 @@ class TestATargetThisBuildCannotTranslate:
         generation. Before, it produced a bundle labelled for the target it
         was asked for and corrected for whatever the default happened to be.
         """
-        with pytest.raises(AssetGenerationError) as refused:
-            _resolve(known, "D93", part)  # type: ignore[arg-type]
+        assert self.UNMAPPED not in known  # type: ignore[operator]
+
+        with pytest.raises(TargetSelectionError) as refused:
+            resolve_part(known, self.UNMAPPED, part)  # type: ignore[arg-type]
 
         message = str(refused.value)
         assert part in message
-        assert "D93" in message
+        assert self.UNMAPPED in message
         for label in known:  # type: ignore[attr-defined]
             assert label in message
 
     @pytest.mark.parametrize("preset_id", sorted(PRESET_TARGETS))
     def test_every_shipped_preset_translates(self, preset_id: str) -> None:
         """The refusal must not be reachable from a target this build offers."""
-        gamut_label, white_label, tone_label, _hdr = PRESET_TARGETS[preset_id]
+        target = resolve_target(preset_id)
 
-        assert _resolve(_GAMUT_MODES, gamut_label, "gamut")
-        assert _resolve(_TONE_RESPONSE_EXPONENTS, tone_label, "tone response") > 0
-        assert len(_resolve(_TARGET_WHITES, white_label, "white point")) == 2
+        assert target.gamut_mode
+        assert target.exponent > 0
+        assert len(target.white) == 2
+
+    def test_a_target_id_nothing_carries_is_refused(self) -> None:
+        """The composed grammar refuses a slug the same way a label is refused."""
+        for target_id in ("calibration.preset.nothing", "calibration.target.custom/srgb/d65", "not/a/target/id"):
+            with pytest.raises(TargetSelectionError):
+                resolve_target(target_id)
+
+
+class TestATargetComposedFromTheThreeAxes:
+    """A target an operator builds, checked the same way a preset is.
+
+    The preset list is four rows. Every other target this build can aim at is
+    reached by composing a gamut, a white point and a tone response, and those
+    combinations are the ones no shipped bundle exercises. What follows drives
+    the panel model with them and reads back what the cube actually does.
+    """
+
+    def test_a_composed_white_point_reaches_the_correction(self) -> None:
+        """The axis the preset table never varies past D50 and D65."""
+        panel = panel_named(NARROW)
+        target_id = compose_target_id("srgb", "d55", "g2.2")
+        aim = TARGET_WHITES["D55"]
+
+        (x, y), _luminance = displayed(panel, cube_for(panel, target_id), GRID - 1)
+
+        assert abs(x - aim[0]) < WHITE_TOLERANCE
+        assert abs(y - aim[1]) < WHITE_TOLERANCE
+
+    def test_a_colour_temperature_is_aimed_at_the_locus_not_the_nearest_illuminant(self) -> None:
+        """6300 K and D63 are different whites, and the cube has to show it.
+
+        D63 is the DCI projector white and is not on the daylight locus, so it
+        is the one white in the catalogue where a build that answered a
+        temperature with the nearest illuminant would be off by six times the
+        tolerance. For the daylight series the two agree to within 0.0002 and
+        this test would prove nothing.
+        """
+        panel = panel_named(NARROW)
+        target_id = compose_target_id("srgb", "cct6300", "g2.2")
+
+        (x, y), _luminance = displayed(panel, cube_for(panel, target_id), GRID - 1)
+        dci = TARGET_WHITES["D63"]
+
+        assert abs(y - dci[1]) > WHITE_TOLERANCE
+        assert resolve_target(target_id).white_label == "6300K"
+
+    @pytest.mark.parametrize("slug", ["d50", "d55", "d60", "d63", "d65", "d75", "d93"])
+    def test_every_named_white_point_reaches_the_correction(self, slug: str) -> None:
+        """All seven, because only two of them appear in a shipped preset."""
+        panel = panel_named(NARROW)
+        target = resolve_target(compose_target_id("srgb", slug, "g2.2"))
+
+        (x, y), _luminance = displayed(panel, cube_for(panel, target.target_id), GRID - 1)
+
+        assert abs(x - target.white[0]) < WHITE_TOLERANCE, slug
+        assert abs(y - target.white[1]) < WHITE_TOLERANCE, slug
+
+    def test_a_curve_target_moves_the_cube_off_the_power_law(self) -> None:
+        """sRGB piecewise is not gamma 2.2, and the cube has to show that.
+
+        The two are within a few percent over most of the range and diverge
+        near black, so a build that silently applied the exponent instead of
+        the curve would look right and be wrong exactly where the curve is
+        the reason to ask for it.
+        """
+        panel = panel_named(NARROW)
+
+        power = np.asarray(cube_for(panel, compose_target_id("srgb", "d65", "g2.2")).data, dtype=float)
+        curve = np.asarray(cube_for(panel, compose_target_id("srgb", "d65", "srgb")).data, dtype=float)
+
+        assert np.max(np.abs(power - curve)) > 0.005
+
+    def test_a_composed_gamut_the_preset_list_does_not_offer_is_built(self) -> None:
+        """Adobe RGB is in the catalogue, in no preset, and now reachable."""
+        panel = panel_named(WIDE)
+
+        native = np.asarray(cube_for(panel, compose_target_id("native", "d65", "g2.2")).data, dtype=float)
+        adobe = np.asarray(cube_for(panel, compose_target_id("adobe-rgb", "d65", "g2.2")).data, dtype=float)
+
+        assert np.max(np.abs(native - adobe)) > 0.01
 
 
 class TestWhatTheApplyPathWasToldAboutThisBundle:

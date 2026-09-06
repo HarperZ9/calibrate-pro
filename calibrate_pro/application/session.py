@@ -21,8 +21,14 @@ from typing import Literal
 
 from calibrate_pro.application.actions import ActionContext, ExportFormat, RuntimeMode
 from calibrate_pro.application.assets import AssetFormat, GeneratedAssets
-from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel, EvidenceKind
+from calibrate_pro.application.contracts import (
+    CharacterizationKind,
+    DashboardModel,
+    EvidenceKind,
+    PanelCharacterization,
+)
 from calibrate_pro.application.control_session import MonitorControlSession
+from calibrate_pro.application.declaration import DeclaredCharacterization
 from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.profiles import ProfileInspection, ProfileRecord
 from calibrate_pro.application.system_profile_session import SystemProfileSession
@@ -120,6 +126,13 @@ class SessionState:
     measured_characterization: MeasuredCharacterization | None = None
     measured_display_id: str | None = None
 
+    #: The declaration this session accepted, and the display it was read from.
+    #: Paired for the reason the measurement is paired: a descriptor describes
+    #: one display's claim about its model, so carrying the id beside it is what
+    #: lets a later selection drop a declaration another monitor made.
+    declared_characterization: DeclaredCharacterization | None = None
+    declared_display_id: str | None = None
+
     #: What this session has read off the selected display's own controls, and
     #: what it means to write back. Held in its own record rather than spread
     #: across this dataclass, because a reading, the values staged against it
@@ -174,10 +187,20 @@ class SessionState:
 
     @property
     def target_valid(self) -> bool:
-        """A target is valid once a known preset has been chosen."""
-        from calibrate_pro.application.actions import PRESET_TARGETS
+        """A target is valid once a preset or a composed target has been chosen.
 
-        return self.selected_preset_id in PRESET_TARGETS
+        Reading only the preset table refused every target an operator composed
+        from the axis controls. The gamut, white point and tone response
+        selections each answered with a composed id and each reported success,
+        and then generation reported that the session held no valid target, so
+        the eleven gamuts and seven white points the catalogue offers reached
+        nothing. The two kinds of id are told apart by
+        :func:`~calibrate_pro.application.target_selection.is_target_id`, which
+        is what the generate gate beside this already asks.
+        """
+        from calibrate_pro.application.target_selection import is_target_id
+
+        return self.selected_preset_id is not None and is_target_id(self.selected_preset_id)
 
     @property
     def generated_asset_kinds(self) -> frozenset[AssetKind]:
@@ -365,15 +388,70 @@ class SessionState:
         self.measured_display_id = None
 
     @property
+    def declaration_matches_selection(self) -> bool:
+        """Report whether this session holds a declaration by the display it selected."""
+        return (
+            self.declared_characterization is not None
+            and self.declared_display_id is not None
+            and self.declared_display_id == self.selected_display_id
+        )
+
+    @property
+    def declaration_offer(self) -> PanelCharacterization | None:
+        """What the selected display declared about itself, where it declared anything.
+
+        Read off the detection result rather than stored, because it describes
+        the display and not a choice the session made. Accepting it is the
+        choice, and ``record_declaration`` is where that gets written down.
+        """
+        if self.dashboard is None or self.selected_display_id is None:
+            return None
+        for observation in self.dashboard.displays:
+            if observation.platform_display_id == self.selected_display_id:
+                return observation.edid_characterization
+        return None
+
+    def record_declaration(self, declared: DeclaredCharacterization) -> None:
+        """Take a display's own declaration as this session's characterization.
+
+        The record, the display it came from and the kind are set together for
+        the reason a measurement sets its three together: any two without the
+        third describe a session that read one display and claims another. The
+        seal breaks because whatever was generated before was built from a
+        different starting point.
+        """
+        if type(declared) is not DeclaredCharacterization:
+            raise TypeError("declared must be a DeclaredCharacterization")
+        if self.selected_display_id is None:
+            raise ValueError("a declaration cannot be recorded before a display is selected")
+        self.declared_characterization = declared
+        self.declared_display_id = self.selected_display_id
+        self.characterization_kind = CharacterizationKind.EDID_DECLARED
+        self.invalidate_seal()
+
+    def discard_declaration(self) -> None:
+        """Forget a declaration, used when what it described is no longer selected."""
+        self.declared_characterization = None
+        self.declared_display_id = None
+
+    @property
     def characterization_without_measurement(self) -> CharacterizationKind | None:
         """What this session would report about the panel with no run in hand.
 
-        Derived from the panel record rather than remembered, because the two
-        are set together everywhere else: accepting the generic record sets the
-        key and the kind, and so does adopting a display that matched. A
-        session that drops a run therefore lands back on the answer it would
-        have given had the run never been taken.
+        Derived rather than remembered, because the parts are set together
+        everywhere else: accepting the generic record sets the key and the kind,
+        accepting a declaration sets the record and the kind, and so does
+        adopting a display that matched. A session that drops a run therefore
+        lands back on the answer it would have given had the run never been
+        taken.
+
+        A declaration outranks the panel key because it is the more specific
+        thing the operator accepted. The key on a declared session is whatever
+        detection left there, and answering with it would report a nominal panel
+        for a display whose own numbers this session is holding.
         """
+        if self.declaration_matches_selection:
+            return CharacterizationKind.EDID_DECLARED
         if self.selected_panel_key is None:
             return CharacterizationKind.UNKNOWN if self.selected_display_id is not None else None
         if self.selected_panel_key == GENERIC_PANEL_KEY:
@@ -427,6 +505,7 @@ class SessionState:
             fake_acceptance=self.fake_acceptance,
             selected_display_id=self.selected_display_id,
             characterization_kind=self.characterization_kind,
+            edid_declaration_available=self.declaration_offer is not None,
             selected_method=self.selected_method,
             target_valid=self.target_valid,
             selected_preset_id=self.selected_preset_id,

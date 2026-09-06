@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from calibrate_pro.application.contracts import CharacterizationKind, DashboardModel
 from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.recovery import ApplyReceipt
+from calibrate_pro.targets.coverage import GamutContainment
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, WorkflowStage
 
@@ -79,6 +80,12 @@ class GenerationResult:
     evidence_kind: EvidenceKind
     apply_note: str | None = None
 
+    #: How much of the named gamut this display reaches. None where the target
+    #: is the display's own gamut and there is no second triangle to compare it
+    #: against. Carried as the record rather than as a sentence, so a surface
+    #: can colour the verdict without parsing prose back out of it.
+    gamut_reach: GamutContainment | None = None
+
 
 @dataclass(frozen=True)
 class MeasurementSummary:
@@ -111,11 +118,19 @@ class MeasurementSummary:
 
 @dataclass(frozen=True)
 class PlanPreview:
-    """The exact proposal shown to the operator before any decision."""
+    """The exact proposal shown to the operator before any decision.
+
+    ``gamut_reach`` qualifies ``plan.target_gamut`` and is carried here rather
+    than on the plan itself. The plan is the record whose digest the operator
+    confirms, and a figure derived from the panel does not belong inside the
+    thing being sealed. This is the layer that describes a plan, so both
+    surfaces read the qualification from the same place they read the label.
+    """
 
     plan: ApplyPlan
     plan_sha256: str
     physical_apply_performed: bool = False
+    gamut_reach: GamutContainment | None = None
 
 
 @dataclass(frozen=True)
@@ -220,6 +235,12 @@ class VerifiedPatch:
     within_target_gamut: bool = True
 
 
+CORRECTION_THRESHOLD_DELTA_E = 0.05
+"""How far the modelled figure has to fall before a surface calls the correction
+established. Below this the two runs differ by less than the rounding a report
+prints, so claiming an improvement would be claiming one nobody can read."""
+
+
 @dataclass(frozen=True)
 class VerificationResult:
     """Accuracy figures and the plain statement of where they came from.
@@ -239,6 +260,14 @@ class VerificationResult:
     unit and nothing else would show a modelled gamut residual and a measured
     colour error as though they were the same reading.
 
+    ``uncorrected_average_delta_e`` and its maximum are what the same measure
+    reads with no correction applied. They exist because the corrected figure
+    alone cannot tell a display that needed nothing from one this build clamped:
+    both land near zero, which is the point of the correction and useless as
+    evidence that it happened. The pair is optional because only a modelled run
+    can produce it. Simulating an uncorrected display is free; measuring one
+    means asking an operator to sit through a second instrument pass.
+
     ``detail`` is the line a measured run needs and a predicted one does not:
     the instrument, how many patches it read, and the geometry it read them at.
     A luminance-derived figure is only reproducible next to those, so they
@@ -254,6 +283,31 @@ class VerificationResult:
     limitation: str | None = None
     detail: str | None = None
     metric: str = ""
+    uncorrected_average_delta_e: MetricValue | None = None
+    uncorrected_maximum_delta_e: MetricValue | None = None
+
+    def __post_init__(self) -> None:
+        average = self.uncorrected_average_delta_e is not None
+        maximum = self.uncorrected_maximum_delta_e is not None
+        if average != maximum:
+            raise ValueError("an uncorrected figure carries both its average and its maximum, or neither")
+        if average and not self.covered:
+            raise ValueError("a result carrying no figure cannot carry an uncorrected one either")
+
+    @property
+    def correction_is_established(self) -> bool:
+        """Whether this result shows the correction changing anything.
+
+        False when no uncorrected figure was computed, and false when one was
+        and the two figures agree. A surface reads this rather than comparing
+        the numbers itself, so a display that was already right is described the
+        same way everywhere instead of once per caller.
+        """
+        before = self.uncorrected_average_delta_e
+        after = self.average_delta_e
+        if before is None or before.value is None or after.value is None:
+            return False
+        return before.value - after.value > CORRECTION_THRESHOLD_DELTA_E
 
     @property
     def covered(self) -> bool:
@@ -262,6 +316,31 @@ class VerificationResult:
     @property
     def patch_count(self) -> int:
         return len(self.patches)
+
+
+def correction_note(result: VerificationResult) -> str | None:
+    """One sentence saying what the correction changed, or None if unknown.
+
+    A result with no uncorrected figure returns None rather than a hedge, so a
+    surface prints nothing instead of a sentence about a comparison that was
+    never run. The measured path is the caller that gets None today.
+
+    The sentence names both numbers because the drop is the claim. Reporting
+    only that a correction was applied would tell an operator the same thing on
+    a display it moved four dE and on one it left alone.
+    """
+    before = result.uncorrected_average_delta_e
+    if before is None or before.value is None or result.average_delta_e.value is None:
+        return None
+    if not result.correction_is_established:
+        return (
+            f"This display already reproduces the target to {before.value:.2f} "
+            f"{before.unit} in the model, so the correction has little left to change."
+        )
+    return (
+        f"Uncorrected, the model puts this display {before.value:.2f} {before.unit} from the target. "
+        f"The generated correction brings it to {result.average_delta_e.value:.2f} {result.average_delta_e.unit}."
+    )
 
 
 def verification_note(result: VerificationResult) -> str:
@@ -281,6 +360,28 @@ def verification_note(result: VerificationResult) -> str:
         return f"Measured on this display by {instrument}.{detail}"
     model = result.average_delta_e.source or "an unnamed model"
     return f"Predicted by {model} from the plan this session generated. No display was measured and no sensor was read."
+
+
+#: What a surface prints where a target gamut has no reach to report. Native is
+#: the display's own gamut, so there is no second triangle to intersect and no
+#: coverage figure to give. Printing 100% there would answer a question nobody
+#: asked with a number that describes nothing.
+NO_GAMUT_CLAIM = "native target, no coverage claim"
+
+
+def reach_text(reach: GamutContainment | None) -> str:
+    """State how much of the named gamut this display reaches, for any surface.
+
+    A bundle aimed at BT.2020 from an sRGB panel is a legitimate request, and
+    the arithmetic clamps the corners the panel cannot reach onto its own. What
+    an operator must not read is the gamut name alone, because then a target
+    they declared is presented as a property of the artifact. This is the
+    sentence that keeps the label honest, and it is here rather than at each
+    surface for the same reason ``verification_note`` is.
+    """
+    if reach is None:
+        return NO_GAMUT_CLAIM
+    return reach.describe()
 
 
 @dataclass(frozen=True)
@@ -338,10 +439,12 @@ __all__ = [
     "HdrStatus",
     "MeasurementSummary",
     "MethodSelection",
+    "NO_GAMUT_CLAIM",
     "PlanDecision",
     "PlanPreview",
     "TargetSelection",
     "VerificationResult",
     "VerifiedPatch",
+    "reach_text",
     "verification_note",
 ]

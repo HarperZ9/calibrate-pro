@@ -9,20 +9,52 @@ Provides comprehensive gamut coverage and volume analysis:
 - Color space intersection/union calculations
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-# Optional scipy import
-try:
-    from scipy.spatial import ConvexHull, Delaunay
+if TYPE_CHECKING:
+    from scipy.spatial import ConvexHull
 
-    SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
-    ConvexHull = None
-    Delaunay = None
+
+def _scipy_spatial() -> Any:
+    """Import ``scipy.spatial``, or answer None when it is not installed.
+
+    ``scipy.spatial`` costs 562 modules to import on Python 3.12. This module
+    used to pay that at import time, behind a try/except that still performs the
+    import when it succeeds, so anything reading the planar triangle math below
+    paid for a convex hull library it never called. The target layer reads three of those
+    helpers on the way to every headless command.
+
+    Three call sites in this file build a hull, and each one asks here first.
+    None is the condition the old ``SCIPY_AVAILABLE`` flag reported, and after
+    the first call this is a dictionary lookup in ``sys.modules``.
+    """
+    try:
+        import scipy.spatial
+    except ImportError:
+        return None
+    return scipy.spatial
+
+
+def __getattr__(name: str) -> Any:
+    """Answer the three names this module used to bind at import time.
+
+    ``SCIPY_AVAILABLE`` is re-exported by the package, and the two classes were
+    importable from here. Reading any of them imports SciPy, which is the point:
+    a caller that wants the hull types is a caller that wants SciPy.
+    """
+    if name == "SCIPY_AVAILABLE":
+        return _scipy_spatial() is not None
+    if name in ("ConvexHull", "Delaunay"):
+        spatial = _scipy_spatial()
+        return None if spatial is None else getattr(spatial, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # =============================================================================
 # Enums
@@ -557,10 +589,11 @@ def calculate_gamut_volume_lab(samples: np.ndarray) -> float | None:
     Returns:
         Volume in Lab³ units, or None when no hull could be built
     """
-    if ConvexHull is None:
+    spatial = _scipy_spatial()
+    if spatial is None:
         return None
     try:
-        hull = ConvexHull(samples)
+        hull = spatial.ConvexHull(samples)
         return float(hull.volume)
     except Exception:
         # None, not 0.0. A convex hull fails on degenerate samples, and a
@@ -805,9 +838,10 @@ class GamutAnalyzer:
 
         # 3D hull
         hull_lab = None
-        if samples is not None and len(samples) >= 4:
+        spatial = _scipy_spatial()
+        if spatial is not None and samples is not None and len(samples) >= 4:
             try:
-                hull_lab = ConvexHull(samples)
+                hull_lab = spatial.ConvexHull(samples)
             except Exception:
                 pass
 
@@ -823,8 +857,11 @@ class GamutAnalyzer:
         # Generate target gamut hull
         target_samples = generate_gamut_samples(target_space, 17)
 
+        spatial = _scipy_spatial()
         try:
-            target_hull = Delaunay(target_samples)
+            if spatial is None:
+                raise ModuleNotFoundError("scipy.spatial is not installed")
+            target_hull = spatial.Delaunay(target_samples)
         except Exception:
             return OutOfGamutAnalysis(
                 target_space=target_space,

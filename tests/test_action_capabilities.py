@@ -29,7 +29,8 @@ EXPECTED_ACTION_IDS = {
     "panel_profile.edid.select_display", "panel_profile.edid.create",
     "panel_profile.import.choose", "panel_profile.import",
     "display.restore_defaults", "profile.install", "display.hdr_status",
-    "display.characterization.use_generic", "workflow.select_display",
+    "display.characterization.use_generic", "display.characterization.use_edid",
+    "workflow.select_display",
     "calibration.method.sensorless", "calibration.method.measured", "calibration.method.hybrid",
     "calibration.target.gamut", "calibration.target.whitepoint", "calibration.target.custom_cct",
     "calibration.target.gamma", "calibration.target.hdr",
@@ -69,7 +70,8 @@ EXPECTED_ENABLED_POLICY_IDS = {
 }
 
 EXPECTED_CONDITIONAL_POLICY_IDS = {
-    "calibration.open_for_display", "display.characterization.use_generic", "workflow.select_display",
+    "calibration.open_for_display", "display.characterization.use_generic",
+    "display.characterization.use_edid", "workflow.select_display",
     "calibration.method.sensorless", "calibration.method.measured",
     "calibration.target.gamut", "calibration.target.whitepoint", "calibration.target.custom_cct",
     "calibration.target.gamma",
@@ -136,6 +138,7 @@ EXPECTED_SURFACES_BY_ACTION = {
     "profile.install": {"menu.display.install_profile"},
     "display.hdr_status": {"menu.tools.hdr_status"},
     "display.characterization.use_generic": {"dashboard.characterization.use_generic"},
+    "display.characterization.use_edid": {"dashboard.characterization.use_edid"},
     "workflow.select_display": {"calibrate.display", "verify.display", "ddc.display"},
     "calibration.method.sensorless": {"calibrate.method.sensorless"},
     "calibration.method.measured": {"calibrate.method.measured"},
@@ -233,7 +236,7 @@ def test_source_and_frozen_policy_assignments_match_exact_approved_groups():
 
     assert {policy: len(action_ids) for policy, action_ids in expected_by_policy.items()} == {
         "enabled": 21,
-        "conditional": 52,
+        "conditional": 53,
         "disabled": 13,
         "hidden": 10,
     }
@@ -462,6 +465,7 @@ def test_action_context_shape_includes_plan_bound_fake_apply_evidence():
         "fake_acceptance",
         "selected_display_id",
         "characterization_kind",
+        "edid_declaration_available",
         "selected_method",
         "target_valid",
         "selected_preset_id",

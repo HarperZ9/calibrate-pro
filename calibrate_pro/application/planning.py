@@ -23,9 +23,9 @@ from __future__ import annotations
 from dataclasses import replace
 
 from calibrate_pro.actuation import canonical_plan_sha256
-from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.assets import AssetFormat, AssetRequest, GeneratedAssets
 from calibrate_pro.application.staging import StagedBundle
+from calibrate_pro.application.target_selection import resolve_target
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod, CapabilityState, DwmLutKind
 
 #: What a session generates unless a surface asks for more. Both anchor
@@ -35,11 +35,13 @@ DEFAULT_ASSET_FORMATS: tuple[AssetFormat, ...] = (AssetFormat.ICC, AssetFormat.C
 
 
 def target_for(preset_id: str) -> tuple[str, str, str]:
-    """Read a preset's gamut, white point, and tone response."""
-    target = PRESET_TARGETS.get(preset_id)
-    if target is None:
-        raise ValueError(f"unknown calibration preset: {preset_id!r}")
-    return (target[0], target[1], target[2])
+    """Read a target's gamut, white point, and tone response.
+
+    Takes a preset id or a composed one, and answers the same three labels
+    either way, so a plan line reads the same however the target was chosen.
+    """
+    target = resolve_target(preset_id)
+    return (target.gamut_label, target.white_label, target.tone_label)
 
 
 def output_filenames(request: AssetRequest) -> tuple[str, ...]:

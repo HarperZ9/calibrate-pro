@@ -23,6 +23,7 @@ NO_SELECTED_PROFILE = "NO_SELECTED_PROFILE"
 PROFILE_SEAL_BROKEN = "PROFILE_SEAL_BROKEN"
 PROFILE_UNREADABLE = "PROFILE_UNREADABLE"
 NO_MEASUREMENT = "NO_MEASUREMENT"
+NO_DECLARATION = "NO_DECLARATION"
 MEASUREMENT_REFUSED = "MEASUREMENT_REFUSED"
 MONITOR_CONTROL_REFUSED = "MONITOR_CONTROL_REFUSED"
 MONITOR_VALUE_REJECTED = "MONITOR_VALUE_REJECTED"
@@ -32,6 +33,7 @@ SYSTEM_PROFILE_REFUSED = "SYSTEM_PROFILE_REFUSED"
 NO_PROFILE_READING = "NO_PROFILE_READING"
 PATTERN_SURFACE_REFUSED = "PATTERN_SURFACE_REFUSED"
 NO_SUCH_PATTERN = "NO_SUCH_PATTERN"
+UNKNOWN_TARGET = "UNKNOWN_TARGET"
 
 _COMPLETE_EARLIER_STEPS = "Complete the earlier steps this action depends on."
 _GENERATE_FIRST = "Generate a calibration bundle before continuing."
@@ -181,6 +183,36 @@ def no_measurement() -> ActionFailure:
     )
 
 
+def no_declaration() -> ActionFailure:
+    """Refuse to accept a declaration from a display that did not make one.
+
+    Reached when the control was offered against a stale reading of the
+    machine, since a display that declared nothing carries no offer to accept.
+    The generic record is named as the next move because it is what remains for
+    a display this build can say nothing else about.
+    """
+    return policy_refusal(
+        NO_DECLARATION,
+        "The selected display declared no primaries or transfer this build could read.",
+        "Use the generic characterization, or measure the display with an instrument.",
+    )
+
+
+def declaration_refused(reason: str) -> ActionFailure:
+    """Report a declaration that was read but could not be built from.
+
+    The reason comes from the declaration layer and is passed through, because
+    a descriptor fails in specific ways an operator can act on: primaries that
+    collapse to a line, a gamma outside the band a display responds in. A
+    single summary would hide which of those it was.
+    """
+    return policy_refusal(
+        NO_DECLARATION,
+        reason,
+        "Use the generic characterization, or measure the display with an instrument.",
+    )
+
+
 def measurement_refused(reason: str) -> ActionFailure:
     """Report a run the instrument or the operator stopped.
 
@@ -253,6 +285,20 @@ def no_such_pattern(reason: str) -> ActionFailure:
     )
 
 
+def unknown_target(reason: str) -> ActionFailure:
+    """Report a target this build does not carry, in the catalogue's own words.
+
+    The reason arrives from the resolver, which lists what the axis does
+    carry. Wording it again here would be a second sentence to keep level with
+    the first, and the operator would read whichever one their surface used.
+    """
+    return policy_refusal(
+        UNKNOWN_TARGET,
+        reason,
+        "Choose a target this build carries; 'list-targets' prints them.",
+    )
+
+
 def no_monitor_reading() -> ActionFailure:
     return policy_refusal(
         NO_MONITOR_READING,
@@ -313,6 +359,7 @@ __all__ = [
     "MEASUREMENT_REFUSED",
     "MONITOR_CONTROL_REFUSED",
     "MONITOR_VALUE_REJECTED",
+    "NO_DECLARATION",
     "NO_DETECTION",
     "NOT_A_UI_ACTION",
     "NO_EXPORT_DIRECTORY",
@@ -330,11 +377,14 @@ __all__ = [
     "SESSION_TRANSITION_REJECTED",
     "SYSTEM_PROFILE_REFUSED",
     "UNKNOWN_DISPLAY",
+    "UNKNOWN_TARGET",
     "export_failed",
     "incomplete_setup",
     "measurement_refused",
     "monitor_control_refused",
     "monitor_value_rejected",
+    "declaration_refused",
+    "no_declaration",
     "no_display_selected",
     "no_export_directory",
     "no_handler",
@@ -355,4 +405,5 @@ __all__ = [
     "system_profile_refused",
     "transition_rejected",
     "unknown_display",
+    "unknown_target",
 ]

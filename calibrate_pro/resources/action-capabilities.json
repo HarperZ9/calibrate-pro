@@ -267,7 +267,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Sensorless calibration requires a selected characterized display."
+      "unavailable_reason": "Sensorless calibration requires a selected characterized display. A display no panel record matches can be characterized generically instead."
     },
     {
       "action_id": "calibration.open_for_display",
@@ -1217,6 +1217,35 @@
       ],
       "unavailable_disposition": "disabled",
       "unavailable_reason": "Generic characterization is available only for an uncharacterized selected display."
+    },
+    {
+      "action_id": "display.characterization.use_edid",
+      "surfaces": [
+        "dashboard.characterization.use_edid"
+      ],
+      "classification": "ui_only",
+      "required_stages": [
+        "detect",
+        "method",
+        "preview",
+        "apply",
+        "verify",
+        "save_report"
+      ],
+      "required_capabilities": [],
+      "source_policy": "conditional",
+      "frozen_policy": "conditional",
+      "handler": "display_characterization_use_edid",
+      "required_modules": [
+        "calibrate_pro.application.service"
+      ],
+      "required_resources": [],
+      "receipt_required": false,
+      "evidence_modes": [
+        "none"
+      ],
+      "unavailable_disposition": "disabled",
+      "unavailable_reason": "Accepting a display's own declaration requires an uncharacterized selected display that declared one."
     },
     {
       "action_id": "display.detect",

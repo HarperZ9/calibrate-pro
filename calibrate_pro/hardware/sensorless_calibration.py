@@ -398,54 +398,24 @@ def cct_to_xy(cct: int) -> tuple[float, float]:
 
 def parse_edid_colorimetry(edid_bytes: bytes) -> dict[str, Any] | None:
     """
-    Parse display colorimetry from EDID data.
+    Parse display colorimetry from EDID data, with the temperature it implies.
 
-    EDID contains the display's native primaries and white point,
-    which are crucial for accurate sensorless calibration.
+    The bit decode lives in :mod:`calibrate_pro.panels.detection` and is called
+    rather than repeated. Two copies of a packed-bit layout drift, and the copy
+    that drifts silently is the one whose caller never checks it against the
+    other. What this adds is the correlated colour temperature of the declared
+    white point, which is the one thing the caller here wants and the decode
+    itself does not compute.
     """
+    from calibrate_pro.panels.detection import parse_edid_chromaticity
+
     if len(edid_bytes) < 128:
         return None
-
-    try:
-        # Bytes 25-34 contain chromaticity coordinates
-        # Encoded as 10-bit values across multiple bytes
-
-        # Red-x bits 9-2 at byte 27, bits 1-0 at byte 25 bits 7-6
-        # Red-y bits 9-2 at byte 28, bits 1-0 at byte 25 bits 5-4
-        # Green-x bits 9-2 at byte 29, bits 1-0 at byte 25 bits 3-2
-        # Green-y bits 9-2 at byte 30, bits 1-0 at byte 25 bits 1-0
-        # Blue-x bits 9-2 at byte 31, bits 1-0 at byte 26 bits 7-6
-        # Blue-y bits 9-2 at byte 32, bits 1-0 at byte 26 bits 5-4
-        # White-x bits 9-2 at byte 33, bits 1-0 at byte 26 bits 3-2
-        # White-y bits 9-2 at byte 34, bits 1-0 at byte 26 bits 1-0
-
-        b25 = edid_bytes[25]
-        b26 = edid_bytes[26]
-
-        def decode_chromaticity(high_byte: int, low_bits: int) -> float:
-            """Decode 10-bit chromaticity value to float 0-1."""
-            value = (high_byte << 2) | low_bits
-            return value / 1024.0
-
-        red_x = decode_chromaticity(edid_bytes[27], (b25 >> 6) & 0x03)
-        red_y = decode_chromaticity(edid_bytes[28], (b25 >> 4) & 0x03)
-        green_x = decode_chromaticity(edid_bytes[29], (b25 >> 2) & 0x03)
-        green_y = decode_chromaticity(edid_bytes[30], b25 & 0x03)
-        blue_x = decode_chromaticity(edid_bytes[31], (b26 >> 6) & 0x03)
-        blue_y = decode_chromaticity(edid_bytes[32], (b26 >> 4) & 0x03)
-        white_x = decode_chromaticity(edid_bytes[33], (b26 >> 2) & 0x03)
-        white_y = decode_chromaticity(edid_bytes[34], b26 & 0x03)
-
-        return {
-            "red": (red_x, red_y),
-            "green": (green_x, green_y),
-            "blue": (blue_x, blue_y),
-            "white": (white_x, white_y),
-            "cct": calculate_cct(white_x, white_y),
-        }
-
-    except (IndexError, ValueError):
+    points = parse_edid_chromaticity(edid_bytes)
+    if points is None:
         return None
+    white_x, white_y = points["white"]
+    return {**points, "cct": calculate_cct(white_x, white_y)}
 
 
 def get_edid_from_registry(display_index: int = 0) -> bytes | None:

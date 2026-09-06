@@ -55,6 +55,45 @@ DISPLAY_CONTROLS: tuple[tuple[str, str], ...] = (
 
 _DISPLAY_HELP = "Platform display id; the detected display is used by default"
 
+#: The flags that aim a calibration, as the attributes a parsed line carries
+#: them under. Any one of them is a target: ``--target`` names a whole one and
+#: each of the other three replaces one part of whatever the session holds.
+TARGET_FLAGS: tuple[str, ...] = ("target", "gamut", "white_point", "tone_response")
+
+#: How an operator reaches a target no preset names. Written once, because the
+#: unaimed command line and the mistyped preset name need the same sentence,
+#: and a second wording of it would be a second thing to keep true.
+COMPOSE_HINT = "Compose one with --gamut, --white-point and --tone-response; 'list-targets' prints what each takes."
+
+_UNAIMED = f"no target was named. Pass --target. {COMPOSE_HINT}"
+
+
+class SessionCommandParser(argparse.ArgumentParser):
+    """The parser every session subcommand is built from.
+
+    Most commands add nothing to it. The two that calibrate set ``aimed``,
+    which is how a rule argparse has no way to express, at least one of four
+    flags, is still enforced where argparse enforces the rest of the line.
+
+    It belongs here rather than in the command. A command that refuses after
+    being dispatched has already detected the display it was never told what to
+    do with, and an operator who mistyped one flag would have watched their
+    panels be enumerated before being told so.
+    """
+
+    #: Whether this command must be aimed at a target before it runs.
+    aimed = False
+
+    def parse_known_args(  # type: ignore[override]
+        self,
+        args: Sequence[str] | None = None,
+        namespace: argparse.Namespace | None = None,
+    ) -> tuple[argparse.Namespace, list[str]]:
+        parsed, extra = super().parse_known_args(args, namespace)
+        if self.aimed and not any(getattr(parsed, flag, None) for flag in TARGET_FLAGS):
+            self.error(_UNAIMED)
+        return parsed, extra
+
 
 def _add_display_control_parsers(subparsers: argparse._SubParsersAction) -> None:
     """Offer the two commands that speak to a display over its own control bus.
@@ -137,12 +176,35 @@ def _add_pattern_parsers(subparsers: argparse._SubParsersAction) -> None:
     show.add_argument("--display", help=_DISPLAY_HELP)
 
 
+def _aimed_parser(subparsers: argparse._SubParsersAction, name: str, summary: str) -> SessionCommandParser:
+    """Build one subcommand that has to be aimed before it will run.
+
+    The class a subparsers action builds is fixed when the action is made, and
+    these two commands are the only ones carrying the rule, so the parser is
+    made and then told. Nothing reads ``aimed`` until a line is parsed.
+
+    A caller that built the action without this class is refused rather than
+    quietly handed a command that accepts an unaimed line. That would be the
+    rule reading as enforced while doing nothing.
+    """
+    command = subparsers.add_parser(name, help=summary)
+    if not isinstance(command, SessionCommandParser):
+        raise TypeError("session subcommands need add_subparsers(parser_class=SessionCommandParser)")
+    command.aimed = True
+    return command
+
+
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     """Give every session command the arguments it needs, and nothing spare.
 
-    A target is required rather than defaulted. A default here would be a second
-    copy of a preset name, and the one place a preset name belongs is the table
-    the action layer selects from.
+    A target is asked for rather than defaulted. A default here would be a
+    second copy of a preset name, and the one place a preset name belongs is
+    the table the action layer selects from.
+
+    Four flags reach a target and none is required on its own, because
+    ``--gamut`` alone is a target and so is ``--target`` alone. What is required
+    is that one of them arrived, and the parser these two commands are built
+    from is what checks it.
     """
     subparsers.add_parser("detect", help="Observe attached displays and report what was read")
     status = subparsers.add_parser("status", help="Report which actions this session can run")
@@ -151,12 +213,29 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
         ("verify", "Generate a plan and report its predicted accuracy"),
         ("generate-profiles", "Write one calibration bundle into a directory"),
     ):
-        command = subparsers.add_parser(name, help=summary)
+        command = _aimed_parser(subparsers, name, summary)
         if name == "generate-profiles":
             command.add_argument("output", help="Directory the bundle is written into")
             command.add_argument("--dry-run", action="store_true", help="Stop at the plan and write nothing")
-        command.add_argument("--target", required=True, help="Calibration target; see 'list-targets'")
+        command.add_argument("--target", help="Calibration target preset; see 'list-targets'")
+        command.add_argument("--gamut", metavar="NAME", help="Target gamut; see 'list-targets'")
+        command.add_argument(
+            "--white-point",
+            metavar="NAME",
+            help="Target white point, named or given in kelvin; see 'list-targets'",
+        )
+        command.add_argument("--tone-response", metavar="NAME", help="Target tone response; see 'list-targets'")
         command.add_argument("--display", help="Platform display id; the detected display is used by default")
+        command.add_argument(
+            "--generic",
+            action="store_true",
+            help="Record the generic sRGB characterization for a display no panel record matches",
+        )
+        command.add_argument(
+            "--edid",
+            action="store_true",
+            help="Record the primaries and gamma the display declares, for a display no panel record matches",
+        )
     profiles = subparsers.add_parser("profiles", help="List published bundles and check each one's seal")
     profiles.add_argument("directory", help="Directory holding published bundles")
     bundle = subparsers.add_parser("diagnostics", help="List the session journal and publish it for support")
@@ -176,9 +255,17 @@ def parse(command: str, argv: Sequence[str]) -> argparse.Namespace:
     usage line argparse prints on a mistake naming the program that was run.
     """
     parser = argparse.ArgumentParser(description="Calibrate Pro - least-privilege display calibration")
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", parser_class=SessionCommandParser)
     add_parsers(subparsers)
     return parser.parse_args([command, *argv])
 
 
-__all__ = ["COMMANDS", "DISPLAY_CONTROLS", "add_parsers", "parse"]
+__all__ = [
+    "COMMANDS",
+    "COMPOSE_HINT",
+    "DISPLAY_CONTROLS",
+    "TARGET_FLAGS",
+    "SessionCommandParser",
+    "add_parsers",
+    "parse",
+]

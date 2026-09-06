@@ -17,6 +17,7 @@ from calibrate_pro.application.contracts import (
     EvidenceKind,
 )
 from calibrate_pro.application.monitor_controls import STAGE_ACTION_CODES
+from calibrate_pro.application.target_selection import PRESET_TARGETS, is_target_id
 from calibrate_pro.workflow import CalibrationMethod, WorkflowStage
 
 Policy = Literal["enabled", "conditional", "disabled", "hidden"]
@@ -52,6 +53,12 @@ class ActionContext:
     fake_acceptance: bool
     selected_display_id: str | None
     characterization_kind: CharacterizationKind | None
+
+    #: Whether the selected display declared primaries and a transfer this
+    #: build could read. It says an offer exists, never that the session took
+    #: it: the kind is what reports acceptance, and that only moves when the
+    #: operator accepts.
+    edid_declaration_available: bool
     selected_method: CalibrationMethod | None
     target_valid: bool
     selected_preset_id: str | None
@@ -137,6 +144,7 @@ class ActionContext:
             raise ValueError("runtime_mode must be source or frozen")
         for name in (
             "fake_acceptance",
+            "edid_declaration_available",
             "target_valid",
             "target_hdr",
             "export_source_ready",
@@ -221,16 +229,6 @@ class ResolvedAction:
     disposition: ActionDisposition
     reason: str | None
     handler: str
-
-
-PRESET_TARGETS: Mapping[str, tuple[str, str, str, bool]] = MappingProxyType(
-    {
-        "calibration.preset.srgb_web": ("sRGB", "D65", "2.2", False),
-        "calibration.preset.rec709": ("Rec.709", "D65", "BT.1886", False),
-        "calibration.preset.dci_p3": ("DCI-P3", "D65", "2.4", False),
-        "calibration.preset.photography": ("sRGB", "D50", "2.2", False),
-    }
-)
 
 
 _ACTION_KEYS = frozenset(
@@ -559,10 +557,24 @@ def _generation_matches(context: ActionContext) -> bool:
     )
 
 
+#: Which characterizations describe a panel well enough to compute a correction
+#: without an instrument. All three name primaries and a transfer: one from a
+#: record that matched, one from the nominal record the operator accepted, one
+#: from what the display declared. What separates them is how much they are
+#: worth trusting, which is why the kind travels with every artifact.
+SENSORLESS_CHARACTERIZATIONS = frozenset(
+    {
+        CharacterizationKind.MATCHED,
+        CharacterizationKind.EXPLICIT_GENERIC,
+        CharacterizationKind.EDID_DECLARED,
+    }
+)
+
+
 def _sensorless_ready(context: ActionContext) -> bool:
     return (
         context.selected_display_id is not None
-        and context.characterization_kind in {CharacterizationKind.MATCHED, CharacterizationKind.EXPLICIT_GENERIC}
+        and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS
         and context.selected_method is CalibrationMethod.SENSORLESS
         and not context.target_hdr
     )
@@ -633,28 +645,35 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
             None,
             CharacterizationKind.UNKNOWN,
         }
+    if action_id == "display.characterization.use_edid":
+        # Offered from the same standing as the generic record, and for the
+        # same reason: a display nothing matched is a display the operator has
+        # to decide about. What differs is that this one only appears when the
+        # display actually declared something, so the control is absent rather
+        # than present and inert on a monitor that declared nothing.
+        return (
+            context.selected_display_id is not None
+            and context.edid_declaration_available
+            and context.characterization_kind
+            in {
+                None,
+                CharacterizationKind.UNKNOWN,
+            }
+        )
     if action_id == "workflow.select_display":
         return context.selected_display_id is not None
     if action_id == "calibration.method.sensorless":
-        return context.selected_display_id is not None and context.characterization_kind in {
-            CharacterizationKind.MATCHED,
-            CharacterizationKind.EXPLICIT_GENERIC,
-        }
+        return context.selected_display_id is not None and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS
     if action_id == "calibration.method.measured":
         # Measured is offered from every characterization sensorless is offered
         # from, plus a display already measured in this session, so re-entering
         # the method after a run does not require measuring again. UNKNOWN is
-        # left out for the reason it is left out of sensorless: accepting the
-        # generic record stays an act the operator performs.
+        # left out for the reason it is left out of sensorless: adopting a
+        # description of the panel stays an act the operator performs.
         return (
             context.selected_display_id is not None
             and context.measured_qualified
-            and context.characterization_kind
-            in {
-                CharacterizationKind.MATCHED,
-                CharacterizationKind.EXPLICIT_GENERIC,
-                CharacterizationKind.MEASURED,
-            }
+            and context.characterization_kind in SENSORLESS_CHARACTERIZATIONS | {CharacterizationKind.MEASURED}
         )
     if action_id == "calibration.measure":
         # Offered only while nothing is sealed. Recording a run breaks the
@@ -680,7 +699,7 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         return (
             _target_ready(context)
             and context.target_valid
-            and (context.selected_preset_id is None or context.selected_preset_id in PRESET_TARGETS)
+            and (context.selected_preset_id is None or is_target_id(context.selected_preset_id))
             and context.sealed_plan_sha256 is None
             and context.journal_ready
         )

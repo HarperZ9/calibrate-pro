@@ -18,15 +18,21 @@ A characterization is MATCHED or UNKNOWN. Detection never silently substitutes
 the generic sRGB panel for a display it failed to recognize. Choosing the
 generic profile is an operator decision, and the contract layer records that
 choice as EXPLICIT_GENERIC where the operator can see it.
+
+The display's own declaration is read under the same rule. Where a descriptor
+names primaries, the numbers are carried on the observation as an offer and
+the characterization stays UNKNOWN. A descriptor is what the manufacturer
+wrote for a model rather than what the unit does, so accepting one is a
+decision the operator makes and the contract layer records as EDID_DECLARED.
 """
 
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Protocol
+from typing import Any, Protocol
 
 from calibrate_pro.application.contracts import (
     CharacterizationKind,
@@ -43,6 +49,9 @@ UNKNOWN_PROVENANCE = "detector:no_panel_match"
 #: Prefix a matched characterization carries so the panel key that produced it
 #: can be read back. Written and parsed in this module and nowhere else.
 PANEL_DATABASE_PROVENANCE_PREFIX = "panel-database:"
+#: Prefix a characterization read off a display's own descriptor carries, so
+#: every surface that prints provenance says where those numbers came from.
+EDID_PROVENANCE_PREFIX = "edid:"
 
 _CHROMATICITY_DECIMALS = 4
 _GAMMA_DECIMALS = 4
@@ -320,6 +329,65 @@ def characterization_from_panel(panel: PanelRecord, provenance: str) -> PanelCha
     )
 
 
+def _edid_label(info: Mapping[str, Any]) -> str:
+    """Name the model a descriptor describes, without naming the unit.
+
+    The manufacturer code and product code identify a product, the way a panel
+    key does. The serial number and the serial string identify one person's
+    hardware, so neither reaches this, which is written into provenance and
+    read back by every surface that shows where a characterization came from.
+    """
+    code = str(info.get("manufacturer_code") or "").strip() or "???"
+    product = info.get("product_code")
+    number = product if type(product) is int else 0
+    stem = f"{code}{number:04X}"
+    name = str(info.get("monitor_name") or "").strip()
+    return f"{stem} {name}" if name else stem
+
+
+def _edid_corner(pair: object, field_name: str) -> tuple[str, str]:
+    if type(pair) is not tuple or len(pair) != 2:
+        raise DetectionError(f"{field_name} must be an exact pair of numbers")
+    return (
+        _format_decimal(pair[0], _CHROMATICITY_DECIMALS),
+        _format_decimal(pair[1], _CHROMATICITY_DECIMALS),
+    )
+
+
+def characterization_from_edid(info: Mapping[str, Any]) -> tuple[PanelCharacterization | None, str]:
+    """Turn one parsed descriptor into an offer, or say what it left out.
+
+    Three things stop an offer, and each is reported rather than filled in.
+
+    A descriptor with no chromaticity block declares no gamut. A descriptor
+    with the sRGB flag set declares the sRGB primaries by definition, so its
+    block repeats what the generic record already holds and accepting it would
+    look like a correction while computing the identity. A descriptor with no
+    gamma has said nothing about its transfer, and the correction this build
+    generates is built from a gamma; supplying 2.2 here would put a number the
+    display never claimed behind a label that says the display claimed it.
+    """
+    points = info.get("chromaticity")
+    if not isinstance(points, dict):
+        return None, "edid:no-chromaticity (the descriptor declared no primaries)"
+    if bool(info.get("srgb_default")):
+        return None, "edid:srgb-default (the descriptor declares the sRGB primaries the generic record already holds)"
+    gamma = info.get("gamma")
+    if isinstance(gamma, bool) or not isinstance(gamma, (int, float)) or float(gamma) <= 0.0:
+        return None, "edid:no-gamma (the descriptor declared no transfer characteristic)"
+    label = _edid_label(info)
+    characterization = PanelCharacterization(
+        kind=CharacterizationKind.EDID_DECLARED,
+        provenance=f"{EDID_PROVENANCE_PREFIX}{label}",
+        red_xy=_edid_corner(points.get("red"), "red"),
+        green_xy=_edid_corner(points.get("green"), "green"),
+        blue_xy=_edid_corner(points.get("blue"), "blue"),
+        white_xy=_edid_corner(points.get("white"), "white"),
+        nominal_gamma=_format_decimal(float(gamma), _GAMMA_DECIMALS),
+    )
+    return characterization, f"edid:declared {label}"
+
+
 def unknown_characterization() -> PanelCharacterization:
     """Return the only characterization a failed panel match may produce."""
     return PanelCharacterization(
@@ -419,6 +487,24 @@ def _utc_stamp(clock: Callable[[], datetime]) -> str:
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+#: Answers what one display reported about itself, as the bytes it reported.
+EdidReader = Callable[[DisplayInfo], bytes | None]
+
+
+def read_display_edid(display: DisplayInfo) -> bytes | None:
+    """Read the descriptor the platform stored for one display, changing nothing.
+
+    Nothing is opened and nothing is sent down the cable. Windows recorded what
+    the display said when it was attached, and this reads that record back.
+    """
+    from calibrate_pro.panels.detection import get_edid_from_registry
+
+    device_id = getattr(display, "device_id", "")
+    if type(device_id) is not str or not device_id.strip():
+        return None
+    return get_edid_from_registry(device_id)
+
+
 def _default_enumerator() -> Sequence[DisplayInfo]:
     from calibrate_pro.panels.detection import enumerate_displays
 
@@ -438,6 +524,7 @@ class DisplayDetector:
         enumerator: Callable[[], Sequence[DisplayInfo]] | None = None,
         capability_probe: CapabilityProbe | None = None,
         hdr_reader: Callable[[], dict[str, bool]] | None = None,
+        edid_reader: EdidReader | None = None,
         database: PanelDatabase | None = None,
         clock: Callable[[], datetime] | None = None,
         enumerator_name: str = "panels.detection.enumerate_displays",
@@ -445,6 +532,7 @@ class DisplayDetector:
         self._enumerator = enumerator if enumerator is not None else _default_enumerator
         self._probe = capability_probe if capability_probe is not None else DeniedCapabilityProbe()
         self._hdr_reader = hdr_reader
+        self._edid_reader = edid_reader
         self._database = database if database is not None else get_database()
         self._clock = clock if clock is not None else _utc_now
         if type(enumerator_name) is not str or not enumerator_name.strip():
@@ -518,6 +606,31 @@ class DisplayDetector:
         cleaned = {key: value for key, value in states.items() if type(key) is str and type(value) is bool}
         return cleaned, "hdr:queried"
 
+    def _read_edid(self, display: DisplayInfo) -> tuple[PanelCharacterization | None, str]:
+        """Read one display's declaration, answering with why on every failure.
+
+        Nothing here aborts an observation. A display whose descriptor cannot
+        be read is still a display the operator can select, calibrate against
+        the generic record, and measure; what it loses is one offer, and the
+        line this returns says which part was missing.
+        """
+        if self._edid_reader is None:
+            return None, "edid:not-read (no descriptor reader was wired for this session)"
+        try:
+            raw = self._edid_reader(display)
+        except Exception as exc:
+            return None, f"edid:read-failed ({type(exc).__name__}: {exc})".strip()
+        if raw is None:
+            return None, "edid:absent (the platform stored no descriptor for this display)"
+        if not isinstance(raw, (bytes, bytearray)):
+            return None, "edid:reader-returned-unexpected-type"
+        from calibrate_pro.panels.detection import parse_edid
+
+        try:
+            return characterization_from_edid(parse_edid(bytes(raw)))
+        except Exception as exc:
+            return None, f"edid:unreadable ({type(exc).__name__}: {exc})".strip()
+
     def _observe(
         self,
         display: DisplayInfo,
@@ -533,6 +646,7 @@ class DisplayDetector:
             raise DetectionError("platform reported no refresh rate for this display")
 
         characterization, panel_evidence = _match_panel(display, self._database)
+        declared, edid_evidence = self._read_edid(display)
         report = self._probe.probe(display)
         if type(report) is not CapabilityReport:
             raise DetectionError("capability probe must return a CapabilityReport")
@@ -541,6 +655,7 @@ class DisplayDetector:
             f"enumerator:{self._enumerator_name}",
             f"mode:{width}x{height}@{refresh_hz}Hz",
             panel_evidence,
+            edid_evidence,
             hdr_evidence,
         ]
         evidence.extend(report.evidence_lines())
@@ -555,6 +670,7 @@ class DisplayDetector:
             characterization=characterization,
             capabilities=report.state,
             evidence=tuple(evidence),
+            edid_characterization=declared,
         )
 
 
@@ -572,6 +688,7 @@ def read_hdr_states() -> dict[str, bool]:
 
 
 __all__ = [
+    "EDID_PROVENANCE_PREFIX",
     "GENERIC_PANEL_KEY",
     "PANEL_DATABASE_PROVENANCE_PREFIX",
     "UNKNOWN_PROVENANCE",
@@ -583,13 +700,16 @@ __all__ = [
     "DetectionError",
     "DetectionResult",
     "DisplayDetector",
+    "EdidReader",
     "ReadOnlyCapabilityProbe",
     "RejectedDisplay",
+    "characterization_from_edid",
     "characterization_from_panel",
     "color_directory_present",
     "dwm_lut_path_usable",
     "gamma_ramp_api_present",
     "panel_key_from_provenance",
+    "read_display_edid",
     "read_hdr_states",
     "unknown_characterization",
     "windows_read_only_probe",

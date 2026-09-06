@@ -39,7 +39,7 @@ proposed by the window and by nothing else.
 
 - Run `calibrate-pro detect` for the displays this machine presents and the source of each characterization.
 - Run `calibrate-pro status` for the actions this session can run, each closed one carrying the reason it is closed.
-- Run `calibrate-pro verify --target srgb_web` to generate a sealed plan and read its predicted accuracy. The figures are estimated from the panel characterization, and the command prints that beneath them.
+- Run `calibrate-pro verify --target srgb_web` to generate a sealed plan and read its predicted accuracy. The command prints the display's distance from the target with no correction applied beside the distance the generated correction leaves, so the pair says what the correction changed. Both figures are estimated from the panel characterization, and the command prints that beneath them.
 - Launch `calibrate-pro gui`, select a display, and inspect the detected identity and available capabilities.
 - Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
 - Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
@@ -96,6 +96,7 @@ calibrate-pro generate-profiles out --target srgb_web # Publish one sealed bundl
 calibrate-pro profiles out                            # Re-check the seal on published bundles
 calibrate-pro diagnostics                             # List what a support bundle would carry
 calibrate-pro doctor                                  # Read-only installation and capability diagnostics
+calibrate-pro list-targets                            # Targets a calibration can be aimed at, and the axes behind them
 calibrate-pro doctor --json                           # Stable machine-readable diagnostics
 calibrate-pro hdr                                     # Open the HDR proposal application
 calibrate-pro gui                                     # Launch the calibration workflow
@@ -106,7 +107,6 @@ calibrate-pro gui                                     # Launch the calibration w
 These names exist only in the developer wheel, and the packaged binary answers each of them with `This command is available only in the developer wheel` and exit code 2:
 
 ```bash
-calibrate-pro list-targets      # List calibration targets
 calibrate-pro list-panels       # List characterized panel profiles
 calibrate-pro info <panel>      # Show stored characterization evidence
 calibrate-pro hdr-status        # Query Windows HDR state
@@ -162,7 +162,11 @@ This is what a measured run reads the light through. Enumeration and connection 
 - **VA (3)**: Samsung Odyssey G7, Sony INZONE M9
 - **OLED (2)**: ASUS ProArt PA32DC
 
-Unknown monitors are calibrated using EDID chromaticity data.
+A monitor the database does not name is held uncharacterized until you say what it
+stands on. The session offers the primaries and gamma the display declares in its EDID,
+and falls back to a nominal sRGB record where the display declares nothing readable.
+A declaration is labelled `edid_declared` and its evidence stays estimated, because the
+numbers describe the model rather than the unit on the desk.
 
 ## Output Files
 

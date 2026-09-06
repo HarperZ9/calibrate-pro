@@ -14,10 +14,14 @@ bundle reported as a success.
 Evidence follows the characterization, not the request. A bundle built from a
 panel record is labeled ``EvidenceKind.ESTIMATED``, because the record
 describes a product rather than the unit in front of the operator. A bundle
-built from an instrument run is labeled ``MEASURED``, and the only way to reach
-that label is to hand ``generate`` the measurement itself. The manifest then
-carries what the run read, so a measured bundle can be told from a sensorless
-one by its contents and not only by a word.
+built from a display's own descriptor is labeled ``ESTIMATED`` too: the
+primaries came off the display, but they are what the manufacturer wrote for
+the model rather than what this unit emits. A bundle built from an instrument
+run is labeled ``MEASURED``, and the only way to reach that label is to hand
+``generate`` the measurement itself. The manifest then carries what the run
+read, so a measured bundle can be told from a sensorless one by its contents
+and not only by a word, and a declared bundle carries the numbers the display
+declared for the same reason.
 """
 
 from __future__ import annotations
@@ -34,13 +38,17 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from calibrate_pro import __version__
-from calibrate_pro.application.actions import PRESET_TARGETS
 from calibrate_pro.application.contracts import CharacterizationKind
+from calibrate_pro.application.declaration import DeclaredCharacterization
 from calibrate_pro.application.measurement import MeasuredCharacterization
-from calibrate_pro.calibration.targets import D50, D63_DCI, D65
+from calibrate_pro.application.target_selection import (
+    CalibrationTarget,
+    is_target_id,
+    resolve_target,
+)
 from calibrate_pro.core.lut_engine import LUT3D, LUTFormat
 from calibrate_pro.panels.database import (
     GENERIC_PANEL_KEY,
@@ -49,6 +57,8 @@ from calibrate_pro.panels.database import (
     get_database,
 )
 from calibrate_pro.sensorless.neuralux import SensorlessEngine
+from calibrate_pro.targets.coverage import GamutContainment
+from calibrate_pro.targets.gamut import reach_of_gamut_mode
 from calibrate_pro.verification.provenance import EvidenceKind
 
 if TYPE_CHECKING:  # pragma: no cover - import cost is paid by the writers, not here
@@ -109,37 +119,6 @@ _SUFFIXES: Mapping[AssetFormat, str] = MappingProxyType(
     }
 )
 
-#: Preset white-point label to the chromaticity the correction drives to.
-#: Read from the calibration target catalogue rather than typed again, so a
-#: white point corrected in one place is corrected in both.
-_TARGET_WHITES: Mapping[str, tuple[float, float]] = MappingProxyType(
-    {
-        "D65": D65,
-        "D50": D50,
-        "D63": D63_DCI,
-    }
-)
-
-#: Preset gamut label to the gamut mode understood by the sensorless engine.
-_GAMUT_MODES: Mapping[str, str] = MappingProxyType(
-    {
-        "sRGB": "sRGB",
-        "Rec.709": "sRGB",
-        "DCI-P3": "p3",
-        "Native": "native",
-    }
-)
-
-#: Preset tone-response label to the power-law exponent actually applied.
-#: BT.1886 with a zero black level reduces to a 2.4 power law.
-_TONE_RESPONSE_EXPONENTS: Mapping[str, float] = MappingProxyType(
-    {
-        "2.2": 2.2,
-        "2.4": 2.4,
-        "BT.1886": 2.4,
-    }
-)
-
 
 class BundlePublishError(Exception):
     """A publish was refused or rolled back; no partial output was left."""
@@ -147,31 +126,6 @@ class BundlePublishError(Exception):
 
 class AssetGenerationError(Exception):
     """A requested artifact could not be generated from the given inputs."""
-
-
-_Resolved = TypeVar("_Resolved")
-
-
-def _resolve(known: Mapping[str, _Resolved], label: str, part: str) -> _Resolved:
-    """Translate one part of a declared target, refusing a label nothing maps.
-
-    A default here is how a target stops reaching the correction. The white
-    point defaulted to D65, so a D50 request produced a D65 correction while
-    the plan line, the manifest and the bundle all still said D50. Every
-    surface reported the target and only the arithmetic disagreed, which is
-    the one failure this package cannot ship: a declared value presented as a
-    property of a computed artifact.
-
-    Refusing instead means a target added to the catalogue without a
-    translation fails at generation rather than producing a bundle labelled
-    for one target and corrected for another.
-    """
-    resolved = known.get(label)
-    if resolved is None:
-        raise AssetGenerationError(
-            f"This build cannot generate for a {part} of {label!r}. It carries {', '.join(sorted(known))}."
-        )
-    return resolved
 
 
 def _require_text(value: object, *, field_name: str) -> str:
@@ -195,7 +149,7 @@ class AssetRequest:
         _require_text(self.display_id, field_name="display_id")
         _require_text(self.panel_key, field_name="panel_key")
         _require_text(self.basename, field_name="basename")
-        if self.preset_id not in PRESET_TARGETS:
+        if not is_target_id(self.preset_id):
             raise ValueError(f"unknown calibration preset: {self.preset_id!r}")
         if not isinstance(self.formats, tuple) or not self.formats:
             raise TypeError("formats must be a nonempty tuple of AssetFormat members")
@@ -230,10 +184,35 @@ class GeneratedAssets:
     cube_changes_output: bool = False
     gamma_table_changes_output: bool = False
 
+    #: Which family of curve the target asked for: ``power`` for an exponent,
+    #: or ``srgb``, ``l_star``, ``bt1886`` for a curve that is not one. A
+    #: reader holding only ``applied_gamma_exponent`` would read a piecewise
+    #: sRGB bundle as a 2.2 power law, which is the target described as
+    #: something the artifacts do not do.
+    tone_response_kind: str = "power"
+
     #: The instrument run these artifacts were computed from, when there was
     #: one. Held rather than summarized so the manifest can name the sensor,
     #: the patch count and the geometry that produced every measured number.
     measurement: MeasuredCharacterization | None = None
+
+    #: The display's own declaration these artifacts were computed from, when
+    #: the operator accepted one. Held for the same reason the measurement is:
+    #: the manifest names the primaries and the gamma the display claimed, so a
+    #: reader can check the correction against what it was built from instead of
+    #: taking the label's word for it.
+    declaration: DeclaredCharacterization | None = None
+
+    #: How much of the named gamut this display's primaries actually enclose,
+    #: computed from the panel record the artifacts were built from. A cube can
+    #: be aimed at BT.2020 from an sRGB panel, and the arithmetic will clamp the
+    #: out-of-reach corners onto the panel's own, which is a legitimate and
+    #: common request. What is not legitimate is a bundle that answers
+    #: ``BT.2020`` and nothing else, because then a target the operator declared
+    #: is being read as a property of the artifact. None where the target is the
+    #: display's native gamut: there is no second triangle to compare against,
+    #: so there is no coverage figure to report rather than a figure of 100%.
+    gamut_reach: GamutContainment | None = None
 
     def __post_init__(self) -> None:
         """Keep the two measured labels and the measurement itself together.
@@ -253,6 +232,13 @@ class GeneratedAssets:
             )
         if (self.evidence_kind is EvidenceKind.MEASURED) != measured:
             raise ValueError("MEASURED evidence requires the measurement it came from, and nothing else may claim it")
+        declared = self.declaration is not None
+        if declared and type(self.declaration) is not DeclaredCharacterization:
+            raise TypeError("declaration must be a DeclaredCharacterization or None")
+        if (self.characterization_kind is CharacterizationKind.EDID_DECLARED) != declared:
+            raise ValueError(
+                "an EDID_DECLARED characterization requires the declaration it came from, and nothing else may carry one"
+            )
 
     def digest_for(self, fmt: AssetFormat) -> str:
         return hashlib.sha256(self.assets[fmt]).hexdigest()
@@ -306,21 +292,6 @@ class ExportBundle:
 
 
 @dataclass(frozen=True)
-class _Target:
-    """One declared preset, translated into the units the generators take.
-
-    Built in one place so the cube, the gamma table and the profile are aimed
-    by the same three values. Splitting the translation is how a bundle came
-    to hold a D50 manifest beside a D65 correction.
-    """
-
-    gamut_mode: str
-    exponent: float
-    white: tuple[float, float]
-    label: str
-
-
-@dataclass(frozen=True)
 class _Render:
     """Everything a writer is allowed to read, so each one takes the same thing.
 
@@ -333,7 +304,7 @@ class _Render:
     request: AssetRequest
     panel: PanelCharacterization
     lut: LUT3D
-    target: _Target
+    target: CalibrationTarget
     gamma_table: VCGTTable
 
 
@@ -368,29 +339,35 @@ class AssetGenerator:
         request: AssetRequest,
         *,
         measured: MeasuredCharacterization | None = None,
+        declared: DeclaredCharacterization | None = None,
     ) -> GeneratedAssets:
         """Generate every requested format from one characterization.
 
-        Without `measured` the characterization comes from the panel database,
-        which describes a product. With it the characterization is the unit the
-        instrument read, and the bundle is labeled MEASURED. There is no third
-        way to reach that label: it is the argument that carries the evidence,
-        so a caller cannot ask for measured artifacts without holding a run.
+        With neither argument the characterization comes from the panel
+        database, which describes a product. With `declared` it comes from what
+        the display said about itself, which describes the model its maker
+        shipped. With `measured` it is the unit the instrument read.
 
-        `request.panel_key` is left alone on a measured build. The measurement
-        refined a record rather than replacing it, and the manifest naming that
-        record is how a reader knows which starting point was corrected.
+        Each label is reachable only through the argument that carries its
+        evidence, so a caller cannot ask for measured artifacts without holding
+        a run, or for declared artifacts without holding the declaration. The
+        two arguments are exclusive: a run that measured the display has already
+        answered the question a descriptor only claims to.
+
+        `request.panel_key` is left alone on either build. The evidence refined
+        a record rather than replacing it, and the manifest naming that record is
+        how a reader knows which starting point was corrected.
         """
         if not isinstance(request, AssetRequest):
             raise TypeError("request must be an AssetRequest")
         if measured is not None and type(measured) is not MeasuredCharacterization:
             raise TypeError("measured must be a MeasuredCharacterization or None")
+        if declared is not None and type(declared) is not DeclaredCharacterization:
+            raise TypeError("declared must be a DeclaredCharacterization or None")
+        if measured is not None and declared is not None:
+            raise AssetGenerationError("a measured build reads the display itself, so it takes no declaration")
 
-        if measured is None:
-            panel, characterization_kind = self.resolve_panel(request.panel_key)
-            panel_label = panel.name
-            evidence_kind = EvidenceKind.ESTIMATED
-        else:
+        if measured is not None:
             panel = measured.panel
             # The label carries the marker, not the record. A panel's name is
             # built from its manufacturer and product fields, so writing a
@@ -399,21 +376,31 @@ class AssetGenerator:
             panel_label = f"{panel.name} (measured)"
             characterization_kind = CharacterizationKind.MEASURED
             evidence_kind = EvidenceKind.MEASURED
-        gamut_label, white_point, tone_response, target_hdr = PRESET_TARGETS[request.preset_id]
-        target = _Target(
-            gamut_mode=_resolve(_GAMUT_MODES, gamut_label, "gamut"),
-            exponent=_resolve(_TONE_RESPONSE_EXPONENTS, tone_response, "tone response"),
-            white=_resolve(_TARGET_WHITES, white_point, "white point"),
-            label=f"{gamut_label} {white_point} {tone_response}",
-        )
+        elif declared is not None:
+            panel = declared.panel
+            panel_label = f"{panel.name} (declared)"
+            characterization_kind = CharacterizationKind.EDID_DECLARED
+            # A descriptor is still not a reading, so the evidence label does not
+            # move. What changed is which numbers the correction was built from.
+            evidence_kind = EvidenceKind.ESTIMATED
+        else:
+            panel, characterization_kind = self.resolve_panel(request.panel_key)
+            panel_label = panel.name
+            evidence_kind = EvidenceKind.ESTIMATED
+        target = resolve_target(request.preset_id)
+        # Read off the same panel record the correction is computed from, so
+        # the figure describes the display these artifacts were built for
+        # rather than the product family the label names.
+        gamut_reach = reach_of_gamut_mode(panel.native_primaries, target.gamut_mode)
 
         lut = self._engine.create_3d_lut(
             panel,
             size=request.lut_size,
-            lut_name=f"Calibrate Pro - {panel_label} ({gamut_label} {tone_response})",
-            hdr_mode=bool(target_hdr),
+            lut_name=f"Calibrate Pro - {panel_label} ({target.gamut_label} {target.tone_label})",
+            hdr_mode=target.hdr,
             target=target.gamut_mode,
             target_gamma=target.exponent,
+            target_tone=target.engine_tone,
             target_white=target.white,
         )
 
@@ -426,13 +413,16 @@ class AssetGenerator:
             characterization_kind=characterization_kind,
             evidence_kind=evidence_kind,
             gamut_mode=target.gamut_mode,
-            tone_response=tone_response,
+            gamut_reach=gamut_reach,
+            tone_response=target.tone_label,
             applied_gamma_exponent=target.exponent,
-            white_point=white_point,
+            tone_response_kind=target.tone.kind,
+            white_point=target.white_label,
             gamma_table=_render_gamma_table(table),
             cube_changes_output=_cube_changes_output(lut),
             gamma_table_changes_output=_curve_changes_output(table),
             measurement=measured,
+            declaration=declared,
         )
 
     def _render(self, inputs: _Render) -> dict[AssetFormat, bytes]:
@@ -509,6 +499,7 @@ class AssetGenerator:
             f"Calibrate Pro: {inputs.panel.name} ({inputs.target.label})",
             target_white=inputs.target.white,
             target_gamma=inputs.target.exponent,
+            target_tone=inputs.target.engine_tone,
             vcgt=(inputs.gamma_table.red, inputs.gamma_table.green, inputs.gamma_table.blue),
         )
         profile.header.creation_date = FIXED_ICC_CREATION_DATE
@@ -610,8 +601,10 @@ def build_manifest(generated: GeneratedAssets) -> bytes:
         "preset_id": request.preset_id,
         "target": {
             "gamut_mode": generated.gamut_mode,
+            "gamut_reach": _manifest_reach(generated.gamut_reach),
             "white_point": generated.white_point,
             "tone_response": generated.tone_response,
+            "tone_response_kind": generated.tone_response_kind,
             "applied_gamma_exponent": generated.applied_gamma_exponent,
         },
         "lut_size": request.lut_size,
@@ -627,7 +620,50 @@ def build_manifest(generated: GeneratedAssets) -> bytes:
     }
     if generated.measurement is not None:
         document["measurement"] = _manifest_measurement(generated.measurement)
+    if generated.declaration is not None:
+        document["declaration"] = _manifest_declaration(generated.declaration)
     return (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _manifest_reach(reach: GamutContainment | None) -> dict[str, object] | None:
+    """Write how much of the named gamut the display reaches, beside its name.
+
+    Null where the target is the display's own gamut. Rounded because this
+    document is hashed and the digest travels between machines: one decimal on
+    a percentage and four on a u'v' distance are both an order of magnitude
+    finer than the agreement between two colorimeters, so the rounding costs
+    nothing a reader could use and removes any last-bit difference in the
+    arithmetic from the digest.
+    """
+    if reach is None:
+        return None
+    return {
+        "covers": reach.covers,
+        "coverage_percent": round(reach.coverage_percent, 1),
+        "unreachable_corners": list(reach.deficits),
+        "worst_deficit_uv": round(reach.worst_deficit_uv, 4),
+    }
+
+
+def _manifest_declaration(declared: DeclaredCharacterization) -> dict[str, object]:
+    """Describe the declaration a declared bundle came from, in the manifest.
+
+    Same reason the measurement block exists. A reader gets the primaries, the
+    white point and the gamma the display claimed, which is enough to check the
+    correction against its input and to notice a descriptor that describes a
+    different panel than the one on the desk.
+
+    The provenance names a model and never a unit, so nothing identifying the
+    operator's hardware reaches a file they may publish.
+    """
+    return {
+        "provenance": declared.provenance,
+        "red_xy": [round(value, 6) for value in declared.red_xy],
+        "green_xy": [round(value, 6) for value in declared.green_xy],
+        "blue_xy": [round(value, 6) for value in declared.blue_xy],
+        "white_xy": [round(value, 6) for value in declared.white_xy],
+        "gamma": round(declared.gamma, 4),
+    }
 
 
 def _manifest_measurement(measured: MeasuredCharacterization) -> dict[str, object]:

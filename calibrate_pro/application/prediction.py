@@ -13,6 +13,12 @@ the native white has to be adapted onto the target. It is zero when the
 correction matrix maps the panel's primaries onto sRGB exactly, which is the
 true answer for every panel in the shipped database.
 
+The same measure is reported for the display with no correction applied, and
+that is the figure showing the correction did anything. The corrected number is
+near zero for every panel this build handles correctly, so printed on its own it
+reads the same on a display that needed clamping and on one that was already
+sRGB. Reading the pair, an operator sees which of the two they have.
+
 Tone response is not in it and cannot be. The chain encodes for the gamma the
 panel record claims and the panel decodes with the same number, so the two
 cancel and nothing about grey tracking survives into the result. A record
@@ -39,8 +45,12 @@ from typing import Any
 
 import numpy as np
 
-from calibrate_pro.application.actions import PRESET_TARGETS
-from calibrate_pro.application.results import VerificationResult, VerifiedPatch
+from calibrate_pro.application.results import (
+    CORRECTION_THRESHOLD_DELTA_E,
+    VerificationResult,
+    VerifiedPatch,
+)
+from calibrate_pro.application.target_selection import TargetSelectionError, resolve_target
 from calibrate_pro.core.color_math import delta_e_2000
 from calibrate_pro.panels.panel_types import (
     ChromaticityCoord,
@@ -57,6 +67,11 @@ MODEL_NAME = "sensorless.neuralux.verify_calibration"
 
 #: What the figure is, in the words a surface labels it with.
 METRIC_NAME = "gamut reproduction, modelled"
+
+#: The correction simulated to get the before figure. An identity matrix leaves
+#: the chain's encode and decode steps cancelling as they already do, so the run
+#: differs from the corrected one in the matrix and nothing else.
+_NO_CORRECTION = np.eye(3)
 
 #: The target the simulation actually models: sRGB primaries, a D65 display
 #: white, and a 2.2 power-law tone response.
@@ -118,11 +133,17 @@ def reference_panel() -> PanelCharacterization:
 
 
 def target_is_modelled(preset_id: str) -> bool:
-    """Report whether the simulation covers the target this preset selects."""
-    target = PRESET_TARGETS.get(preset_id)
-    if target is None:
+    """Report whether the simulation covers the target this selection names.
+
+    A target the simulation does not model answers False rather than raising,
+    including one that names no target at all. The caller is asking whether a
+    modelled figure may be reported, and the answer to that is no either way.
+    """
+    try:
+        target = resolve_target(preset_id)
+    except TargetSelectionError:
         return False
-    return (target[0], target[1], target[2]) == MODELLED_TARGET
+    return (target.gamut_label, target.white_label, target.tone_label) == MODELLED_TARGET
 
 
 def _colour(patch: dict[str, Any], key: str) -> tuple[float, float, float]:
@@ -215,10 +236,11 @@ def predict_accuracy(
     patches = _patches(engine.verify_calibration(panel))
     if len(patches) != len(baseline):
         raise ValueError("accuracy model returned a different patch count than the reference run")
-    deltas = [
-        float(delta_e_2000(np.array(_colour(patch, "displayed_lab")), reference))
-        for patch, reference in zip(patches, baseline, strict=True)
-    ]
+    deltas = _deltas(patches, baseline)
+    bare = _patches(engine.verify_calibration(panel, correction=_NO_CORRECTION))
+    if len(bare) != len(baseline):
+        raise ValueError("accuracy model returned a different patch count than the reference run")
+    uncorrected = _deltas(bare, baseline)
     return VerificationResult(
         source=VERIFICATION_SOURCE,
         evidence=EvidenceKind.ESTIMATED,
@@ -227,7 +249,17 @@ def predict_accuracy(
         patches=tuple(_verified(patch, delta) for patch, delta in zip(patches, deltas, strict=True)),
         limitation=PREDICTED_LIMITATION,
         metric=METRIC_NAME,
+        uncorrected_average_delta_e=_metric(float(np.mean(uncorrected))),
+        uncorrected_maximum_delta_e=_metric(float(np.max(uncorrected))),
     )
+
+
+def _deltas(patches: list[dict[str, Any]], baseline: tuple[np.ndarray, ...]) -> list[float]:
+    """How far each simulated patch falls from the reference display's own."""
+    return [
+        float(delta_e_2000(np.array(_colour(patch, "displayed_lab")), reference))
+        for patch, reference in zip(patches, baseline, strict=True)
+    ]
 
 
 def _metric(value: float) -> MetricValue:
@@ -240,6 +272,7 @@ def _metric(value: float) -> MetricValue:
 
 
 __all__ = [
+    "CORRECTION_THRESHOLD_DELTA_E",
     "DELTA_E_UNIT",
     "METRIC_NAME",
     "MODELLED_TARGET",

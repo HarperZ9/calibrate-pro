@@ -8,6 +8,7 @@ This engine uses factory-measured panel characteristics to compute
 precise color corrections without requiring a hardware colorimeter.
 """
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,11 +31,24 @@ from calibrate_pro.core.color_math import (
 from calibrate_pro.core.colorchecker import COLORCHECKER_PATCHES
 from calibrate_pro.core.icc_profile import ICCProfile, create_display_profile
 from calibrate_pro.core.lut_engine import LUT3D, LUTGenerator
+from calibrate_pro.core.tone_response import ToneResponse
 from calibrate_pro.panels.database import (
     PanelCharacterization,
     PanelDatabase,
     get_database,
 )
+from calibrate_pro.targets.gamut import GAMUT_PRIMARIES
+
+logger = logging.getLogger(__name__)
+
+#: Gamut names :meth:`NeuraLuxEngine.create_3d_lut` will compress toward, to
+#: the primaries it uses. Read from the target catalogue rather than typed
+#: again here, so a primary corrected in one place is corrected in both.
+#: ``p3`` is kept as the name the shipped presets already resolve to.
+_TARGET_GAMUT_PRIMARIES: dict[str, tuple[tuple[float, float], ...]] = {
+    name: (primaries.red, primaries.green, primaries.blue) for name, primaries in GAMUT_PRIMARIES.items()
+}
+_TARGET_GAMUT_PRIMARIES["p3"] = _TARGET_GAMUT_PRIMARIES["DCI-P3"]
 
 # =============================================================================
 # ColorChecker Reference Data
@@ -176,6 +190,7 @@ class SensorlessEngine:
         panel: PanelCharacterization | None = None,
         points: int = 1024,
         target_gamma: float = 2.2,
+        target_tone: ToneResponse | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Tone reproduction curves for the calibrated display, device to linear.
 
@@ -194,6 +209,9 @@ class SensorlessEngine:
             panel: Panel characterization (uses current if None)
             points: Number of curve points
             target_gamma: Tone response the calibration drives the display to
+            target_tone: Full curve, for a target that is not a power law. The
+                TRC is a decode, so this is the curve itself rather than
+                something derived from it. Overrides ``target_gamma``.
 
         Returns:
             Tuple of (red, green, blue) TRC curves
@@ -203,7 +221,7 @@ class SensorlessEngine:
             raise ValueError("No panel set.")
 
         x = np.linspace(0, 1, points)
-        curve = np.power(x, target_gamma)
+        curve = np.power(x, target_gamma) if target_tone is None else target_tone.to_linear(x)
 
         return curve, curve.copy(), curve.copy()
 
@@ -212,6 +230,7 @@ class SensorlessEngine:
         panel: PanelCharacterization | None = None,
         points: int = 256,
         target_gamma: float = 2.2,
+        target_tone: ToneResponse | None = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Generate VCGT (Video Card Gamma Table) for calibration loader.
@@ -229,6 +248,8 @@ class SensorlessEngine:
             panel: Panel characterization (uses current if None)
             points: Number of LUT points
             target_gamma: Tone response the calibration drives the display to
+            target_tone: Full curve, for a target that is not a power law.
+                Overrides ``target_gamma``.
 
         Returns:
             Tuple of (red, green, blue) VCGT curves
@@ -239,11 +260,24 @@ class SensorlessEngine:
 
         x = np.linspace(0, 1, points)
 
-        # Correction curves that compensate for panel gamma
-        # Output = Input^(target_gamma / panel_gamma)
-        red_curve = np.power(x, target_gamma / panel.gamma_red.gamma)
-        green_curve = np.power(x, target_gamma / panel.gamma_green.gamma)
-        blue_curve = np.power(x, target_gamma / panel.gamma_blue.gamma)
+        if target_tone is None:
+            # Correction curves that compensate for panel gamma
+            # Output = Input^(target_gamma / panel_gamma)
+            red_curve = np.power(x, target_gamma / panel.gamma_red.gamma)
+            green_curve = np.power(x, target_gamma / panel.gamma_green.gamma)
+            blue_curve = np.power(x, target_gamma / panel.gamma_blue.gamma)
+        else:
+            # Same question asked of an arbitrary curve: which device value
+            # makes a panel of this gamma emit the light the target wants.
+            # Panel light is out ** panel_gamma, and the wanted light is
+            # tone(x), so out is tone(x) ** (1 / panel_gamma). For a power
+            # law that reduces to the exponent ratio above, which is why the
+            # power-law branch is kept literally rather than folded into
+            # this one: it keeps every shipped preset byte-identical.
+            light = target_tone.to_linear(x)
+            red_curve = np.power(light, 1.0 / panel.gamma_red.gamma)
+            green_curve = np.power(light, 1.0 / panel.gamma_green.gamma)
+            blue_curve = np.power(light, 1.0 / panel.gamma_blue.gamma)
 
         return red_curve, green_curve, blue_curve
 
@@ -254,6 +288,7 @@ class SensorlessEngine:
         *,
         target_white: tuple[float, float] = D65_XY,
         target_gamma: float = 2.2,
+        target_tone: ToneResponse | None = None,
         vcgt: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
     ) -> ICCProfile:
         """Describe the display this calibration leaves behind, once loaded.
@@ -278,6 +313,9 @@ class SensorlessEngine:
             profile_name: Custom profile name
             target_white: Chromaticity the calibration drives white to
             target_gamma: Tone response the calibration drives the display to
+            target_tone: Full curve, for a target that is not a power law. It
+                reaches the TRC and the gamma table both, so the profile
+                describes the same curve the cube in the bundle carries.
             vcgt: Gamma table to embed. A session holding the table it already
                 exports should pass it, so the profile and the .cal carry the
                 same numbers rather than two curves computed from one input.
@@ -295,7 +333,7 @@ class SensorlessEngine:
             profile_name = f"Calibrate Pro: {panel.name}"
 
         if vcgt is None:
-            vcgt = self.generate_vcgt(panel, points=256, target_gamma=target_gamma)
+            vcgt = self.generate_vcgt(panel, points=256, target_gamma=target_gamma, target_tone=target_tone)
 
         profile = create_display_profile(
             description=profile_name,
@@ -304,7 +342,7 @@ class SensorlessEngine:
             blue_primary=primaries.blue.as_tuple(),
             white_point=target_white,
             gamma=target_gamma,
-            trc_curves=self.generate_trc_curves(panel, points=1024, target_gamma=target_gamma),
+            trc_curves=self.generate_trc_curves(panel, points=1024, target_gamma=target_gamma, target_tone=target_tone),
             vcgt=vcgt,
             copyright="Copyright Zain Dana Harper 2022-2026 - Calibrate Pro",
         )
@@ -319,6 +357,7 @@ class SensorlessEngine:
         hdr_mode: bool = False,
         target: str = "native",
         target_gamma: float = 2.2,
+        target_tone: ToneResponse | None = None,
         target_white: tuple[float, float] = D65_XY,
     ) -> LUT3D:
         """
@@ -328,7 +367,9 @@ class SensorlessEngine:
         - "native": Correct gamma/white point WITHIN native gamut (default).
           Keeps the panel's full gamut width. This is what display enthusiasts want.
         - "sRGB": Compress to sRGB gamut (for content-accurate sRGB work).
-        - "p3": Compress to DCI-P3 gamut.
+        - any name the target catalogue carries: DCI-P3, Display P3, Adobe
+          RGB, BT.2020 and the rest. An unrecognised name is refused rather
+          than quietly corrected to native.
 
         For HDR (hdr_mode=True):
         - Uses PQ (ST.2084) signal space with BT.2390 EETF tone mapping.
@@ -339,9 +380,13 @@ class SensorlessEngine:
             size: LUT grid size (17, 33, or 65)
             lut_name: Custom LUT name
             hdr_mode: Generate HDR PQ-encoded LUT
-            target: "native", "sRGB", or "p3"
+            target: "native", or a gamut name from the catalogue
             target_gamma: Power-law exponent the calibrated output should
                 follow. BT.1886 with a zero black level reduces to 2.4.
+            target_tone: Full tone response curve, for a target that is not a
+                power law. sRGB is piecewise, L* follows CIE lightness, and
+                BT.1886 leaves the 2.4 power law once a panel reports a black
+                level above zero. Overrides ``target_gamma`` when given.
             target_white: White point xy the correction drives the panel to.
                 It reaches every SDR path here. The HDR path does not remap
                 reference white and ignores it, which is stated rather than
@@ -393,6 +438,7 @@ class SensorlessEngine:
                 gamma_blue=panel.gamma_blue.gamma,
                 title=lut_name,
                 target_gamma=target_gamma,
+                target_tone=target_tone,
                 target_white=target_white,
                 oled_compensation=is_oled,
                 panel_type=panel.panel_type,
@@ -409,6 +455,7 @@ class SensorlessEngine:
                     gamma_blue=panel.gamma_blue.gamma,
                     title=lut_name,
                     target_gamma=target_gamma,
+                    target_tone=target_tone,
                     target_white=target_white,
                 )
             else:
@@ -421,43 +468,41 @@ class SensorlessEngine:
                     color_matrix=self.calculate_correction_matrix(panel, target_white=target_white),
                     title=lut_name,
                     target_gamma=target_gamma,
+                    target_tone=target_tone,
                     target_white=target_white,
                 )
-        elif target == "p3":
-            # Compress to DCI-P3 gamut
-            p3_primaries = ((0.6800, 0.3200), (0.2650, 0.6900), (0.1500, 0.0600))
+        else:
+            # Every other gamut reads its primaries from the one table. An
+            # unrecognised name used to fall through to a native LUT, so a
+            # request for a gamut this build did not carry produced an
+            # uncorrected cube while the plan line, the manifest and the
+            # bundle all still named the gamut that was asked for.
+            target_prims = _TARGET_GAMUT_PRIMARIES.get(target)
+            if target_prims is None:
+                known = ", ".join(sorted(_TARGET_GAMUT_PRIMARIES))
+                raise ValueError(
+                    f"This build cannot compress toward a gamut of {target!r}. It carries native, {known}."
+                )
             lut = generator.create_oklab_perceptual_lut(
                 panel_primaries=panel_prims,
                 panel_white=primaries.white.as_tuple(),
                 gamma_red=panel.gamma_red.gamma,
                 gamma_green=panel.gamma_green.gamma,
                 gamma_blue=panel.gamma_blue.gamma,
-                target_primaries=p3_primaries,
+                target_primaries=target_prims,
                 title=lut_name,
                 target_gamma=target_gamma,
+                target_tone=target_tone,
                 target_white=target_white,
-            )
-        else:
-            # Unknown target, fall back to native
-            is_oled = panel.panel_type in ("QD-OLED", "WOLED")
-            lut = generator.create_native_gamut_lut(
-                panel_primaries=panel_prims,
-                panel_white=primaries.white.as_tuple(),
-                gamma_red=panel.gamma_red.gamma,
-                gamma_green=panel.gamma_green.gamma,
-                gamma_blue=panel.gamma_blue.gamma,
-                title=lut_name,
-                target_gamma=target_gamma,
-                target_white=target_white,
-                oled_compensation=is_oled,
-                panel_type=panel.panel_type,
-                panel_key=panel.model_pattern.split("|")[0],
             )
 
         return lut
 
     def verify_calibration(
-        self, panel: PanelCharacterization | None = None, reference_patches: list[ColorPatch] | None = None
+        self,
+        panel: PanelCharacterization | None = None,
+        reference_patches: list[ColorPatch] | None = None,
+        correction: np.ndarray | None = None,
     ) -> dict:
         """
         Verify calibration accuracy using ColorChecker reference.
@@ -469,9 +514,16 @@ class SensorlessEngine:
         4. Panel applies its native gamma and primaries
         5. Compare output XYZ/Lab against reference
 
+        The matrix is computed from the panel unless one is handed in. Passing
+        an identity matrix simulates the same panel with no correction applied,
+        which is how a caller asks what the display shows before this build
+        touches it. Nothing else about the chain changes, so the two runs differ
+        only in the step under test.
+
         Args:
             panel: Panel characterization (uses current if None)
             reference_patches: Reference color patches (uses ColorChecker if None)
+            correction: 3x3 matrix to simulate instead of the computed one
 
         Returns:
             Dictionary with verification results
@@ -484,7 +536,12 @@ class SensorlessEngine:
             reference_patches = get_colorchecker_reference()
 
         primaries = panel.native_primaries
-        correction_matrix = self.calculate_correction_matrix(panel)
+        if correction is None:
+            correction_matrix = self.calculate_correction_matrix(panel)
+        else:
+            correction_matrix = np.asarray(correction, dtype=float)
+            if correction_matrix.shape != (3, 3):
+                raise ValueError("correction must be a 3x3 matrix")
 
         results = {
             "panel": panel.name,
@@ -500,6 +557,11 @@ class SensorlessEngine:
 
         # Pre-compute CAM16 environment for viewing-condition-aware Delta E
         cam16_env = cam16_environment()
+
+        # The first patch CAM16 could not be computed for, kept so the reason
+        # reaches a log line and the result rather than only the first operator
+        # who happened to be watching stdout.
+        cam16_failure: str | None = None
 
         # Build panel color transformation
         panel_to_xyz = primaries_to_xyz_matrix(
@@ -566,7 +628,7 @@ class SensorlessEngine:
             de = delta_e_2000(lab_displayed, lab_ref)
 
             # CAM16-UCS Delta E (viewing-condition-aware, more accurate for wide gamut)
-            cam16_de = 0.0
+            cam16_de: float | None = None
             try:
                 # Reference XYZ (from Lab D50 → XYZ D50 → adapt to D65)
                 ref_xyz_d50 = lab_to_xyz(lab_ref, D50_WHITE)
@@ -582,34 +644,58 @@ class SensorlessEngine:
                 ucs_disp = cam16_to_ucs(cam_disp["J"], cam_disp["M"], cam_disp["h"])
 
                 cam16_de = cam16_ucs_delta_e(ucs_ref, ucs_disp)
-            except Exception as e:
-                print(f"[neuralux] CAM16 calculation failed, falling back to CIEDE2000: {e}")
-                cam16_de = de  # type: ignore[assignment]  # numpy/dynamic  # Fallback to CIEDE2000
+            except (ValueError, ZeroDivisionError, FloatingPointError, OverflowError, np.linalg.LinAlgError) as e:
+                # The CIEDE2000 figure is not substituted here. The two are
+                # different measures of different things, and the report prints
+                # them side by side under separate labels, so writing one under
+                # the other's name publishes a number a reader has no way to
+                # tell from a real CAM16 reading. Dropping it is the honest
+                # answer, and every consumer already renders an absent metric as
+                # not measured.
+                if cam16_failure is None:
+                    cam16_failure = f"{patch.name}: {e}"
 
-            results["patches"].append(  # type: ignore[attr-defined]  # numpy/dynamic
-                {
-                    "name": patch.name,
-                    "ref_lab": patch.lab_d50,
-                    "ref_srgb": patch.srgb,
-                    "displayed_lab": tuple(lab_displayed),
-                    "delta_e": float(de),
-                    "cam16_delta_e": float(cam16_de),
-                }
-            )
+            record = {
+                "name": patch.name,
+                "ref_lab": patch.lab_d50,
+                "ref_srgb": patch.srgb,
+                "displayed_lab": tuple(lab_displayed),
+                "delta_e": float(de),
+            }
+            if cam16_de is not None:
+                record["cam16_delta_e"] = float(cam16_de)
+            results["patches"].append(record)  # type: ignore[attr-defined]  # numpy/dynamic
             results["delta_e_values"].append(de)  # type: ignore[attr-defined]  # numpy/dynamic
-            results["cam16_delta_e_values"].append(cam16_de)  # type: ignore[attr-defined]  # numpy/dynamic
+            if cam16_de is not None:
+                results["cam16_delta_e_values"].append(cam16_de)  # type: ignore[attr-defined]  # numpy/dynamic
 
         # Calculate statistics
         de_values = np.array(results["delta_e_values"])
         results["delta_e_avg"] = float(np.mean(de_values))
         results["delta_e_max"] = float(np.max(de_values))
 
-        cam_de_values = np.array(results["cam16_delta_e_values"])
-        results["cam16_delta_e_avg"] = float(np.mean(cam_de_values))
-        results["cam16_delta_e_max"] = float(np.max(cam_de_values))
+        # Reported for every patch or for none of them. A mean over whichever
+        # patches happened to converge would print beside the dE2000 mean in the
+        # same report, computed over a different set, with nothing on the page
+        # saying the denominators differ.
+        cam_de_values = results["cam16_delta_e_values"]
+        if cam16_failure is None and len(cam_de_values) == len(results["delta_e_values"]):  # type: ignore[arg-type]
+            cam_de_array = np.array(cam_de_values)
+            results["cam16_delta_e_avg"] = float(np.mean(cam_de_array))
+            results["cam16_delta_e_max"] = float(np.max(cam_de_array))
+        else:
+            reason = cam16_failure or "CAM16-UCS was not computed for every patch"
+            for key in ("cam16_delta_e_values", "cam16_delta_e_avg", "cam16_delta_e_max"):
+                results.pop(key, None)
+            results["cam16_unavailable"] = reason
+            logger.warning("CAM16-UCS dropped from this verification: %s", reason)
 
-        # Grade using the stricter of the two metrics
-        avg = max(results["delta_e_avg"], results["cam16_delta_e_avg"])  # type: ignore[call-overload]  # numpy/dynamic
+        # Grade on the stricter of the metrics that were actually computed,
+        # which is one of them when CAM16 was dropped above.
+        avg = float(results["delta_e_avg"])  # type: ignore[arg-type]
+        cam16_avg = results.get("cam16_delta_e_avg")
+        if cam16_avg is not None:
+            avg = max(avg, float(cam16_avg))  # type: ignore[arg-type]
         if avg < 0.5:
             results["grade"] = "Reference (predicted dE < 0.5)"
         elif avg < 1.0:
@@ -649,7 +735,7 @@ class SensorlessEngine:
                 "gamut_area_per_level": vol.gamut_area_per_level,
             }
         except Exception as e:
-            print(f"[neuralux] Gamut volume calculation failed: {e}")
+            logger.warning("Gamut volume calculation failed, so no color volume is reported: %s", e)
 
         self.calibration_results = results
         return results

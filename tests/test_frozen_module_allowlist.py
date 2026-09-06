@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import ast
 import json
+import re
 import sys
 from functools import cache
 from pathlib import Path
@@ -48,6 +50,7 @@ EXPECTED_FEATURES = {
         "gui",
         "hdr",
         "install-profile",
+        "list-targets",
         "patterns",
         "profiles",
         "remove-profile",
@@ -62,7 +65,6 @@ EXPECTED_FEATURES = {
         "hdr-status",
         "info",
         "list-panels",
-        "list-targets",
         "mcp",
         "plugins",
         "tray",
@@ -130,6 +132,7 @@ def test_frozen_module_policy_is_literal_and_fail_closed() -> None:
         "calibrate_pro.commands.doctor",
         "calibrate_pro.commands.gui",
         "calibrate_pro.commands.hdr",
+        "calibrate_pro.commands.list_targets",
         "calibrate_pro.commands.session",
         "calibrate_pro.commands.session_args",
         "calibrate_pro.gui.pages.ddc_control",
@@ -361,3 +364,70 @@ def test_frozen_dispatcher_defaults_gui_and_cli_safely(monkeypatch, capsys) -> N
     assert frozen_main.main([], program="CalibrateProCLI.exe") == 0
     assert imported == []
     assert "doctor" in capsys.readouterr().out
+
+
+def _quoted_command_names(text: str) -> set[str]:
+    """Every command name a sentence points at, read out of the sentence.
+
+    The names are recognised against the whole product rather than against the
+    frozen build's own split. Reading them off the shipped set would make this
+    gate agree with whatever that set says: a command dropped from the binary
+    stops being a name the gate recognises, and the sentence pointing at it
+    passes. The wheel's table, the session commands and the declined names are
+    every command this release has a name for.
+    """
+    from calibrate_pro import frozen_main, main
+    from calibrate_pro.commands import session_args
+
+    known = {*main._HANDLERS, *session_args.COMMANDS, *frozen_main._DECLINED_COMMANDS}
+    return {name for name in re.findall(r"'([a-z][a-z-]+)'", text) if name in known}
+
+
+def _operator_facing_help() -> str:
+    """The strings a frozen build prints at an operator, gathered as printed."""
+    from calibrate_pro.commands import session_args
+
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", parser_class=session_args.SessionCommandParser)
+    session_args.add_parsers(subparsers)
+
+    pieces = [session_args.COMPOSE_HINT, session_args._UNAIMED]
+    for command in subparsers.choices.values():
+        pieces.append(command.format_help())
+    return "\n".join(pieces)
+
+
+def test_every_command_the_binary_names_in_its_own_help_is_one_it_runs() -> None:
+    """A refusal that names a refused command is a dead end, not an instruction.
+
+    ``--target`` is required, the sentence refusing a line without one named
+    ``list-targets``, and four help strings said to see it. The binary answered
+    that name with a sentence about a wheel it does not carry, so the only way
+    to read the vocabulary out of a shipped build was to guess a wrong value.
+    The names are read out of the strings themselves here, so a sentence
+    pointing somewhere the build will not go fails before it is packaged.
+    """
+    from calibrate_pro import frozen_main
+
+    shipped = {*frozen_main._COMMANDS, *frozen_main._SESSION_COMMANDS}
+    named = _quoted_command_names(_operator_facing_help())
+
+    assert named, "no command name was found in the help text, so this gate measured nothing"
+    assert named <= shipped
+
+
+def test_the_frozen_build_prints_the_axis_values_a_composed_target_takes(capsys) -> None:
+    """What the listing is for, read off the dispatcher an operator runs.
+
+    The presets are printable from an error message already. The three axes are
+    not: a composed target is 616 combinations, and before this command shipped
+    the packaged build had no way to print them.
+    """
+    from calibrate_pro import frozen_main
+
+    code = frozen_main.main(["list-targets"], program="CalibrateProCLI.exe")
+
+    printed = capsys.readouterr().out
+    assert code == 0
+    for flag in ("--gamut", "--white-point", "--tone-response"):
+        assert flag in printed

@@ -65,10 +65,20 @@ The workflow is:
 1. **Detect** -- select a display and inspect available capabilities. The dashboard
    states how the session characterized the display it holds. A display the bundled
    panel database does not name is still detected, and it is held uncharacterized,
-   which closes every method and every target after it. **Use Generic Panel** supplies
-   a nominal sRGB characterization so the workflow opens, and the row then says the
-   plan describes a nominal panel rather than that unit. A display the database does
-   name keeps that control disabled, with the reason beside it.
+   which closes every method and every target after it. Two controls open it.
+   **Use Display's Own Data** reads the primaries and gamma the display declares in
+   its EDID and builds the session's record from them, so the plan stands on the
+   model in front of you. It is the better answer where the display declares
+   something readable, and it is disabled where the display declares nothing.
+   **Use Generic Panel** supplies a nominal sRGB characterization, and the row then
+   says the plan describes a nominal panel rather than that unit. A display the
+   database does name keeps both controls disabled, with the reason beside them.
+
+   A declaration is not a measurement and the build never labels it as one. Evidence
+   stays estimated, the row reads `edid_declared`, and the bundle manifest carries the
+   four chromaticity pairs the correction was built from. What the descriptor does not
+   cover stays at the conservative value the generic path reports rather than being
+   invented, so HDR, bit depth and contrast are unchanged by accepting one.
 2. **Method** -- choose a target. Sensorless is the method this build offers; the
    measured method is shown disabled with the reason it is closed.
 3. **Preview** -- inspect the complete proposed DDC, ICC, VCGT, LUT, and output plan.
@@ -94,11 +104,11 @@ session gives, which is the answer `import-panel` gives at the command line.
 ## Read-only commands
 
 The Python package exposes the commands below. The frozen Windows CLI ships every name
-in the tables that follow except the seven marked developer wheel only, and
+in the tables that follow except the six marked developer wheel only, and
 `packaging/frozen-features.json` is the list the binary is built from. That list is read
 back against these tables by a test, because the count here was hand-kept and fell seven
 commands behind the build twice. Naming a command the binary does not carry exits 2 with
-a sentence about that name rather than an unknown-command error. The seven run in the
+a sentence about that name rather than an unknown-command error. The six run in the
 developer wheel and say so. The rest are declined by the wheel as well, and the binary
 reports that instead of recommending an install.
 
@@ -107,7 +117,7 @@ reports that instead of recommending an install.
 | `calibrate-pro --help` | Show the complete command surface |
 | `calibrate-pro --version` | Show the installed version |
 | `calibrate-pro doctor [--json]` | Inspect the installation without probing devices |
-| `calibrate-pro list-targets` | Developer wheel only. List calibration target presets |
+| `calibrate-pro list-targets` | List the targets a calibration can be set to, and the three axes one is composed from |
 | `calibrate-pro list-panels` | Developer wheel only. List stored characterized-panel profiles |
 | `calibrate-pro info <panel>` | Developer wheel only. Show one stored characterization |
 | `calibrate-pro hdr-status` | Developer wheel only. Query the operating-system HDR state |
@@ -140,7 +150,9 @@ of those five writes only when you pass `--confirm`.
 | `calibrate-pro ddc-calibrate [--brightness N] [...] [--confirm]` | Set those controls, after reading what each one holds now |
 | `calibrate-pro status [--closed]` | Report which actions this session can run, and the reason each closed one is closed |
 | `calibrate-pro verify --target NAME` | Generate a sealed plan and report its predicted accuracy |
+| `calibrate-pro verify --gamut NAME [--white-point NAME] [--tone-response NAME]` | Aim the same plan at a target composed from the three axes |
 | `calibrate-pro generate-profiles DIR --target NAME [--dry-run]` | Write one calibration bundle into `DIR` |
+| `calibrate-pro generate-profiles DIR --gamut NAME [--white-point NAME] [--tone-response NAME]` | Write the bundle for a composed target |
 | `calibrate-pro profiles DIR` | List the bundles published under a directory and check each one's seal |
 | `calibrate-pro system-profiles [--display ID]` | Read what Windows colour management holds, and which profile the display uses |
 | `calibrate-pro install-profile BUNDLE [--activate] [--confirm]` | Register a published bundle's profile and attach it to the display |
@@ -149,9 +161,17 @@ of those five writes only when you pass `--confirm`.
 | `calibrate-pro restore-profiles [--confirm]` | Take every profile this product attached back off the display |
 | `calibrate-pro diagnostics [--bundle PATH] [--open]` | List the session journal, and publish it for support |
 
-`--target` is required rather than defaulted; `calibrate-pro list-targets` prints the
-names it accepts. Pass `--display ID` to `verify` or `generate-profiles` to choose among
-several displays, using the identifier `detect` printed for the one you want.
+A target is required rather than defaulted, and it arrives one of two ways. `--target`
+names a preset. The three axis flags each replace one part of a target: passing
+`--gamut adobe-rgb` alone aims at Adobe RGB with the D65 white point and 2.2 tone
+response the default carries, and passing all three names any of the 616 combinations
+the eleven gamuts, seven white points and eight tone responses compose. A white point
+can also be given as a colour temperature written with its K, as `5800K`.
+`calibrate-pro list-targets` prints the preset names, then
+every value the three flags take.
+
+Pass `--display ID` to `verify` or `generate-profiles` to choose among several displays,
+using the identifier `detect` printed for the one you want.
 
 A worked run:
 
@@ -161,6 +181,15 @@ calibrate-pro verify --target srgb_web
 calibrate-pro generate-profiles profiles/srgb --target srgb_web
 calibrate-pro profiles profiles/srgb
 calibrate-pro install-profile profiles/srgb --activate --confirm
+```
+
+The same run aimed at a target no preset names:
+
+```powershell
+calibrate-pro list-targets
+calibrate-pro detect
+calibrate-pro verify --gamut adobe-rgb --white-point 5800K --tone-response lstar
+calibrate-pro generate-profiles profiles/proof --gamut adobe-rgb --white-point 5800K --tone-response lstar
 ```
 
 `install-profile` takes the bundle directory rather than a profile name. The name a
@@ -184,9 +213,18 @@ command prints that sentence under the figures. Tone response is outside the num
 correction encodes for the gamma the panel record claims and the panel decodes with the
 same number, so grey tracking cancels before anything is compared and a display whose
 grey is badly wrong scores the same as a perfect one. Measure to establish grey. A
-display whose panel is not in the characterization database is refused with `Sensorless
-calibration requires a selected characterized display.` rather than estimated from a
-stand-in panel.
+display whose panel is not in the characterization database is refused rather than quietly
+estimated from a stand-in panel. Pass `--edid` to record what the display declares about
+itself, or `--generic` to record the nominal sRGB characterization. Passing both is refused,
+because they answer the same question differently. Either way that is the operator saying
+which panel the plan stands on, and the bundle names that record everywhere it names a panel,
+so nothing downstream reads as a measurement of the unit.
+
+`verify` prints an uncorrected figure above the corrected pair. The corrected number is near
+zero whenever the correction works, so on its own it cannot tell a display that needed
+clamping from a display that was already sRGB. The uncorrected figure is the same measure
+with no correction applied, and the two together are what say the correction did something.
+On a panel already at the target both read zero and the note beside them says so.
 
 The measured path answers a different question in the same unit, which is why both paths
 name their own quantity on the line above the figures. A measured dE is colour accuracy

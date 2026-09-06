@@ -83,11 +83,12 @@ from calibrate_pro.targets.gamut import (
     GamutPreset,
     GamutTarget,
     calculate_gamut_coverage,
-    calculate_gamut_volume_coverage,
     create_custom_gamut,
+    gamut_containment,
     get_gamut_comparison,
     get_gamut_presets,
     get_wide_gamut_presets,
+    reach_of_gamut_mode,
 )
 from calibrate_pro.targets.gamut import (
     get_sdr_presets as get_sdr_gamut_presets,
@@ -347,6 +348,8 @@ __all__ = [
     "get_gamut_presets",
     "create_custom_gamut",
     "calculate_gamut_coverage",
+    "gamut_containment",
+    "reach_of_gamut_mode",
     # Unified Profile
     "CalibrationTargetProfile",
     "PROFILE_SRGB",

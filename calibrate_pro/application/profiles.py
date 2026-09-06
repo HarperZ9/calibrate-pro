@@ -56,6 +56,17 @@ class ProfileTarget:
     tone_response: str
     applied_gamma_exponent: float
 
+    #: ``power`` when the exponent is the whole story, otherwise the family of
+    #: curve that was applied. Defaults for a manifest written before the
+    #: field existed, where every target this build could aim at was a power
+    #: law, so the default states what those bundles actually did.
+    tone_response_kind: str = "power"
+
+    @property
+    def applies_a_power_law(self) -> bool:
+        """Whether ``applied_gamma_exponent`` describes the correction exactly."""
+        return self.tone_response_kind == "power"
+
 
 @dataclass(frozen=True)
 class ProfileRecord:
@@ -243,6 +254,7 @@ def _target(document: Mapping[str, object]) -> ProfileTarget:
         white_point=_text(target, "white_point"),
         tone_response=_text(target, "tone_response"),
         applied_gamma_exponent=_real(target, "applied_gamma_exponent"),
+        tone_response_kind=_optional_text(target, "tone_response_kind", "power"),
     )
 
 
@@ -262,6 +274,19 @@ def _text(document: Mapping[str, object], key: str) -> str:
     if not isinstance(value, str) or not value:
         raise ManifestError(f"the manifest records no {key}")
     return value
+
+
+def _optional_text(document: Mapping[str, object], key: str, default: str) -> str:
+    """Read a field a manifest may predate, refusing one written wrongly.
+
+    Absent is answered with the default, because a bundle written before the
+    field existed still says something definite. Present and not a nonblank
+    string is refused, since that is a manifest this build cannot read rather
+    than one it can read the old way.
+    """
+    if key not in document:
+        return default
+    return _text(document, key)
 
 
 def _whole(document: Mapping[str, object], key: str) -> int:

@@ -31,6 +31,7 @@ if feature_policy.get("commands") != [
     "gui",
     "hdr",
     "install-profile",
+    "list-targets",
     "patterns",
     "profiles",
     "remove-profile",

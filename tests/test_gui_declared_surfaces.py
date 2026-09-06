@@ -61,9 +61,9 @@ PERFORMED_WITHOUT_A_CONTROL: dict[str, str] = {
 #: Declared, open to the session, and drawn nowhere. This is an honest null
 #: rather than a policy decision, and the checks below hold it to that: an entry
 #: here must not be hidden by the manifest, and must not be bound anywhere.
-UNPRESENTED: dict[str, str] = {
-    "calibration.target.custom_cct": "No window offers a custom correlated colour temperature.",
-}
+#: Empty today. Every action the manifest gives a surface is drawn by a window,
+#: and the check below stands ready for the next one that is not.
+UNPRESENTED: dict[str, str] = {}
 
 #: The modules allowed to construct a binder. Each one owns a surface with its
 #: own lifetime: the window, and the two dialogs whose controls must not stay
@@ -248,6 +248,9 @@ def test_an_unpresented_action_is_a_null_rather_than_a_policy(surfaces: tuple[ob
     An action the session hides belongs in the hidden table, where the manifest
     is checked. An entry here is a surface the session would answer for and no
     window draws, which is a gap being reported rather than explained away.
+
+    The table is empty, so this reads nothing today. It is what the next entry
+    has to satisfy, and the gate above is what would put one here.
     """
     _window, bound = surfaces
     declared = manifest()

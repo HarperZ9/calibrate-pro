@@ -22,8 +22,9 @@ from collections.abc import Sequence
 from types import MappingProxyType
 
 from calibrate_pro import __version__
-from calibrate_pro.commands import session_args
-from calibrate_pro.commands.catalog import banner, list_panels, list_targets, panel_info
+from calibrate_pro.commands import banner, session_args
+from calibrate_pro.commands.catalog import list_panels, panel_info
+from calibrate_pro.commands.list_targets import list_targets
 
 #: What a declined command exits with, matching the session driver.
 REFUSED = 2
@@ -154,7 +155,7 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog="A display change requires the window's preview and an explicit confirmation.",
     )
     parser.add_argument("--version", "-V", action="version", version=f"Calibrate Pro v{__version__}")
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", parser_class=session_args.SessionCommandParser)
 
     doctor = subparsers.add_parser("doctor", help="Run read-only installation diagnostics")
     doctor.add_argument("--json", action="store_true", help="Emit schema-1 JSON")

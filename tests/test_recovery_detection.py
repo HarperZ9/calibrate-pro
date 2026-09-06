@@ -129,6 +129,7 @@ def test_contracts_have_the_exact_ordered_public_fields() -> None:
         "characterization",
         "capabilities",
         "evidence",
+        "edid_characterization",
     )
     assert tuple(field.name for field in fields(DashboardModel)) == (
         "displays",
