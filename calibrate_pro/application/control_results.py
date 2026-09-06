@@ -139,18 +139,27 @@ class ControlTransaction:
 
     @property
     def summary(self) -> str:
-        if not self.writes:
-            return f"No control was written on {self.display_id}."
-        written = "; ".join(write.line for write in self.writes)
-        line = f"{self.display_id} read back {written}."
-        if self.rejected:
-            line += f" {len(self.rejected)} of {len(self.writes)} did not take the value asked for."
+        """One line an operator can act on, including when the set failed partway.
+
+        A set that was refused midway carries no writes, because the codes that
+        went out were put back. Reporting only that leaves out the two things
+        worth knowing: which control refused, and whether the rollback landed.
+        Both are named here, so a display left partly changed says so.
+        """
+        parts: list[str] = []
+        if self.writes:
+            written = "; ".join(write.line for write in self.writes)
+            parts.append(f"{self.display_id} read back {written}.")
+            if self.rejected:
+                parts.append(f"{len(self.rejected)} of {len(self.writes)} did not take the value asked for.")
+        else:
+            parts.append(f"No control was written on {self.display_id}.")
         if self.restored:
             names = ", ".join(label_for(code) for code in self.restored)
-            line += f" {names} put back to the value read before the write."
+            parts.append(f"{names} put back to the value read before the write.")
         if self.failure is not None:
-            line += f" The write stopped: {self.failure}"
-        return line
+            parts.append(f"The write stopped: {self.failure}")
+        return " ".join(parts)
 
 
 @dataclass(frozen=True)
