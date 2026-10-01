@@ -178,6 +178,7 @@
     "calibrate_pro.sensorless",
     "calibrate_pro.sensorless.auto_calibration",
     "calibrate_pro.sensorless.camera_calibration",
+    "calibrate_pro.sensorless.ddc_backup",
     "calibrate_pro.sensorless.neuralux",
     "calibrate_pro.sensorless.pattern_generator",
     "calibrate_pro.sensorless.visual_matcher",

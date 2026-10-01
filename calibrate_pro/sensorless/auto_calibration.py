@@ -28,6 +28,7 @@ from typing import Any
 
 import numpy as np
 
+from calibrate_pro.sensorless.ddc_backup import BACKUP_CODES, CORRECTION_WRITES, auto_setup_writes, missing_from_backup
 from calibrate_pro.verification.provenance import EvidenceKind, MetricValue
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,8 @@ class UserConsent:
     operation: str = ""
     user_acknowledged_risks: bool = False
     hardware_modification_approved: bool = False
+    # Informational only. The engine never trusts it: before any DDC/CI write it
+    # reads the monitor's current values itself and checks that backup.
     backup_created: bool = False
 
     def is_approved_for(self, level: CalibrationRisk) -> bool:
@@ -218,6 +221,8 @@ class AutoCalibrationResult:
     ddc_available: bool = False
     ddc_changes_made: dict[str, Any] = field(default_factory=dict)
     original_ddc_settings: dict[str, Any] = field(default_factory=dict)
+    ddc_backup_verified: bool = False  # the engine read every control it went on to write
+    ddc_backup_display_index: int | None = None  # the display the backup was read from
 
     # Verification
     verification: dict[str, Any] = field(default_factory=dict)
@@ -394,18 +399,17 @@ class AutoCalibrationEngine:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Check consent for DDC/CI
-        if apply_ddc:
-            if consent is None or not consent.hardware_modification_approved:
-                result.message = "DDC/CI modification requires user consent"
-                result.warnings.append("Hardware modification was requested but not approved")
-                apply_ddc = False  # Fall back to software-only
+        # DDC/CI writes need the caller's consent: acknowledged risks AND approved
+        # hardware modification. Nothing in this module grants that on its own.
+        if apply_ddc and (consent is None or not consent.is_approved_for(CalibrationRisk.HIGH)):
+            result.message = "DDC/CI modification requires user consent"
+            result.warnings.append(
+                "DDC/CI hardware changes were requested without approved consent; "
+                "ran software-only. Pass consent from request_consent() after the user approves it."
+            )
+            apply_ddc = False  # Fall back to software-only
 
         try:
-            # Step 0: DDC/CI hardware auto-setup (always runs, non-destructive)
-            self._report_progress("Configuring display hardware...", 0.02, CalibrationStep.READ_DDC_SETTINGS)
-            self._auto_ddc_setup(display_index)
-
             # Step 1: Detect Display
             self._report_progress("Detecting display...", 0.05, CalibrationStep.DETECT_DISPLAY)
             display_info = self._detect_display(display_index)
@@ -428,12 +432,22 @@ class AutoCalibrationEngine:
                 if panel.manufacturer != "Generic":
                     result.display_name = panel.name
 
-            # Step 3: Read DDC Settings (backup)
+            # Step 3: Read DDC Settings (backup), then the OSD auto-setup. No DDC/CI
+            # write happens before the engine holds its own backup of every control
+            # that write can touch.
             if apply_ddc:
                 self._report_progress("Reading current settings...", 0.25, CalibrationStep.READ_DDC_SETTINGS)
                 result.original_ddc_settings = self._read_ddc_settings(display_index)
+                result.ddc_backup_display_index = display_index
                 result.ddc_available = bool(result.original_ddc_settings)
                 result.steps_completed.append(CalibrationStep.READ_DDC_SETTINGS)
+                self._guarded_auto_setup(display_index, result)
+                missing = missing_from_backup(result.original_ddc_settings, CORRECTION_WRITES)
+                result.ddc_backup_verified = not missing
+                if missing:
+                    result.warnings.append(
+                        "DDC/CI corrections skipped: no backup of " + ", ".join(missing) + " was read first"
+                    )
 
             # Step 4: Calculate Corrections
             self._report_progress("Calculating color corrections...", 0.35, CalibrationStep.CALCULATE_CORRECTIONS)
@@ -441,7 +455,7 @@ class AutoCalibrationEngine:
             result.steps_completed.append(CalibrationStep.CALCULATE_CORRECTIONS)
 
             # Step 5: Apply DDC Corrections (if enabled and available)
-            if apply_ddc and result.ddc_available:
+            if apply_ddc and result.ddc_backup_verified:
                 self._report_progress("Applying hardware adjustments...", 0.45, CalibrationStep.APPLY_DDC_CORRECTIONS)
                 result.ddc_changes_made = self._apply_ddc_corrections(display_index, corrections)
                 result.steps_completed.append(CalibrationStep.APPLY_DDC_CORRECTIONS)
@@ -643,51 +657,55 @@ class AutoCalibrationEngine:
         self._result = result
         return result
 
-    def _auto_ddc_setup(self, display_index: int):
-        """Auto-configure monitor OSD via DDC/CI before calibration."""
+    def _guarded_auto_setup(self, display_index: int, result: AutoCalibrationResult) -> None:
+        """Run the OSD auto-setup only when the backup covers every control it writes."""
+        recommendations = self._ddc_recommendations(display_index)
+        missing = missing_from_backup(result.original_ddc_settings, auto_setup_writes(recommendations))
+        if missing:
+            result.warnings.append("DDC/CI auto-setup skipped: no backup of " + ", ".join(missing) + " was read first")
+            return
+        self._run_ddc_auto_setup(display_index, recommendations)
+
+    def _ddc_recommendations(self, display_index: int):
+        """Panel-specific DDC recommendations for this display, or None. Reads only."""
         try:
-            from calibrate_pro.hardware.ddc_ci import DDCCIController
             from calibrate_pro.panels.database import PanelDatabase
             from calibrate_pro.panels.detection import enumerate_displays, identify_display
+
+            displays = enumerate_displays()
+            if display_index < len(displays):
+                db = PanelDatabase()
+                panel_key = identify_display(displays[display_index])
+                panel = db.get_panel(panel_key) if panel_key else None
+                if panel and hasattr(panel, "ddc") and panel.ddc:
+                    self._report_progress(
+                        f"Applying {panel.name} DDC settings...", 0.03, CalibrationStep.READ_DDC_SETTINGS
+                    )
+                    return panel.ddc
+        except (ImportError, OSError) as e:
+            logging.getLogger(__name__).debug("DDC recommendations unavailable: %s", e)
+        return None
+
+    def _run_ddc_auto_setup(self, display_index: int, recommendations) -> list[str]:
+        """Auto-configure the monitor OSD over DDC/CI. Callers must hold consent and a backup."""
+        try:
+            from calibrate_pro.hardware.ddc_ci import DDCCIController
 
             ddc = DDCCIController()
             monitors = ddc.enumerate_monitors()
             if display_index >= len(monitors):
-                return
-
-            monitor = monitors[display_index]
-
-            # Find panel-specific DDC recommendations
-            ddc_rec = None
-            try:
-                displays = enumerate_displays()
-                if display_index < len(displays):
-                    db = PanelDatabase()
-                    panel_key = identify_display(displays[display_index])
-                    panel = db.get_panel(panel_key) if panel_key else None
-                    if panel and hasattr(panel, "ddc") and panel.ddc:
-                        ddc_rec = panel.ddc
-                        self._report_progress(
-                            f"Applying {panel.name} DDC settings...", 0.03, CalibrationStep.READ_DDC_SETTINGS
-                        )
-            except (ImportError, OSError):
-                pass
-
+                return []
             changes = ddc.auto_setup_for_calibration(
-                monitor,
-                ddc_recommendations=ddc_rec,
+                monitors[display_index],
+                ddc_recommendations=recommendations,
                 log_fn=lambda msg: self._report_progress(f"DDC: {msg}", 0.04, CalibrationStep.READ_DDC_SETTINGS),
             )
-
             if changes:
-                import time
-
                 time.sleep(1.0)  # Let monitor settle
-
+            return changes
         except (ImportError, OSError, RuntimeError) as e:
-            import logging
-
             logging.getLogger(__name__).debug("DDC auto-setup skipped: %s", e)
+            return []
 
     def _detect_display(self, display_index: int) -> dict[str, Any]:
         """Detect display information via Windows APIs."""
@@ -928,17 +946,11 @@ class AutoCalibrationEngine:
             if display_index >= len(monitors):
                 return {}
 
-            monitor = monitors[display_index]["handle"]
+            monitor = monitors[display_index]  # get_vcp takes the monitor dict, not its handle
             settings = {}
 
-            # Read key settings
-            codes = [
-                ("brightness", VCPCode.BRIGHTNESS),
-                ("contrast", VCPCode.CONTRAST),
-                ("red_gain", VCPCode.RED_GAIN),
-                ("green_gain", VCPCode.GREEN_GAIN),
-                ("blue_gain", VCPCode.BLUE_GAIN),
-            ]
+            # Read every control a later DDC/CI write can touch (see ddc_backup.py)
+            codes = [(name, getattr(VCPCode, attr)) for name, attr in BACKUP_CODES.items()]
 
             for name, code in codes:
                 try:
@@ -1620,15 +1632,12 @@ class AutoCalibrationEngine:
             if not monitors:
                 return False
 
-            monitor = monitors[0]["handle"]
+            index = result.ddc_backup_display_index or 0
+            if index >= len(monitors):
+                return False
+            monitor = monitors[index]  # the display the backup was read from; set_vcp takes the dict
 
-            code_map = {
-                "brightness": VCPCode.BRIGHTNESS,
-                "contrast": VCPCode.CONTRAST,
-                "red_gain": VCPCode.RED_GAIN,
-                "green_gain": VCPCode.GREEN_GAIN,
-                "blue_gain": VCPCode.BLUE_GAIN,
-            }
+            code_map = {name: getattr(VCPCode, attr) for name, attr in BACKUP_CODES.items()}
 
             for name, settings in result.original_ddc_settings.items():
                 if name in code_map and "current" in settings:
@@ -1653,16 +1662,17 @@ def one_click_calibrate(
     use_ddc: bool = True,
     persist: bool = True,
     hdr_mode: bool = False,
+    consent: UserConsent | None = None,
 ) -> AutoCalibrationResult:
     """
     Perform one-click automatic calibration.
 
-    This is the main entry point for zero-input calibration.
-    No user interaction required - just call this function.
-
-    When use_ddc=True (default), the engine will attempt DDC/CI hardware
-    adjustments first for maximum quality. DDC failures are non-fatal;
-    the engine falls back to software-only correction automatically.
+    DDC/CI hardware changes need the user's consent, passed in as `consent`
+    (build it with AutoCalibrationEngine.request_consent() and set its approval
+    fields only after the user agrees). This function never grants consent on
+    its own. Without approved consent it runs software-only and says so in
+    result.warnings. With consent, the engine still reads a backup of every
+    monitor control before it writes one.
 
     Args:
         output_dir: Where to save calibration files
@@ -1670,6 +1680,7 @@ def one_click_calibrate(
         display_index: Which display to calibrate (0 = primary)
         use_ddc: Attempt DDC/CI hardware calibration (default True)
         persist: Save calibration state for reboot persistence (default True)
+        consent: The user's approved consent for DDC/CI changes, or None
 
     Returns:
         AutoCalibrationResult with all calibration data
@@ -1682,19 +1693,6 @@ def one_click_calibrate(
             callback(msg, prog)
 
         engine.set_progress_callback(wrapped_callback)
-
-    # Auto-approve DDC for fully automatic mode
-    consent = None
-    if use_ddc:
-        consent = UserConsent(
-            timestamp=time.time(),
-            risk_level=CalibrationRisk.HIGH,
-            display_name="auto",
-            operation="Automatic calibration",
-            user_acknowledged_risks=True,
-            hardware_modification_approved=True,
-            backup_created=True,
-        )
 
     result = engine.run_calibration(
         output_dir=output_dir,
@@ -1719,19 +1717,26 @@ def auto_calibrate_all(
     use_ddc: bool = True,
     persist: bool = True,
     hdr_mode: bool = False,
+    consent: UserConsent | Callable[[int, str], UserConsent | None] | None = None,
+    confirm_startup: Callable[[str], bool] | None = None,
 ) -> list[AutoCalibrationResult]:
     """
     Automatically calibrate ALL connected displays.
 
-    Detects every active display, calibrates each one sequentially,
-    and persists the calibration state. This is the true zero-input
-    entry point for multi-monitor setups.
+    Detects every active display, calibrates each one sequentially, and saves
+    the calibration state. DDC/CI changes need consent: pass one UserConsent for
+    every display, or a callable(display_index, display_name) that asks per
+    display. Reapplying calibration at login writes an HKCU Run key, so it
+    happens only when `confirm_startup(prompt)` returns True; without that
+    callable the key is not written and the first result says so.
 
     Args:
         output_dir: Where to save calibration files
         callback: Progress callback(message, progress_0_to_1, display_name)
         use_ddc: Attempt DDC/CI hardware calibration
         persist: Save calibration state for reboot persistence
+        consent: Consent for DDC/CI changes, or a per-display provider
+        confirm_startup: Asked before writing the HKCU Run key; True means yes
 
     Returns:
         List of AutoCalibrationResult, one per display
@@ -1762,6 +1767,7 @@ def auto_calibrate_all(
                 overall = (_i + prog) / total
                 callback(msg, overall, _display_name)
 
+        display_consent = consent(i, display_name) if callable(consent) else consent
         result = one_click_calibrate(
             output_dir=output_dir,
             callback=per_display_callback,
@@ -1769,21 +1775,45 @@ def auto_calibrate_all(
             use_ddc=use_ddc,
             persist=persist,
             hdr_mode=hdr_mode,
+            consent=display_consent,
         )
         results.append(result)
 
-    # Enable startup persistence if any calibration succeeded
+    # Reapply-at-login writes an HKCU Run key: only on an explicit yes.
     if persist and any(r.success for r in results):
-        try:
-            from calibrate_pro.utils.startup_manager import StartupManager
-
-            manager = StartupManager()
-            if not manager.is_startup_enabled():
-                manager.enable_startup(silent=True)
-        except (ImportError, OSError):
-            pass
+        _offer_startup(results, confirm_startup)
 
     return results
+
+
+STARTUP_PROMPT = (
+    "Reapply this calibration every time you sign in? This adds a Calibrate Pro entry "
+    "to the Windows Run key (HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run)."
+)
+
+
+def _offer_startup(results: list[AutoCalibrationResult], confirm_startup: Callable[[str], bool] | None) -> None:
+    """Write the HKCU Run key only when confirm_startup says yes; record the outcome."""
+    log = logging.getLogger(__name__)
+    try:
+        from calibrate_pro.utils.startup_manager import StartupManager
+
+        manager = StartupManager()
+        if manager.is_startup_enabled():
+            return
+        if confirm_startup is None:
+            results[0].warnings.append(
+                "Startup persistence not enabled: no confirm_startup callback was given, "
+                "so the HKCU Run key was left alone."
+            )
+            return
+        if confirm_startup(STARTUP_PROMPT) is not True:
+            results[0].warnings.append("Startup persistence declined; the HKCU Run key was left alone.")
+            return
+        manager.enable_startup(silent=True)
+    except (ImportError, OSError) as e:
+        log.warning("Startup persistence not enabled: %s", e)
+        results[0].warnings.append(f"Startup persistence not enabled: {e}")
 
 
 def _persist_calibration(result: AutoCalibrationResult, display_index: int):
@@ -1828,7 +1858,12 @@ if __name__ == "__main__":
     print("Detecting and calibrating all displays...")
     print()
 
-    results = auto_calibrate_all(callback=multi_progress)
+    def ask(prompt: str) -> bool:
+        return input(f"\n{prompt} [y/N] ").strip().lower() in ("y", "yes")
+
+    # Software-only from the command line: DDC/CI changes need consent from a
+    # caller that shows the risks, which this demo entry point does not do.
+    results = auto_calibrate_all(callback=multi_progress, use_ddc=False, confirm_startup=ask)
 
     print()
     print("=" * 60)
