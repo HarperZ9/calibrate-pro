@@ -66,3 +66,9 @@ jobs:
           # sysmon and pass under ctrace, with the rest of the suite unchanged.
           COVERAGE_CORE: ctrace
         run: pytest tests/ -q --cov=calibrate_pro --cov-report=term-missing --cov-fail-under=30
+  art-receipts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Verify art receipt digests
+        run: python3 scripts/check_art_receipts.py
