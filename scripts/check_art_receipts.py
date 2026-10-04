@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify docs/art/receipts.json: each listed file's SHA-256 must match its stored bytes.
+"""Verify docs/art/receipts.json: each file SHA-256 must match its stored bytes.
 
 Usage: python scripts/check_art_receipts.py [receipts.json]
 Exit 1 on any digest mismatch, malformed receipt, or if no listed file could be checked.
