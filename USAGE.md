@@ -8,8 +8,8 @@ available only through an interactive preview-and-confirm workflow.
 
 ### Windows package
 
-Download either `CalibratePro-2.0.0-Setup.exe` or
-`CalibratePro-2.0.0-win64.zip` from
+Download either `CalibratePro-2.0.1-Setup.exe` or
+`CalibratePro-2.0.1-win64.zip` from
 [GitHub Releases](https://github.com/HarperZ9/calibrate-pro/releases).
 
 Calibrate Pro starts unelevated: the per-user installer uses lowest privilege and both
@@ -26,7 +26,7 @@ described below. Run it with no arguments to see the list it ships.
 ### Python package
 
 ```powershell
-py -m pip install "calibrate-pro[gui,sensor]==2.0.0"
+py -m pip install "calibrate-pro[gui,sensor]==2.0.1"
 calibrate-pro doctor
 calibrate-pro gui
 ```

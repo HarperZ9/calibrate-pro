@@ -4,9 +4,9 @@
   "path_mode": "literal-posix",
   "components": [
     {
-      "id": "calibrate-pro-2.0.0",
+      "id": "calibrate-pro-2.0.1",
       "owner": "calibrate-pro",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "license": "LicenseRef-FSL-1.1-MIT",
       "notice_paths": [
         "LICENSE"
@@ -14,7 +14,7 @@
       "provenance": [
         {
           "kind": "release_source",
-          "name": "calibrate_pro-2.0.0.tar.gz"
+          "name": "calibrate_pro-2.0.1.tar.gz"
         }
       ]
     },
@@ -1022,7 +1022,7 @@
         "CalibrateProCLI.exe"
       ],
       "component_ids": [
-        "calibrate-pro-2.0.0",
+        "calibrate-pro-2.0.1",
         "pyinstaller-runtime-6.21.0"
       ]
     }

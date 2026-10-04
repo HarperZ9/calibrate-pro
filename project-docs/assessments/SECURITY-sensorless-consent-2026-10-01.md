@@ -1,8 +1,8 @@
 # Sensorless library path: consent, backup and startup (2026-10-01)
 
-These changes are merged but not released. The changelog carries no
-`Unreleased` section by rule (`tests/test_version_pins_name_this_release.py`), so
-the entries wait here and move under the next release heading when it is cut.
+These changes ship in v2.0.1. The entries below moved under that release's
+heading in `CHANGELOG.md` when it was prepared. The changelog carries no
+`Unreleased` section by rule (`tests/test_version_pins_name_this_release.py`).
 
 ## What was wrong
 
