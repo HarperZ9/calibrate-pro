@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/main/docs/art/hero-dark.svg">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/main/docs/art/hero-light.svg" alt="calibrate-pro: Calibrate Windows displays: profiles, LUTs, and verification reports. Parallel rays pass through a lens drawn in fine lines, gather at a bright core and spread out past it." width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-dark.svg">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-light.svg" alt="calibrate-pro: Calibrate Windows displays: profiles, LUTs, and verification reports. Parallel rays pass through a lens drawn in fine lines, gather at a bright core and spread out past it." width="100%">
 </picture>
 
 # calibrate-pro
