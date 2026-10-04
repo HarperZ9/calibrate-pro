@@ -42,11 +42,14 @@ _OWN_VERSION_SHAPED = re.compile(
 )
 
 #: Surfaces that name a version other than this one on purpose. Plan and spec
-#: documents record what a past release did. The changelog is a history by
+#: documents record what a past release did, and so do the dated assessments
+#: under `project-docs/assessments/`: each one describes the build it tested, by
+#: that build's own artifact name. The changelog is a history by
 #: definition. Test modules build synthetic versions to drive the code under
 #: test, and their real pins are covered by the structural checks above.
 _HISTORICAL = (
     "docs/superpowers/",
+    "project-docs/assessments/",
     "CHANGELOG.md",
     "tests/",
 )
