@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_release_version_matches_the_declaration_this_release_ships() -> None:
-    assert __version__ == "2.0.0"
+    assert __version__ == "2.0.1"
 
 
 def test_verification_report_uses_release_version() -> None:

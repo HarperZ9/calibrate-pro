@@ -1,5 +1,42 @@
 # Changelog
 
+## v2.0.1 (2026-10-04)
+
+- Security: the sensorless library path no longer grants itself hardware consent.
+  `one_click_calibrate` built a HIGH-risk `UserConsent` with `backup_created=True`
+  asserted, so any caller got DDC/CI monitor writes with no user approval. It now
+  takes `consent=` from the caller and runs software-only, with a warning, when
+  none is approved. `run_calibration` also ran a DDC/CI OSD auto-setup on every
+  call, consent or not, which wrote monitor controls even with `apply_ddc=False`
+  (the Windows test suite did this on the developer's monitor). The auto-setup now
+  runs only under approved consent. The frozen CLI never reached these commands;
+  the exposure was the `calibrate_pro.sensorless` library in the 2.0.0 package.
+- Every DDC/CI write now needs a backup the engine read itself. The backup covers
+  every control the auto-setup and the correction step can write (colour preset,
+  picture mode, gamma, black levels, gains, brightness, contrast), and a write is
+  skipped, with a warning naming the missing controls, when any of them was not
+  read. A caller's `backup_created` flag is no longer trusted.
+- `restore_original_settings` writes back to the display the backup came from;
+  it used to write to the first display whatever was calibrated. The backup read
+  and the restore also passed a bare handle where `get_vcp`/`set_vcp` index the
+  monitor dict, so both raised `TypeError` on real hardware.
+- `auto_calibrate_all` asks before it writes the HKCU Run key. It takes
+  `confirm_startup(prompt)` and writes the key only on True; without it the key
+  is left alone and the first result says so. It also takes `consent=`, either one
+  `UserConsent` or a per-display callable.
+- Brand and art refresh. The README opens on a light and dark hero drawn in the
+  shared art direction, with a 1280 x 640 social preview, marks, lockups and the
+  README header under `docs/art` and `docs/brand`. Every PNG carries a
+  `superstack.receipt/1` in `docs/art/receipts.json`. README images are pinned to
+  the release tag, so they resolve from this release on.
+- Docs and README footer publish under the operating name Zain Dana Harper. The
+  retired working name is gone from the README footer, the banner marks and the
+  header-art publisher line.
+- Known limit carried forward: the consent object is not bound to a display or a
+  time window, and `one_click_calibrate` still installs an ICC profile and applies
+  a LUT without consent by default. Both are Windows colour-management state the
+  user can restore, not monitor hardware.
+
 ## v2.0.0 (2026-09-06)
 
 - Widened the diagnostic journal's root lock deadline to cover the queue the design

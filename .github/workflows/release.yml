@@ -12,7 +12,7 @@ on:
         description: Existing GitHub release tag whose assets were accepted
         required: true
         type: string
-        default: v2.0.0
+        default: v2.0.1
   release:
     types: [published]
 

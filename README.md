@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.0/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
 </p>
 <!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
 
@@ -9,9 +9,9 @@
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
 
-[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE)
+[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/LICENSE)
 ![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![version](https://img.shields.io/badge/version-2.0.0-informational.svg)
+![version](https://img.shields.io/badge/version-2.0.1-informational.svg)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
 [![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
@@ -60,7 +60,7 @@ instead of a public issue.
 
 ## Current status
 
-- **Release:** Calibrate Pro 2.0.0; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
+- **Release:** Calibrate Pro 2.0.1; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
 - **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
 - **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
 - **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
@@ -71,7 +71,7 @@ instead of a public issue.
 
 Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated; unavailable hardware or operating-system capabilities fail closed and are reported by `calibrate-pro doctor`.
 
-The 2.0.0 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
+The 2.0.1 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
 
 ### From source
 
@@ -119,7 +119,7 @@ The split is a packaging decision recorded in `packaging/frozen-features.json`, 
 
 Old direct-action names such as `auto`, `calibrate`, and `restore` are declined in 2.0 by the packaged binary and by the wheel alike. Neither changes display state, and the packaged binary says what it will not do rather than recommending an install that would end at the same refusal. Both point to the window, where a change is previewed and confirmed.
 
-See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.0/examples).
+See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.1/examples).
 
 ## How It Works
 
@@ -227,7 +227,7 @@ powershell -File scripts/build_windows.ps1
 
 ## License
 
-FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.0/LICENSE).
+FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/LICENSE).
 
 ## For developers
 
