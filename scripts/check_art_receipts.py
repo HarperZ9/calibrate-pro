@@ -7,6 +7,7 @@ A listed file that is absent from the checkout is reported and skipped: receipts
 list renders (PNGs, extra SVGs) that are never committed. Checking is on committed bytes
 only, so it shows the bytes match the receipt, not that the scene produced them.
 """
+
 import hashlib
 import json
 import sys
