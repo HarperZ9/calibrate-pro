@@ -1,19 +1,22 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/brand/calibrate-pro-hero.png" alt="Calibrate Pro, make screens match the work with profiles, LUTs, and verification">
-</p>
-<!-- Project mark: docs/brand/calibrate-pro-mark.svg -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-dark.svg">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-light.svg" alt="calibrate-pro: Calibrate Windows displays: profiles, LUTs, and verification reports. Parallel rays pass through a lens drawn in fine lines, gather at a bright core and spread out past it." width="100%">
+</picture>
 
-# Calibrate Pro
+# calibrate-pro
 
-> Make screens match the work with profiles, LUTs, monitor control, and verification reports.
+Calibrate Windows displays: profiles, LUTs, and verification reports.
+
+```
+calibrate-pro doctor
+```
+
+[![version: 2.0.1](https://img.shields.io/badge/version-2.0.1-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/releases/latest)
+[![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-FSL--1.1--MIT-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/blob/main/LICENSE)
+![python 3.10+](https://img.shields.io/badge/python-3.10%2B-e6e1d6?style=flat-square&labelColor=1a1712)
 
 [Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
-
-[![license: fair-source](https://img.shields.io/badge/license-fair--source-blue.svg)](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/LICENSE)
-![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![version](https://img.shields.io/badge/version-2.0.1-informational.svg)
-[![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
-[![part of: Project Telos](https://img.shields.io/badge/part_of-Project_Telos-4636e8.svg)](https://harperz9.github.io)
 
 Calibrate Pro is a Windows display-calibration toolkit for characterized and measured workflows. It combines display discovery, calibration targets, DDC/CI, ICC/VCGT and LUT tooling, and evidence-labelled reports behind one preview-and-confirm workflow. Sensorless values are explicitly labelled as estimates; measured values require an instrument and retain their evidence source.
 
