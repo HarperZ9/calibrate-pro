@@ -124,7 +124,14 @@ def test_readme_identifies_the_current_release_and_qt_binding() -> None:
     assert f"Release:** Calibrate Pro {VERSION}" in text
     assert "PySide6" in text
     assert "PyQt6" not in text
-    assert f'src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v{VERSION}/' in text
+    # Every README image loads from an absolute raw URL, pinned to the release tag or to main. The hero
+    # added on 4 October 2026 lives on main until the next tag carries it.
+    sources = re.findall(r'(?:src|srcset)="([^"]+)"', text)
+    assert sources
+    assert all(s.startswith(("https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v" + VERSION + "/",
+                             "https://raw.githubusercontent.com/HarperZ9/calibrate-pro/main/",
+                             "https://img.shields.io/", "https://github.com/HarperZ9/calibrate-pro/actions/"))
+               for s in sources), sources
     assert f"The {VERSION} Windows artifacts are not Authenticode-signed" in text
     assert "](LICENSE)" not in text
     assert "](USAGE.md)" not in text
