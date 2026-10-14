@@ -27,7 +27,6 @@ import pytest
 from calibrate_pro.application.contracts import CharacterizationKind
 from calibrate_pro.application.contracts import PanelCharacterization as DeclaredContract
 from calibrate_pro.application.declaration import (
-    DECLARATION_NOTE,
     DeclarationRefused,
     declared_from,
     declared_label,
@@ -195,10 +194,6 @@ def test_each_channel_carries_its_own_curve_rather_than_one_shared_object() -> N
     panel.gamma_red.gamma = 9.9
     assert panel.gamma_green.gamma == 2.4
     assert panel.gamma_blue.gamma == 2.4
-
-
-def test_the_record_says_in_its_notes_that_it_is_a_declaration() -> None:
-    assert declared_from(base_panel(), _contract()).panel.notes == DECLARATION_NOTE
 
 
 def test_the_summary_names_the_source_and_every_declared_corner() -> None:

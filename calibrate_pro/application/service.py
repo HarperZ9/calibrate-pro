@@ -225,6 +225,7 @@ class FunctionalRecoveryService(
         return self._runner.run("display.characterization.use_generic", self._use_generic)
 
     def _use_generic(self) -> DisplaySelection:
+        self._drop_plan_for_new_characterization()
         self._state.selected_panel_key = GENERIC_PANEL_KEY
         # A declaration held from an earlier acceptance would outrank the key
         # this line just set, and the session would keep reporting declared
@@ -255,8 +256,25 @@ class FunctionalRecoveryService(
             declared = declared_from(base, offer)
         except DeclarationRefused as error:
             raise declaration_refused(str(error)) from error
+        # record_declaration breaks the seal itself, so only the workflow move
+        # and the held plan are handled here. Breaking the seal twice would
+        # overwrite the "expired" confirmation the first break records.
+        self._transition(self._controller.invalidate_preview)
         self._state.record_declaration(declared)
+        self._sealed_plan = None
         return current_selection(self._state)
+
+    def _drop_plan_for_new_characterization(self) -> None:
+        """Drop the sealed plan before the characterization it was built from changes.
+
+        Both controls can be pressed after a plan exists, so the plan and the
+        bundle behind it describe the other record. The workflow is moved first,
+        so a refusal to move (an apply in flight owns that transition) leaves the
+        characterization as it was.
+        """
+        self._transition(self._controller.invalidate_preview)
+        self._state.invalidate_seal()
+        self._sealed_plan = None
 
     def open_calibration(self) -> ActionOutcome[DisplaySelection]:
         """Open the calibration view. It reads state and changes none of it."""

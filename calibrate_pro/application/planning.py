@@ -55,6 +55,7 @@ def build_apply_plan(
     method: CalibrationMethod,
     preset_id: str,
     output_files: tuple[str, ...],
+    characterization: str | None = None,
 ) -> ApplyPlan:
     """Build the proposal for one generated bundle."""
     gamut, white_point, tone_response = target_for(preset_id)
@@ -65,7 +66,13 @@ def build_apply_plan(
         target_gamma=tone_response,
         target_gamut=gamut,
         output_files=output_files,
+        characterization=characterization,
     )
+
+
+def characterization_text(generated: GeneratedAssets) -> str:
+    """Name the record a bundle was built from, as the preview prints it."""
+    return f"{generated.panel_name} ({generated.characterization_kind.value})"
 
 
 class PlanNotActuatable(ValueError):
@@ -129,6 +136,7 @@ def build_actuating_plan(
         dwm_lut_kind=DwmLutKind.SDR if use_cube else None,
         dwm_lut_sha256=staged.dwm_lut_sha256 if use_cube else None,
         output_files=output_files,
+        characterization=characterization_text(generated),
     )
 
 
@@ -174,6 +182,7 @@ __all__ = [
     "PlanNotActuatable",
     "build_actuating_plan",
     "build_apply_plan",
+    "characterization_text",
     "output_filenames",
     "plan_digest",
     "restrict_assets",

@@ -637,14 +637,27 @@ def _verified_export_source(context: ActionContext) -> bool:
     )
 
 
+#: The characterizations the generic and declaration controls are offered over.
+#: Nothing, an unknown display, and either record the operator chose themselves,
+#: so the choice can be changed in a held session. A matched record and an
+#: instrument run are absent on purpose: replacing a reading, or a record the
+#: database holds for the product, with a description should be an explicit
+#: act and never a side effect of pressing a control.
+OPERATOR_CHOSEN_KINDS: frozenset[CharacterizationKind | None] = frozenset(
+    {
+        None,
+        CharacterizationKind.UNKNOWN,
+        CharacterizationKind.EXPLICIT_GENERIC,
+        CharacterizationKind.EDID_DECLARED,
+    }
+)
+
+
 def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
     if action_id == "calibration.open_for_display":
         return context.selected_display_id is not None
     if action_id == "display.characterization.use_generic":
-        return context.selected_display_id is not None and context.characterization_kind in {
-            None,
-            CharacterizationKind.UNKNOWN,
-        }
+        return context.selected_display_id is not None and context.characterization_kind in OPERATOR_CHOSEN_KINDS
     if action_id == "display.characterization.use_edid":
         # Offered from the same standing as the generic record, and for the
         # same reason: a display nothing matched is a display the operator has
@@ -654,11 +667,7 @@ def _conditional_allowed(action_id: str, context: ActionContext) -> bool:
         return (
             context.selected_display_id is not None
             and context.edid_declaration_available
-            and context.characterization_kind
-            in {
-                None,
-                CharacterizationKind.UNKNOWN,
-            }
+            and context.characterization_kind in OPERATOR_CHOSEN_KINDS
         )
     if action_id == "workflow.select_display":
         return context.selected_display_id is not None

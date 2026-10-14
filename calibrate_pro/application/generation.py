@@ -26,6 +26,7 @@ from calibrate_pro.application.measurement import MeasuredCharacterization
 from calibrate_pro.application.planning import (
     DEFAULT_ASSET_FORMATS,
     build_apply_plan,
+    characterization_text,
     output_filenames,
     plan_digest,
 )
@@ -38,8 +39,8 @@ from calibrate_pro.panels.panel_types import PanelCharacterization
 from calibrate_pro.workflow import ApplyPlan, CalibrationMethod
 
 #: Build the plan one generated bundle belongs to. The publishing builder
-#: ignores the bundle because it requests nothing; an applying builder reads it
-#: to decide which routes would change an output code.
+#: reads the bundle only to name the record it was built from; an applying
+#: builder also reads it to decide which routes would change an output code.
 PlanBuilder = Callable[[str, CalibrationMethod, str, tuple[str, ...], GeneratedAssets], ApplyPlan]
 
 
@@ -51,12 +52,12 @@ def publishing_plan(
     generated: GeneratedAssets,
 ) -> ApplyPlan:
     """Build the plan that names files and requests no capability."""
-    _ = generated
     return build_apply_plan(
         display_id=display_id,
         method=method,
         preset_id=preset_id,
         output_files=filenames,
+        characterization=characterization_text(generated),
     )
 
 
