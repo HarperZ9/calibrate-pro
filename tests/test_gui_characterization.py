@@ -30,7 +30,7 @@ from tests.conftest import active_window
 from tests.fake_acceptance_support import journal_records
 
 #: What the manifest says when the session already holds a characterization.
-ALREADY_CHARACTERIZED = "Generic characterization is available only for an uncharacterized selected display."
+ALREADY_CHARACTERIZED = "Generic characterization is available only while the selected display has no matched panel record and no measurement."
 
 
 @pytest.fixture
@@ -118,7 +118,8 @@ def test_taking_the_generic_path_journals_it_and_opens_the_method(unmatched_wind
         "display.characterization.use_generic",
     ]
     assert window.calibrate_page._mode_sensorless.isEnabled()
-    assert not window.dashboard.use_generic_btn.isEnabled()
+    # The control stays open: the operator's own choice can be changed later.
+    assert window.dashboard.use_generic_btn.isEnabled()
 
 
 def test_the_generic_session_runs_the_workflow_through_to_a_confirmed_plan(unmatched_window: object) -> None:

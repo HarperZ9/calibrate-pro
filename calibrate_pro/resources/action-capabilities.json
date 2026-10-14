@@ -1216,7 +1216,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Generic characterization is available only for an uncharacterized selected display."
+      "unavailable_reason": "Generic characterization is available only while the selected display has no matched panel record and no measurement."
     },
     {
       "action_id": "display.characterization.use_edid",
@@ -1245,7 +1245,7 @@
         "none"
       ],
       "unavailable_disposition": "disabled",
-      "unavailable_reason": "Accepting a display's own declaration requires an uncharacterized selected display that declared one."
+      "unavailable_reason": "Accepting a display's own declaration requires a selected display that declared one and has no matched panel record and no measurement."
     },
     {
       "action_id": "display.detect",

@@ -78,8 +78,19 @@ class ApplyPlan:
     dwm_lut_sha256: str | None = None
     clear_existing_lut: bool = False
     output_files: tuple[str, ...] = ()
+    #: The panel record and characterization kind the bundle was built from, in
+    #: the words the preview prints under the digest. Carried on the plan so the
+    #: digest covers it: two previews that differ only in which record they were
+    #: built from seal different digests. None for a plan not built from a
+    #: generated bundle.
+    characterization: str | None = None
 
     def __post_init__(self) -> None:
+        if self.characterization is not None:
+            if type(self.characterization) is not str:
+                raise TypeError("characterization must be an exact string or None")
+            if not self.characterization.strip():
+                raise ValueError("characterization must be non-empty when given")
         for name, text_value in (
             ("display_id", self.display_id),
             ("target_whitepoint", self.target_whitepoint),

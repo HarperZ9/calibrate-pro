@@ -74,9 +74,7 @@ MEASURED_METHOD = "calibration.method.measured"
 #: The manifest's own sentence for a declaration control that cannot be used.
 #: Read from the resource rather than paraphrased, because it is what the
 #: operator sees under a disabled control and after attempting the action.
-DECLARATION_UNAVAILABLE = (
-    "Accepting a display's own declaration requires an uncharacterized selected display that declared one."
-)
+DECLARATION_UNAVAILABLE = "Accepting a display's own declaration requires a selected display that declared one and has no matched panel record and no measurement."
 
 #: What the session says when the control was pressed against a display that
 #: declared nothing this build could read.
@@ -386,22 +384,23 @@ def test_use_edid_is_refused_when_the_display_declared_nothing() -> None:
     assert resolved.reason == DECLARATION_UNAVAILABLE
 
 
-def test_use_edid_is_refused_once_the_display_is_already_characterized() -> None:
-    """Every sourced characterization closes it, including a declaration already taken.
+def test_use_edid_stays_closed_over_a_matched_record_and_an_instrument_run() -> None:
+    """A record the database holds, or a reading, is never replaced by a declaration.
 
     A control that stayed open would let a session that measured its display
-    replace the reading with the manufacturer's claim about the model.
+    replace the reading with the manufacturer's claim about the model. The
+    operator's own earlier choices (the generic record, a declaration already
+    taken) are open, so a held session can change its mind.
     """
-    for kind in (
-        CharacterizationKind.MATCHED,
-        CharacterizationKind.EXPLICIT_GENERIC,
-        CharacterizationKind.EDID_DECLARED,
-        CharacterizationKind.MEASURED,
-    ):
+    for kind in (CharacterizationKind.MATCHED, CharacterizationKind.MEASURED):
         resolved = REGISTRY.resolve(USE_EDID, action_context(characterization_kind=kind))
 
         assert resolved.disposition is ActionDisposition.DISABLED, kind
         assert resolved.reason == DECLARATION_UNAVAILABLE, kind
+    for kind in (CharacterizationKind.EXPLICIT_GENERIC, CharacterizationKind.EDID_DECLARED):
+        resolved = REGISTRY.resolve(USE_EDID, action_context(characterization_kind=kind))
+
+        assert resolved.disposition is ActionDisposition.ENABLED, kind
 
 
 def test_sensorless_characterizations_are_the_three_sourced_kinds() -> None:
@@ -581,9 +580,8 @@ def test_the_declared_plan_is_not_the_plan_the_generic_record_produces(
     `--edid` run that quietly used the generic record would report the generic
     run's zero.
 
-    The plan digest is not compared. It covers the display, the method, the
-    target labels and the output filenames, and no preview asset digests exist
-    yet, so both runs seal the same digest with different corrections behind it.
+    The plan digests differ too, since the plan carries the characterization.
+    That gate lives in test_plan_digest_covers_characterization.py.
     """
     declared_service, _declared_state = build_session(
         tmp_path / "declared",
