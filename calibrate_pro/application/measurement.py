@@ -161,12 +161,63 @@ class MeasuredCharacterization:
     #: depends on it, so a report without it cannot be reproduced.
     patch_geometry: str
 
+    def __post_init__(self) -> None:
+        """Refuse a record no run could have produced.
+
+        ``measure_characterization`` refuses an unusable run before it builds
+        this value. These checks give the record the same floor, so one
+        assembled by hand cannot carry the MEASURED label over numbers the run
+        would have rejected.
+        """
+        _require_record(self)
+
     @property
     def summary(self) -> str:
         """One line naming the instrument and what it read."""
         white = f"{self.white_luminance:.1f} cd/m2"
         gamma = "/".join(f"{value:.2f}" for value in self.gamma)
         return f"{self.instrument}: {self.patch_count} patches, white {white}, gamma {gamma}, {self.patch_geometry}"
+
+
+def _finite(value: object) -> bool:
+    return type(value) in {int, float} and math.isfinite(value)  # type: ignore[arg-type]
+
+
+def _require_record(record: MeasuredCharacterization) -> None:
+    """Check every field of a measured record against what a usable run yields."""
+    if type(record.panel) is not PanelCharacterization:
+        raise TypeError("panel must be a PanelCharacterization")
+    for name in ("instrument", "patch_geometry"):
+        value = getattr(record, name)
+        if type(value) is not str or not value.strip():
+            raise MeasurementRefused(f"a measured record needs a non-empty {name}")
+    if type(record.steps) is not int or record.steps < MINIMUM_RAMP_STEPS or record.steps % 2 == 0:
+        raise MeasurementRefused(f"a measured record needs an odd step count of at least {MINIMUM_RAMP_STEPS}")
+    if type(record.patch_count) is not int or record.patch_count < 1:
+        raise MeasurementRefused("a measured record needs a positive patch count")
+    if not _finite(record.white_luminance) or record.white_luminance < MINIMUM_WHITE_LUMINANCE:
+        raise MeasurementRefused(
+            f"white measured {record.white_luminance}, below the {MINIMUM_WHITE_LUMINANCE} floor a lit display clears"
+        )
+    if not _finite(record.black_luminance) or record.black_luminance < 0.0:
+        raise MeasurementRefused(f"black measured {record.black_luminance}, which is not a light level")
+    if record.contrast_ratio is not None and (not _finite(record.contrast_ratio) or record.contrast_ratio <= 0.0):
+        raise MeasurementRefused(f"contrast {record.contrast_ratio} is not a ratio of two light levels")
+    if type(record.white_xy) is not tuple or len(record.white_xy) != 2 or not all(_finite(c) for c in record.white_xy):
+        raise MeasurementRefused("the measured white point was not a finite pair of coordinates")
+    if type(record.gamma) is not tuple or len(record.gamma) != 3:
+        raise MeasurementRefused("a measured record needs one gamma per channel")
+    for name, value in zip(("red", "green", "blue"), record.gamma, strict=True):
+        if not _finite(value) or not MINIMUM_GAMMA <= value <= MAXIMUM_GAMMA:
+            raise MeasurementRefused(f"{name} gamma measured {value}, outside the band a display responds in")
+    primaries = record.panel.native_primaries
+    area = _triangle_area(
+        (primaries.red.x, primaries.red.y),
+        (primaries.green.x, primaries.green.y),
+        (primaries.blue.x, primaries.blue.y),
+    )
+    if area < MINIMUM_GAMUT_AREA:
+        raise MeasurementRefused(f"the measured primaries enclose {area:.4f}, too little to be three separate colours")
 
 
 def _default_settle() -> None:

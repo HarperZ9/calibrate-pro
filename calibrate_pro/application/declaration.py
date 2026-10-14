@@ -78,6 +78,40 @@ class DeclaredCharacterization:
     white_xy: tuple[float, float]
     gamma: float
 
+    def __post_init__(self) -> None:
+        """Refuse a record the module documents as impossible.
+
+        ``declared_from`` is the front door and refuses the same values with
+        wording about the descriptor. These checks make the record defend
+        itself, so one assembled by hand cannot carry a collapsed gamut into
+        the engine or a provenance that does not describe its own panel.
+        """
+        if type(self.panel) is not PanelCharacterization:
+            raise TypeError("panel must be a PanelCharacterization")
+        if type(self.provenance) is not str:
+            raise TypeError("provenance must be a string")
+        corners = {
+            "red": self.red_xy,
+            "green": self.green_xy,
+            "blue": self.blue_xy,
+            "white": self.white_xy,
+        }
+        for name, corner in corners.items():
+            _require_finite_pair(corner, name)
+        _require_gamut_area(_triangle_area(self.red_xy, self.green_xy, self.blue_xy))
+        _require_gamma(self.gamma, f"{self.gamma}")
+        vendor, model = declared_label(self.provenance)
+        primaries = self.panel.native_primaries
+        if (
+            (self.panel.manufacturer, self.panel.model_pattern) != (vendor, model)
+            or (primaries.red.x, primaries.red.y) != self.red_xy
+            or (primaries.green.x, primaries.green.y) != self.green_xy
+            or (primaries.blue.x, primaries.blue.y) != self.blue_xy
+            or (primaries.white.x, primaries.white.y) != self.white_xy
+            or self.panel.gamma_red.gamma != self.gamma
+        ):
+            raise DeclarationRefused("the declared provenance and numbers do not describe the panel record they label")
+
     @property
     def summary(self) -> str:
         """One line naming the source and the gamut it declared."""
@@ -130,6 +164,23 @@ def _triangle_area(a: tuple[float, float], b: tuple[float, float], c: tuple[floa
     return abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2.0
 
 
+def _require_finite_pair(pair: object, name: str) -> None:
+    if type(pair) is not tuple or len(pair) != 2:
+        raise DeclarationRefused(f"the declared {name} chromaticity was not a pair of numbers")
+    if not all(isinstance(c, (int, float)) and math.isfinite(c) for c in pair):
+        raise DeclarationRefused(f"the declared {name} chromaticity was not finite")
+
+
+def _require_gamut_area(area: float) -> None:
+    if area < MINIMUM_GAMUT_AREA:
+        raise DeclarationRefused(f"the declared primaries enclose {area:.4f}, too little to be three separate colours")
+
+
+def _require_gamma(gamma: float, shown: str) -> None:
+    if not isinstance(gamma, (int, float)) or not math.isfinite(gamma) or not MINIMUM_GAMMA <= gamma <= MAXIMUM_GAMMA:
+        raise DeclarationRefused(f"the declared gamma is {shown}, outside the band a display responds in")
+
+
 def declared_from(base: PanelCharacterization, characterization: DeclaredContract) -> DeclaredCharacterization:
     """Build the record a declaration describes, refusing one that describes nothing.
 
@@ -155,16 +206,14 @@ def declared_from(base: PanelCharacterization, characterization: DeclaredContrac
     blue = _coordinate(characterization.blue_xy, "blue")
     white = _coordinate(characterization.white_xy, "white")
     area = _triangle_area(red, green, blue)
-    if area < MINIMUM_GAMUT_AREA:
-        raise DeclarationRefused(f"the declared primaries enclose {area:.4f}, too little to be three separate colours")
+    _require_gamut_area(area)
 
     raw_gamma = characterization.nominal_gamma
     try:
         gamma = float(raw_gamma) if raw_gamma is not None else float("nan")
     except (TypeError, ValueError) as exc:
         raise DeclarationRefused("the declared gamma was not a number") from exc
-    if not math.isfinite(gamma) or not MINIMUM_GAMMA <= gamma <= MAXIMUM_GAMMA:
-        raise DeclarationRefused(f"the declared gamma is {raw_gamma}, outside the band a display responds in")
+    _require_gamma(gamma, f"{raw_gamma}")
 
     vendor, model = declared_label(characterization.provenance)
     # ``panel_type`` is not replaced. The descriptor says nothing about panel
