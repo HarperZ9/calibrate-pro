@@ -31,6 +31,12 @@ calibrate-pro gui
 
 Install from the Windows release build or run from source with `pip install -e ".[all]"`. Those four names answer in both. The packaged binary ships a subset of the command line and refuses the rest by saying they are in the developer wheel, so the two lists are kept apart under [Usage](#usage) rather than presented as one surface.
 
+## See it work, step by step
+
+The [animated explainer](https://harperz9.github.io/repo-explainers/calibrate-pro.html)
+walks through the doctor, detection and closed actions, targets, a modelled before-and-after for a panel record, a sealed bundle that catches an edited LUT, and the confirm-first display workflow. Every value on it is output from this repository. Its
+source is [docs/explainer/index.html](docs/explainer/index.html).
+
 ## Why it matters
 
 Display color is part of the creative pipeline. If the screen is wrong, every design, render, photo, video grade, and model-generated visual can be judged against a bad reference. Calibrate Pro gives a practical path to better display behavior, records what changed, and keeps verification close to the profile.
