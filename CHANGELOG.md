@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- The preview plan digest now covers the characterization the bundle was built
+  from. `ApplyPlan` carries it as a field, so `--edid` and `--generic` previews
+  over one display seal different digests. Digests of plans sealed by earlier
+  versions do not match the same plan under this one.
+- In a held session the generic record and the EDID declaration can be swapped
+  for each other. Both controls are offered over no characterization, an unknown
+  one, the generic record and a declaration, and never over a matched panel
+  record or an instrument run. Changing the characterization drops the sealed
+  plan.
+- `DeclaredCharacterization` and `MeasuredCharacterization` validate themselves
+  at construction. A record built by hand with a collapsed gamut, an
+  out-of-band gamma or a provenance that does not describe its panel raises the
+  product's own refusal instead of reaching the engine or a manifest.
+- Tests: the generic base, the declaration note and the gamut-area floor are now
+  pinned by gates that fail against a wrong implementation.
+
 ## v2.0.1 (2026-10-04)
 
 - Security: the sensorless library path no longer grants itself hardware consent.
