@@ -166,8 +166,8 @@ footer.foot p{max-width:70ch;margin:0 0 .6rem}
     <p>If your screen shows colour wrong, every photo, grade and render you judge on it is judged against a bad reference. calibrate-pro finds your displays, plans a correction toward a target such as sRGB or DCI-P3, writes an ICC profile and a 3D LUT, and reports how close the result should be. Each figure says whether it was measured with an instrument or estimated from a panel record, and nothing changes on your display until you confirm an exact preview.</p>
   </div>
   <ul class="uses">
-    <li><b>Evidence labels</b>Values read measured, estimated, simulated, replayed or Not measured.</li>
-    <li><b>Preview, then confirm</b>A display change needs an exact preview and an explicit yes; declining writes nothing.</li>
+    <li><b>Evidence labels</b>Each value carries a label for its source: measured with an instrument, estimated from a panel record, simulated, or replayed.</li>
+    <li><b>Preview, then confirm</b>A display change shows its exact preview and waits for your yes before it writes.</li>
     <li><b>Sealed output</b>Profiles and LUTs are published with a manifest of SHA-256 hashes you can recheck.</li>
     <li><b>58 panel records</b>Characterized primaries and gamma for common monitors, plus a generic fallback.</li>
   </ul>
@@ -197,12 +197,12 @@ footer.foot p{max-width:70ch;margin:0 0 .6rem}
     <ol class="steps">
       <li class="step" tabindex="-1" data-scene="k0" data-state="s"><div class="card">
         <span class="num">01</span><h3>Ask what this install can do</h3>
-        <p><code>calibrate-pro doctor</code> reports versions and which capabilities the installation supports: colorimeter over HID, DDC/CI, gamma ramps and ICC profiles. It probes no display, sensor or bus, and it says so, so none of its lines claims a device is present.</p>
+        <p><code>calibrate-pro doctor</code> reports versions and which capabilities the installation supports: colorimeter over HID, DDC/CI, gamma ramps and ICC profiles. It reads the installation itself, leaves displays, sensors and buses alone, and says so in its output.</p>
         <p class="src">Source: <a href="https://github.com/HarperZ9/calibrate-pro/blob/6e983bb2fd41bd4925569864a3ceb903a43c7468/calibrate_pro/commands/doctor.py">calibrate_pro/commands/doctor.py</a></p>
       </div></li>
       <li class="step" tabindex="-1" data-scene="k1" data-state="s"><div class="card">
         <span class="num">02</span><h3>Find the display, and what is closed</h3>
-        <p><code>detect</code> lists the displays the machine presents and where each characterization comes from. The test display matched no panel record. <code>status</code> then lists every action and its state: 27 of 97 are available at this stage, and each closed one carries its reason.</p>
+        <p><code>detect</code> lists the displays the machine presents and where each characterization comes from. The test display is absent from the panel records. <code>status</code> then lists every action and its state: 27 of 97 are available at this stage, and each closed one carries its reason.</p>
         <p class="src">Source: <a href="https://github.com/HarperZ9/calibrate-pro/blob/6e983bb2fd41bd4925569864a3ceb903a43c7468/calibrate_pro/application">calibrate_pro/application</a>, <a href="https://github.com/HarperZ9/calibrate-pro/blob/6e983bb2fd41bd4925569864a3ceb903a43c7468/calibrate_pro/workflow.py">calibrate_pro/workflow.py</a></p>
       </div></li>
       <li class="step" tabindex="-1" data-scene="k2" data-state="s"><div class="card">
@@ -213,7 +213,7 @@ footer.foot p{max-width:70ch;margin:0 0 .6rem}
       <li class="step" tabindex="-1" data-scene="k3" data-state="s"><div class="card">
         <span class="num">04</span><h3>Predict the error before and after</h3>
         <p>The Dell AW3423DW record is a QD-OLED with primaries far wider than sRGB. The sensorless engine simulates the 24 ColorChecker patches through the full chain, once with no correction and once with the computed 3 by 3 matrix. Average error falls from 3.62 to 0.65 dE2000, and the worst patch from 6.64 to 2.92.</p>
-        <p>These are predictions from the panel record. No display was measured, and the label says estimated.</p>
+        <p>These are predictions from the panel record, and the label says estimated.</p>
         <p class="src">Source: <a href="https://github.com/HarperZ9/calibrate-pro/blob/6e983bb2fd41bd4925569864a3ceb903a43c7468/calibrate_pro/sensorless/neuralux.py">calibrate_pro/sensorless/neuralux.py</a>, <code>verify_calibration</code></p>
       </div></li>
       <li class="step" tabindex="-1" data-scene="k4" data-state="s"><div class="card">
@@ -223,8 +223,8 @@ footer.foot p{max-width:70ch;margin:0 0 .6rem}
       </div></li>
       <li class="step" tabindex="-1" data-scene="k5" data-state="s"><div class="card">
         <span class="num">06</span><h3>A display change needs your yes</h3>
-        <p>The terminal reads and plans, and writes only files you name. Changing the display happens in the window: Detect, Method, Preview, Apply, Verify, then Save or Report. The app starts unelevated, shows the exact change first, and declining performs no write.</p>
-        <p>This step is described from the README; the window was not driven for this page.</p>
+        <p>The terminal reads, plans and writes the files you name. Changing the display happens in the window: Detect, Method, Preview, Apply, Verify, then Save or Report. The app starts with standard user rights, shows the exact change first, and writes after you confirm.</p>
+        <p>This step follows the README's description of the window.</p>
         <p class="src">Source: README.md, "Current status" and "What to test first"</p>
       </div></li>
     </ol>
@@ -233,7 +233,7 @@ footer.foot p{max-width:70ch;margin:0 0 .6rem}
 
 <section class="block wrap" aria-labelledby="try">
   <h2 id="try">Try it</h2>
-  <div class="measure"><p>From source on Windows 10 or 11 with Python 3.10 or newer, or from the Windows release build. These commands read and plan; the last one writes files only into <code>out</code>.</p></div>
+  <div class="measure"><p>From source on Windows 10 or 11 with Python 3.10 or newer, or from the Windows release build. These commands read and plan; the last one writes its files into <code>out</code>.</p></div>
 <pre class="cmd"><code>$ git clone https://github.com/HarperZ9/calibrate-pro && cd calibrate-pro
 $ pip install -e ".[all]"
 $ calibrate-pro doctor
@@ -245,11 +245,11 @@ $ calibrate-pro profiles out</code></pre>
 </section>
 
 <section class="block wrap" aria-labelledby="limits">
-  <h2 id="limits">What it does not do</h2>
+  <h2 id="limits">Scope</h2>
   <ul class="limits">
-    <li>Sensorless figures are predictions from a panel record. Your unit can differ from the record; only an instrument establishes the result.</li>
+    <li>Sensorless figures are predictions from a panel record. Your unit can differ from the record; measure it with an instrument to establish the result.</li>
     <li>The modelled figure covers gamut reproduction. Tone response is outside it, so measure to establish grey tracking.</li>
-    <li>Windows only. The 2.0.1 artifacts are not Authenticode-signed, so check the download against SHA256SUMS.txt.</li>
+    <li>Runs on Windows. Check the 2.0.1 download against SHA256SUMS.txt, since the artifacts carry hashes in place of an Authenticode signature.</li>
     <li>Hybrid calibration, which would mix a panel record with an instrument run, stays disabled.</li>
   </ul>
   <p class="src">Source: README.md at 6e983bb, "Install" and "Current status"; verify command output</p>
@@ -258,8 +258,8 @@ $ calibrate-pro profiles out</code></pre>
 <section class="block wrap recall" aria-labelledby="recall">
   <h2 id="recall">Check what stuck</h2>
   <p class="measure">Answer each one in your head before you open it.</p>
-  <details><summary>Which command reports capabilities without probing any device?</summary><p>calibrate-pro doctor.</p></details>
-  <details><summary>The AW3423DW prediction drops to 0.65 dE2000. What label does it carry?</summary><p>Estimated: it comes from the panel record, and no display was measured.</p></details>
+  <details><summary>Which command reports capabilities while leaving every device alone?</summary><p>calibrate-pro doctor.</p></details>
+  <details><summary>The AW3423DW prediction drops to 0.65 dE2000. What label does it carry?</summary><p>Estimated: it comes from the panel record.</p></details>
   <details><summary>Someone edits the LUT after publishing. What does the recheck say?</summary><p>CHANGED, naming Calibrate_Pro.cube.</p></details>
 </section>
 </main>
