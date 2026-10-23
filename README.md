@@ -1,97 +1,110 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-dark.svg">
-  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-light.svg" alt="calibrate-pro: Calibrate Windows displays: profiles, LUTs, and verification reports. Parallel rays pass through a lens drawn in fine lines, gather at a bright core and spread out past it." width="100%">
+  <img src="https://raw.githubusercontent.com/HarperZ9/calibrate-pro/v2.0.1/docs/art/hero-light.svg" alt="calibrate-pro: display calibration for Windows. Parallel rays pass through a lens drawn in fine lines, gather at a bright core and spread out past it." width="100%">
 </picture>
 
 # calibrate-pro
 
-Calibrate Windows displays: profiles, LUTs, and verification reports.
-
-```
-calibrate-pro doctor
-```
+Calibrate a Windows monitor with or without a colorimeter. Calibrate Pro builds an ICC profile and a 3D LUT for the target you choose, adjusts the monitor's own controls over DDC/CI, and marks each accuracy figure as measured or estimated.
 
 [![version: 2.0.1](https://img.shields.io/badge/version-2.0.1-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/releases/latest)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-FSL--1.1--MIT-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/blob/main/LICENSE)
 ![python 3.10+](https://img.shields.io/badge/python-3.10%2B-e6e1d6?style=flat-square&labelColor=1a1712)
 
-[Project Telos](https://harperz9.github.io) | [gather](https://github.com/HarperZ9/gather) | [crucible](https://github.com/HarperZ9/crucible) | [index](https://github.com/HarperZ9/index) | [forum](https://github.com/HarperZ9/forum) | [telos](https://github.com/HarperZ9/telos) | [calibrate-pro](https://github.com/HarperZ9/calibrate-pro)
-
-Calibrate Pro is a Windows display-calibration toolkit for characterized and measured workflows. It combines display discovery, calibration targets, DDC/CI, ICC/VCGT and LUT tooling, and evidence-labelled reports behind one preview-and-confirm workflow. Sensorless values are explicitly labelled as estimates; measured values require an instrument and retain their evidence source.
-
 ## Try it
 
 ```bash
+pip install "calibrate-pro[gui]"
 calibrate-pro doctor
 calibrate-pro detect
-calibrate-pro status
+calibrate-pro verify --target srgb_web
 calibrate-pro gui
 ```
 
-Install from the Windows release build or run from source with `pip install -e ".[all]"`. Those four names answer in both. The packaged binary ships a subset of the command line and refuses the rest by saying they are in the developer wheel, so the two lists are kept apart under [Usage](#usage) rather than presented as one surface.
+`doctor` checks the install and probes no hardware. `detect` lists your displays and says whether each one matched a record in the panel database. `verify` builds a correction toward sRGB in memory and prints the predicted error before and after it, in dE2000. If `detect` reports `no_panel_match`, add `--edid` to build from the primaries and gamma your monitor declares about itself, or `--generic` for a nominal sRGB record. None of these four commands changes your display. `gui` opens the desktop window, which is where a correction gets applied.
 
-## See it work, step by step
+You need Python 3.10 or newer on Windows 10 or 11. Without `[gui]`, `doctor` reports the missing Qt binding and the window will not start. Add `[sensor]` for colorimeter support.
 
-The [animated explainer](https://harperz9.github.io/repo-explainers/calibrate-pro.html)
-walks through the doctor, detection and closed actions, targets, a modelled before-and-after for a panel record, a sealed bundle that catches an edited LUT, and the confirm-first display workflow. Every value on it is output from this repository. Its
-source is [docs/explainer/index.html](docs/explainer/index.html).
+## What it does
 
-## Why it matters
+- **Calibrates without an instrument.** The panel database holds characterizations for 58 monitor models. For a monitor it does not list, Calibrate Pro can use the primaries and gamma from the monitor's EDID. Every result from this path is labelled *estimated*, because the numbers describe the model of monitor and say nothing certain about the unit on your desk.
+- **Calibrates with an instrument.** A built-in USB driver reads the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display) with no ArgyllCMS install. A measured run happens in the window. It refuses to start while a gamma-table correction is already loaded on the display.
+- **Targets.** Presets for sRGB, Rec.709 (BT.1886), DCI-P3 and a D50 photography target. You can also compose a target from 11 gamuts, a white point and a tone response; `calibrate-pro list-targets` prints them.
+- **Output.** Each calibration writes an ICC v4 profile, a 33-point `.cube` 3D LUT, and a manifest of SHA-256 hashes. `calibrate-pro profiles <dir>` re-reads the manifest and reports any file that changed since it was written.
+- **Applying a correction.** The window shows the exact plan and asks you to confirm it. It saves the display's prior state first so the change can be undone. In 2.0.1 it applies the per-channel gamma-ramp part of a correction and attaches the ICC profile. It does not apply a system-wide 3D LUT yet, so a gamut correction stays a `.cube` file for applications that load LUTs, such as DaVinci Resolve or OBS.
+- **Monitor controls over DDC/CI.** Read and set brightness, contrast, RGB gain and RGB black level, each checked against the range the monitor reports. `ddc-calibrate` stages the change and writes only with `--confirm`.
+- **Windows colour management.** List, install, switch and remove ICC profiles per display. Each command that writes needs `--confirm`. On the Windows 11 Insider build 26220 used to test this README, reading the profile store failed, so these commands stopped before writing anything.
+- **Test patterns.** Ten full-screen patterns, PLUGE, white clip, grey ramp and colour bars among them, for setting brightness and contrast by eye.
 
-Display color is part of the creative pipeline. If the screen is wrong, every design, render, photo, video grade, and model-generated visual can be judged against a bad reference. Calibrate Pro gives a practical path to better display behavior, records what changed, and keeps verification close to the profile.
+Calibrate Pro runs on Windows only. HDR calibration is not available in 2.0.1: `calibrate-pro hdr` opens a window that prepares an HDR target, and the HDR presets in the calibration workflow stay disabled.
 
-## What to test first
+## Who it is for
 
-The terminal reads and plans, and it writes only files you name. A display change is
-proposed by the window and by nothing else.
+It suits people with a wide-gamut or OLED monitor who want sRGB and video content to look as intended. Photographers and editors get an ICC profile with a plain record of which figures came from an instrument. If you own a colorimeter and need many instrument types, or macOS and Linux, DisplayCAL covers more ground.
+
+## How it compares
+
+- **DisplayCAL with ArgyllCMS.** Free and open source, runs on Windows, macOS and Linux, and supports many more instruments. It needs an instrument. Calibrate Pro adds a sensorless mode and DDC/CI control, and supports one instrument family on Windows.
+- **Calman and LightSpace.** Commercial suites for studio and broadcast calibration, with broad instrument and pattern-generator support. Calibrate Pro does not aim at that workflow.
+- **novideo_srgb and GPU driver sRGB clamps.** These clamp a wide-gamut monitor to sRGB from its EDID primaries through the graphics driver. Calibrate Pro's sensorless mode starts from the same kind of data. It writes a profile and LUT you can inspect and reports the predicted error.
+- **Windows HDR Calibration.** Microsoft's app builds an HDR profile for Windows 11. Calibrate Pro 2.0.1 does not calibrate HDR.
+
+## Step by step
 
 - Run `calibrate-pro detect` for the displays this machine presents and the source of each characterization.
-- Run `calibrate-pro status` for the actions this session can run, each closed one carrying the reason it is closed.
-- Run `calibrate-pro verify --target srgb_web` to generate a sealed plan and read its predicted accuracy. The command prints the display's distance from the target with no correction applied beside the distance the generated correction leaves, so the pair says what the correction changed. Both figures are estimated from the panel characterization, and the command prints that beneath them.
+- Run `calibrate-pro status` for the actions this session can run, with the reason each unavailable one is unavailable.
+- Run `calibrate-pro verify --target srgb_web` to see the predicted error with no correction beside the error the generated correction leaves. Both figures are estimated from the panel characterization, and the command says so.
+- Run `calibrate-pro generate-profiles out --target srgb_web` to write the profile, LUT and manifest into `out` (add `--edid` or `--generic` here too for an unlisted monitor), then `calibrate-pro profiles out` to check them.
 - Launch `calibrate-pro gui`, select a display, and inspect the detected identity and available capabilities.
-- Choose a method and target, then review the exact plan before deciding whether to confirm any supported display change.
-- Complete the GUI workflow and inspect the evidence-labelled result or report; values remain estimated or **Not measured** unless they came from an instrument.
+- Choose a method and target, then review the exact plan before deciding whether to confirm any display change.
+- Read the result. Values stay estimated or **Not measured** unless they came from an instrument.
+
+The [animated explainer](https://harperz9.github.io/repo-explainers/calibrate-pro.html) walks through the same steps with output from this repository. Its source is [docs/explainer/index.html](docs/explainer/index.html).
 
 ### Reporting what you find
 
 Open a [bug report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=bug_report.yml)
 when the product did something other than what it said it would do, or a
 [display compatibility report](https://github.com/HarperZ9/calibrate-pro/issues/new?template=display_report.yml)
-for what worked and what refused on a specific monitor. A control that failed closed on a panel
-advertising it is worth reporting; so is a number that reads as a measurement when nothing was
-measured, which is a defect in this product whatever the number says.
+for what worked and what refused on a specific monitor. A control that refused on a monitor
+that advertises it is worth reporting. So is a number that reads as a measurement when nothing
+was measured.
 
 Both forms ask for `calibrate-pro doctor --json`. It reports installed versions and which
-capabilities are present, probes no hardware, and reads no display identity. For a suspected
-vulnerability use [Security Advisories](https://github.com/HarperZ9/calibrate-pro/security/advisories/new)
-instead of a public issue.
-
-## Current status
-
-- **Release:** Calibrate Pro 2.0.1; command `calibrate-pro`; Python 3.10+ on Windows 10/11; per-user installer and portable package.
-- **Operator surface:** a PySide6 desktop workflow, a headless session that detects, plans, and publishes sealed bundles, and read-only CLI diagnostics, target and panel listings, HDR status, and plugin discovery. Legacy mutation-capable CLI names are proposal-only and point to the window rather than changing display state.
-- **Safety boundary:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change requires an exact preview and explicit confirmation; rejection performs no write.
-- **Evidence boundary:** reports distinguish measured, estimated, simulated, replayed, and Not measured values instead of presenting model output as an observation.
+capabilities are present, probes no hardware, and reads no display identity. Report a suspected
+vulnerability through [Security Advisories](https://github.com/HarperZ9/calibrate-pro/security/advisories/new),
+where it stays private until a fix is out.
 
 ## Install
 
+- **Release:** Calibrate Pro 2.0.1; command `calibrate-pro`; Python 3.10+ on Windows 10/11; PyPI package, per-user installer and portable ZIP.
+- **Interfaces:** a PySide6 desktop window, and terminal commands that detect, plan, write calibration files and run the confirm-gated changes listed under [Usage](#usage).
+- **Workflow:** Detect -> Method -> Preview -> Apply -> Verify -> Save/Report. The application starts unelevated. A display change needs an exact preview and explicit confirmation, and declining writes nothing. Old one-step command names such as `calibrate` and `auto` are proposal-only and point to the window.
+
+### From PyPI
+
+```bash
+pip install "calibrate-pro[gui]"
+calibrate-pro doctor
+```
+
+Use `"calibrate-pro[gui,sensor]"` to add colorimeter support.
+
 ### Standalone (Windows)
 
-Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated; unavailable hardware or operating-system capabilities fail closed and are reported by `calibrate-pro doctor`.
+Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated, and `calibrate-pro doctor` reports any hardware or operating-system capability that is missing.
 
 The 2.0.1 Windows artifacts are not Authenticode-signed, so Windows may show a SmartScreen warning. Verify the downloaded file against the release's `SHA256SUMS.txt` before running it.
 
 ### From source
 
 ```bash
-git clone git@github.com:HarperZ9/calibrate-pro.git
+git clone https://github.com/HarperZ9/calibrate-pro.git
 cd calibrate-pro
 pip install -e ".[all]"
-calibrate-pro
+calibrate-pro gui
 ```
-
-Requires Python 3.10+ and Windows 10/11.
 
 ## Usage
 
@@ -107,7 +120,13 @@ calibrate-pro diagnostics                             # List what a support bund
 calibrate-pro doctor                                  # Read-only installation and capability diagnostics
 calibrate-pro list-targets                            # Targets a calibration can be aimed at, and the axes behind them
 calibrate-pro doctor --json                           # Stable machine-readable diagnostics
-calibrate-pro hdr                                     # Open the HDR proposal application
+calibrate-pro hdr                                     # Open the HDR target window
+calibrate-pro ddc-info                                # Read the monitor's own controls over DDC/CI
+calibrate-pro ddc-calibrate --brightness 40           # Stage a DDC/CI change; add --confirm to write it
+calibrate-pro system-profiles                         # Read what Windows colour management holds for a display
+calibrate-pro install-profile out                     # Stage a profile install; add --confirm to write it
+calibrate-pro patterns                                # List the test patterns
+calibrate-pro show-pattern pluge                      # Hold one pattern full screen until Escape
 calibrate-pro gui                                     # Launch the calibration workflow
 ```
 
@@ -134,9 +153,9 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/USAG
 
 1. **Detects** the selected display and reports available capabilities.
 2. **Chooses** a sensorless or measured method and calibration target.
-3. **Previews** an immutable plan, including bounded DDC changes and SHA-256-bound external assets.
-4. **Confirms** the exact plan with a one-use confirmation before the first write.
-5. **Applies** only supported operations after capturing restorable prior state; failures trigger verified compensation.
+3. **Previews** the exact plan: any DDC/CI changes, and the profile and LUT files it will load, identified by SHA-256 hash.
+4. **Confirms** that plan with a confirmation that works once, before the first write.
+5. **Applies** the supported parts of the plan after saving the display's prior state. If a step fails, it puts that state back and checks it.
 6. **Verifies** the result and labels every performance value by evidence kind.
 7. **Saves** the approved profile, LUT, and/or report. Background guard behavior is monitor-and-notify only in 2.0.
 
@@ -157,19 +176,21 @@ A run opens a patch window on the selected display and walks four 17-step ramps,
 
 The package carries a USB HID driver for the X-Rite i1Display3 family (i1Display Pro, ColorMunki Display, Calibrite ColorChecker Display), which reads each unit's own calibration matrices from its EEPROM and needs no ArgyllCMS install. The device holds nine matrices for different display technologies, and the driver falls back to approximate constants when the EEPROM read fails.
 
-This is what a measured run reads the light through. Enumeration and connection are separate calls: the read-only capability probe walks USB descriptors and opens no device session, while opening the instrument runs the unit's own dark calibration, which costs the operator time and is asked for by name.
+This is what a measured run reads the light through. Install the `sensor` extra (hidapi) to use it. Enumeration and connection are separate calls: the read-only capability probe walks USB descriptors and opens no device session, while opening the instrument runs the unit's own dark calibration, which costs the operator time and is asked for by name.
 
 ## Supported Displays
 
-59 characterized panels with DDC/CI recommendations:
+59 characterized panels: 58 monitor models and the generic sRGB record, which is counted under IPS.
 
-- **QD-OLED (17)**: ASUS PG27UCDM, Samsung G6/G7/G8/G9, Dell AW3423DW/DWF/AW2725DF/AW3225QF, MSI 321URX
-- **WOLED (10)**: LG C2/C3/C4/G4, ASUS PG27AQDP/PG34WCDM, LG 34GS95QE
-- **IPS (21)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X
+- **QD-OLED (17)**: ASUS PG27UCDM/PG32UCDM, Samsung Odyssey OLED G6/G8/G9, Dell AW3423DW/DWF/AW2725DF/AW3225QF, MSI MPG 321URX, Sony BRAVIA A95L
+- **WOLED (10)**: LG C2/C3/C4/G4, LG UltraGear 27GR95QE/32GS95UE/34GS95QE, ASUS PG27AQDP/PG34WCDM, Corsair Xeneon 27QHD240
+- **IPS (21)**: Dell U2723QE/U3224KB, ASUS ProArt PA279CRV, BenQ SW271C/SW272U, EIZO CS2740/CG2700X, Sony INZONE M9
 - **Nano-IPS (2)**: LG UltraGear 27GP950-B, LG UltraGear 27GP850-B
-- **Mini-LED (4)**: ASUS PG32UCDM, Apple Pro Display XDR
-- **VA (3)**: Samsung Odyssey G7, Sony INZONE M9
-- **OLED (2)**: ASUS ProArt PA32DC
+- **Mini-LED (4)**: ASUS ProArt PA32UCG/PA32UCXR, AOC AGON Pro AG274QXM, Apple Pro Display XDR
+- **VA (3)**: Samsung Odyssey G7 (27-inch and ultrawide), Dell S2722DGM
+- **OLED (2)**: ASUS ProArt PA32DC, Philips Momentum 27E1N8900
+
+`calibrate-pro list-panels` prints the full list from a source install.
 
 A monitor the database does not name is held uncharacterized until you say what it
 stands on. The session offers the primaries and gamma the display declares in its EDID,
@@ -179,24 +200,22 @@ numbers describe the model rather than the unit on the desk.
 
 ## Output Files
 
+A calibration writes three files into the directory you choose:
+
 | File | Usage |
 |------|-------|
-| `.cube` | 33x33x33 3D LUT (DaVinci Resolve, OBS, any LUT app) |
-| `.clf` | ACES Common LUT Format (SMPTE ST 2136-1) |
-| `.icc` | ICC v4 profile (Windows/macOS color management) |
-| `.3dlut` | MadVR format |
-| `_reshade.png` | ReShade LUT texture |
-| `_specialk.png` | Special K LUT texture |
-| `_obs.cube` | OBS Studio LUT |
-| `_mpv.conf` | mpv player config snippet |
-| `_report.html` | Calibration report with CIE diagram, gamma curves, gamut coverage |
+| `Calibrate_Pro.icc` | ICC v4 profile for Windows colour management and colour-managed applications |
+| `Calibrate_Pro.cube` | 33x33x33 3D LUT for DaVinci Resolve, OBS and other applications that load `.cube` files |
+| `calibrate-pro-manifest.json` | SHA-256 hash of each file, with the panel, target and evidence kind |
+
+The LUT library in `calibrate_pro.core.lut_engine` can also write ACES `.clf`, MadVR `.3dlut`, ReShade and Special K PNG textures, an mpv config snippet and an OBS LUT from Python. The 2.0.1 calibration workflow produces only the three files above.
 
 ## Architecture
 
 ```
 calibrate_pro/
   core/           Color math, LUT engine, ICC v4 profiles
-  panels/         Display detection, 58-panel database, DDC recommendations
+  panels/         Display detection, 59-record panel database, DDC recommendations
   sensorless/     Sensorless calibration engine (Oklab/JzAzBz gamut mapping)
   calibration/    Native measurement loop, CCMX spectral correction
   hardware/       i1Display3 native USB, DDC/CI with retry + WMI fallback
@@ -204,7 +223,7 @@ calibrate_pro/
   verification/   12 patch sets (287 patches), grayscale tracking, PDF export
   services/       CalibrationGuard, GamutClamp, AppSwitcher, DriftMonitor
   gui/            PySide6 desktop workflow and read-only system tray
-  platform/       Windows (full) + macOS (planned)
+  platform/       Platform layer; Windows is the supported platform
 ```
 
 ## Color Science
@@ -249,4 +268,4 @@ python -m pytest
 
 ---
 
-Built by **[Zain Dana Harper](https://harperz9.github.io)** in Seattle: evidence-first tools that leave a re-checkable artifact behind. The full workbench is at [Project Telos](https://harperz9.github.io).
+Built by **[Zain Dana Harper](https://harperz9.github.io)** in Seattle. More tools at [harperz9.github.io](https://harperz9.github.io).
