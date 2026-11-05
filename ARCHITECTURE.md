@@ -12,7 +12,9 @@ calibrate_pro/
   core/             color math, profiles, LUT generation, transforms
   targets/          SDR/HDR calibration target definitions
   panels/           characterized-panel data and read-only detection
-  calibration/      instrument measurement and calibration algorithms
+  calibration/      instrument measurement and calibration algorithms; closed_loop/
+                    holds the display intent, the one-plan closed-loop controller,
+                    and the simulated panel and instrument its tests drive
   sensorless/       characterization-derived estimation algorithms
   verification/     evidence types, patch analysis, reports, PDF export
 

@@ -140,6 +140,7 @@
     "calibrate_pro.hardware.ddc_ci",
     "calibrate_pro.hardware.hardware_calibration",
     "calibrate_pro.hardware.i1display",
+    "calibrate_pro.hardware.mccs_caps",
     "calibrate_pro.hardware.measurement",
     "calibrate_pro.hardware.sensorless_calibration",
     "calibrate_pro.hardware.spectro",
