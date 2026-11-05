@@ -1,0 +1,34 @@
+{
+ "schema": "flywheel.publish-metadata-baseline/1",
+ "patterns": "generic only (check_publish_metadata GENERIC)",
+ "total": 25,
+ "files": {
+  "THIRD_PARTY_LICENSES/Qt-6.11.1-THIRD-PARTY-NOTICES.txt": {
+   "personal-email": 1
+  },
+  "docs/superpowers/plans/2026-07-10-calibrate-pro-1.1-pyside-packaging.md": {
+   "local-path": 13
+  },
+  "docs/superpowers/plans/2026-07-12-native-dark-workbench.md": {
+   "local-path": 1
+  },
+  "docs/superpowers/plans/2026-07-13-calibrate-pro-functional-recovery.md": {
+   "local-path": 1
+  },
+  "docs/superpowers/specs/2026-07-09-calibrate-pro-packaging-polish-design.md": {
+   "local-path": 2
+  },
+  "docs/superpowers/specs/2026-07-13-calibrate-pro-functional-recovery-design.md": {
+   "local-path": 1
+  },
+  "project-docs/assessments/ASSESSMENT-feature-completeness-2026-09-05.md": {
+   "local-path": 1
+  },
+  "project-docs/specs/SPEC-calibrate-pro-flagship-enterprise-2026-06-28.md": {
+   "local-path": 4
+  },
+  "scripts/build_windows.ps1": {
+   "local-path": 1
+  }
+ }
+}
