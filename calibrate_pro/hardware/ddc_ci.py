@@ -670,19 +670,11 @@ class DDCCIController:
 
         caps.raw_capabilities = caps_str.value.decode("ascii", errors="ignore")
 
-        # Parse VCP codes from capabilities string
-        # Format: "(vcp(10 12 16 18 1A ...))"
-        import re
+        # Parse VCP codes from capabilities string. A code may carry a nested
+        # value list, as in "14(05 08 0B)", so the group is read balanced.
+        from calibrate_pro.hardware.mccs_caps import parse_capabilities
 
-        vcp_match = re.search(r"vcp\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
-        if vcp_match:
-            vcp_str = vcp_match.group(1)
-            for code in vcp_str.split():
-                try:
-                    code_int = int(code, 16)
-                    caps.supported_vcp_codes.append(code_int)
-                except ValueError:
-                    pass
+        caps.supported_vcp_codes.extend(parse_capabilities(caps.raw_capabilities).codes)
 
         # Check for feature support from VCP code list
         codes = set(caps.supported_vcp_codes)
@@ -724,15 +716,9 @@ class DDCCIController:
         caps.has_power_mode = VCPCode.POWER_MODE in codes
         caps.has_osd_control = VCPCode.OSD_ENABLED in codes
 
-        # Parse model name
-        model_match = re.search(r"model\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
-        if model_match:
-            caps.model = model_match.group(1).strip()
-
-        # Parse VCP version
-        vcp_ver_match = re.search(r"mccs_ver\(([^)]+)\)", caps.raw_capabilities, re.IGNORECASE)
-        if vcp_ver_match:
-            caps.vcp_version = vcp_ver_match.group(1).strip()
+        parsed = parse_capabilities(caps.raw_capabilities)
+        caps.model = parsed.model
+        caps.vcp_version = parsed.mccs_version
 
         return caps
 
