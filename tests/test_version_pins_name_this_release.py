@@ -52,6 +52,9 @@ _HISTORICAL = (
     "project-docs/assessments/",
     "CHANGELOG.md",
     "tests/",
+    # The publish metadata baseline lists the paths of files with a frozen
+    # finding, plan documents among them; it names files, not this release.
+    ".github/publish-metadata-baseline.json",
 )
 
 
