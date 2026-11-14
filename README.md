@@ -60,7 +60,7 @@ It suits people with a wide-gamut or OLED monitor who want sRGB and video conten
 - Choose a method and target, then review the exact plan before deciding whether to confirm any display change.
 - Read the result. Values stay estimated or **Not measured** unless they came from an instrument.
 
-The [animated explainer](https://harperz9.github.io/repo-explainers/calibrate-pro.html) walks through the same steps with output from this repository. Its source is [docs/explainer/index.html](docs/explainer/index.html).
+The animated explainer in [docs/explainer/index.html](docs/explainer/index.html) walks through the same steps with output from this repository. Open the file in a browser; it is not published on the site yet.
 
 ### Reporting what you find
 
