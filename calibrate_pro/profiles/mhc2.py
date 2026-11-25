@@ -15,12 +15,15 @@ This tag is essential for proper HDR display calibration on Windows.
 Reference: Microsoft Color Management documentation
 """
 
+import logging
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # MHC2 Constants
@@ -535,8 +538,8 @@ def extract_mhc2_from_profile(profile_path: str | Path) -> MHC2Tag | None:
                 mhc2_data = data[tag_offset : tag_offset + tag_size]
                 return MHC2Tag.from_bytes(mhc2_data)
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to extract MHC2 tag from %s: %s", path, exc)
 
     return None
 
@@ -1027,7 +1030,8 @@ def install_mhc2_profile(profile_path: str | Path, display_index: int = 0) -> bo
         data = profile_path.read_bytes()
         if len(data) < 128 or data[36:40] != b"acsp":
             return False
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to validate MHC2 ICC profile %s: %s", profile_path, exc)
         return False
 
     # Step 1: Copy to system color directory
@@ -1044,7 +1048,8 @@ def install_mhc2_profile(profile_path: str | Path, display_index: int = 0) -> bo
     except PermissionError:
         # Need admin privileges
         return False
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to copy MHC2 profile %s to system color directory: %s", profile_path, exc)
         return False
 
     # Step 2: Register and associate with display using mscms.dll
@@ -1108,5 +1113,11 @@ def install_mhc2_profile(profile_path: str | Path, display_index: int = 0) -> bo
 
         return True
 
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "Failed to register or associate MHC2 profile %s on display %s: %s",
+            profile_path,
+            display_index,
+            exc,
+        )
         return False

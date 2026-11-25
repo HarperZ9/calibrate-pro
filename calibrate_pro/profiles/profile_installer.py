@@ -13,6 +13,7 @@ Uses the Windows Color Management API (ICM/WCS).
 
 import ctypes
 import json
+import logging
 import os
 import re
 import threading
@@ -24,6 +25,8 @@ from datetime import datetime
 from enum import Enum, IntEnum
 from pathlib import Path, PureWindowsPath
 from typing import Any, TypeGuard
+
+logger = logging.getLogger(__name__)
 
 try:
     import winreg
@@ -2509,8 +2512,8 @@ def get_display_profile(device_name: str) -> str | None:
     """
     try:
         return get_default_profile_for_display(device_name)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to get default color profile for display %s: %s", device_name, exc)
 
     return None
 
@@ -2545,8 +2548,8 @@ def get_associated_profiles(device_name: str) -> list[str]:
                 except OSError:
                     break
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to read associated color profiles for display %s: %s", device_name, exc)
 
     return profiles
 

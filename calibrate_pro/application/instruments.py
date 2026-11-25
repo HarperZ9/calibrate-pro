@@ -24,12 +24,15 @@ report that no USB driver was ever pulled into its process.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from typing import Protocol
 
 from calibrate_pro.application.detection import CapabilityUnavailable
 from calibrate_pro.panels.detection import DisplayInfo
+
+logger = logging.getLogger(__name__)
 
 #: What a session reports when nothing wired a port. It names the composition
 #: rather than the machine, so a reader never mistakes it for a probe result.
@@ -225,11 +228,13 @@ def available_instruments() -> tuple[str, ...]:
     """
     try:
         from calibrate_pro.hardware.native_backend import detect_colorimeters
-    except Exception:
+    except Exception as exc:
+        logger.warning("Native colorimeter backend unavailable: %s", exc)
         return ()
     try:
         devices = detect_colorimeters()
-    except Exception:
+    except Exception as exc:
+        logger.warning("USB colorimeter enumeration failed: %s", exc)
         return ()
     if not isinstance(devices, list):
         return ()

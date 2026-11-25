@@ -17,6 +17,7 @@ the sensorless pass gets you 90% of the way there and measurement
 only needs to correct the remaining 10%.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -318,7 +319,10 @@ class HybridCalibrationEngine:
             try:
                 xyz = self.measure_fn(r, g, b)
                 measurements.append(xyz)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Hybrid patch measurement failed for (%s, %s, %s): %s", r, g, b, exc
+                )
                 return None
 
         return measurements

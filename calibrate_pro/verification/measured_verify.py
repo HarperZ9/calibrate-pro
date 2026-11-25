@@ -23,6 +23,7 @@ Usage:
     result = mv.verify_colorchecker()
 """
 
+import logging
 import sys
 import time
 from collections.abc import Callable
@@ -173,8 +174,8 @@ def _find_argyll_spotread() -> str | None:
             spotread = config.bin_path / exe
             if spotread.exists():
                 return str(spotread)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Argyll spotread discovery via config failed: %s", exc)
 
     # Fallback: check PATH
     import shutil
@@ -363,8 +364,10 @@ class MeasuredVerification:
                     screen_y = d.position_y
                     screen_w = d.width
                     screen_h = d.height
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Display geometry lookup failed; falling back to Tk screen metrics: %s", exc
+                )
 
             if screen_w == 0 or screen_h == 0:
                 screen_w = root.winfo_screenwidth()

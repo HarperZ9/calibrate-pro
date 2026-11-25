@@ -239,6 +239,6 @@ def detect_acm_enabled() -> bool:
             except OSError:
                 break
         winreg.CloseKey(key)
-    except Exception:
-        pass
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Failed to inspect Windows HDR registry state: %s", exc)
     return False

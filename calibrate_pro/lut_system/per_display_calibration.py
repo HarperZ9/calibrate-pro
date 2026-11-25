@@ -13,6 +13,7 @@ Features:
 """
 
 import json
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -322,7 +323,10 @@ class PerDisplayCalibrationManager:
             try:
                 lut = load_lut(profile.lut_path)
                 lut_data = lut.data
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Failed to load LUT %s for display calibration: %s", profile.lut_path, exc
+                )
                 return False
 
         if lut_data is None:
@@ -494,8 +498,10 @@ class PerDisplayCalibrationManager:
             profile_path = Path(self.config.profiles_dir) / f"display_{display_id}.json"
             if profile_path.exists():
                 return json.loads(profile_path.read_text())
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Failed to read per-display profile for display %s: %s", display_id, exc
+            )
         return None
 
 

@@ -57,7 +57,8 @@ def _get_foreground_window() -> int:
         user32 = ctypes.windll.user32
         hwnd = user32.GetForegroundWindow()
         return hwnd
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to query foreground window handle: %s", exc)
         return 0
 
 
@@ -68,7 +69,8 @@ def _get_pid_from_hwnd(hwnd: int) -> int:
         pid = ctypes.wintypes.DWORD(0)
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         return pid.value
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to query process ID for window handle %s: %s", hwnd, exc)
         return 0
 
 
@@ -96,7 +98,8 @@ def _get_process_exe(pid: int) -> str:
             return ""
         finally:
             kernel32.CloseHandle(handle)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to resolve executable path for PID %s: %s", pid, exc)
         return ""
 
 
@@ -106,7 +109,8 @@ def _exe_name(exe_path: str) -> str:
         return ""
     try:
         return Path(exe_path).name
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to parse executable path %r via Path: %s", exe_path, exc)
         return exe_path.rsplit("\\", 1)[-1].rsplit("/", 1)[-1]
 
 
@@ -371,8 +375,14 @@ class AppProfileSwitcher:
                         if self._on_switch is not None:
                             try:
                                 self._on_switch(app_name, old_profile, new_profile)
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.warning(
+                                    "Profile switch callback failed for %s (%s -> %s): %s",
+                                    app_name,
+                                    old_profile,
+                                    new_profile,
+                                    exc,
+                                )
 
                     self._current_app = app_name
 

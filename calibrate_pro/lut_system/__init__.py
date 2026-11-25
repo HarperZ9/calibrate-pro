@@ -27,12 +27,15 @@ Usage:
     manager = LUTManager(preferred_backend="nvidia")
 """
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Import LUT format handlers
 from calibrate_pro.lut_system.lut_formats import (
@@ -120,8 +123,8 @@ class LUTManager:
             dwm = DwmLutController()
             if dwm.is_available:
                 self._backends[LUTBackend.DWM] = dwm
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to initialize DWM LUT backend: %s", exc)
 
         # Try NVIDIA backend
         try:
@@ -130,8 +133,8 @@ class LUTManager:
             nvidia = NvidiaAPI()
             if nvidia.is_available:
                 self._backends[LUTBackend.NVIDIA] = nvidia
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to initialize NVIDIA LUT backend: %s", exc)
 
         # Try AMD backend
         try:
@@ -140,8 +143,8 @@ class LUTManager:
             amd = AMDAPI()
             if amd.is_available:
                 self._backends[LUTBackend.AMD] = amd
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to initialize AMD LUT backend: %s", exc)
 
         # Try Intel backend
         try:
@@ -150,8 +153,8 @@ class LUTManager:
             intel = IntelAPI()
             if intel.is_available:
                 self._backends[LUTBackend.INTEL] = intel
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to initialize Intel LUT backend: %s", exc)
 
         # Fallback: Windows gamma ramp
         try:
@@ -159,8 +162,8 @@ class LUTManager:
 
             gamma = GammaRampController()
             self._backends[LUTBackend.GAMMA_RAMP] = gamma
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to initialize Windows gamma ramp fallback backend: %s", exc)
 
     def _select_backend(self, preferred: str | None):
         """Select the best available backend."""
@@ -268,8 +271,8 @@ class LUTManager:
                     )
                 i += 1
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to enumerate displays via Windows API: %s", exc)
 
     @property
     def is_available(self) -> bool:
@@ -352,8 +355,13 @@ class LUTManager:
                 b = (lut1d.data[:, 2] * 65535).astype(np.uint16)
                 return backend.set_gamma_ramp(display_id, r, g, b)
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Failed to load 3D LUT on display %s via backend %s: %s",
+                display_id,
+                self._active_backend.value,
+                exc,
+            )
 
         return False
 
@@ -391,7 +399,8 @@ class LUTManager:
 
             return success
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to load LUT file %s for display %s: %s", filepath, display_id, exc)
             return False
 
     def unload_lut(self, display_id: int) -> bool:
@@ -424,7 +433,8 @@ class LUTManager:
 
             return result
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to unload LUT for display %s: %s", display_id, exc)
             return False
 
     def reload_all_luts(self) -> dict[int, bool]:
@@ -455,15 +465,15 @@ class LUTManager:
         for display in self._displays:
             try:
                 self.unload_lut(display.id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to unload LUT during cleanup for display %s: %s", display.id, exc)
 
         for backend in self._backends.values():
             if hasattr(backend, "cleanup"):
                 try:
                     backend.cleanup()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Failed to clean up LUT backend %s: %s", type(backend).__name__, exc)
 
 
 # Convenience functions

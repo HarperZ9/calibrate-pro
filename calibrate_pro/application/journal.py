@@ -8,6 +8,7 @@ import getpass
 import hashlib
 import hmac
 import json
+import logging
 import math
 import ntpath
 import os
@@ -493,7 +494,8 @@ class WindowsPrivateSaltStore:
     def load_or_create_verified_salt(self) -> bytes | None:
         try:
             candidate = self._random_bytes(_PRIVATE_SALT_BYTES)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to generate private salt entropy: %s", exc)
             return None
         if type(candidate) is not bytes or len(candidate) != _PRIVATE_SALT_BYTES:
             return None
@@ -504,11 +506,13 @@ class WindowsPrivateSaltStore:
                     return None
                 try:
                     backend = _CtypesWindowsPrivateSaltBackend()
-                except Exception:
+                except Exception as exc:
+                    logging.getLogger(__name__).warning("Failed to initialize Windows private salt backend: %s", exc)
                     return None
             try:
                 salt = backend.load_or_create_verified(self.path, candidate)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to load or create verified private salt: %s", exc)
                 return None
         if type(salt) is not bytes or len(salt) != _PRIVATE_SALT_BYTES:
             return None
@@ -560,7 +564,8 @@ def _wait_for_private_salt_handle(
             if remaining <= 0:
                 return None
             sleeper(min(retry_interval_seconds, remaining))
-    except Exception:
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Private salt retry loop failed: %s", exc)
         return None
     return None
 
@@ -600,7 +605,8 @@ class _CtypesWindowsPrivateSaltBackend:
             finally:
                 self._local_free(security_descriptor)
             return self._open_verify_and_read(path, expected_sddl)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Windows private salt verification failed for %s: %s", path, exc)
             return None
 
     def _configure_signatures(self) -> None:
@@ -936,7 +942,8 @@ class DisplayPseudonymizer:
             return None
         try:
             salt = self._salt_store.load_or_create_verified_salt()
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to load diagnostic salt from salt store: %s", exc)
             return None
         if type(salt) is not bytes or len(salt) != _PRIVATE_SALT_BYTES:
             return None
@@ -1560,7 +1567,8 @@ def _process_is_alive(process_id: int) -> bool:
             finally:
                 close_handle(handle)
             return wait_result != _WAIT_OBJECT_0
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Windows process liveness probe failed for PID %s: %s", process_id, exc)
             return True
 
     try:
@@ -1880,7 +1888,8 @@ class DiagnosticBundleManager:
     def _path_entry_exists(path: Path) -> bool:
         try:
             return os.path.lexists(os.fspath(path))
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to check path existence for %s: %s", path, exc)
             return True
 
     def _cleanup_owned_temps(self, parent: Path) -> None:
@@ -1898,7 +1907,8 @@ class DiagnosticBundleManager:
             process_id = int(match.group("pid"))
             try:
                 process_alive = self._process_is_alive(process_id)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to inspect temp-file owner PID %s: %s", process_id, exc)
                 continue
             # Ambiguous liveness, inaccessible processes, and PID reuse are
             # retained. Cleanup is intentionally limited to proven-dead owners.
@@ -2093,7 +2103,8 @@ class DiagnosticBundleManager:
     ) -> bool:
         try:
             actual_length, actual_sha256 = self._verify_zip(destination, public_payloads)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Diagnostic bundle verification failed for %s: %s", destination, exc)
             return False
         return actual_length == byte_length and hmac.compare_digest(actual_sha256, bundle_sha256)
 

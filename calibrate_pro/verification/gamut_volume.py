@@ -11,6 +11,7 @@ Provides comprehensive gamut coverage and volume analysis:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
@@ -595,10 +596,11 @@ def calculate_gamut_volume_lab(samples: np.ndarray) -> float | None:
     try:
         hull = spatial.ConvexHull(samples)
         return float(hull.volume)
-    except Exception:
+    except Exception as exc:
         # None, not 0.0. A convex hull fails on degenerate samples, and a
         # reported volume of zero reads as a display that covers nothing
         # rather than one this function never managed to measure.
+        logging.getLogger(__name__).warning("ConvexHull volume computation failed on gamut samples: %s", exc)
         return None
 
 
@@ -842,8 +844,8 @@ class GamutAnalyzer:
         if spatial is not None and samples is not None and len(samples) >= 4:
             try:
                 hull_lab = spatial.ConvexHull(samples)
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.getLogger(__name__).warning("ConvexHull Lab boundary construction failed: %s", exc)
 
         return GamutBoundary(
             boundary_xy=boundary_xy,

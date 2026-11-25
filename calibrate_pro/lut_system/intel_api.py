@@ -11,11 +11,14 @@ Features:
 """
 
 import ctypes
+import logging
 from ctypes import wintypes
 from dataclasses import dataclass
 from enum import IntEnum
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class CTLResult(IntEnum):
@@ -94,8 +97,8 @@ class IntelAPI:
             # Try to initialize
             self._init_control_library()
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Intel IGCL initialization failed: %s", exc)
 
     def _init_control_library(self):
         """Initialize the control library API."""
@@ -115,8 +118,8 @@ class IntelAPI:
                 # Try legacy initialization
                 self._init_legacy()
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Intel control library API init failed: %s", exc)
 
     def _init_legacy(self):
         """Initialize using legacy Intel graphics API."""
@@ -154,7 +157,8 @@ class IntelAPI:
                         )
                     )
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Intel CTL display enumeration failed, falling back to Windows API: %s", exc)
             self._detect_displays_windows()
 
     def _detect_displays_windows(self):
@@ -196,8 +200,8 @@ class IntelAPI:
                         )
                 i += 1
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Windows display enumeration for Intel GPUs failed: %s", exc)
 
     @property
     def is_available(self) -> bool:
@@ -232,7 +236,8 @@ class IntelAPI:
             # Fall back to Windows gamma ramp
             return self._apply_via_windows(display_index, r, g, b)
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Intel gamma ramp load failed for display %s: %s", display_index, exc)
             return False
 
     def _apply_via_windows(self, display_id: int, r: np.ndarray, g: np.ndarray, b: np.ndarray) -> bool:
@@ -242,7 +247,8 @@ class IntelAPI:
 
             controller = GammaRampController()
             return controller.set_gamma_ramp(display_id, r, g, b)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Windows gamma ramp fallback failed for display %s: %s", display_id, exc)
             return False
 
     def load_3d_lut(self, display_index: int, lut_data: np.ndarray) -> bool:
@@ -275,7 +281,8 @@ class IntelAPI:
 
             controller = DwmLutController()
             return controller.load_lut(display_index, lut_data)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Intel 3D LUT load failed for display %s: %s", display_index, exc)
             return False
 
     def set_color_enhancement(
@@ -299,8 +306,8 @@ class IntelAPI:
         try:
             # Would use ctlSetColorEnhancement or Intel Control Panel API
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Intel color enhancement failed for display %s: %s", display_index, exc)
 
         return False
 
@@ -331,8 +338,8 @@ class IntelAPI:
             try:
                 if hasattr(self._ctl, "ctlClose") and self._api_handle:
                     self._ctl.ctlClose(self._api_handle)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Intel IGCL cleanup failed: %s", exc)
             self._initialized = False
 
 

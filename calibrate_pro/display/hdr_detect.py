@@ -10,8 +10,11 @@ Uses multiple detection methods:
 3. dwm_lut: Check if HDR LUTs are loaded
 """
 
+import logging
 import winreg
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,13 +47,15 @@ def detect_hdr_state() -> list[HDRDisplayState]:
         from calibrate_pro.panels.detection import enumerate_displays, get_display_name
 
         displays = enumerate_displays()
-    except Exception:
+    except Exception as exc:
+        logger.warning("HDR display enumeration failed: %s", exc)
         return states
 
     for i, display in enumerate(displays):
         try:
             name = get_display_name(display)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to resolve display name for index %s: %s", i, exc)
             name = display.monitor_name or f"Display {i + 1}"
 
         # Try registry detection first (most reliable on Windows 10/11)
@@ -71,8 +76,8 @@ def detect_hdr_state() -> list[HDRDisplayState]:
                 if panel:
                     hdr_capable = panel.capabilities.hdr_capable
                     peak_lum = panel.capabilities.max_luminance_hdr
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Panel database HDR capability lookup failed for display %s: %s", name, exc)
 
         state = HDRDisplayState(
             display_index=i,
@@ -133,8 +138,8 @@ def _check_hdr_registry(device_name: str) -> bool:
         except FileNotFoundError:
             pass
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Windows HDR registry check failed for %s: %s", device_name, exc)
 
     return False
 
@@ -165,8 +170,8 @@ def _get_sdr_white_level(device_name: str) -> float | None:
             except OSError:
                 break
         winreg.CloseKey(key)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to read SDR content brightness for %s: %s", device_name, exc)
 
     return None
 
@@ -224,8 +229,8 @@ class HDRModeWatcher:
                             self.on_hdr_change(state.display_index, state.hdr_enabled, state)
                     elif prev is None:
                         self._last_states[state.display_index] = state.hdr_enabled
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("HDR mode watch poll failed: %s", exc)
 
 
 def print_hdr_status():
