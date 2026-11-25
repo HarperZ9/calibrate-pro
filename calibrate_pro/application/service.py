@@ -28,6 +28,7 @@ loads either, and the shipped build can still prove that.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -207,7 +208,8 @@ class FunctionalRecoveryService(
             if not self._instruments.present():
                 return None
             described = self._instruments.describe()
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Instrument description lookup failed: %s", exc)
             return None
         if type(described) is not str or not described.strip():
             return None

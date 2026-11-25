@@ -14,6 +14,7 @@ Features:
 
 import ctypes
 import json
+import logging
 import os
 import struct
 import threading
@@ -25,6 +26,8 @@ from enum import Enum
 from pathlib import Path
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Windows API
 user32 = ctypes.windll.user32
@@ -488,7 +491,8 @@ class ColorLoader:
 
             return None
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to extract VCGT tag from %s: %s", icc_path, exc)
             return None
 
     def _parse_vcgt(self, vcgt_data: bytes) -> np.ndarray | None:
@@ -546,7 +550,8 @@ class ColorLoader:
 
             return None
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to parse VCGT tag payload: %s", exc)
             return None
 
     def _extract_trc(self, icc_path: Path) -> np.ndarray | None:
@@ -580,7 +585,8 @@ class ColorLoader:
 
             return gamma_ramp
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to extract TRC curves from %s: %s", icc_path, exc)
             return None
 
     def _parse_trc(self, trc_data: bytes) -> np.ndarray | None:
@@ -628,7 +634,8 @@ class ColorLoader:
 
             return None
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to parse TRC curve tag: %s", exc)
             return None
 
     def _save_config(self):
@@ -686,8 +693,8 @@ class ColorLoader:
         for callback in self._callbacks:
             try:
                 callback(event, self.get_status())
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("ColorLoader callback failed for event %s: %s", event, exc)
 
 
 # Singleton instance

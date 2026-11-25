@@ -113,7 +113,8 @@ def run_hardware_first_calibration(
         try:
             brightness = ddc.get_vcp(monitor, VCPCode.BRIGHTNESS)
             result.initial_brightness = brightness[0] if brightness else 50
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to read initial DDC brightness; defaulting to 50: %s", exc)
             result.initial_brightness = 50
 
         try:
@@ -125,7 +126,10 @@ def run_hardware_first_calibration(
                 g_gain[0] if g_gain else 100,
                 b_gain[0] if b_gain else 100,
             )
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Failed to read initial DDC RGB gains; defaulting to (100, 100, 100): %s", exc
+            )
             result.initial_rgb_gains = (100, 100, 100)
 
         report(

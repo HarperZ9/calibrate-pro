@@ -8,6 +8,7 @@ Provides display information for calibration target selection.
 from __future__ import annotations
 
 import ctypes
+import logging
 import re
 import struct
 import sys
@@ -18,6 +19,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import numpy as np
@@ -2230,8 +2233,8 @@ def get_display_profile(device_name: str) -> str | None:
             if result:
                 return buffer.value
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to read ICM profile for display %s: %s", device_name, exc)
 
     return None
 
@@ -2256,7 +2259,8 @@ def set_display_profile(device_name: str, profile_path: str) -> bool:
             result = gdi32.SetICMProfileW(dc, profile_path)
             return bool(result)
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to set ICM profile %s on display %s: %s", profile_path, device_name, exc)
         return False
 
 
@@ -2288,7 +2292,8 @@ def install_profile(profile_path: str, set_as_default: bool = True) -> bool:
 
         success, _message = profile_installer.install_profile(source)
         return success
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to install color profile %s: %s", profile_path, exc)
         return False
 
 
@@ -2341,8 +2346,8 @@ def get_gamma_ramp(device_name: str) -> tuple | None:
                 blue = np.array(ramp.Blue[:], dtype=np.uint16)
                 return (red, green, blue)
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to read gamma ramp for display %s: %s", device_name, exc)
 
     return None
 
@@ -2378,7 +2383,8 @@ def set_gamma_ramp(device_name: str, red: np.ndarray, green: np.ndarray, blue: n
             result = gdi32.SetDeviceGammaRamp(dc, ctypes.byref(ramp))
             return bool(result)
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to set gamma ramp for display %s: %s", device_name, exc)
         return False
 
 

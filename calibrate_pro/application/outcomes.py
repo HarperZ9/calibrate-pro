@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import platform
 import re
 import sys
@@ -384,7 +385,8 @@ class ActionBoundary:
                 recovery_guarantee=failure.recovery_guarantee,
             )
             failure_sync = self._journal_sink.append_and_sync(failure_record)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to sync failure record for %s: %s", action_id, exc)
             failure_sync = None
         if not isinstance(failure_sync, ActionSuccess):
             return self._sync_failure(
@@ -452,8 +454,8 @@ class ActionBoundary:
                 recovery_guarantee=None,
             )
             self._journal_sink.append_and_sync(record)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to record correlation failure for %s: %s", action_id, exc)
         return outcome
 
     def _requires_preflight(self, action_id: str) -> bool:
@@ -470,7 +472,8 @@ class ActionBoundary:
     def _preflight(self, action_id: str, stage: WorkflowStage, correlation_id: str) -> ActionError | None:
         try:
             outcome = self._journal_sink.preflight(action_id, correlation_id)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Journal preflight failed for %s: %s", action_id, exc)
             outcome = None
         if isinstance(outcome, ActionSuccess):
             return None
@@ -495,8 +498,8 @@ class ActionBoundary:
             return
         try:
             cancel(action_id, correlation_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Journal preflight cancellation failed for %s: %s", action_id, exc)
 
     def _effect_evidence(
         self,
@@ -551,31 +554,41 @@ class ActionBoundary:
         if action_id == "fake_acceptance.apply":
             try:
                 phase_flags = _read_apply_phase_flags(outcome.value)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to recover apply phase flags for %s: %s", action_id, exc)
                 phase_flags = ()
             try:
                 recovery_guarantee = _read_recovery_guarantee(outcome.value)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to recover recovery guarantee for %s: %s", action_id, exc)
                 recovery_guarantee = None
             return "fake_apply_attempted", None, phase_flags, recovery_guarantee
         try:
             spec = self._registry._spec_for(action_id)
-        except Exception:
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Failed to resolve action spec for %s: %s", action_id, exc)
             return "none", None, (), None
         if spec is not None and spec.classification is ActionClassification.PHYSICAL_MUTATION:
             try:
                 phase_flags = _read_apply_phase_flags(outcome.value)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Failed to recover physical apply phase flags for %s: %s", action_id, exc
+                )
                 phase_flags = ()
             try:
                 recovery_guarantee = _read_recovery_guarantee(outcome.value)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Failed to recover physical recovery guarantee for %s: %s", action_id, exc
+                )
                 recovery_guarantee = None
             return "physical_apply_attempted", None, phase_flags, recovery_guarantee
         if spec is not None and spec.classification is ActionClassification.LOCAL_FILE_WRITE:
             try:
                 published_artifact = _read_published_artifact(outcome.value)
-            except Exception:
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Failed to recover published artifact for %s: %s", action_id, exc)
                 published_artifact = None
             if published_artifact is not None:
                 return "local_write_published", published_artifact, (), None

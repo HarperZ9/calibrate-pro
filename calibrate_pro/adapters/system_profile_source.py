@@ -28,6 +28,7 @@ the same path as the first and be refused for it.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,8 @@ from calibrate_pro.application.system_profiles import (
     SystemProfileReading,
     SystemProfileUnavailable,
 )
+
+logger = logging.getLogger(__name__)
 
 #: What a reading from this source names as the instrument that produced it.
 #: Windows Color System is the component that answers, and an operator reading a
@@ -105,7 +108,8 @@ class WindowsSystemProfilePort:
             raise SystemProfileError(f"{INSTRUMENT} would not enumerate its profiles: {exc}") from exc
         try:
             default: str | None = str(api.get_default_profile_for_display(display_id))
-        except Exception:
+        except Exception as exc:
+            logger.warning("Default color profile read for display %s returned no profile: %s", display_id, exc)
             default = None
         return SystemProfileReading(
             display_id=display_id,
@@ -176,7 +180,8 @@ class WindowsSystemProfileSource:
         try:
             api = _load_installer()
             api._enumerate_system_profiles(None)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Windows system profile store presence check failed: %s", exc)
             return False
         return True
 

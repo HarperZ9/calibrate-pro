@@ -13,6 +13,7 @@ loaded into the video card's hardware LUT for real-time color correction.
 """
 
 import ctypes
+import logging
 import struct
 from ctypes import wintypes
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # VCGT Constants
@@ -376,8 +379,8 @@ class GammaRampController:
             self._gdi32 = ctypes.windll.gdi32
             self._user32 = ctypes.windll.user32
             self._is_available = True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Windows GDI32 gamma ramp API unavailable: %s", exc)
 
     @property
     def is_available(self) -> bool:
@@ -571,8 +574,8 @@ def extract_vcgt_from_profile(profile_path: str | Path) -> VCGTTable | None:
                 vcgt_data = data[tag_offset : tag_offset + tag_size]
                 return VCGTTable.from_icc_bytes(vcgt_data)
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to extract VCGT from ICC profile %s: %s", path, exc)
 
     return None
 
@@ -630,7 +633,8 @@ def embed_vcgt_in_profile(profile_path: str | Path, vcgt: VCGTTable, output_path
         # Would need full profile rebuild for adding/resizing tags
         return False
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to embed VCGT in ICC profile %s: %s", path, exc)
         return False
 
 
