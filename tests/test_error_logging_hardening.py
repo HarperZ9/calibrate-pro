@@ -12,15 +12,17 @@ import pytest
 
 from calibrate_pro.adapters.system_profile_source import WindowsSystemProfilePort
 from calibrate_pro.application import instruments
-from calibrate_pro.lut_system import LUTBackend, LUTManager
 from calibrate_pro.profiles.mhc2 import extract_mhc2_from_profile
-from calibrate_pro.profiles.vcgt import extract_vcgt_from_profile
+from calibrate_pro.verification import gamut_volume
 
 
+@pytest.mark.windows
 def test_lut_manager_logs_planted_load_failure_and_returns_false(
     caplog: pytest.LogCaptureFixture, tmp_path: Path
 ) -> None:
     """A planted LUT load exception must emit a structured warning and still return False."""
+    from calibrate_pro.lut_system import LUTBackend, LUTManager
+
     manager = object.__new__(LUTManager)
     manager._backends = {}
     manager._active_backend = LUTBackend.DWM
@@ -54,12 +56,12 @@ def test_lut_manager_logs_planted_load_failure_and_returns_false(
     )
 
 
-def test_vcgt_and_mhc2_extractors_log_planted_corrupt_profile_failures(
-    caplog: pytest.LogCaptureFixture, tmp_path: Path
-) -> None:
-    """Planted corrupt ICC payloads emit structured warnings while returning None."""
+@pytest.mark.windows
+def test_vcgt_extractor_logs_planted_corrupt_profile_failure(caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    """Planted corrupt ICC payloads emit structured warnings from VCGT extraction."""
+    from calibrate_pro.profiles.vcgt import extract_vcgt_from_profile
+
     corrupt_icc = tmp_path / "corrupt.icc"
-    # Header claims 0xFFFF tags in a tiny buffer so struct.unpack fails cleanly.
     corrupt_icc.write_bytes(b"\x00" * 128 + b"\x00\x00\xff\xff" + b"\x00" * 4)
 
     with caplog.at_level(logging.WARNING, logger="calibrate_pro.profiles.vcgt"):
@@ -68,7 +70,13 @@ def test_vcgt_and_mhc2_extractors_log_planted_corrupt_profile_failures(
     assert vcgt is None
     assert any("Failed to extract VCGT from ICC profile" in rec.getMessage() for rec in caplog.records)
 
-    caplog.clear()
+
+def test_mhc2_extractor_logs_planted_corrupt_profile_failure(caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
+    """Planted corrupt ICC payloads emit structured warnings while returning None."""
+    corrupt_icc = tmp_path / "corrupt.icc"
+    # Header claims 0xFFFF tags in a tiny buffer so struct.unpack fails cleanly.
+    corrupt_icc.write_bytes(b"\x00" * 128 + b"\x00\x00\xff\xff" + b"\x00" * 4)
+
     with caplog.at_level(logging.WARNING, logger="calibrate_pro.profiles.mhc2"):
         mhc2 = extract_mhc2_from_profile(corrupt_icc)
 
@@ -115,4 +123,27 @@ def test_system_profile_port_logs_default_profile_fallback_warning(
     assert reading.installed == ("sRGB.icc",)
     assert any(
         "planted WCS no-default error" in rec.getMessage() and rec.levelno == logging.WARNING for rec in caplog.records
+    )
+
+
+def test_gamut_volume_logs_planted_convex_hull_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A planted ConvexHull failure emits a structured warning and returns None."""
+
+    class _ExplodingSpatial:
+        def ConvexHull(self, samples: Any) -> Any:
+            raise ValueError("planted degenerate simplex failure")
+
+    samples = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    with (
+        patch.object(gamut_volume, "_scipy_spatial", return_value=_ExplodingSpatial()),
+        caplog.at_level(logging.WARNING, logger="calibrate_pro.verification.gamut_volume"),
+    ):
+        volume = gamut_volume._compute_3d_gamut_volume(samples)
+
+    assert volume is None
+    assert any(
+        "planted degenerate simplex failure" in rec.getMessage() and rec.levelno == logging.WARNING
+        for rec in caplog.records
     )
