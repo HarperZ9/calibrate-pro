@@ -140,7 +140,7 @@ def test_gamut_volume_logs_planted_convex_hull_failure(
         patch.object(gamut_volume, "_scipy_spatial", return_value=_ExplodingSpatial()),
         caplog.at_level(logging.WARNING, logger="calibrate_pro.verification.gamut_volume"),
     ):
-        volume = gamut_volume._compute_3d_gamut_volume(samples)
+        volume = gamut_volume.calculate_gamut_volume_lab(samples)
 
     assert volume is None
     assert any(
