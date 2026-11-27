@@ -46,8 +46,8 @@ release trust surface is:
   eligible recorded native destroy at most once even after another destroy fails. A false
   or demonstrably pre-call-interrupted destroy remains registered for an explicit retry;
   an uncertain native-call outcome remains registered and poisoned against a possible
-  double destroy. Failures are surfaced, and only successful destroys are described as
-  closed.
+  double destroy. Failures are reported to the caller, and only successful destroys are
+  described as closed.
   Recovery withholds a write if its authoritative comparison already shows a state other
   than the captured prior or this transaction's target, then reads completed writes back;
   it never claims that a reset-to-default operation restored user state. Every DXVA2 API
@@ -91,9 +91,10 @@ release trust surface is:
 
 ## What it does NOT protect against, and does NOT do
 
-- **No ground truth without a colorimeter.** Sensorless mode is a model prediction, not a
-  measurement. It cannot detect that a panel has drifted from its database profile. Only
-  the measured (i1Display3) path compares against a real reading.
+- **No ground truth without a colorimeter.** Sensorless mode outputs a model prediction
+  without taking a hardware measurement. It cannot detect that a panel has drifted from
+  its database profile. Only the measured (i1Display3) path compares against a real
+  reading.
 - **No network, no telemetry.** The core performs no network access and sends no data.
   Reports are written locally.
 - **Trusted same-process Python.** The confirmation gate prevents accidental/direct API
@@ -106,13 +107,13 @@ release trust surface is:
 - **No crash-safe hardware transaction.** Confirmed display changes use in-process
   compensating recovery with authoritative readback. Process termination, power loss, or
   an operating-system crash can interrupt that recovery; receipts identify the guarantee
-  as `IN_PROCESS_BEST_EFFORT` rather than promising durable rollback. Capture sealing,
+  as `IN_PROCESS_BEST_EFFORT` and do not promise durable rollback. Capture sealing,
   apply/verify phase publication, and the verified-to-commit handoff remain inside
   cleanup guards. While ownership remains recorded, cancellation is deferred while every
   applicable compensation domain and recorded release is attempted, then the original
   cancellation is re-raised. After commit releases ownership, state is cleared without
-  unsafe unlocked compensation. Cleanup failures are surfaced and may poison the
-  transaction; successful cleanup is not guaranteed. An abandoned mutex poisons its
+  unsafe unlocked compensation. Cleanup failures are reported to the caller and may poison
+  the transaction; successful cleanup is not guaranteed. An abandoned mutex poisons its
   process-wide key, partial release poisons the adapter, and compensation is refused
   whenever ownership is uncertain.
 - **Cooperating serialization, not operating-system compare-and-swap.** The named mutexes
@@ -136,5 +137,5 @@ digest, schema, and domain validation still run independently.
 ## What does not count
 
 - Sensorless prediction being less accurate than a measured result. That is documented
-  behavior (sensorless is an estimate), not a vulnerability.
+  behavior because sensorless mode is an estimate and does not represent a vulnerability.
 - A malformed input file that raises a normal, handled exception.
