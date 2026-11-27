@@ -255,7 +255,7 @@ powershell -File scripts/build_windows.ps1
 
 ## License
 
-FSL-1.1-MIT. Copyright (c) 2022-2026 Zain Dana Harper. Source-available, not open source: read it, run it, and build on it; commercial Competing Use is reserved to the Licensor to fund continued development. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/LICENSE).
+MIT License. Copyright (c) 2022-2026 Zain Dana Harper. See the [license](https://github.com/HarperZ9/calibrate-pro/blob/main/LICENSE).
 
 ## For developers
 

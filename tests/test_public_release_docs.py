@@ -282,7 +282,7 @@ def test_enterprise_readiness_describes_the_shipped_boundary() -> None:
     text = (ROOT / "docs" / "ENTERPRISE-READINESS.md").read_text(encoding="utf-8")
 
     assert f"Calibrate Pro {SERIES}" in text
-    assert "FSL-1.1-MIT" in text
+    assert "MIT" in text
     assert "PySide6" in text
     assert "proposal-only" in text
     assert "Not measured" in text

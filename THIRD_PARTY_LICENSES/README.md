@@ -1,6 +1,6 @@
 # Third-party notices
 
-Calibrate Pro's FSL-1.1-MIT terms apply only to Calibrate Pro material. They do not replace, restrict, or supersede any third-party license in this directory. Each redistributed dependency remains governed by its own notice and license text.
+Calibrate Pro's MIT License terms apply only to Calibrate Pro material. They do not replace, restrict, or supersede any third-party license in this directory. Each redistributed dependency remains governed by its own notice and license text.
 
 Qt for Python, Shiboken, and the approved Qt libraries are distributed under the LGPL-3.0-only option identified in `Qt-for-Python-NOTICE.txt`. The full license is in `LGPL-3.0-only.txt`; exact source locations and hashes are in `QT_SOURCE_OFFER.txt` and `../packaging/source-provenance.lock.json`; practical replacement instructions are in `LGPL_RELINKING.md`.
 

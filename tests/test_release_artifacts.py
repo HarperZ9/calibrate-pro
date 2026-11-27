@@ -115,7 +115,7 @@ def synthetic_valid_stage(tmp_path: Path) -> tuple[Path, Path, dict[str, Path]]:
                     "id": "calibrate-pro",
                     "owner": "calibrate-pro",
                     "version": __version__,
-                    "license": "LicenseRef-FSL-1.1-MIT",
+                    "license": "MIT",
                     "notice_paths": ["LICENSE"],
                     "provenance": [{"kind": "release_source", "name": SDIST_NAME}],
                 },
