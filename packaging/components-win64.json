@@ -7,7 +7,7 @@
       "id": "calibrate-pro-2.0.1",
       "owner": "calibrate-pro",
       "version": "2.0.1",
-      "license": "LicenseRef-FSL-1.1-MIT",
+      "license": "MIT",
       "notice_paths": [
         "LICENSE"
       ],

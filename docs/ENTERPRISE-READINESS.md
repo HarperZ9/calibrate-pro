@@ -53,7 +53,7 @@ The complete supported and unsupported trust surface is documented in
 - Desktop stack: PySide6, QtPy, and Build UI 2.
 - Color/numerical stack: Build Color, NumPy, and SciPy.
 - Optional instrument transport: hidapi.
-- License: FSL-1.1-MIT; see [LICENSE](../LICENSE).
+- License: MIT; see [LICENSE](../LICENSE).
 
 The release build uses a committed hash lock, an exact frozen-module allowlist, pinned
 toolchain receipts, a per-user Inno Setup installer, a portable ZIP, third-party
