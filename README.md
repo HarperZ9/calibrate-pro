@@ -91,6 +91,8 @@ calibrate-pro doctor
 
 Use `"calibrate-pro[gui,sensor]"` to add colorimeter support.
 
+mcp-name: io.github.harperz9/calibrate-pro
+
 ### Standalone (Windows)
 
 Download the per-user installer or portable ZIP from [Releases](https://github.com/HarperZ9/calibrate-pro/releases). No Python installation is required. Both desktop entry points start unelevated, and `calibrate-pro doctor` reports any hardware or operating-system capability that is missing.
