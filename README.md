@@ -9,7 +9,7 @@ Calibrate a Windows monitor with or without a colorimeter. Calibrate Pro builds 
 
 [![version: 2.0.1](https://img.shields.io/badge/version-2.0.1-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/releases/latest)
 [![CI](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/calibrate-pro/actions/workflows/ci.yml)
-[![license](https://img.shields.io/badge/license-FSL--1.1--MIT-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-e6e1d6?style=flat-square&labelColor=1a1712)](https://github.com/HarperZ9/calibrate-pro/blob/main/LICENSE)
 ![python 3.10+](https://img.shields.io/badge/python-3.10%2B-e6e1d6?style=flat-square&labelColor=1a1712)
 
 ## Try it
@@ -147,7 +147,7 @@ calibrate-pro mcp               # Serve the MCP endpoint
 
 The split is a packaging decision recorded in `packaging/frozen-features.json`, and a name in none of its lists reaches an operator as an unknown command. Run `calibrate-pro --help` for the complete command list.
 
-Old direct-action names such as `auto`, `calibrate`, and `restore` are declined in 2.0 by the packaged binary and by the wheel alike. Neither changes display state, and the packaged binary says what it will not do rather than recommending an install that would end at the same refusal. Both point to the window, where a change is previewed and confirmed.
+Old direct-action names such as `auto`, `calibrate`, and `restore` are declined in 2.0 by the packaged binary and by the wheel alike. Neither changes display state, and the packaged binary states what it refuses without recommending an install that would end at the same refusal. Both point to the window, where a change is previewed and confirmed.
 
 See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/USAGE.md) for installation, command behavior, evidence labels, troubleshooting, and the [read-only example](https://github.com/HarperZ9/calibrate-pro/tree/v2.0.1/examples).
 
@@ -170,9 +170,9 @@ See the [usage guide](https://github.com/HarperZ9/calibrate-pro/blob/v2.0.1/USAG
 
 Without a colorimeter there is no measurement of the attached unit. Calibrate Pro therefore renders unavailable observations as **Not measured** and labels model-derived diagnostics as **estimated**.
 
-Measured calibration runs in the desktop window. The measured method opens once a supported colorimeter answers on USB and a display is selected. Starting a run needs the display's video card gamma table to read back as identity, because an instrument pointed at a corrected display characterizes the panel together with whatever correction is loaded, and a second correction built from those numbers doubles the first. Calibrate Pro reads that table and refuses the run rather than clearing it, so removing a loaded correction stays something the operator does in the tool that loaded it. The check covers one layer, and the sentence it records names what it did not look at: a DWM LUT, a colour-managed application's own profile, and a correction running inside the monitor.
+Measured calibration runs in the desktop window. The measured method opens once a supported colorimeter answers on USB and a display is selected. Starting a run needs the display's video card gamma table to read back as identity, because an instrument pointed at a corrected display characterizes the panel together with whatever correction is loaded, and a second correction built from those numbers doubles the first. Calibrate Pro reads that table and refuses the run without clearing it, so removing a loaded correction stays something the operator does in the tool that loaded it. The check covers one layer, and the sentence it records names what it did not look at: a DWM LUT, a colour-managed application's own profile, and a correction running inside the monitor.
 
-A run opens a patch window on the selected display and walks four 17-step ramps, neutral and then each channel, for 68 patches at full field. It records the reading with the instrument's identity and the patch geometry, since a luminance read at one window size is not the same number at another. The result becomes the session's characterization, so a plan generated afterwards is derived from the reading instead of from the panel database, and a bundle sealed before the run is dropped. Measured verification reads the display again once a plan is confirmed or applied and reports the result from that second reading; a session holding a measured result is refused sensorless verification, because a model writing into the same accuracy field would replace what the instrument found. The terminal has no measure command in 2.0, and `native-calibrate` and `refine` decline there and name the action behind them.
+A run opens a patch window on the selected display and walks four 17-step ramps, neutral and then each channel, for 68 patches at full field. It records the reading with the instrument's identity and the patch geometry, since a luminance read at one window size is not the same number at another. The result becomes the session's characterization, so a plan generated afterwards is derived from the live reading directly over the panel database, and a bundle sealed before the run is dropped. Measured verification reads the display again once a plan is confirmed or applied and reports the result from that second reading; a session holding a measured result is refused sensorless verification, because a model writing into the same accuracy field would replace what the instrument found. The terminal has no measure command in 2.0, and `native-calibrate` and `refine` decline there and name the action behind them.
 
 ### Native USB colorimeter driver
 
@@ -198,7 +198,7 @@ A monitor the database does not name is held uncharacterized until you say what 
 stands on. The session offers the primaries and gamma the display declares in its EDID,
 and falls back to a nominal sRGB record where the display declares nothing readable.
 A declaration is labelled `edid_declared` and its evidence stays estimated, because the
-numbers describe the model rather than the unit on the desk.
+numbers describe the model over the unit on the desk.
 
 ## Output Files
 
@@ -268,6 +268,6 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
----
+
 
 Built by **[Zain Dana Harper](https://harperz9.github.io)** in Seattle. More tools at [harperz9.github.io](https://harperz9.github.io).
